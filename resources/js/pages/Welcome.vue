@@ -59,7 +59,7 @@ withDefaults(
                 >
                     <h1 class="mb-1 font-medium">Alejandro A. Cayasa</h1>
                     <p class="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                        Amazing grace, wowowoow<br />I Love Arabella May Duisa So Much
+                        Amazing grace, wowowoow<br />I Love Arabella May Duisa So Much!!!!!!! 
                     </p>
                     <ul class="mb-4 flex flex-col lg:mb-6">
                         <li
