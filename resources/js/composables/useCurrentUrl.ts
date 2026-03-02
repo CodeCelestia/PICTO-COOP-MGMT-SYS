@@ -22,12 +22,13 @@ export type UseCurrentUrlReturn = {
     ) => T | F;
 };
 
-const page = usePage();
-const currentUrlReactive = computed(
-    () => new URL(page.url, window?.location.origin).pathname,
-);
-
 export function useCurrentUrl(): UseCurrentUrlReturn {
+    // Must be called inside a component setup so usePage() is properly reactive
+    // across Inertia navigations (module-level calls lose reactivity after navigation)
+    const page = usePage();
+    const currentUrlReactive = computed(
+        () => new URL(page.url, window?.location.origin).pathname,
+    );
     function isCurrentUrl(
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,

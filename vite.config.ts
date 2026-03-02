@@ -5,6 +5,9 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    resolve: {
+        dedupe: ['vue', '@inertiajs/vue3', '@inertiajs/core'],
+    },
     plugins: [
         laravel({
             input: ['resources/js/app.ts'],
