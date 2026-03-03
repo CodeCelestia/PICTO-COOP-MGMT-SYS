@@ -25,7 +25,7 @@ withDefaults(
             </template>
         </div>
         <div class="flex items-center gap-2 text-xs text-slate-400 font-medium select-none">
-            PICTO Coop Management System
+            Coop Management System
         </div>
     </header>
 </template>

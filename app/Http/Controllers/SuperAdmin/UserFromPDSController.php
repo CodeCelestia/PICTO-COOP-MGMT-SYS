@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 class UserFromPDSController extends Controller
 {
@@ -22,8 +23,14 @@ class UserFromPDSController extends Controller
                 ->with('info', 'User account already exists for this PDS.');
         }
 
+        // Get all available system roles
+        $systemRoles = Role::orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+
         return Inertia::render('super-admin/PDS/CreateUser', [
             'pds' => $pds,
+            'systemRoles' => $systemRoles,
         ]);
     }
 
@@ -38,7 +45,8 @@ class UserFromPDSController extends Controller
                 ->with('error', 'User account already exists for this PDS.');
         }
 
-        $validRoles = ['super_admin', 'coop_admin', 'chairperson', 'general_manager', 'officer', 'committee_member', 'member'];
+        // Get valid roles from database
+        $validRoles = Role::pluck('name')->toArray();
 
         $validated = $request->validate([
             'email'    => 'required|email|unique:users,email',

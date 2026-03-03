@@ -2,7 +2,7 @@
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import { onMounted, ref } from "vue";
 import { FileText, ArrowLeft } from "lucide-vue-next";
-import { store as pdsStore } from "@/routes/super-admin/pds";
+import { store as pdsStore } from "@/routes/office-admin/pds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +15,9 @@ import {
 import type { BreadcrumbItem } from "@/types";
 import { swalSuccess, swalError } from "@/composables/useSwal";
 
-const props = defineProps<{
-    offices?: Array<{ value: number; label: string }>;
-}>();
-
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: "PDS Management", href: "/super-admin/pds" },
-    { title: "New PDS", href: "/super-admin/pds/create" },
+    { title: "PDS Management", href: "/office-admin/pds" },
+    { title: "New PDS", href: "/office-admin/pds/create" },
 ];
 
 const QUESTIONS = [
@@ -47,7 +43,6 @@ const initQuestions = () => {
 const EDUCATION_LEVELS = ["Elementary", "Secondary", "Vocational/Trade Course", "College", "Graduate Studies"];
 
 const form = useForm({
-    office_id: "" as string | number,
     // Personal
     first_name: "", middle_name: "", last_name: "", name_extension: "",
     date_of_birth: "", place_of_birth: "", gender: "", civil_status: "",
@@ -201,7 +196,7 @@ const submit = () => form.post(pdsStore().url, {
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <Link href="/super-admin/pds"><Button variant="ghost" class="border border-white/30 text-white hover:bg-white/20 gap-2"><ArrowLeft class="h-4 w-4" /> Back</Button></Link>
+                        <Link href="/office-admin/pds"><Button variant="ghost" class="border border-white/30 text-white hover:bg-white/20 gap-2"><ArrowLeft class="h-4 w-4" /> Back</Button></Link>
                         <Button @click="submit" :disabled="form.processing" class="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow">
                             {{ form.processing ? "Saving…" : "Save PDS" }}
                         </Button>
@@ -234,21 +229,6 @@ const submit = () => form.post(pdsStore().url, {
                     <!-- ── TAB 0: Personal Information ── -->
                     <div v-show="activeTab === 0" class="space-y-6">
                         <p class="text-xs font-bold uppercase tracking-wider text-blue-600">I. Personal Information</p>
-                        
-                        <!-- Office Assignment -->
-                        <div v-if="offices && offices.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <label class="block text-sm font-medium mb-2">Assign to Office (Optional)</label>
-                            <Select v-bind:modelValue="form.office_id" @update:modelValue="form.office_id = $event">
-                                <SelectTrigger><SelectValue placeholder="Select an office (or leave blank)" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="">No Office</SelectItem>
-                                    <SelectItem v-for="office in offices" :key="office.value" :value="office.value">{{ office.label }}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p class="text-xs text-blue-600 mt-1">This PDS will be associated with the selected office</p>
-                            <p v-if="form.errors.office_id" class="text-red-500 text-xs mt-1">{{ form.errors.office_id }}</p>
-                        </div>
-                        
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Surname <span class="text-red-500">*</span></label>
                                 <Input v-model="form.last_name" required placeholder="e.g. Dela Cruz" />

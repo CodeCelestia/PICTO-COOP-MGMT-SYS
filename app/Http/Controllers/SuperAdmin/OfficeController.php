@@ -4,7 +4,11 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Office;
+use App\Models\OfficeRole;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 class OfficeController extends Controller
@@ -26,7 +30,18 @@ class OfficeController extends Controller
      */
     public function create()
     {
-        return Inertia::render('super-admin/Offices/Create');
+        // Get all office roles for selection
+        $officeRoles = OfficeRole::orderBy('display_name')->get(['id', 'name', 'display_name']);
+        
+        // Get system roles (Spatie roles) for selection
+        $systemRoles = \Spatie\Permission\Models\Role::orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+
+        return Inertia::render('super-admin/Offices/Create', [
+            'officeRoles' => $officeRoles,
+            'systemRoles' => $systemRoles,
+        ]);
     }
 
     /**
@@ -58,11 +73,68 @@ class OfficeController extends Controller
             'barangay_name'          => 'nullable|string|max:255',
             'contact_email'          => 'nullable|email',
             'contact_phone'          => 'nullable|string|max:20',
-        ]);
+            // Admin account fields
+            'admin_name'             => 'required|string|max:255',
+            'admin_email'            => 'required|email|unique:users,email',
+            'admin_password'         => 'required|string|min:8|confirmed',            'admin_system_role'          => 'required|string|exists:roles,name',
+            'admin_office_role_id'       => 'required|integer|exists:office_roles,id',        ]);
 
-        Office::create($validated);
+        DB::beginTransaction();
 
-        return redirect()->route('super-admin.offices.index')->with('success', 'Office created successfully.');
+        try {
+            // Create the office
+            $office = Office::create([
+                'name'                   => $validated['name'],
+                'code'                   => $validated['code'],
+                'cooperative_type'       => $validated['cooperative_type'] ?? null,
+                'registration_number'    => $validated['registration_number'] ?? null,
+                'date_registered'        => $validated['date_registered'] ?? null,
+                'asset_size'             => $validated['asset_size'] ?? null,
+                'classification'         => $validated['classification'] ?? null,
+                'status'                 => $validated['status'],
+                'key_services'           => $validated['key_services'] ?? null,
+                'year_of_latest_audit'   => $validated['year_of_latest_audit'] ?? null,
+                'chairperson'            => $validated['chairperson'] ?? null,
+                'general_manager'        => $validated['general_manager'] ?? null,
+                'region_code'            => $validated['region_code'] ?? null,
+                'region_name'            => $validated['region_name'] ?? null,
+                'province_code'          => $validated['province_code'] ?? null,
+                'province_name'          => $validated['province_name'] ?? null,
+                'city_municipality_code' => $validated['city_municipality_code'] ?? null,
+                'city_municipality_name' => $validated['city_municipality_name'] ?? null,
+                'barangay_code'          => $validated['barangay_code'] ?? null,
+                'barangay_name'          => $validated['barangay_name'] ?? null,
+                'contact_email'          => $validated['contact_email'] ?? null,
+                'contact_phone'          => $validated['contact_phone'] ?? null,
+            ]);
+
+            // Create the admin user account
+            $user = User::create([
+                'name'     => $validated['admin_name'],
+                'email'    => $validated['admin_email'],
+                'password' => Hash::make($validated['admin_password']),
+            ]);
+
+            // Assign selected system role to the user
+            $user->assignRole($validated['admin_system_role']);
+
+            // Attach user to office with selected office role
+            $office->users()->attach($user->id, [
+                'office_role_id' => $validated['admin_office_role_id'],
+                'assigned_by'    => auth()->id(),
+                'assigned_at'    => now(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('super-admin.offices.index')
+                ->with('success', 'Office created successfully with admin account.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to create office: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -72,7 +144,7 @@ class OfficeController extends Controller
     {
         $office->load(['users' => function ($query) {
             $query->select('users.id', 'users.name', 'users.email')
-                ->withPivot('role_name', 'assigned_at');
+                ->withPivot('office_role_id', 'assigned_at');
         }]);
 
         return Inertia::render('super-admin/Offices/Show', [

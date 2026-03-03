@@ -1,8 +1,9 @@
 <script setup lang="ts">
+const props = defineProps<{ pds: Record<string, any> }>();
+
 import { Head, Link, useForm } from "@inertiajs/vue3";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { FileText, ArrowLeft } from "lucide-vue-next";
-import { store as pdsStore } from "@/routes/super-admin/pds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,15 +14,12 @@ import {
     type Barangay, type CityMunicipality, type Province, type Region,
 } from "@/utils/psgc";
 import type { BreadcrumbItem } from "@/types";
+import { update as pdsUpdate } from "@/routes/office-admin/pds";
 import { swalSuccess, swalError } from "@/composables/useSwal";
 
-const props = defineProps<{
-    offices?: Array<{ value: number; label: string }>;
-}>();
-
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: "PDS Management", href: "/super-admin/pds" },
-    { title: "New PDS", href: "/super-admin/pds/create" },
+    { title: "PDS Management", href: "/office-admin/pds" },
+    { title: "Edit PDS", href: "#" },
 ];
 
 const QUESTIONS = [
@@ -46,52 +44,47 @@ const initQuestions = () => {
 
 const EDUCATION_LEVELS = ["Elementary", "Secondary", "Vocational/Trade Course", "College", "Graduate Studies"];
 
+const pds = props.pds;
+const INIT_EDU = () => EDUCATION_LEVELS.map((level) => { const e = (pds.education||[]).find((x)=>x.level===level); return e||{level,school_name:"",degree_course:"",attendance_from:"",attendance_to:"",units_earned:"",year_graduated:"",awards_honors:""}; });
 const form = useForm({
-    office_id: "" as string | number,
     // Personal
-    first_name: "", middle_name: "", last_name: "", name_extension: "",
-    date_of_birth: "", place_of_birth: "", gender: "", civil_status: "",
-    height: "", weight: "", blood_type: "",
-    citizenship: "Filipino", dual_citizenship_type: "", dual_country: "",
+    first_name: pds.first_name??"", middle_name: pds.middle_name??"", last_name: pds.last_name??"", name_extension: pds.name_extension??"",
+    date_of_birth: pds.date_of_birth??"", place_of_birth: pds.place_of_birth??"", gender: pds.gender??"", civil_status: pds.civil_status??"",
+    height: pds.height??"", weight: pds.weight??"", blood_type: pds.blood_type??"",
+    citizenship: pds.citizenship??"Filipino", dual_citizenship_type: pds.dual_citizenship_type??"", dual_country: pds.dual_country??"",
     // IDs & contact
-    gsis_id: "", sss_no: "", philhealth_no: "", pagibig_no: "", tin_no: "",
-    telephone_no: "", phone_number: "", email: "",
+    gsis_id: pds.gsis_id??"", sss_no: pds.sss_no??"", philhealth_no: pds.philhealth_no??"", pagibig_no: pds.pagibig_no??"", tin_no: pds.tin_no??"",
+    telephone_no: pds.telephone_no??"", phone_number: pds.phone_number??"", email: pds.email??"",
     // Residential
-    region_code: "", region_name: "",
-    province_code: "", province_name: "",
-    city_municipality_code: "", city_municipality_name: "",
-    barangay_code: "", barangay_name: "",
-    street_address: "", res_house: "", res_subdivision: "", res_zip: "",
+    region_code: pds.region_code??"", region_name: pds.region_name??"",
+    province_code: pds.province_code??"", province_name: pds.province_name??"",
+    city_municipality_code: pds.city_municipality_code??"", city_municipality_name: pds.city_municipality_name??"",
+    barangay_code: pds.barangay_code??"", barangay_name: pds.barangay_name??"",
+    street_address: pds.street_address??"", res_house: pds.res_house??"", res_subdivision: pds.res_subdivision??"", res_zip: pds.res_zip??"",
     // Permanent
-    perm_same_as_res: true as boolean,
-    perm_house: "", perm_street: "", perm_subdivision: "", perm_zip: "",
-    perm_region_code: "", perm_region_name: "",
-    perm_province_code: "", perm_province_name: "",
-    perm_city_municipality_code: "", perm_city_municipality_name: "",
-    perm_barangay_code: "", perm_barangay_name: "",
+    perm_same_as_res: pds.perm_same_as_res??true,
+    perm_house: pds.perm_house??"", perm_street: pds.perm_street??"", perm_subdivision: pds.perm_subdivision??"", perm_zip: pds.perm_zip??"",
+    perm_region_code: pds.perm_region_code??"", perm_region_name: pds.perm_region_name??"",
+    perm_province_code: pds.perm_province_code??"", perm_province_name: pds.perm_province_name??"",
+    perm_city_municipality_code: pds.perm_city_municipality_code??"", perm_city_municipality_name: pds.perm_city_municipality_name??"",
+    perm_barangay_code: pds.perm_barangay_code??"", perm_barangay_name: pds.perm_barangay_name??"",
     // Family
-    spouse_surname: "", spouse_first_name: "", spouse_middle_name: "", spouse_name_extension: "",
-    spouse_occupation: "", spouse_employer: "", spouse_business_address: "", spouse_telephone: "",
-    father_surname: "", father_first_name: "", father_middle_name: "", father_name_extension: "",
-    mother_surname: "", mother_first_name: "", mother_middle_name: "",
+    spouse_surname: pds.spouse_surname??"", spouse_first_name: pds.spouse_first_name??"", spouse_middle_name: pds.spouse_middle_name??"", spouse_name_extension: pds.spouse_name_extension??"",
+    spouse_occupation: pds.spouse_occupation??"", spouse_employer: pds.spouse_employer??"", spouse_business_address: pds.spouse_business_address??"", spouse_telephone: pds.spouse_telephone??"",
+    father_surname: pds.father_surname??"", father_first_name: pds.father_first_name??"", father_middle_name: pds.father_middle_name??"", father_name_extension: pds.father_name_extension??"",
+    mother_surname: pds.mother_surname??"", mother_first_name: pds.mother_first_name??"", mother_middle_name: pds.mother_middle_name??"",
     // Arrays
-    children: [] as Array<{ name: string; date_of_birth: string }>,
-    education: EDUCATION_LEVELS.map((level) => ({
-        level, school_name: "", degree_course: "", attendance_from: "", attendance_to: "", units_earned: "", year_graduated: "", awards_honors: "",
-    })),
-    eligibilities: [] as Array<{ exam_name: string; rating: string; exam_date: string; exam_place: string; license_no: string; validity_date: string }>,
-    work_experiences: [] as Array<{ date_from: string; date_to: string; position_title: string; department: string; monthly_salary: string; salary_grade: string; appointment_status: string; is_government: boolean }>,
-    voluntary_works: [] as Array<{ organization: string; date_from: string; date_to: string; hours: string; position: string }>,
-    learning_developments: [] as Array<{ title: string; date_from: string; date_to: string; hours: string; type: string; conducted_by: string }>,
-    references_list: [
-        { name: "", address: "", telephone: "" },
-        { name: "", address: "", telephone: "" },
-        { name: "", address: "", telephone: "" },
-    ] as Array<{ name: string; address: string; telephone: string }>,
+    children: (pds.children??[]) as Array<{ name: string; date_of_birth: string }>,
+    education: INIT_EDU(),
+    eligibilities: (pds.eligibilities??[]) as Array<{ exam_name: string; rating: string; exam_date: string; exam_place: string; license_no: string; validity_date: string }>,
+    work_experiences: (pds.work_experiences??[]) as Array<{ date_from: string; date_to: string; position_title: string; department: string; monthly_salary: string; salary_grade: string; appointment_status: string; is_government: boolean }>,
+    voluntary_works: (pds.voluntary_works??[]) as Array<{ organization: string; date_from: string; date_to: string; hours: string; position: string }>,
+    learning_developments: (pds.learning_developments??[]) as Array<{ title: string; date_from: string; date_to: string; hours: string; type: string; conducted_by: string }>,
+    references_list: (pds.references_list?.length===3?pds.references_list:[{name:"",address:"",telephone:""},{name:"",address:"",telephone:""},{name:"",address:"",telephone:""}]) as Array<{ name: string; address: string; telephone: string }>,
     // Other
-    special_skills: "", non_academic_distinctions: "", memberships: "",
-    questions: initQuestions() as Record<string, { answer: string; details: string }>,
-    government_issued_id: "", id_no: "", id_issue_place: "", date_accomplished: "",
+    special_skills: pds.special_skills??"", non_academic_distinctions: pds.non_academic_distinctions??"", memberships: pds.memberships??"",
+    questions: (pds.questions&&Object.keys(pds.questions).length?pds.questions:initQuestions()) as Record<string, { answer: string; details: string }>,
+    government_issued_id: pds.government_issued_id??"", id_no: pds.id_no??"", id_issue_place: pds.id_issue_place??"", date_accomplished: pds.date_accomplished??"",
 });
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -175,35 +168,61 @@ const onPermBarangayChange = (code: string) => {
 };
 
 onMounted(async () => {
+    // Load all region lists in parallel
     const [resR, permR] = await Promise.all([fetchRegions(), fetchRegions()]);
     resRegions.value = resR.filter(r => r.code);
     permRegions.value = permR.filter(r => r.code);
+
+    // Pre-populate residential cascades based on existing PDS data
+    if (pds.region_code) {
+        resProvinces.value = (await fetchProvinces(pds.region_code)).filter(p => p.code);
+    }
+    if (pds.province_code) {
+        resCities.value = (await fetchCitiesMunicipalities(pds.province_code)).filter(c => c.code);
+    }
+    if (pds.city_municipality_code) {
+        resBarangays.value = (await fetchBarangays(pds.city_municipality_code)).filter(b => b.code);
+    }
+
+    // Pre-populate permanent address cascades based on existing PDS data
+    if (pds.perm_region_code) {
+        permProvinces.value = (await fetchProvinces(pds.perm_region_code)).filter(p => p.code);
+    }
+    if (pds.perm_province_code) {
+        permCities.value = (await fetchCitiesMunicipalities(pds.perm_province_code)).filter(c => c.code);
+    }
+    if (pds.perm_city_municipality_code) {
+        permBarangays.value = (await fetchBarangays(pds.perm_city_municipality_code)).filter(b => b.code);
+    }
 });
 
-const submit = () => form.post(pdsStore().url, {
-    onSuccess: () => swalSuccess('PDS Saved!', 'Personal Data Sheet has been recorded successfully.'),
-    onError: () => swalError('Validation Error', 'Please check the highlighted fields and try again.'),
-});
+const submit = () => {
+    if (!props.pds?.id) return;
+    form.put(pdsUpdate(props.pds.id).url, {
+        onSuccess: () => swalSuccess('PDS Updated!', 'Personal Data Sheet has been updated successfully.'),
+        onError: () => swalError('Validation Error', 'Please check the highlighted fields and try again.'),
+    });
+};
 </script>
 
 <template>
-    <Head title="New PDS" />
+    <Head title="Edit PDS" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-5 max-w-5xl mx-auto w-full">
+        <div class="flex flex-1 flex-col gap-6 max-w-5xl mx-auto w-full">
             <!-- Header -->
-            <div class="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white shadow-lg">
+            <div class="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5 text-white shadow-lg">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><FileText class="h-5 w-5" /></div>
                         <div>
-                            <h1 class="text-xl font-bold">New Personal Data Sheet</h1>
-                            <p class="text-sm text-blue-200">CSC Form 212 — fill in all applicable sections</p>
+                            <h1 class="text-xl font-bold">Edit Personal Data Sheet</h1>
+                            <p class="text-sm text-amber-100">{{ pds.last_name }}, {{ pds.first_name }}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <Link href="/super-admin/pds"><Button variant="ghost" class="border border-white/30 text-white hover:bg-white/20 gap-2"><ArrowLeft class="h-4 w-4" /> Back</Button></Link>
-                        <Button @click="submit" :disabled="form.processing" class="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow">
-                            {{ form.processing ? "Saving…" : "Save PDS" }}
+                        <Link :href="`/office-admin/pds/${pds.id}`"><Button variant="ghost" class="border border-white/30 text-white hover:bg-white/20 gap-2"><ArrowLeft class="h-4 w-4" /> View</Button></Link>
+                        <Button @click="submit" :disabled="form.processing" class="bg-white text-amber-700 hover:bg-amber-50 font-semibold shadow">
+                            {{ form.processing ? "Saving…" : "Save Changes" }}
                         </Button>
                     </div>
                 </div>
@@ -220,7 +239,7 @@ const submit = () => form.post(pdsStore().url, {
                     :class="[
                         'px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-lg transition-all shrink-0',
                         activeTab === i
-                            ? 'bg-blue-600 text-white shadow-sm'
+                            ? 'bg-amber-500 text-white shadow-sm'
                             : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                     ]">
                     {{ tab }}
@@ -233,22 +252,7 @@ const submit = () => form.post(pdsStore().url, {
 
                     <!-- ── TAB 0: Personal Information ── -->
                     <div v-show="activeTab === 0" class="space-y-6">
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">I. Personal Information</p>
-                        
-                        <!-- Office Assignment -->
-                        <div v-if="offices && offices.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <label class="block text-sm font-medium mb-2">Assign to Office (Optional)</label>
-                            <Select v-bind:modelValue="form.office_id" @update:modelValue="form.office_id = $event">
-                                <SelectTrigger><SelectValue placeholder="Select an office (or leave blank)" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="">No Office</SelectItem>
-                                    <SelectItem v-for="office in offices" :key="office.value" :value="office.value">{{ office.label }}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p class="text-xs text-blue-600 mt-1">This PDS will be associated with the selected office</p>
-                            <p v-if="form.errors.office_id" class="text-red-500 text-xs mt-1">{{ form.errors.office_id }}</p>
-                        </div>
-                        
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600">I. Personal Information</p>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Surname <span class="text-red-500">*</span></label>
                                 <Input v-model="form.last_name" required placeholder="e.g. Dela Cruz" />
@@ -323,7 +327,7 @@ const submit = () => form.post(pdsStore().url, {
                             <div><label class="block text-sm font-medium mb-1">Country</label><Input v-model="form.dual_country" /></div>
                         </div>
 
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-2">Government IDs</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-2">Government IDs</p>
                         <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div><label class="block text-sm font-medium mb-1">GSIS ID No.</label><Input v-model="form.gsis_id" /></div>
                             <div><label class="block text-sm font-medium mb-1">SSS No.</label><Input v-model="form.sss_no" /></div>
@@ -332,7 +336,7 @@ const submit = () => form.post(pdsStore().url, {
                             <div><label class="block text-sm font-medium mb-1">TIN No.</label><Input v-model="form.tin_no" /></div>
                         </div>
 
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-2">Contact Information</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-2">Contact Information</p>
                         <div class="grid grid-cols-3 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Telephone No.</label><Input v-model="form.telephone_no" /></div>
                             <div><label class="block text-sm font-medium mb-1">Mobile No.</label><Input v-model="form.phone_number" /></div>
@@ -341,7 +345,7 @@ const submit = () => form.post(pdsStore().url, {
                                 <p v-if="form.errors.email" class="text-red-500 text-xs mt-1">{{ form.errors.email }}</p></div>
                         </div>
 
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-2">Residential Address</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-2">Residential Address</p>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div><label class="block text-sm font-medium mb-1">House/Block/Lot No.</label><Input v-model="form.res_house" /></div>
                             <div><label class="block text-sm font-medium mb-1">Street</label><Input v-model="form.street_address" /></div>
@@ -392,7 +396,7 @@ const submit = () => form.post(pdsStore().url, {
                         </div>
 
                         <div v-if="!form.perm_same_as_res" class="space-y-4">
-                            <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-1">Permanent Address</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-1">Permanent Address</p>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div><label class="block text-sm font-medium mb-1">House/Block/Lot No.</label><Input v-model="form.perm_house" /></div>
                                 <div><label class="block text-sm font-medium mb-1">Street</label><Input v-model="form.perm_street" /></div>
@@ -441,7 +445,7 @@ const submit = () => form.post(pdsStore().url, {
 
                     <!-- ── TAB 1: Family Background ── -->
                     <div v-show="activeTab === 1" class="space-y-6">
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">II. Family Background</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600">II. Family Background</p>
 
                         <div class="rounded-lg border bg-muted/20 p-4 space-y-3">
                             <p class="text-sm font-medium">Spouse (if married)</p>
@@ -480,7 +484,7 @@ const submit = () => form.post(pdsStore().url, {
                         <!-- Children -->
                         <div>
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs font-bold uppercase tracking-wider text-blue-600">Children</p>
+                                <p class="text-xs font-bold uppercase tracking-wider text-amber-600">Children</p>
                                 <Button type="button" variant="outline" size="sm"
                                     @click="form.children.push({ name: '', date_of_birth: '' })">
                                     + Add Child
@@ -500,7 +504,7 @@ const submit = () => form.post(pdsStore().url, {
 
                     <!-- ── TAB 2: Educational Background ── -->
                     <div v-show="activeTab === 2" class="space-y-4">
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">III. Educational Background</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600">III. Educational Background</p>
                         <div class="overflow-x-auto rounded-lg border">
                             <table class="min-w-full text-xs">
                                 <thead class="bg-muted/40 border-b">
@@ -534,7 +538,7 @@ const submit = () => form.post(pdsStore().url, {
                     <!-- ── TAB 3: Civil Service Eligibility ── -->
                     <div v-show="activeTab === 3" class="space-y-4">
                         <div class="flex items-center justify-between">
-                            <p class="text-xs font-bold uppercase tracking-wider text-blue-600">IV. Civil Service Eligibility</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-amber-600">IV. Civil Service Eligibility</p>
                             <Button type="button" variant="outline" size="sm"
                                 @click="form.eligibilities.push({ exam_name:'',rating:'',exam_date:'',exam_place:'',license_no:'',validity_date:'' })">
                                 + Add Row
@@ -576,7 +580,7 @@ const submit = () => form.post(pdsStore().url, {
                     <!-- ── TAB 4: Work Experience ── -->
                     <div v-show="activeTab === 4" class="space-y-4">
                         <div class="flex items-center justify-between">
-                            <p class="text-xs font-bold uppercase tracking-wider text-blue-600">V. Work Experience</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-amber-600">V. Work Experience</p>
                             <Button type="button" variant="outline" size="sm"
                                 @click="form.work_experiences.push({ date_from:'',date_to:'',position_title:'',department:'',monthly_salary:'',salary_grade:'',appointment_status:'',is_government:false })">
                                 + Add Row
@@ -631,7 +635,7 @@ const submit = () => form.post(pdsStore().url, {
                         <!-- Voluntary Work -->
                         <div>
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs font-bold uppercase tracking-wider text-blue-600">VI.A. Voluntary Work</p>
+                                <p class="text-xs font-bold uppercase tracking-wider text-amber-600">VI.A. Voluntary Work</p>
                                 <Button type="button" variant="outline" size="sm"
                                     @click="form.voluntary_works.push({ organization:'',date_from:'',date_to:'',hours:'',position:'' })">
                                     + Add Row
@@ -671,7 +675,7 @@ const submit = () => form.post(pdsStore().url, {
                         <!-- L&D -->
                         <div>
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs font-bold uppercase tracking-wider text-blue-600">VI.B. Learning &amp; Development Interventions</p>
+                                <p class="text-xs font-bold uppercase tracking-wider text-amber-600">VI.B. Learning &amp; Development Interventions</p>
                                 <Button type="button" variant="outline" size="sm"
                                     @click="form.learning_developments.push({ title:'',date_from:'',date_to:'',hours:'',type:'',conducted_by:'' })">
                                     + Add Row
@@ -718,7 +722,7 @@ const submit = () => form.post(pdsStore().url, {
 
                     <!-- ── TAB 6: Other Information ── -->
                     <div v-show="activeTab === 6" class="space-y-6">
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">VII. Other Information</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600">VII. Other Information</p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium mb-1">Special Skills / Hobbies</label>
@@ -734,7 +738,7 @@ const submit = () => form.post(pdsStore().url, {
                             </div>
                         </div>
 
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-2">Questions</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-2">Questions</p>
                         <div class="space-y-3">
                             <div v-for="q in QUESTIONS" :key="q.key" class="rounded-lg border bg-muted/20 p-3">
                                 <p class="text-sm text-foreground font-medium mb-2">{{ q.label }}</p>
@@ -755,7 +759,7 @@ const submit = () => form.post(pdsStore().url, {
 
                     <!-- ── TAB 7: References & Declaration ── -->
                     <div v-show="activeTab === 7" class="space-y-6">
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600">VIII. Character References (not relatives, not former supervisors)</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600">VIII. Character References (not relatives, not former supervisors)</p>
                         <div class="space-y-3">
                             <div v-for="(ref, i) in form.references_list" :key="i" class="grid grid-cols-3 gap-4 rounded-lg border bg-muted/20 p-4">
                                 <div><label class="block text-sm font-medium mb-1">Name {{ i + 1 }}</label><Input v-model="ref.name" placeholder="Full Name" /></div>
@@ -764,7 +768,7 @@ const submit = () => form.post(pdsStore().url, {
                             </div>
                         </div>
 
-                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 pt-2">Government-Issued ID</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-amber-600 pt-2">Government-Issued ID</p>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium mb-1">Government-Issued ID (type)</label>

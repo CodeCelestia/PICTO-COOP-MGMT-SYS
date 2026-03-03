@@ -35,6 +35,12 @@ const isSuperAdmin = computed(() => {
     return auth.roles.includes('super_admin');
 });
 
+const isOfficeAdmin = computed(() => {
+    const auth = page.props.auth as Auth;
+
+    return auth.roles.includes('coop_admin');
+});
+
 const mainNavItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
         {
@@ -85,6 +91,24 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'System Logs',
                 href: '/super-admin/logs',
                 icon: ScrollText,
+            },
+        );
+    } else if (isOfficeAdmin.value) {
+        items.push(
+            {
+                title: 'Office Dashboard',
+                href: '/office-admin/dashboard',
+                icon: Building2,
+            },
+            {
+                title: 'PDS Management',
+                href: '/office-admin/pds',
+                icon: FileText,
+            },
+            {
+                title: 'Office Profile',
+                href: '/office-admin/profile',
+                icon: Shield,
             },
         );
     }

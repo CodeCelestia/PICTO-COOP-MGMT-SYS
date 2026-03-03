@@ -41,7 +41,8 @@ class Office extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'office_user_roles')
-            ->withPivot('role_name', 'assigned_by', 'assigned_at')
+            ->using(OfficeUserRole::class)
+            ->withPivot('office_role_id', 'assigned_by', 'assigned_at')
             ->withTimestamps();
     }
 }

@@ -9,7 +9,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
         <AppLogoIcon class="size-5 fill-current text-white" />
     </div>
     <div class="ml-2 grid flex-1 text-left text-sm leading-tight">
-        <span class="truncate font-bold text-white tracking-tight">PICTO COOP</span>
-        <span class="truncate text-[10px] text-slate-400 font-medium">Management System</span>
+        <span class="truncate font-bold text-white tracking-tight">Coop Management</span>
+        <span class="truncate text-[10px] text-slate-400 font-medium">System</span>
     </div>
 </template>

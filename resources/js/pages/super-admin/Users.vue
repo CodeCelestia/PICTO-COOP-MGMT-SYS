@@ -3,18 +3,17 @@ import { Head } from "@inertiajs/vue3";
 import { router } from "@inertiajs/vue3";
 import {
     ShieldCheck, Users, Key, Crown, Briefcase, ClipboardList,
-    UserCheck, UserCog, X, ChevronRight, Lock, Save, CheckCircle2,
+    UserCheck, UserCog, ChevronRight, Lock, Save, CheckCircle2, Settings, Plus, Pencil, Trash2,
 } from "lucide-vue-next";
 import { computed, ref, watch } from "vue";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/AppLayout.vue";
-import { swalSuccess, swalError } from "@/composables/useSwal";
+import { swalSuccess, swalError, swalConfirmDelete } from "@/composables/useSwal";
 import type { BreadcrumbItem } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type OfficeRoleEntry = {
-    office_id: number; office_name: string; office_code: string;
-    user_id: number; user_name: string; user_email: string; assigned_at: string;
+type OfficeRoleData = {
+    id: number; name: string; display_name: string; description: string | null; is_system: boolean;
 };
 type SpatieRole = { id: number; name: string; permissions: string[]; users_count: number };
 type UserItem    = { id: number; name: string; email: string; created_at: string; roles: string[] };
@@ -22,7 +21,8 @@ type UserItem    = { id: number; name: string; email: string; created_at: string
 const props = defineProps<{
     users:          UserItem[];
     systemRoles:    string[];
-    roleGroups:     Record<string, OfficeRoleEntry[]>;
+    officeRoles:    OfficeRoleData[];
+    roleGroups:     Record<string, any[]>;
     spatieRoles:    SpatieRole[];
     allPermissions: Record<string, string[]>;
 }>();
@@ -34,24 +34,43 @@ type Tab = "roles" | "users" | "permissions";
 const activeTab = ref<Tab>("roles");
 
 // ── Office Role Config ────────────────────────────────────────────────────────
-const OFFICE_ROLE_META: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {
-    chairperson:      { label: "Chairperson",      icon: Crown,         color: "text-violet-700", bg: "bg-violet-50",  border: "border-violet-200" },
-    general_manager:  { label: "General Manager",  icon: Briefcase,     color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-200"   },
-    officer:          { label: "Officer",           icon: UserCheck,     color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-200"},
-    committee_member: { label: "Committee Member", icon: ClipboardList, color: "text-amber-700",  bg: "bg-amber-50",   border: "border-amber-200"  },
-    member:           { label: "Member",            icon: Users,         color: "text-slate-600",  bg: "bg-slate-50",   border: "border-slate-200"  },
+// Default icon/color mapping for known roles
+const DEFAULT_ROLE_STYLES: Record<string, { icon: any; color: string; bg: string; border: string }> = {
+    chairperson:      { icon: Crown,         color: "text-violet-700", bg: "bg-violet-50",  border: "border-violet-200" },
+    general_manager:  { icon: Briefcase,     color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-200"   },
+    officer:          { icon: UserCheck,     color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-200"},
+    committee_member: { icon: ClipboardList, color: "text-amber-700",  bg: "bg-amber-50",   border: "border-amber-200"  },
+    member:           { icon: Users,         color: "text-slate-600",  bg: "bg-slate-50",   border: "border-slate-200"  },
 };
 
-// ── Roles tab — detail panel ──────────────────────────────────────────────────
-const selectedOfficeRole = ref<string | null>(null);
+// Fallback style for custom roles
+const FALLBACK_STYLE = { icon: UserCog, color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200" };
 
-const selectedRoleEntries = computed<OfficeRoleEntry[]>(() =>
-    selectedOfficeRole.value ? (props.roleGroups[selectedOfficeRole.value] ?? []) : []
-);
+// Dynamically generate role meta from backend data
+const OFFICE_ROLE_META = computed(() => {
+    const meta: Record<string, { label: string; icon: any; color: string; bg: string; border: string }> = {};
+    props.officeRoles.forEach(role => {
+        const style = DEFAULT_ROLE_STYLES[role.name] || FALLBACK_STYLE;
+        meta[role.name] = {
+            label:  role.display_name,
+            icon:   style.icon,
+            color:  style.color,
+            bg:     style.bg,
+            border: style.border,
+        };
+    });
+    return meta;
+});
 
-function openRolePanel(roleName: string) {
-    selectedOfficeRole.value = selectedOfficeRole.value === roleName ? null : roleName;
+// ── Roles tab — navigation ────────────────────────────────────────────────────
+function viewRoleDetails(roleName: string) {
+    const role = props.officeRoles.find(r => r.name === roleName);
+    if (role) {
+        router.visit(`/super-admin/office-roles/${role.id}`);
+    }
 }
+
+// ── Roles tab — detail panel (removed) ────────────────────────────────────────
 
 // ── Users tab — system role assignment ───────────────────────────────────────
 const pendingRoles = ref<Record<number, string>>({});
@@ -68,6 +87,17 @@ function saveUserRole(user: UserItem) {
         onSuccess: () => swalSuccess("Role Updated!", `${user.name} is now a ${newRole}.`),
         onError:   () => swalError("Update Failed", "Could not update the role."),
     });
+}
+
+async function deleteUser(user: UserItem) {
+    const result = await swalConfirmDelete(user.name);
+    if (result.isConfirmed) {
+        router.delete(`/super-admin/users/${user.id}`, {
+            preserveScroll: true,
+            onSuccess: () => swalSuccess("Deleted!", `${user.name} has been deleted.`),
+            onError:   () => swalError("Delete Failed", "Could not delete the user."),
+        });
+    }
 }
 
 const initials = (name: string) => name.split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
@@ -173,14 +203,14 @@ const SPATIE_ROLE_META: Record<string, { label: string; icon: any; color: string
         <div class="flex flex-1 flex-col gap-6">
 
             <!-- Header -->
-            <div class="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white shadow-lg">
+            <div class="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
                         <ShieldCheck class="h-5 w-5" />
                     </div>
                     <div>
                         <h1 class="text-xl font-bold">Users &amp; Roles</h1>
-                        <p class="text-sm text-indigo-200">{{ users.length }} registered users · {{ spatieRoles.length }} roles defined</p>
+                        <p class="text-sm text-indigo-200">{{ users.length }} total users · {{ officeRoles.length }} office positions defined</p>
                     </div>
                 </div>
             </div>
@@ -198,24 +228,42 @@ const SPATIE_ROLE_META: Record<string, { label: string; icon: any; color: string
                     <Crown v-if="tab === 'roles'" class="w-4 h-4" />
                     <Users v-else-if="tab === 'users'" class="w-4 h-4" />
                     <Key v-else class="w-4 h-4" />
-                    {{ tab === 'roles' ? 'Roles' : tab === 'users' ? 'All Users' : 'Permissions' }}
+                    {{ tab === 'roles' ? 'Office Positions' : tab === 'users' ? 'All Users' : 'Permissions' }}
                 </button>
             </div>
 
             <!-- ══ TAB: ROLES ═════════════════════════════════════════════════ -->
             <div v-show="activeTab === 'roles'" class="space-y-5">
-                <p class="text-sm text-slate-500">Click a role card to see which offices and people are assigned to it.</p>
+                <!-- Info Banner -->
+                <div class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+                    <div class="flex items-start gap-3">
+                        <div class="rounded-lg bg-blue-500 p-1 text-white mt-0.5">
+                            <Crown class="h-4 w-4" />
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-blue-900">Office Positions (Not System Access)</p>
+                            <p class="text-xs text-blue-700 mt-1">
+                                These are positions within offices (e.g., General Manager, Chairperson). 
+                                System access is controlled separately (Super Admin, Coop Admin, Member).
+                                A user can have BOTH a system role (for dashboard access) AND an office position (their job title).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-slate-500">Click a position card to see who holds that office role.</p>
+                    <Button @click="router.visit('/super-admin/office-roles')" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <Settings class="w-4 h-4" />
+                        Manage Office Positions
+                    </Button>
+                </div>
 
                 <!-- Role cards -->
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <button v-for="(meta, roleKey) in OFFICE_ROLE_META" :key="roleKey"
-                        @click="openRolePanel(String(roleKey))"
-                        :class="[
-                            'group rounded-2xl border-2 p-5 text-left transition-all shadow-sm hover:shadow-md',
-                            selectedOfficeRole === roleKey
-                                ? `${meta.bg} ${meta.border} ring-2 ring-offset-1 shadow-md`
-                                : 'bg-white border-slate-200 hover:border-slate-300',
-                        ]">
+                        @click="viewRoleDetails(String(roleKey))"
+                        class="group rounded-2xl border-2 p-5 text-left transition-all shadow-sm hover:shadow-md bg-white border-slate-200 hover:border-slate-300">
                         <div :class="['flex h-10 w-10 items-center justify-center rounded-xl mb-3 border', meta.bg, meta.border]">
                             <component :is="meta.icon" :class="['w-5 h-5', meta.color]" />
                         </div>
@@ -230,94 +278,28 @@ const SPATIE_ROLE_META: Record<string, { label: string; icon: any; color: string
                         </div>
                     </button>
                 </div>
-
-                <!-- Detail panel -->
-                <Transition
-                    enter-active-class="transition-all duration-200 ease-out"
-                    enter-from-class="opacity-0 -translate-y-2"
-                    enter-to-class="opacity-100 translate-y-0"
-                    leave-active-class="transition-all duration-150 ease-in"
-                    leave-from-class="opacity-100 translate-y-0"
-                    leave-to-class="opacity-0 -translate-y-2">
-                    <div v-if="selectedOfficeRole" class="rounded-2xl border bg-white shadow-sm overflow-hidden">
-                        <!-- Panel header -->
-                        <div :class="['flex items-center justify-between px-5 py-4 border-b', OFFICE_ROLE_META[selectedOfficeRole].bg]">
-                            <div class="flex items-center gap-3">
-                                <div :class="['flex h-9 w-9 items-center justify-center rounded-xl border', OFFICE_ROLE_META[selectedOfficeRole].border]">
-                                    <component :is="OFFICE_ROLE_META[selectedOfficeRole].icon"
-                                        :class="['w-4 h-4', OFFICE_ROLE_META[selectedOfficeRole].color]" />
-                                </div>
-                                <div>
-                                    <p :class="['text-base font-bold', OFFICE_ROLE_META[selectedOfficeRole].color]">
-                                        {{ OFFICE_ROLE_META[selectedOfficeRole].label }}
-                                    </p>
-                                    <p class="text-xs text-slate-500">
-                                        {{ selectedRoleEntries.length }} assignment{{ selectedRoleEntries.length !== 1 ? 's' : '' }} across all offices
-                                    </p>
-                                </div>
-                            </div>
-                            <button @click="selectedOfficeRole = null" class="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-black/5">
-                                <X class="w-4 h-4" />
-                            </button>
-                        </div>
-                        <!-- Assignments table -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full min-w-[520px] text-sm">
-                                <thead>
-                                    <tr class="border-b border-slate-100 bg-slate-50/70">
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Office / Establishment</th>
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Assigned Person</th>
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Email</th>
-                                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Date Assigned</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="entry in selectedRoleEntries" :key="`${entry.office_id}-${entry.user_id}`"
-                                        class="hover:bg-slate-50/60 transition-colors">
-                                        <td class="px-5 py-3">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-semibold text-slate-800">{{ entry.office_name }}</span>
-                                                <span v-if="entry.office_code" class="text-xs text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">{{ entry.office_code }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-5 py-3">
-                                            <div class="flex items-center gap-2">
-                                                <div class="h-7 w-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                                                    {{ entry.user_name.split(" ").map((p: string) => p[0]).slice(0,2).join("").toUpperCase() }}
-                                                </div>
-                                                <span class="font-medium text-slate-700">{{ entry.user_name }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-5 py-3 text-slate-500 text-xs">{{ entry.user_email }}</td>
-                                        <td class="px-5 py-3 text-slate-400 text-xs whitespace-nowrap">
-                                            {{ entry.assigned_at
-                                                ? new Date(entry.assigned_at).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
-                                                : "—" }}
-                                        </td>
-                                    </tr>
-                                    <tr v-if="!selectedRoleEntries.length">
-                                        <td colspan="4" class="px-5 py-14 text-center text-slate-400 text-sm">
-                                            No one has been assigned as
-                                            <strong class="text-slate-600">{{ OFFICE_ROLE_META[selectedOfficeRole]?.label }}</strong> yet.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </Transition>
             </div>
 
             <!-- ══ TAB: ALL USERS ════════════════════════════════════════════ -->
-            <div v-show="activeTab === 'users'">
+            <div v-show="activeTab === 'users'" class="space-y-4">
+                <!-- Add User Button -->
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-slate-500">Manage system users and their roles</p>
+                    <Button @click="router.visit('/super-admin/users/create')" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <Plus class="w-4 h-4" />
+                        Add User
+                    </Button>
+                </div>
+
                 <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <table class="w-full min-w-[640px]">
+                    <table class="w-full min-w-160">
                         <thead>
                             <tr class="border-b border-slate-200 bg-slate-800">
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">User</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">System Role</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Assign Role</th>
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Joined</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-300">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -361,9 +343,23 @@ const SPATIE_ROLE_META: Record<string, { label: string; icon: any; color: string
                                 <td class="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">
                                     {{ new Date(u.created_at).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) }}
                                 </td>
+                                <td class="px-5 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <Button size="sm" variant="outline" 
+                                            @click="router.visit(`/super-admin/users/${u.id}/edit`)"
+                                            class="h-8 px-2.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border-slate-200">
+                                            <Pencil class="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button size="sm" variant="outline"
+                                            @click="deleteUser(u)"
+                                            class="h-8 px-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 border-slate-200">
+                                            <Trash2 class="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                </td>
                             </tr>
                             <tr v-if="!users.length">
-                                <td colspan="4" class="px-4 py-16 text-center text-sm text-slate-500">No users found.</td>
+                                <td colspan="5" class="px-4 py-16 text-center text-sm text-slate-500">No users found.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -398,7 +394,7 @@ const SPATIE_ROLE_META: Record<string, { label: string; icon: any; color: string
                 </div>
 
                 <!-- Right: permission grid -->
-                <div class="flex-1 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden min-h-[480px]">
+                <div class="flex-1 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden min-h-120">
                     <template v-if="selectedSpatieRole">
                         <!-- Role header -->
                         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">

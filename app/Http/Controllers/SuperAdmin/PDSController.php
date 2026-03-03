@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Office;
 use App\Models\PersonalDataSheet;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 class PDSController extends Controller
 {
     public function index(Request $request)
     {
-        $pdsRecords = PersonalDataSheet::with('user')
+        $pdsRecords = PersonalDataSheet::with(['user.offices'])
             ->when($request->search, function ($q) use ($request) {
                 $s = $request->search;
                 $q->where('first_name', 'like', "%{$s}%")
@@ -22,20 +24,37 @@ class PDSController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Get available system roles for account creation
+        $systemRoles = Role::orderBy('name')
+            ->get(['name'])
+            ->mapWithKeys(fn ($role) => [$role->name => ucwords(str_replace('_', ' ', $role->name))])
+            ->toArray();
+
         return Inertia::render('super-admin/PDS/Index', [
-            'pdsRecords' => $pdsRecords,
-            'filters'    => ['search' => $request->search ?? ''],
+            'pdsRecords'  => $pdsRecords,
+            'systemRoles' => $systemRoles,
+            'filters'     => ['search' => $request->search ?? ''],
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('super-admin/PDS/Create');
+        $offices = Office::orderBy('office_name')
+            ->get(['id', 'office_name', 'office_code'])
+            ->map(fn($office) => [
+                'value' => $office->id,
+                'label' => $office->office_name . ' (' . $office->office_code . ')'
+            ]);
+
+        return Inertia::render('super-admin/PDS/Create', [
+            'offices' => $offices
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'office_id'         => 'nullable|exists:offices,id',
             'first_name'        => 'required|string|max:255',
             'middle_name'       => 'nullable|string|max:255',
             'last_name'         => 'required|string|max:255',
@@ -122,7 +141,7 @@ class PDSController extends Controller
 
         $pds = PersonalDataSheet::create($validated);
 
-        return redirect()->route('super-admin.pds.show', $pds)
+        return redirect()->route('super-admin.pds.index')
             ->with('success', 'PDS saved successfully.');
     }
 
@@ -134,12 +153,23 @@ class PDSController extends Controller
 
     public function edit(PersonalDataSheet $pd)
     {
-        return Inertia::render('super-admin/PDS/Edit', ['pds' => $pd]);
+        $offices = Office::orderBy('office_name')
+            ->get(['id', 'office_name', 'office_code'])
+            ->map(fn($office) => [
+                'value' => $office->id,
+                'label' => $office->office_name . ' (' . $office->office_code . ')'
+            ]);
+
+        return Inertia::render('super-admin/PDS/Edit', [
+            'pds' => $pd,
+            'offices' => $offices
+        ]);
     }
 
     public function update(Request $request, PersonalDataSheet $pd)
     {
         $validated = $request->validate([
+            'office_id'         => 'nullable|exists:offices,id',
             'first_name'        => 'required|string|max:255',
             'middle_name'       => 'nullable|string|max:255',
             'last_name'         => 'required|string|max:255',
@@ -221,7 +251,7 @@ class PDSController extends Controller
 
         $pd->update($validated);
 
-        return redirect()->route('super-admin.pds.show', $pd)
+        return redirect()->route('super-admin.pds.index')
             ->with('success', 'PDS updated successfully.');
     }
 

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const props = defineProps<{ pds: Record<string, any> }>();
+const props = defineProps<{
+    pds: Record<string, any>;
+    offices?: Array<{ value: number; label: string }>;
+}>();
 
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import { onMounted, ref, watch } from "vue";
@@ -47,6 +50,7 @@ const EDUCATION_LEVELS = ["Elementary", "Secondary", "Vocational/Trade Course", 
 const pds = props.pds;
 const INIT_EDU = () => EDUCATION_LEVELS.map((level) => { const e = (pds.education||[]).find((x)=>x.level===level); return e||{level,school_name:"",degree_course:"",attendance_from:"",attendance_to:"",units_earned:"",year_graduated:"",awards_honors:""}; });
 const form = useForm({
+    office_id: pds.office_id ?? "" as string | number,
     // Personal
     first_name: pds.first_name??"", middle_name: pds.middle_name??"", last_name: pds.last_name??"", name_extension: pds.name_extension??"",
     date_of_birth: pds.date_of_birth??"", place_of_birth: pds.place_of_birth??"", gender: pds.gender??"", civil_status: pds.civil_status??"",
@@ -253,6 +257,21 @@ const submit = () => {
                     <!-- ── TAB 0: Personal Information ── -->
                     <div v-show="activeTab === 0" class="space-y-6">
                         <p class="text-xs font-bold uppercase tracking-wider text-amber-600">I. Personal Information</p>
+                        
+                        <!-- Office Assignment -->
+                        <div v-if="offices && offices.length > 0" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <label class="block text-sm font-medium mb-2">Assign to Office (Optional)</label>
+                            <Select v-bind:modelValue="form.office_id" @update:modelValue="form.office_id = $event">
+                                <SelectTrigger><SelectValue placeholder="Select an office (or leave blank)" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">No Office</SelectItem>
+                                    <SelectItem v-for="office in offices" :key="office.value" :value="office.value">{{ office.label }}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p class="text-xs text-amber-600 mt-1">This PDS will be associated with the selected office</p>
+                            <p v-if="form.errors.office_id" class="text-red-500 text-xs mt-1">{{ form.errors.office_id }}</p>
+                        </div>
+                        
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Surname <span class="text-red-500">*</span></label>
                                 <Input v-model="form.last_name" required placeholder="e.g. Dela Cruz" />

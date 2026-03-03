@@ -21,8 +21,8 @@ defineProps<{
 
 <template>
     <AuthBase
-        title="Log in to your account"
-        description="Enter your email and password below to log in"
+        title="Sign In"
+        description="Enter your credentials to access your account"
     >
         <Head title="Log in" />
 
@@ -47,7 +47,7 @@ defineProps<{
             >
                 <div class="grid gap-6">
                     <div class="grid gap-2">
-                        <Label for="email" class="text-slate-200">Email address</Label>
+                        <Label for="email" class="text-slate-700 font-medium">Email address</Label>
                         <Input
                             id="email"
                             type="email"
@@ -59,20 +59,20 @@ defineProps<{
                             placeholder="email@example.com"
                             :aria-invalid="Boolean(errors.email)"
                             :class="[
-                                'border-slate-700/80 bg-slate-950/40 text-slate-100 placeholder:text-slate-400',
-                                errors.email ? 'animate-in fade-in-0 zoom-in-95 duration-200' : '',
+                                'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500',
+                                errors.email ? 'border-red-500 animate-in fade-in-0 zoom-in-95 duration-200' : '',
                             ]"
                         />
-                        <InputError :message="errors.email" class="text-red-300" />
+                        <InputError :message="errors.email" class="text-red-600" />
                     </div>
 
                     <div class="grid gap-2">
                         <div class="flex items-center justify-between">
-                            <Label for="password" class="text-slate-200">Password</Label>
+                            <Label for="password" class="text-slate-700 font-medium">Password</Label>
                             <TextLink
                                 v-if="canResetPassword"
                                 :href="request()"
-                                class="text-sm text-blue-300 transition hover:text-blue-200"
+                                class="text-sm text-blue-600 transition hover:text-blue-700"
                                 :tabindex="5"
                             >
                                 Forgot password?
@@ -88,15 +88,15 @@ defineProps<{
                             placeholder="Password"
                             :aria-invalid="Boolean(errors.password)"
                             :class="[
-                                'border-slate-700/80 bg-slate-950/40 text-slate-100 placeholder:text-slate-400',
-                                errors.password ? 'animate-in fade-in-0 zoom-in-95 duration-200' : '',
+                                'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500',
+                                errors.password ? 'border-red-500 animate-in fade-in-0 zoom-in-95 duration-200' : '',
                             ]"
                         />
-                        <InputError :message="errors.password" class="text-red-300" />
+                        <InputError :message="errors.password" class="text-red-600" />
                     </div>
 
                     <div class="flex items-center justify-between">
-                        <Label for="remember" class="flex items-center space-x-3 text-slate-200">
+                        <Label for="remember" class="flex items-center space-x-3 text-slate-700">
                             <Checkbox id="remember" name="remember" :tabindex="3" />
                             <span>Remember me</span>
                         </Label>
@@ -104,7 +104,7 @@ defineProps<{
 
                     <Button
                         type="submit"
-                        class="mt-4 w-full bg-blue-600 text-white transition hover:bg-blue-500"
+                        class="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white transition hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-600/30"
                         :tabindex="4"
                         :disabled="processing"
                         data-test="login-button"
@@ -115,14 +115,14 @@ defineProps<{
                 </div>
 
                 <div
-                    class="text-center text-sm text-slate-300"
+                    class="text-center text-sm text-slate-600"
                     v-if="canRegister"
                 >
                     Don't have an account?
                     <TextLink
                         :href="register()"
                         :tabindex="5"
-                        class="text-blue-300 transition hover:text-blue-200"
+                        class="text-blue-600 transition hover:text-blue-700"
                     >
                         Sign up
                     </TextLink>

@@ -62,7 +62,8 @@ class User extends Authenticatable
     public function offices(): BelongsToMany
     {
         return $this->belongsToMany(Office::class, 'office_user_roles')
-            ->withPivot('role_name', 'assigned_by', 'assigned_at')
+            ->using(OfficeUserRole::class)
+            ->withPivot('office_role_id', 'assigned_by', 'assigned_at')
             ->withTimestamps();
     }
 }

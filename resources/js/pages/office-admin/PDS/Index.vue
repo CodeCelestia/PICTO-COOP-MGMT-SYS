@@ -1,18 +1,17 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage, useForm } from "@inertiajs/vue3";
-import { onMounted, ref, watch } from "vue";
-import { Plus, Search, Pencil, Trash2, UserCheck, UserX, ScrollText, UserPlus, Eye, EyeOff } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
-import AppLayout from "@/layouts/AppLayout.vue";
-import type { BreadcrumbItem, Paginator } from "@/types";
-import { swalConfirmDelete, swalSuccess } from "@/composables/useSwal";
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { ref, watch, onMounted } from 'vue';
+import { Plus, Search, Pencil, Trash2, FileText, Building2, UserCheck, UserPlus, Eye, EyeOff, ScrollText } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem, Paginator } from '@/types';
+import { swalConfirmDelete, swalSuccess } from '@/composables/useSwal';
 
 interface PDS {
     id: number;
     first_name: string;
     middle_name?: string;
     last_name: string;
-    name_extension?: string;
     email: string;
     phone_number?: string;
     city_municipality_name?: string;
@@ -20,61 +19,67 @@ interface PDS {
     user?: { id: number; email: string };
 }
 
+interface Office {
+    id: number;
+    name: string;
+    code: string;
+}
+
 interface Props {
     pdsRecords: Paginator<PDS>;
     systemRoles: Record<string, string>;
-    filters: { search: string };
+    office: Office;
 }
 
 const props = defineProps<Props>();
-
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: "PDS Management", href: "/super-admin/pds" },
-];
 
 const page = usePage<{ flash?: { success?: string } }>();
 onMounted(() => { if (page.props.flash?.success) swalSuccess(page.props.flash.success); });
 watch(() => page.props.flash?.success, (v) => { if (v) swalSuccess(v); });
 
-const search = ref(props.filters.search ?? "");
-let searchTimer: ReturnType<typeof setTimeout>;
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: '/office-admin/dashboard' },
+    { title: 'PDS Management', href: '/office-admin/pds' },
+];
 
-const doSearch = () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        router.get("/super-admin/pds", { search: search.value }, { preserveState: true, replace: true });
-    }, 350);
+const searchQuery = ref('');
+
+const handleSearch = () => {
+    router.get('/office-admin/pds', { search: searchQuery.value }, { preserveState: true });
 };
-
-const fullName = (p: PDS) =>
-    [p.last_name + ",", p.first_name, p.middle_name, p.name_extension].filter(Boolean).join(" ");
 
 const handleDelete = async (id: number, name: string) => {
     const result = await swalConfirmDelete(name);
-    if (result.isConfirmed) router.delete(`/super-admin/pds/${id}`, { preserveScroll: true });
+    if (result.isConfirmed) {
+        router.delete(`/office-admin/pds/${id}`, { preserveScroll: true });
+    }
+};
+
+const fullName = (pds: PDS) => {
+    return `${pds.first_name} ${pds.middle_name || ''} ${pds.last_name}`.replace(/\s+/g, ' ').trim();
 };
 
 // ── Generate Account Modal ──────────────────────────────────────────────────
-const showModal    = ref(false);
+const showModal = ref(false);
 const showPassword = ref(false);
-const showConfirm  = ref(false);
-const activePds    = ref<PDS | null>(null);
+const showConfirm = ref(false);
+const activePds = ref<PDS | null>(null);
 
 const accountForm = useForm({
-    email:                 '',
-    password:              '',
+    email: '',
+    password: '',
     password_confirmation: '',
-    role:                  'member',
+    role: 'member',
 });
 
 const openModal = (pds: PDS) => {
     activePds.value = pds;
     accountForm.reset();
     accountForm.email = pds.email ?? '';
-    accountForm.role  = 'member';
+    accountForm.role = 'member';
     showPassword.value = false;
-    showConfirm.value  = false;
-    showModal.value    = true;
+    showConfirm.value = false;
+    showModal.value = true;
 };
 
 const closeModal = () => {
@@ -87,7 +92,7 @@ const closeModal = () => {
 const submitAccount = () => {
     if (!activePds.value) return;
     const name = fullName(activePds.value);
-    accountForm.post(`/super-admin/pds/${activePds.value.id}/create-user`, {
+    accountForm.post(`/office-admin/pds/${activePds.value.id}/create-user`, {
         onSuccess: () => {
             closeModal();
             swalSuccess(`Account created for ${name}!`);
@@ -100,86 +105,82 @@ const submitAccount = () => {
     <Head title="PDS Management" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6">
-
-            <!-- Page Header -->
-            <div class="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white shadow-lg">
+            
+            <!-- Header -->
+            <div class="rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white shadow-lg">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><ScrollText class="h-5 w-5" /></div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                            <FileText class="h-5 w-5" />
+                        </div>
                         <div>
-                            <h1 class="text-xl font-bold">Personal Data Sheets</h1>
-                            <p class="text-sm text-blue-200">{{ pdsRecords.total }} record{{ pdsRecords.total === 1 ? '' : 's' }} on file</p>
+                            <h1 class="text-xl font-bold">PDS Management</h1>
+                            <p class="text-sm text-blue-200">{{ office.name }} - {{ pdsRecords.total }} member records</p>
                         </div>
                     </div>
-                    <Link href="/super-admin/pds/create">
-                        <Button class="bg-white text-blue-700 hover:bg-blue-50 gap-2 font-semibold shadow">
-                            <Plus class="w-4 h-4" /> New PDS
+                    <Link :href="`/office-admin/pds/create`">
+                        <Button variant="ghost" class="border border-white/30 text-white hover:bg-white/20 gap-2">
+                            <Plus class="h-4 w-4" /> Add New PDS
                         </Button>
                     </Link>
                 </div>
             </div>
 
-            <!-- Search + Stats bar -->
-            <div class="flex items-center gap-3">
-                <div class="relative flex-1 max-w-sm">
-                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        v-model="search"
-                        @input="doSearch"
-                        placeholder="Search by name or email…"
-                        class="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-                    />
+            <!-- Office Info Banner -->
+            <div class="rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3">
+                <div class="flex items-start gap-3">
+                    <div class="rounded-lg bg-indigo-500 p-1 text-white mt-0.5">
+                        <Building2 class="h-4 w-4" />
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-indigo-900">
+                            Managing PDS records for {{ office.name }}
+                        </p>
+                        <p class="text-xs text-indigo-700 mt-1">
+                            All PDS records created here will be automatically assigned to your office ({{ office.code }}).
+                        </p>
+                    </div>
                 </div>
-                <span class="text-xs text-slate-400 font-medium">
-                    {{ pdsRecords.total }} record{{ pdsRecords.total === 1 ? '' : 's' }}
-                </span>
             </div>
 
-            <!-- Table Card -->
+            <!-- Search Bar -->
+            <div class="flex items-center gap-3">
+                <div class="relative flex-1">
+                    <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                        v-model="searchQuery"
+                        @keyup.enter="handleSearch"
+                        type="text"
+                        placeholder="Search by name or email..."
+                        class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                </div>
+                <Button @click="handleSearch" class="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    Search
+                </Button>
+            </div>
+
+            <!-- PDS Table -->
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <table class="w-full text-sm">
+                <table class="w-full min-w-160">
                     <thead>
                         <tr class="border-b border-slate-200 bg-slate-800">
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Name</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Email</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Office Assigned</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Location</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Account</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300">Account Status</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-300">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-if="!pdsRecords.data.length">
-                            <td colspan="6" class="px-4 py-16 text-center">
-                                <div class="flex flex-col items-center gap-2 text-slate-400">
-                                    <Search class="w-8 h-8 opacity-40" />
-                                    <p class="text-sm font-medium">No PDS records found.</p>
-                                    <p class="text-xs">Try adjusting your search or create a new record.</p>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-for="pds in pdsRecords.data" :key="pds.id"
-                            class="hover:bg-blue-50/30 transition-colors group">
-                            <!-- Name with avatar -->
+                        <tr v-for="pds in pdsRecords.data" :key="pds.id" class="hover:bg-indigo-50/20 transition-colors">
                             <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0 uppercase">
-                                        {{ pds.first_name?.[0] ?? '' }}{{ pds.last_name?.[0] ?? '' }}
-                                    </div>
-                                    <Link :href="`/super-admin/pds/${pds.id}`"
-                                        class="font-medium text-slate-800 hover:text-indigo-600 transition-colors">
-                                        {{ fullName(pds) }}
-                                    </Link>
-                                </div>
+                                <Link :href="`/office-admin/pds/${pds.id}`"
+                                    class="font-medium text-slate-800 hover:text-indigo-600 transition-colors">
+                                    {{ fullName(pds) }}
+                                </Link>
                             </td>
                             <td class="px-4 py-3 text-slate-500">{{ pds.email }}</td>
-                            <td class="px-4 py-3">
-                                <span v-if="pds.user?.offices?.length" class="inline-flex items-center gap-1 text-xs font-medium text-indigo-700">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
-                                    {{ pds.user.offices[0].name }}
-                                </span>
-                                <span v-else class="text-slate-400 text-xs">—</span>
-                            </td>
                             <td class="px-4 py-3 text-slate-400 text-xs">
                                 {{ [pds.city_municipality_name, pds.province_name].filter(Boolean).join(", ") || "—" }}
                             </td>
@@ -196,12 +197,12 @@ const submitAccount = () => {
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-end gap-1">
-                                    <Link :href="`/super-admin/pds/${pds.id}`">
+                                    <Link :href="`/office-admin/pds/${pds.id}`">
                                         <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-blue-700 hover:bg-blue-50 transition-colors">
                                             <ScrollText class="w-3.5 h-3.5" /> View
                                         </button>
                                     </Link>
-                                    <Link :href="`/super-admin/pds/${pds.id}/edit`">
+                                    <Link :href="`/office-admin/pds/${pds.id}/edit`">
                                         <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors">
                                             <Pencil class="w-3.5 h-3.5" /> Edit
                                         </button>
@@ -213,31 +214,35 @@ const submitAccount = () => {
                                 </div>
                             </td>
                         </tr>
+                        <tr v-if="!pdsRecords.data.length">
+                            <td colspan="5" class="px-4 py-16 text-center text-sm text-slate-500">
+                                No PDS records found. Click "Add New PDS" to create one.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
-            </div>
 
-            <!-- Pagination -->
-            <div v-if="pdsRecords.last_page > 1" class="flex items-center justify-between">
-                <p class="text-xs text-slate-400">
-                    Showing {{ pdsRecords.from }}–{{ pdsRecords.to }} of {{ pdsRecords.total }}
-                </p>
-                <div class="flex items-center gap-1">
-                    <Link v-for="link in pdsRecords.links" :key="link.label"
-                        :href="link.url ?? '#'"
-                        :class="[
-                            'px-3 py-1.5 text-xs rounded-md border font-medium transition-colors',
-                            link.active
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : link.url
-                                    ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                                    : 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed pointer-events-none'
-                        ]"
-                        v-html="link.label"
-                    />
+                <!-- Pagination -->
+                <div v-if="pdsRecords.last_page > 1" class="border-t border-slate-200 px-4 py-3 flex items-center justify-between">
+                    <div class="text-sm text-slate-500">
+                        Showing {{ pdsRecords.from }} to {{ pdsRecords.to }} of {{ pdsRecords.total }} records
+                    </div>
+                    <div class="flex gap-1">
+                        <Link v-for="link in pdsRecords.links" :key="link.label"
+                            :href="link.url || '#'"
+                            :class="[
+                                'px-3 py-1 text-sm rounded border',
+                                link.active
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : link.url
+                                    ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                    : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            ]"
+                            v-html="link.label"
+                        />
+                    </div>
                 </div>
             </div>
-
         </div>
 
         <!-- ── Generate Account Modal ──────────────────────────────────────── -->
@@ -257,7 +262,7 @@ const submitAccount = () => {
                     <!-- Panel -->
                     <div class="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl">
                         <!-- Header -->
-                        <div class="flex items-center gap-3 rounded-t-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
+                        <div class="flex items-center gap-3 rounded-t-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
                             <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
                                 <UserPlus class="h-5 w-5" />
                             </div>

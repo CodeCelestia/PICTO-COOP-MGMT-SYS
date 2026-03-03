@@ -3,11 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PersonalDataSheet extends Model
 {
     protected $fillable = [
+        // Office relationship
+        'office_id',
+        
         // Basic identity
         'first_name', 'middle_name', 'last_name', 'name_extension',
         'date_of_birth', 'place_of_birth', 'gender', 'civil_status',
@@ -69,9 +73,38 @@ class PersonalDataSheet extends Model
         'weight'              => 'float',
     ];
 
+    /**
+     * Boot the model and add event listeners
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Sync email changes to linked user account
+        static::updated(function ($pds) {
+            if ($pds->isDirty('email') && $pds->user) {
+                $pds->user->update(['email' => $pds->email]);
+                
+                activity('pds_sync')
+                    ->performedOn($pds)
+                    ->withProperties([
+                        'old_email' => $pds->getOriginal('email'),
+                        'new_email' => $pds->email,
+                        'user_id' => $pds->user->id,
+                    ])
+                    ->log('pds.email_synced_to_user');
+            }
+        });
+    }
+
     public function user(): HasOne
     {
         return $this->hasOne(User::class, 'pds_id');
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 
     public function member(): HasOne
@@ -82,5 +115,45 @@ class PersonalDataSheet extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} " . ($this->middle_name ? "{$this->middle_name} " : '') . "{$this->last_name}" . ($this->name_extension ? " {$this->name_extension}" : ''));
+    }
+
+    /**
+     * Check if the PDS is complete based on required fields
+     */
+    public function isComplete(): bool
+    {
+        $requiredFields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'email', 'citizenship'];
+        foreach ($requiredFields as $field) {
+            if (empty($this->$field)) return false;
+        }
+        if (empty($this->city_municipality_name) && empty($this->province_name)) return false;
+        return true;
+    }
+
+    /**
+     * Get the completion percentage of the PDS
+     */
+    public function getCompletionPercentage(): int
+    {
+        $totalFields = 0; $filledFields = 0;
+        $basicFields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'email', 'citizenship', 'phone_number'];
+        foreach ($basicFields as $field) { $totalFields++; if (!empty($this->$field)) $filledFields++; }
+        $addressFields = ['province_name', 'city_municipality_name', 'barangay_name'];
+        foreach ($addressFields as $field) { $totalFields++; if (!empty($this->$field)) $filledFields++; }
+        $education = $this->education ?? []; $totalFields += 3;
+        if (is_array($education)) {
+            $count = 0;
+            foreach ($education as $edu) {
+                if (!empty($edu['school_name']) || !empty($edu['degree_course'])) { $filledFields++; $count++; if ($count >= 3) break; }
+            }
+        }
+        $references = $this->references_list ?? []; $totalFields += 3;
+        if (is_array($references)) {
+            $count = 0;
+            foreach ($references as $ref) {
+                if (!empty($ref['name'])) { $filledFields++; $count++; if ($count >= 3) break; }
+            }
+        }
+        return $totalFields > 0 ? (int) round(($filledFields / $totalFields) * 100) : 0;
     }
 }

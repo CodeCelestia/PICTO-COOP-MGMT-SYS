@@ -11,6 +11,13 @@ import { swalSuccess, swalError } from '@/composables/useSwal';
 import type { BreadcrumbItem } from '@/types';
 import { store as officesStore } from '@/routes/super-admin/offices';
 
+type OfficeRole = { id: number; name: string; display_name: string };
+
+const props = defineProps<{
+    officeRoles: OfficeRole[];
+    systemRoles: Record<string, string>;
+}>();
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/super-admin/dashboard' },
     { title: 'Offices', href: '/super-admin/offices' },
@@ -32,6 +39,9 @@ const form = useForm({
     city_municipality_code: '', city_municipality_name: '',
     barangay_code: '', barangay_name: '',
     contact_email: '', contact_phone: '',
+    // Admin Account
+    admin_name: '', admin_email: '', admin_password: '', admin_password_confirmation: '',
+    admin_system_role: 'coop_admin', admin_office_role_id: null as number | null,
 });
 
 // ── PSGC ──────────────────────────────────────────────────────────────────────
@@ -43,7 +53,15 @@ const loadingProvinces = ref(false);
 const loadingCities    = ref(false);
 const loadingBarangays = ref(false);
 
-onMounted(async () => { regions.value = (await fetchRegions()).filter(r => r.code); });
+onMounted(async () => {
+    regions.value = (await fetchRegions()).filter(r => r.code);
+    
+    // Auto-assign general_manager office role for the admin account
+    const generalManagerRole = props.officeRoles.find(r => r.name === 'general_manager');
+    if (generalManagerRole) {
+        form.admin_office_role_id = generalManagerRole.id;
+    }
+});
 
 const onRegionChange = async (code: string) => {
     form.region_code = code;
@@ -105,7 +123,7 @@ const submit = () => {
         <div class="flex flex-1 flex-col gap-6 max-w-4xl mx-auto w-full">
 
             <!-- Header -->
-            <div class="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white shadow-lg">
+            <div class="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white shadow-lg">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><Building2 class="h-5 w-5" /></div>
@@ -139,7 +157,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Type</label>
-                            <Select :modelValue="form.cooperative_type || '_none'" @update:modelValue="form.cooperative_type = $event === '_none' ? '' : $event">
+                            <Select :modelValue="form.cooperative_type || '_none'" @update:modelValue="(v) => form.cooperative_type = (v === '_none' ? '' : (v as string))">
                                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select type —</SelectItem>
@@ -159,7 +177,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Status <span class="text-red-500">*</span></label>
-                            <Select :modelValue="form.status" @update:modelValue="form.status = $event">
+                            <Select :modelValue="form.status" @update:modelValue="(v) => form.status = (v as string)">
                                 <SelectTrigger :class="{ 'border-red-400': form.errors.status }"><SelectValue placeholder="Select status" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem v-for="s in STATUSES" :key="s" :value="s">{{ s }}</SelectItem>
@@ -181,7 +199,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Classification</label>
-                            <Select :modelValue="form.classification || '_none'" @update:modelValue="form.classification = $event === '_none' ? '' : $event">
+                            <Select :modelValue="form.classification || '_none'" @update:modelValue="(v) => form.classification = (v === '_none' ? '' : (v as string))">
                                 <SelectTrigger :class="{ 'border-red-400': form.errors.classification }"><SelectValue placeholder="Select" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select —</SelectItem>
@@ -239,7 +257,7 @@ const submit = () => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Region</label>
-                            <Select :modelValue="form.region_code || '_none'" @update:modelValue="v => v !== '_none' && onRegionChange(v)">
+                            <Select :modelValue="form.region_code || '_none'" @update:modelValue="(v) => v !== '_none' && onRegionChange(v as string)">
                                 <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select region —</SelectItem>
@@ -249,7 +267,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Province</label>
-                            <Select :modelValue="form.province_code || '_none'" @update:modelValue="v => v !== '_none' && onProvinceChange(v)" :disabled="!form.region_code">
+                            <Select :modelValue="form.province_code || '_none'" @update:modelValue="(v) => v !== '_none' && onProvinceChange(v as string)" :disabled="!form.region_code">
                                 <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select province —</SelectItem>
@@ -260,7 +278,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">City / Municipality</label>
-                            <Select :modelValue="form.city_municipality_code || '_none'" @update:modelValue="v => v !== '_none' && onCityChange(v)" :disabled="!form.province_code">
+                            <Select :modelValue="form.city_municipality_code || '_none'" @update:modelValue="(v) => v !== '_none' && onCityChange(v as string)" :disabled="!form.province_code">
                                 <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select city —</SelectItem>
@@ -271,7 +289,7 @@ const submit = () => {
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Barangay</label>
-                            <Select :modelValue="form.barangay_code || '_none'" @update:modelValue="v => v !== '_none' && onBarangayChange(v)" :disabled="!form.city_municipality_code">
+                            <Select :modelValue="form.barangay_code || '_none'" @update:modelValue="(v) => v !== '_none' && onBarangayChange(v as string)" :disabled="!form.city_municipality_code">
                                 <SelectTrigger><SelectValue placeholder="Select barangay" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="_none">— Select barangay —</SelectItem>
@@ -296,6 +314,48 @@ const submit = () => {
                         <div class="space-y-1.5">
                             <label class="block text-sm font-semibold text-slate-700">Contact Phone</label>
                             <Input v-model="form.contact_phone" placeholder="+63 9XX XXX XXXX" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VII. Admin Account -->
+                <div class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+                    <p class="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">VII. Admin Account for this Office</p>
+                    <p class="text-xs text-slate-400 mb-2">Create a user account that will manage this office</p>
+                    
+                    <!-- Auto-assigned Role Info -->
+                    <div class="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3">
+                        <div class="flex items-start gap-2">
+                            <svg class="w-4 h-4 text-blue-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                            <div>
+                                <p class="text-xs font-semibold text-blue-900">Automatic Role Assignment</p>
+                                <p class="text-xs text-blue-700 mt-0.5">This account will be assigned as <strong>Cooperative Admin</strong> (system-level) and <strong>General Manager</strong> (office-level)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="block text-sm font-semibold text-slate-700">Admin Name <span class="text-red-500">*</span></label>
+                            <Input v-model="form.admin_name" required placeholder="e.g., John Doe" :class="{ 'border-red-400': form.errors.admin_name }" />
+                            <span v-if="form.errors.admin_name" class="text-xs text-red-600">{{ form.errors.admin_name }}</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-sm font-semibold text-slate-700">Admin Email <span class="text-red-500">*</span></label>
+                            <Input v-model="form.admin_email" type="email" required placeholder="admin@example.com" :class="{ 'border-red-400': form.errors.admin_email }" />
+                            <span v-if="form.errors.admin_email" class="text-xs text-red-600">{{ form.errors.admin_email }}</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-sm font-semibold text-slate-700">Password <span class="text-red-500">*</span></label>
+                            <Input v-model="form.admin_password" type="password" required placeholder="••••••••" :class="{ 'border-red-400': form.errors.admin_password }" />
+                            <span v-if="form.errors.admin_password" class="text-xs text-red-600">{{ form.errors.admin_password }}</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-sm font-semibold text-slate-700">Confirm Password <span class="text-red-500">*</span></label>
+                            <Input v-model="form.admin_password_confirmation" type="password" required placeholder="••••••••" :class="{ 'border-red-400': form.errors.admin_password_confirmation }" />
+                            <span v-if="form.errors.admin_password_confirmation" class="text-xs text-red-600">{{ form.errors.admin_password_confirmation }}</span>
                         </div>
                     </div>
                 </div>

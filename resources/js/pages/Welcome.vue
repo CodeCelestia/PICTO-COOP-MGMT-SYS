@@ -29,7 +29,7 @@ withDefaults(
         <div class="relative z-10 mx-auto flex min-h-svh w-full max-w-6xl flex-col px-6 py-8 md:px-10">
             <header class="mb-12 flex items-center justify-between">
                 <div class="inline-flex items-center gap-2 rounded-md border border-blue-300/25 bg-slate-900/50 px-3 py-1.5 text-sm font-medium text-blue-100">
-                    COOP Management System
+                    Coop Management System
                 </div>
 
                 <nav class="flex items-center gap-3 text-sm">
@@ -65,7 +65,7 @@ withDefaults(
                     </p>
 
                     <h1 class="max-w-2xl text-3xl font-semibold leading-tight text-white md:text-5xl">
-                        Cooperative Management Information System
+                        Coop Management System
                     </h1>
 
                     <p class="max-w-xl text-sm leading-relaxed text-slate-300 md:text-base">

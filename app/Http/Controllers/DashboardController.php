@@ -14,10 +14,21 @@ class DashboardController extends Controller
      */
     public function __invoke(Request $request): Response|RedirectResponse
     {
-        if ($request->user()?->hasRole('super_admin')) {
+        $user = $request->user();
+
+        if ($user?->hasRole('super_admin')) {
             return to_route('super-admin.dashboard');
         }
 
+        if ($user?->hasRole('coop_admin')) {
+            return to_route('office-admin.dashboard');
+        }
+
+        if ($user?->hasRole('member')) {
+            return to_route('member.dashboard');
+        }
+
+        // Default dashboard for other roles
         return Inertia::render('Dashboard');
     }
 }

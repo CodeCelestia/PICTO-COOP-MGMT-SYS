@@ -114,7 +114,7 @@ const statCards = [
                             <span class="h-5 w-1 rounded-full bg-indigo-500 inline-block"></span>
                             <span class="text-indigo-400 text-xs font-semibold uppercase tracking-widest">Super Admin</span>
                         </div>
-                        <h1 class="text-2xl font-bold tracking-tight mb-1">Welcome back to PICTO COOP</h1>
+                        <h1 class="text-2xl font-bold tracking-tight mb-1">Welcome back to Coop Management System</h1>
                         <p class="text-slate-400 text-sm">Manage your cooperative system — users, members, offices, and more.</p>
                     </div>
                     <div class="hidden lg:flex items-center gap-3">
