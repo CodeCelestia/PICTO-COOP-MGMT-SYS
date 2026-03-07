@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage, useForm } from "@inertiajs/vue3";
-import { onMounted, ref, watch } from "vue";
+import { Head, Link, router, useForm } from "@inertiajs/vue3";
+import { ref } from "vue";
 import { Plus, Search, Pencil, Trash2, UserCheck, UserX, ScrollText, UserPlus, Eye, EyeOff } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import AppLayout from "@/layouts/AppLayout.vue";
@@ -32,10 +32,6 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: "PDS Management", href: "/super-admin/pds" },
 ];
 
-const page = usePage<{ flash?: { success?: string } }>();
-onMounted(() => { if (page.props.flash?.success) swalSuccess(page.props.flash.success); });
-watch(() => page.props.flash?.success, (v) => { if (v) swalSuccess(v); });
-
 const search = ref(props.filters.search ?? "");
 let searchTimer: ReturnType<typeof setTimeout>;
 
@@ -51,7 +47,10 @@ const fullName = (p: PDS) =>
 
 const handleDelete = async (id: number, name: string) => {
     const result = await swalConfirmDelete(name);
-    if (result.isConfirmed) router.delete(`/super-admin/pds/${id}`, { preserveScroll: true });
+    if (result.isConfirmed) router.delete(`/super-admin/pds/${id}`, {
+        preserveScroll: true,
+        onSuccess: () => swalSuccess('PDS deleted successfully.'),
+    });
 };
 
 // ── Generate Account Modal ──────────────────────────────────────────────────

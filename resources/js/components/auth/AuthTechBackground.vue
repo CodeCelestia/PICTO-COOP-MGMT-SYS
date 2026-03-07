@@ -94,14 +94,15 @@ onMounted(() => {
     const particles = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particles);
 
-    const clock = new THREE.Clock();
+    const clock = new THREE.Timer();
 
     const animate = () => {
         if (!renderer || !scene || !camera) {
             return;
         }
 
-        const elapsed = clock.getElapsedTime();
+        clock.update();
+        const elapsed = clock.getElapsed();
 
         mainMesh.rotation.x = elapsed * 0.13;
         mainMesh.rotation.y = elapsed * 0.2;

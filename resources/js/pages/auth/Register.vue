@@ -9,7 +9,18 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthBase from '@/layouts/auth/AuthTechLayout.vue';
 import { login } from '@/routes';
-import { store } from '@/routes/register';
+import { register as registerRoute } from '@/lib/fortify-routes';
+
+interface Office {
+    id: number;
+    name: string;
+}
+
+const props = defineProps<{
+    offices: Office[];
+}>();
+
+const store = registerRoute;
 
 const password = ref('');
 
@@ -170,10 +181,29 @@ const strengthLabel = computed(() => {
                         />
                     </div>
 
+                    <div v-if="props.offices.length > 0" class="grid gap-2">
+                        <Label for="office_id" class="text-slate-200">
+                            Office
+                            <span class="ml-1 text-xs text-slate-400">(optional)</span>
+                        </Label>
+                        <select
+                            id="office_id"
+                            name="office_id"
+                            class="flex h-9 w-full rounded-md border border-slate-700/80 bg-slate-950/40 px-3 py-1 text-sm text-slate-100 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
+                            :tabindex="5"
+                        >
+                            <option value="">Select your office (optional)</option>
+                            <option v-for="office in props.offices" :key="office.id" :value="office.id">
+                                {{ office.name }}
+                            </option>
+                        </select>
+                        <InputError :message="errors.office_id" class="text-red-300" />
+                    </div>
+
                     <Button
                         type="submit"
                         class="mt-2 w-full bg-blue-600 text-white transition hover:bg-blue-500"
-                        tabindex="5"
+                        tabindex="6"
                         :disabled="processing"
                         data-test="register-user-button"
                     >
@@ -187,7 +217,7 @@ const strengthLabel = computed(() => {
                     <TextLink
                         :href="login()"
                         class="text-blue-300 transition hover:text-blue-200"
-                        :tabindex="6"
+                        :tabindex="7"
                     >
                         Log in
                     </TextLink>

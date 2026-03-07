@@ -261,10 +261,10 @@ const submit = () => {
                         <!-- Office Assignment -->
                         <div v-if="offices && offices.length > 0" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                             <label class="block text-sm font-medium mb-2">Assign to Office (Optional)</label>
-                            <Select v-bind:modelValue="form.office_id" @update:modelValue="form.office_id = $event">
+                            <Select :modelValue="form.office_id === '' || form.office_id === null ? '_none' : String(form.office_id)" @update:modelValue="form.office_id = $event === '_none' ? '' : $event">
                                 <SelectTrigger><SelectValue placeholder="Select an office (or leave blank)" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">No Office</SelectItem>
+                                    <SelectItem value="_none">No Office</SelectItem>
                                     <SelectItem v-for="office in offices" :key="office.value" :value="office.value">{{ office.label }}</SelectItem>
                                 </SelectContent>
                             </Select>

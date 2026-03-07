@@ -5,7 +5,7 @@ use App\Http\Controllers\OfficeAdmin\OfficeProfileController;
 use App\Http\Controllers\OfficeAdmin\OfficePDSController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'role:coop_admin'])
+Route::middleware(['auth', 'verified', 'role:coop_office_admin'])
     ->prefix('office-admin')
     ->name('office-admin.')
     ->group(function (): void {

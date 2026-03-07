@@ -90,4 +90,21 @@ class Member extends Model
             ->withPivot(['attendance_status', 'registered_at', 'attended_at'])
             ->withTimestamps();
     }
+
+    /**
+     * Generate a unique member number for the given office.
+     * Format: MBR-{office_id:04d}-{sequence:06d}
+     */
+    public static function generateNumber(?int $officeId = null): string
+    {
+        $prefix = $officeId ? sprintf('MBR-%04d', $officeId) : 'MBR-0000';
+        $last = static::withTrashed()
+            ->when($officeId, fn ($q) => $q->where('office_id', $officeId))
+            ->orderByDesc('id')
+            ->value('member_number');
+
+        $seq = $last ? ((int) substr($last, -6)) + 1 : 1;
+
+        return $prefix . '-' . sprintf('%06d', $seq);
+    }
 }

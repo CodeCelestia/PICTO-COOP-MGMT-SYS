@@ -13,4 +13,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
 require __DIR__.'/settings.php';
 require __DIR__.'/super-admin.php';
 require __DIR__.'/office-admin.php';
+require __DIR__.'/sdn-admin.php';
 require __DIR__.'/member.php';

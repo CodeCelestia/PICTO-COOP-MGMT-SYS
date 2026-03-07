@@ -3,12 +3,11 @@ import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import {
     Building2,
-    Calendar,
     FileText,
+    GitMerge,
     LayoutGrid,
     ScrollText,
     Shield,
-    UserCheck,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -31,14 +30,22 @@ const page = usePage();
 
 const isSuperAdmin = computed(() => {
     const auth = page.props.auth as Auth;
-
     return auth.roles.includes('super_admin');
+});
+
+const isSdnAdmin = computed(() => {
+    const auth = page.props.auth as Auth;
+    return auth.roles.includes('coop_sdn_admin');
 });
 
 const isOfficeAdmin = computed(() => {
     const auth = page.props.auth as Auth;
+    return auth.roles.includes('coop_office_admin') || auth.roles.includes('coop_admin');
+});
 
-    return auth.roles.includes('coop_admin');
+const isMember = computed(() => {
+    const auth = page.props.auth as Auth;
+    return auth.roles.includes('member') && !isSuperAdmin.value && !isSdnAdmin.value && !isOfficeAdmin.value;
 });
 
 const mainNavItems = computed<NavItem[]>(() => {
@@ -58,31 +65,6 @@ const mainNavItems = computed<NavItem[]>(() => {
                 icon: Shield,
             },
             {
-                title: 'PDS Management',
-                href: '/super-admin/pds',
-                icon: FileText,
-            },
-            {
-                title: 'Offices',
-                href: '/super-admin/offices',
-                icon: Building2,
-            },
-            {
-                title: 'Members',
-                href: '/super-admin/members',
-                icon: UserCheck,
-            },
-            {
-                title: 'Committees',
-                href: '/super-admin/committees',
-                icon: Shield,
-            },
-            {
-                title: 'Activities',
-                href: '/super-admin/activities',
-                icon: Calendar,
-            },
-            {
                 title: 'User Management',
                 href: '/super-admin/users',
                 icon: Users,
@@ -91,6 +73,34 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'System Logs',
                 href: '/super-admin/logs',
                 icon: ScrollText,
+            },
+        );
+    } else if (isSdnAdmin.value) {
+        items.push(
+            {
+                title: 'SDN Overview',
+                href: '/sdn-admin/dashboard',
+                icon: Shield,
+            },
+            {
+                title: 'PDS Records',
+                href: '/sdn-admin/pds',
+                icon: FileText,
+            },
+            {
+                title: 'Offices',
+                href: '/sdn-admin/offices',
+                icon: Building2,
+            },
+            {
+                title: 'Member Accounts',
+                href: '/sdn-admin/users',
+                icon: Users,
+            },
+            {
+                title: 'Merge Queue',
+                href: '/sdn-admin/merge-queue',
+                icon: GitMerge,
             },
         );
     } else if (isOfficeAdmin.value) {
@@ -109,6 +119,19 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Office Profile',
                 href: '/office-admin/profile',
                 icon: Shield,
+            },
+        );
+    } else if (isMember.value) {
+        items.push(
+            {
+                title: 'My Dashboard',
+                href: '/member/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'My PDS',
+                href: '/member/my-pds',
+                icon: FileText,
             },
         );
     }

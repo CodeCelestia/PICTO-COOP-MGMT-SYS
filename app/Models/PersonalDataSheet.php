@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PersonalDataSheet extends Model
 {
+    use HasFactory;
     protected $fillable = [
         // Office relationship
         'office_id',
@@ -55,6 +57,10 @@ class PersonalDataSheet extends Model
 
         // Government-issued ID & declaration
         'government_issued_id', 'id_no', 'id_issue_place', 'date_accomplished',
+
+        // Audit fields
+        'created_by',
+        'duplicate_of',
     ];
 
     protected $casts = [
@@ -73,9 +79,6 @@ class PersonalDataSheet extends Model
         'weight'              => 'float',
     ];
 
-    /**
-     * Boot the model and add event listeners
-     */
     protected static function boot()
     {
         parent::boot();
@@ -97,7 +100,22 @@ class PersonalDataSheet extends Model
         });
     }
 
-    public function user(): HasOne
+    public function createdByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function originalPds(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(PersonalDataSheet::class, 'duplicate_of');
+    }
+
+    public function mergeQueueEntries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PdsMergeQueue::class, 'source_pds_id');
+    }
+
+    public function user(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(User::class, 'pds_id');
     }

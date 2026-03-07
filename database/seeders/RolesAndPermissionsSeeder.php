@@ -72,6 +72,63 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdminRole = Role::findOrCreate('super_admin', 'web');
         $superAdminRole->syncPermissions(Permission::query()->pluck('name')->all());
 
+        // --- New role hierarchy (replaces legacy coop_admin + sub-roles) ---
+
+        // SDN administrator: manages one cooperative SDN (offices, members, PDS within their SDN)
+        $sdnAdminRole = Role::findOrCreate('coop_sdn_admin', 'web');
+        $sdnAdminRole->syncPermissions([
+            'cooperatives.view',
+            'cooperatives.create',
+            'cooperatives.update',
+            'cooperatives.delete',
+            'members.view',
+            'members.create',
+            'members.update',
+            'members.delete',
+            'officers.view',
+            'officers.create',
+            'officers.update',
+            'officers.delete',
+            'activities.view',
+            'activities.create',
+            'activities.update',
+            'activities.delete',
+            'financials.view',
+            'financials.create',
+            'financials.update',
+            'financials.delete',
+            'trainings.view',
+            'trainings.create',
+            'trainings.update',
+            'trainings.delete',
+            'reports.view',
+            'reports.export',
+            'users.view',
+            'users.create',
+            'users.update',
+            'users.assign_roles',
+            'logs.view',
+        ]);
+
+        // Office administrator: manages one individual office within an SDN
+        $officerAdminRole = Role::findOrCreate('coop_office_admin', 'web');
+        $officerAdminRole->syncPermissions([
+            'members.view',
+            'members.create',
+            'members.update',
+            'officers.view',
+            'officers.view_self',
+            'activities.view',
+            'activities.create',
+            'activities.update',
+            'financials.view_summary',
+            'trainings.view',
+            'reports.view',
+            'users.view',
+            'users.create',
+        ]);
+
+        // --- Legacy roles (kept for backward compatibility) ---
         $coopAdminRole = Role::findOrCreate('coop_admin', 'web');
         $coopAdminRole->syncPermissions([
             'cooperatives.view',

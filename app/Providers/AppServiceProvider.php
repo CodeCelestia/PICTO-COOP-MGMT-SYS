@@ -2,6 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Office;
+use App\Models\PersonalDataSheet;
+use App\Models\User;
+use App\Policies\OfficePolicy;
+use App\Policies\PersonalDataSheetPolicy;
+use App\Policies\UserPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -9,6 +15,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -30,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureActivityLoggingListeners();
+        $this->configurePolicies();
     }
 
     /**
@@ -52,6 +60,16 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    protected function configurePolicies(): void
+    {
+        Gate::policy(Office::class, OfficePolicy::class);
+        Gate::policy(PersonalDataSheet::class, PersonalDataSheetPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+
+        // super_admin bypasses all policy gates
+        Gate::before(fn (User $user): ?bool => $user->hasRole('super_admin') ? true : null);
     }
 
     /**

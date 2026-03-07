@@ -15,12 +15,30 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::query()->firstOrCreate(
-            ['email' => 'test@example.com'],
-            ['name' => 'Test User', 'password' => 'password'],
-        );
-
         $this->call(RolesAndPermissionsSeeder::class);
         $this->call(OfficeRolesSeeder::class);
+
+        // Super Admin
+        $superAdmin = User::query()->firstOrCreate(
+            ['email' => 'superadmin@picto.coop'],
+            [
+                'name'     => 'Super Admin',
+                'password' => bcrypt('password'),
+                'status'   => 'active',
+            ],
+        );
+        $superAdmin->assignRole('super_admin');
+
+        // SDN Admin
+        $sdnAdmin = User::query()->firstOrCreate(
+            ['email' => 'sdnadmin@picto.coop'],
+            [
+                'name'     => 'SDN Admin',
+                'password' => bcrypt('password'),
+                'status'   => 'active',
+            ],
+        );
+        $sdnAdmin->assignRole('coop_sdn_admin');
+
     }
 }

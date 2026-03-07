@@ -20,9 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
-            'role' => RoleMiddleware::class,
-            'permission' => PermissionMiddleware::class,
-            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'role'                => RoleMiddleware::class,
+            'permission'          => PermissionMiddleware::class,
+            'role_or_permission'  => RoleOrPermissionMiddleware::class,
+            'pds.complete'        => \App\Http\Middleware\EnsurePdsComplete::class,
         ]);
 
         $middleware->web(append: [

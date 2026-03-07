@@ -39,11 +39,11 @@ class PDSController extends Controller
 
     public function create()
     {
-        $offices = Office::orderBy('office_name')
-            ->get(['id', 'office_name', 'office_code'])
+        $offices = Office::orderBy('name')
+            ->get(['id', 'name', 'code'])
             ->map(fn($office) => [
                 'value' => $office->id,
-                'label' => $office->office_name . ' (' . $office->office_code . ')'
+                'label' => $office->name . ' (' . $office->code . ')'
             ]);
 
         return Inertia::render('super-admin/PDS/Create', [
@@ -153,11 +153,11 @@ class PDSController extends Controller
 
     public function edit(PersonalDataSheet $pd)
     {
-        $offices = Office::orderBy('office_name')
-            ->get(['id', 'office_name', 'office_code'])
+        $offices = Office::orderBy('name')
+            ->get(['id', 'name', 'code'])
             ->map(fn($office) => [
                 'value' => $office->id,
-                'label' => $office->office_name . ' (' . $office->office_code . ')'
+                'label' => $office->name . ' (' . $office->code . ')'
             ]);
 
         return Inertia::render('super-admin/PDS/Edit', [

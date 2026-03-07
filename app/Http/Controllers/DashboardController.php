@@ -20,15 +20,23 @@ class DashboardController extends Controller
             return to_route('super-admin.dashboard');
         }
 
-        if ($user?->hasRole('coop_admin')) {
+        if ($user?->hasRole('coop_sdn_admin')) {
+            return to_route('sdn-admin.dashboard');
+        }
+
+        if ($user?->hasRole('coop_office_admin')) {
             return to_route('office-admin.dashboard');
         }
 
         if ($user?->hasRole('member')) {
+            // Enforce PDS completion before allowing dashboard access
+            if (is_null($user->pds_id)) {
+                return to_route('member.complete-pds');
+            }
             return to_route('member.dashboard');
         }
 
-        // Default dashboard for other roles
+        // Fallback: legacy roles or unassigned users
         return Inertia::render('Dashboard');
     }
 }

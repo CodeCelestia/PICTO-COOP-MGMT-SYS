@@ -98,6 +98,34 @@ const form = useForm({
 const tabs = ["Personal Info", "Family", "Education", "Eligibility", "Work Exp.", "Vol. Work & L&D", "Other Info", "References"];
 const activeTab = ref(0);
 
+const TAB_FIELDS: string[][] = [
+    // 0: Personal Info
+    ['first_name','last_name','middle_name','name_extension','date_of_birth','place_of_birth','gender','civil_status',
+     'height','weight','blood_type','citizenship','dual_citizenship_type','dual_country',
+     'gsis_id','sss_no','philhealth_no','pagibig_no','tin_no','telephone_no','phone_number','email',
+     'region_code','province_code','city_municipality_code','barangay_code','street_address',
+     'res_house','res_subdivision','res_zip','perm_house','perm_street','perm_subdivision','perm_zip',
+     'perm_region_code','perm_province_code','perm_city_municipality_code','perm_barangay_code','office_id'],
+    // 1: Family
+    ['spouse_surname','spouse_first_name','spouse_middle_name','spouse_occupation','spouse_employer',
+     'father_surname','father_first_name','father_middle_name','mother_surname','mother_first_name','mother_middle_name','children'],
+    // 2: Education
+    ['education'],
+    // 3: Eligibility
+    ['eligibilities'],
+    // 4: Work Exp
+    ['work_experiences'],
+    // 5: Vol. Work & L&D
+    ['voluntary_works','learning_developments'],
+    // 6: Other Info
+    ['special_skills','non_academic_distinctions','memberships','questions'],
+    // 7: References
+    ['references_list','government_issued_id','id_no','id_issue_place','date_accomplished'],
+];
+
+const tabHasError = (i: number) =>
+    TAB_FIELDS[i]?.some(f => f in form.errors) ?? false;
+
 // ── Residential PSGC ─────────────────────────────────────────────────────────
 const resRegions = ref<Region[]>([]);
 const resProvinces = ref<Province[]>([]);
@@ -181,8 +209,15 @@ onMounted(async () => {
 });
 
 const submit = () => form.post(pdsStore().url, {
-    onSuccess: () => swalSuccess('PDS Saved!', 'Personal Data Sheet has been recorded successfully.'),
-    onError: () => swalError('Validation Error', 'Please check the highlighted fields and try again.'),
+    onSuccess: () => {
+        swalSuccess('PDS Saved!', 'Personal Data Sheet has been recorded successfully.');
+    },
+    onError: () => {
+        // Jump to the first tab that has errors
+        const firstErrTab = TAB_FIELDS.findIndex(fields => fields.some(f => f in form.errors));
+        if (firstErrTab !== -1) activeTab.value = firstErrTab;
+        swalError('Validation Error', 'Please check the highlighted fields and try again.');
+    },
 });
 </script>
 
@@ -218,12 +253,18 @@ const submit = () => form.post(pdsStore().url, {
             <div class="flex gap-1 bg-white rounded-xl border border-slate-200 shadow-sm p-1.5 overflow-x-auto">
                 <button v-for="(tab, i) in tabs" :key="i" @click="activeTab = i"
                     :class="[
-                        'px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-lg transition-all shrink-0',
+                        'px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-lg transition-all shrink-0 relative',
                         activeTab === i
                             ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                            : tabHasError(i)
+                                ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                     ]">
                     {{ tab }}
+                    <span v-if="tabHasError(i)" class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                    </span>
                 </button>
             </div>
 
@@ -238,10 +279,10 @@ const submit = () => form.post(pdsStore().url, {
                         <!-- Office Assignment -->
                         <div v-if="offices && offices.length > 0" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <label class="block text-sm font-medium mb-2">Assign to Office (Optional)</label>
-                            <Select v-bind:modelValue="form.office_id" @update:modelValue="form.office_id = $event">
+                            <Select :modelValue="form.office_id === '' || form.office_id === null ? '_none' : String(form.office_id)" @update:modelValue="(v) => form.office_id = v === '_none' ? '' : String(v ?? '')">
                                 <SelectTrigger><SelectValue placeholder="Select an office (or leave blank)" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">No Office</SelectItem>
+                                    <SelectItem value="_none">No Office</SelectItem>
                                     <SelectItem v-for="office in offices" :key="office.value" :value="office.value">{{ office.label }}</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -258,7 +299,7 @@ const submit = () => form.post(pdsStore().url, {
                                 <p v-if="form.errors.first_name" class="text-red-500 text-xs mt-1">{{ form.errors.first_name }}</p></div>
                             <div><label class="block text-sm font-medium mb-1">Middle Name</label><Input v-model="form.middle_name" /></div>
                             <div><label class="block text-sm font-medium mb-1">Name Extension</label>
-                                <Select :modelValue="form.name_extension || '_none'" @update:modelValue="form.name_extension = $event === '_none' ? '' : $event">
+                                <Select :modelValue="form.name_extension || '_none'" @update:modelValue="(v) => form.name_extension = v === '_none' ? '' : String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="N/A" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="_none">N/A</SelectItem>
@@ -274,7 +315,7 @@ const submit = () => form.post(pdsStore().url, {
                                 <p v-if="form.errors.date_of_birth" class="text-red-500 text-xs mt-1">{{ form.errors.date_of_birth }}</p></div>
                             <div><label class="block text-sm font-medium mb-1">Place of Birth</label><Input v-model="form.place_of_birth" /></div>
                             <div><label class="block text-sm font-medium mb-1">Sex <span class="text-red-500">*</span></label>
-                                <Select v-bind:modelValue="form.gender" @update:modelValue="form.gender = $event">
+                                <Select v-bind:modelValue="form.gender" @update:modelValue="(v) => form.gender = String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem><SelectItem value="Other">Other</SelectItem>
@@ -282,7 +323,7 @@ const submit = () => form.post(pdsStore().url, {
                                 </Select>
                                 <p v-if="form.errors.gender" class="text-red-500 text-xs mt-1">{{ form.errors.gender }}</p></div>
                             <div><label class="block text-sm font-medium mb-1">Civil Status</label>
-                                <Select v-bind:modelValue="form.civil_status" @update:modelValue="form.civil_status = $event">
+                                <Select v-bind:modelValue="form.civil_status" @update:modelValue="(v) => form.civil_status = String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Single">Single</SelectItem><SelectItem value="Married">Married</SelectItem>
@@ -295,7 +336,7 @@ const submit = () => form.post(pdsStore().url, {
                             <div><label class="block text-sm font-medium mb-1">Height (m)</label><Input type="number" step="0.01" v-model="form.height" placeholder="e.g. 1.65" /></div>
                             <div><label class="block text-sm font-medium mb-1">Weight (kg)</label><Input type="number" step="0.01" v-model="form.weight" placeholder="e.g. 60" /></div>
                             <div><label class="block text-sm font-medium mb-1">Blood Type</label>
-                                <Select v-bind:modelValue="form.blood_type" @update:modelValue="form.blood_type = $event">
+                                <Select v-bind:modelValue="form.blood_type" @update:modelValue="(v) => form.blood_type = String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="bt in ['A+','A-','B+','B-','O+','O-','AB+','AB-']" :key="bt" :value="bt">{{ bt }}</SelectItem>
@@ -303,7 +344,7 @@ const submit = () => form.post(pdsStore().url, {
                                 </Select>
                             </div>
                             <div><label class="block text-sm font-medium mb-1">Citizenship <span class="text-red-500">*</span></label>
-                                <Select v-bind:modelValue="form.citizenship" @update:modelValue="form.citizenship = $event">
+                                <Select v-bind:modelValue="form.citizenship" @update:modelValue="(v) => form.citizenship = String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Filipino">Filipino</SelectItem><SelectItem value="Dual Citizenship">Dual Citizenship</SelectItem>
@@ -313,7 +354,7 @@ const submit = () => form.post(pdsStore().url, {
                         </div>
                         <div v-if="form.citizenship === 'Dual Citizenship'" class="grid grid-cols-2 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Dual Citizenship Type</label>
-                                <Select v-bind:modelValue="form.dual_citizenship_type" @update:modelValue="form.dual_citizenship_type = $event">
+                                <Select v-bind:modelValue="form.dual_citizenship_type" @update:modelValue="(v) => form.dual_citizenship_type = String(v ?? '')">
                                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="by birth">by birth</SelectItem><SelectItem value="by naturalization">by naturalization</SelectItem>
@@ -350,7 +391,7 @@ const submit = () => form.post(pdsStore().url, {
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div><label class="block text-sm font-medium mb-1">Region</label>
-                                <Select v-bind:modelValue="form.region_code" @update:modelValue="onResRegionChange">
+                                <Select v-bind:modelValue="form.region_code" @update:modelValue="(v) => onResRegionChange(String(v ?? ''))">
                                     <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="r in resRegions" :key="r.code" :value="r.code">{{ r.name }}</SelectItem>
@@ -358,7 +399,7 @@ const submit = () => form.post(pdsStore().url, {
                                 </Select>
                             </div>
                             <div><label class="block text-sm font-medium mb-1">Province</label>
-                                <Select v-bind:modelValue="form.province_code" @update:modelValue="onResProvinceChange" :disabled="!form.region_code">
+                                <Select v-bind:modelValue="form.province_code" @update:modelValue="(v) => onResProvinceChange(String(v ?? ''))" :disabled="!form.region_code">
                                     <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-if="loadingResProvinces" value="_loading" disabled>Loading…</SelectItem>
@@ -367,7 +408,7 @@ const submit = () => form.post(pdsStore().url, {
                                 </Select>
                             </div>
                             <div><label class="block text-sm font-medium mb-1">City/Municipality</label>
-                                <Select v-bind:modelValue="form.city_municipality_code" @update:modelValue="onResCityChange" :disabled="!form.province_code">
+                                <Select v-bind:modelValue="form.city_municipality_code" @update:modelValue="(v) => onResCityChange(String(v ?? ''))" :disabled="!form.province_code">
                                     <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-if="loadingResCities" value="_loading" disabled>Loading…</SelectItem>
@@ -376,7 +417,7 @@ const submit = () => form.post(pdsStore().url, {
                                 </Select>
                             </div>
                             <div><label class="block text-sm font-medium mb-1">Barangay</label>
-                                <Select v-bind:modelValue="form.barangay_code" @update:modelValue="onResBarangayChange" :disabled="!form.city_municipality_code">
+                                <Select v-bind:modelValue="form.barangay_code" @update:modelValue="(v) => onResBarangayChange(String(v ?? ''))" :disabled="!form.city_municipality_code">
                                     <SelectTrigger><SelectValue placeholder="Select barangay" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-if="loadingResBarangays" value="_loading" disabled>Loading…</SelectItem>
@@ -401,7 +442,7 @@ const submit = () => form.post(pdsStore().url, {
                             </div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div><label class="block text-sm font-medium mb-1">Region</label>
-                                    <Select v-bind:modelValue="form.perm_region_code" @update:modelValue="onPermRegionChange">
+                                    <Select v-bind:modelValue="form.perm_region_code" @update:modelValue="(v) => onPermRegionChange(String(v ?? ''))">
                                         <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem v-for="r in permRegions" :key="r.code" :value="r.code">{{ r.name }}</SelectItem>
@@ -409,7 +450,7 @@ const submit = () => form.post(pdsStore().url, {
                                     </Select>
                                 </div>
                                 <div><label class="block text-sm font-medium mb-1">Province</label>
-                                    <Select v-bind:modelValue="form.perm_province_code" @update:modelValue="onPermProvinceChange" :disabled="!form.perm_region_code">
+                                    <Select v-bind:modelValue="form.perm_province_code" @update:modelValue="(v) => onPermProvinceChange(String(v ?? ''))" :disabled="!form.perm_region_code">
                                         <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem v-if="loadingPermProvinces" value="_loading" disabled>Loading…</SelectItem>
@@ -418,7 +459,7 @@ const submit = () => form.post(pdsStore().url, {
                                     </Select>
                                 </div>
                                 <div><label class="block text-sm font-medium mb-1">City/Municipality</label>
-                                    <Select v-bind:modelValue="form.perm_city_municipality_code" @update:modelValue="onPermCityChange" :disabled="!form.perm_province_code">
+                                    <Select v-bind:modelValue="form.perm_city_municipality_code" @update:modelValue="(v) => onPermCityChange(String(v ?? ''))" :disabled="!form.perm_province_code">
                                         <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem v-if="loadingPermCities" value="_loading" disabled>Loading…</SelectItem>
@@ -427,7 +468,7 @@ const submit = () => form.post(pdsStore().url, {
                                     </Select>
                                 </div>
                                 <div><label class="block text-sm font-medium mb-1">Barangay</label>
-                                    <Select v-bind:modelValue="form.perm_barangay_code" @update:modelValue="onPermBarangayChange" :disabled="!form.perm_city_municipality_code">
+                                    <Select v-bind:modelValue="form.perm_barangay_code" @update:modelValue="(v) => onPermBarangayChange(String(v ?? ''))" :disabled="!form.perm_city_municipality_code">
                                         <SelectTrigger><SelectValue placeholder="Select barangay" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem v-if="loadingPermBarangays" value="_loading" disabled>Loading…</SelectItem>
