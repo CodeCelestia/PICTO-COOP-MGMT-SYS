@@ -1,1 +1,3 @@
-hghgfhfghfghgfdgfgfgfd
+<template>
+    <div></div>
+</template>

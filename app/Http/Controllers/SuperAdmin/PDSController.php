@@ -145,13 +145,13 @@ class PDSController extends Controller
             ->with('success', 'PDS saved successfully.');
     }
 
-    public function show(PersonalDataSheet $pd)
+    public function show(PersonalDataSheet $pds)
     {
-        $pd->load('user');
-        return Inertia::render('super-admin/PDS/Show', ['pds' => $pd]);
+        $pds->load('user');
+        return Inertia::render('super-admin/PDS/Show', ['pds' => $pds]);
     }
 
-    public function edit(PersonalDataSheet $pd)
+    public function edit(PersonalDataSheet $pdss)
     {
         $offices = Office::orderBy('name')
             ->get(['id', 'name', 'code'])
@@ -161,12 +161,12 @@ class PDSController extends Controller
             ]);
 
         return Inertia::render('super-admin/PDS/Edit', [
-            'pds' => $pd,
+            'pds' => $pds,
             'offices' => $offices
         ]);
     }
 
-    public function update(Request $request, PersonalDataSheet $pd)
+    public function update(Request $request, PersonalDataSheet $pds)
     {
         $validated = $request->validate([
             'office_id'         => 'nullable|exists:offices,id',
@@ -249,15 +249,15 @@ class PDSController extends Controller
             'date_accomplished' => 'nullable|date',
         ]);
 
-        $pd->update($validated);
+        $pds->update($validated);
 
         return redirect()->route('super-admin.pds.index')
             ->with('success', 'PDS updated successfully.');
     }
 
-    public function destroy(PersonalDataSheet $pd)
+    public function destroy(PersonalDataSheet $pds)
     {
-        $pd->delete();
+        $pds->delete();
         return redirect()->route('super-admin.pds.index')
             ->with('success', 'PDS deleted.');
     }
