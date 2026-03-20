@@ -1,0 +1,237 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useForm, router, usePage } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { HandCoins, Save, X } from 'lucide-vue-next';
+
+interface Cooperative {
+    id: number;
+    name: string;
+}
+
+interface ActivityOption {
+    id: number;
+    title: string;
+    coop_id: number;
+}
+
+interface FundingSource {
+    id: number;
+    activity_id: number;
+    coop_id: number;
+    funder_name: string;
+    funder_type: string;
+    amount_allocated: string | null;
+    amount_released: string | null;
+    date_released: string | null;
+    status: string;
+    remarks: string | null;
+}
+
+interface Props {
+    fundingSource: FundingSource;
+    activities: ActivityOption[];
+    cooperatives: Cooperative[];
+}
+
+const props = defineProps<Props>();
+
+const page = usePage();
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+
+const form = useForm<{
+    activity_id: string;
+    coop_id: string;
+    funder_name: string;
+    funder_type: string;
+    amount_allocated: string;
+    amount_released: string;
+    date_released: string;
+    status: string;
+    remarks: string;
+}>({
+    activity_id: props.fundingSource.activity_id.toString(),
+    coop_id: props.fundingSource.coop_id.toString(),
+    funder_name: props.fundingSource.funder_name,
+    funder_type: props.fundingSource.funder_type,
+    amount_allocated: props.fundingSource.amount_allocated || '',
+    amount_released: props.fundingSource.amount_released || '',
+    date_released: props.fundingSource.date_released || '',
+    status: props.fundingSource.status,
+    remarks: props.fundingSource.remarks || '',
+});
+
+const funderTypes = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
+const statusOptions = ['Released', 'Pending', 'Partially Released'];
+
+const selectedActivity = computed(() => {
+    return props.activities.find(activity => activity.id.toString() === form.activity_id) || null;
+});
+
+const selectedCooperative = computed(() => {
+    if (!selectedActivity.value) return null;
+    return props.cooperatives.find(coop => coop.id === selectedActivity.value?.coop_id) || null;
+});
+
+const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        coop_id: selectedActivity.value?.coop_id?.toString() || '',
+    })).put(`/activity-funding-sources/${props.fundingSource.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const cancel = () => {
+    router.get('/activity-funding-sources');
+};
+</script>
+
+<template>
+    <AppLayout>
+        <div class="p-6">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900">Edit Funding Source</h1>
+                <p class="mt-1 text-sm text-gray-500">Update funding source details.</p>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <form @submit.prevent="submit" class="space-y-6">
+                    <div>
+                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <HandCoins class="h-5 w-5" />
+                            Funding Details
+                        </h2>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <Label for="activity_id">Activity</Label>
+                                <Select v-model="form.activity_id" :disabled="isCoopAdmin && activities.length === 1">
+                                    <SelectTrigger id="activity_id" :class="{ 'border-red-500': form.errors.activity_id }">
+                                        <SelectValue placeholder="Select activity" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="activity in activities" :key="activity.id" :value="activity.id.toString()">
+                                            {{ activity.title }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="form.errors.activity_id" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.activity_id }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="cooperative_name">Cooperative</Label>
+                                <Input
+                                    id="cooperative_name"
+                                    :value="selectedCooperative?.name || 'Select an activity'"
+                                    disabled
+                                />
+                                <p v-if="form.errors.coop_id" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.coop_id }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="funder_name">Funder Name</Label>
+                                <Input id="funder_name" v-model="form.funder_name" placeholder="Funding agency or source" />
+                                <p v-if="form.errors.funder_name" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.funder_name }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="funder_type">Funder Type</Label>
+                                <Select v-model="form.funder_type">
+                                    <SelectTrigger id="funder_type" :class="{ 'border-red-500': form.errors.funder_type }">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="option in funderTypes" :key="option" :value="option">
+                                            {{ option }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="form.errors.funder_type" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.funder_type }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="amount_allocated">Amount Allocated</Label>
+                                <Input id="amount_allocated" v-model="form.amount_allocated" type="number" min="0" step="0.01" />
+                                <p v-if="form.errors.amount_allocated" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.amount_allocated }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="amount_released">Amount Released</Label>
+                                <Input id="amount_released" v-model="form.amount_released" type="number" min="0" step="0.01" />
+                                <p v-if="form.errors.amount_released" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.amount_released }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="date_released">Date Released</Label>
+                                <Input id="date_released" v-model="form.date_released" type="date" />
+                                <p v-if="form.errors.date_released" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.date_released }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="status">Status</Label>
+                                <Select v-model="form.status">
+                                    <SelectTrigger id="status" :class="{ 'border-red-500': form.errors.status }">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="option in statusOptions" :key="option" :value="option">
+                                            {{ option }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="form.errors.status" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.status }}
+                                </p>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <Label for="remarks">Remarks</Label>
+                                <Textarea id="remarks" v-model="form.remarks" placeholder="Additional notes" />
+                                <p v-if="form.errors.remarks" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.remarks }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 border-t pt-6">
+                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                            <X class="h-4 w-4" />
+                            Cancel
+                        </Button>
+                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                            <Save class="h-4 w-4" />
+                            Update Funding Source
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </AppLayout>
+</template>

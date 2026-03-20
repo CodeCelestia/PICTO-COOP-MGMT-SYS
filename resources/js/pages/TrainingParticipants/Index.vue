@@ -1,0 +1,318 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { router, Link, usePage } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { confirmAction } from '@/lib/alerts';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+
+interface Cooperative {
+    id: number;
+    name: string;
+}
+
+interface TrainingOption {
+    id: number;
+    title: string;
+    coop_id: number;
+}
+
+interface MemberOption {
+    id: number;
+    name: string;
+    coop_id: number;
+}
+
+interface OfficerOption {
+    id: number;
+    name: string | null;
+    coop_id: number;
+}
+
+interface TrainingParticipant {
+    id: number;
+    training_id: number;
+    member_id: number;
+    officer_id: number | null;
+    outcome: string | null;
+    certificate_no: string | null;
+    certificate_date: string | null;
+    remarks: string | null;
+    training: {
+        id: number;
+        title: string;
+        cooperative: Cooperative;
+    };
+    member: {
+        id: number;
+        full_name: string;
+    };
+    officer?: {
+        id: number;
+        member?: {
+            full_name: string;
+        } | null;
+    } | null;
+}
+
+interface Props {
+    participants: {
+        data: TrainingParticipant[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+    trainings: TrainingOption[];
+    members: MemberOption[];
+    officers: OfficerOption[];
+    cooperatives: Cooperative[];
+    filters: {
+        search?: string;
+        training_id?: string;
+        coop_id?: string;
+    };
+}
+
+const props = defineProps<Props>();
+
+const filters = computed(() => props.filters);
+
+const page = usePage();
+const auth = computed(() => page.props.auth as { roles?: string[]; isCoopAdmin?: boolean; user?: { account_type?: string } } | undefined);
+const roles = computed<string[]>(() => auth.value?.roles || []);
+const accountType = computed(() => auth.value?.user?.account_type as string | undefined);
+const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
+const isOfficer = computed(() => roles.value.includes('Officer') || accountType.value === 'Officer');
+const canCreate = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const canEdit = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value);
+const canDelete = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const showActions = computed(() => canEdit.value || canDelete.value);
+
+const search = ref(props.filters.search || '');
+const trainingId = ref(props.filters.training_id || 'all');
+const coopId = ref(props.filters.coop_id || 'all');
+
+const applyFilters = () => {
+    router.get('/training-participants', {
+        search: search.value,
+        training_id: trainingId.value === 'all' ? '' : trainingId.value,
+        coop_id: coopId.value === 'all' ? '' : coopId.value,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const resetFilters = () => {
+    search.value = '';
+    trainingId.value = 'all';
+    coopId.value = 'all';
+    router.get('/training-participants');
+};
+
+const deleteParticipant = async (participant: TrainingParticipant) => {
+    const confirmed = await confirmAction({
+        title: 'Delete participant?',
+        text: 'This action cannot be undone.',
+        confirmButtonText: 'Delete',
+    });
+
+    if (!confirmed) return;
+
+    router.delete(`/training-participants/${participant.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const formatDate = (date: string | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const formatOfficerName = (participant: TrainingParticipant) => {
+    return participant.officer?.member?.full_name || 'N/A';
+};
+</script>
+
+<template>
+    <AppLayout>
+        <div class="p-6">
+            <div class="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Training Participants</h1>
+                    <p class="mt-1 text-sm text-gray-500">Track attendance and results for training sessions</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Link href="/trainings" class="text-sm text-blue-600 hover:underline">
+                        View Trainings
+                    </Link>
+                    <Link href="/skill-inventories" class="text-sm text-blue-600 hover:underline">
+                        View Skills Inventory
+                    </Link>
+                    <Link v-if="canCreate" href="/training-participants/create">
+                        <Button class="gap-2">
+                            <Plus class="h-4 w-4" />
+                            Add Participant
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+
+            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <div class="relative">
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Input
+                                v-model="search"
+                                @keyup.enter="applyFilters"
+                                placeholder="Member or training..."
+                                class="pl-9"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Training</label>
+                        <Select v-model="trainingId">
+                            <SelectTrigger id="training_filter">
+                                <SelectValue placeholder="All Trainings" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Trainings</SelectItem>
+                                <SelectItem v-for="training in trainings" :key="training.id" :value="training.id.toString()">
+                                    {{ training.title }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <Select v-model="coopId">
+                            <SelectTrigger id="coop_filter">
+                                <SelectValue placeholder="All Cooperatives" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Cooperatives</SelectItem>
+                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                    {{ coop.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <Button @click="applyFilters" class="gap-2">
+                        <Search class="h-4 w-4" />
+                        Apply Filters
+                    </Button>
+                    <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Participant</TableHead>
+                            <TableHead>Training</TableHead>
+                            <TableHead>Officer</TableHead>
+                            <TableHead>Outcome</TableHead>
+                            <TableHead>Certificate</TableHead>
+                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-if="participants.data.length === 0">
+                            <TableCell :colspan="showActions ? 6 : 5" class="text-center text-gray-500">
+                                No training participants found.
+                            </TableCell>
+                        </TableRow>
+                        <TableRow v-for="participant in participants.data" :key="participant.id">
+                            <TableCell>
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                        <Users class="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ participant.member.full_name }}</div>
+                                        <div class="text-xs text-gray-500">{{ participant.training.cooperative.name }}</div>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell class="text-sm text-gray-600">{{ participant.training.title }}</TableCell>
+                            <TableCell class="text-sm text-gray-600">{{ formatOfficerName(participant) }}</TableCell>
+                            <TableCell class="text-sm text-gray-600">{{ participant.outcome || 'N/A' }}</TableCell>
+                            <TableCell class="text-sm text-gray-600">
+                                <div>{{ participant.certificate_no || 'N/A' }}</div>
+                                <div class="text-xs text-gray-400">{{ formatDate(participant.certificate_date) }}</div>
+                            </TableCell>
+                            <TableCell v-if="showActions" class="text-right">
+                                <div class="flex justify-end gap-2">
+                                    <Link v-if="canEdit" :href="`/training-participants/${participant.id}/edit`">
+                                        <Button variant="ghost" size="sm" class="gap-2">
+                                            <Pencil class="h-4 w-4" />
+                                        </Button>
+                                    </Link>
+                                    <Button
+                                        v-if="canDelete"
+                                        @click="deleteParticipant(participant)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="gap-2 text-red-600 hover:text-red-700"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+
+                <div v-if="participants.last_page > 1" class="border-t border-gray-200 px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-500">
+                            Showing {{ (participants.current_page - 1) * participants.per_page + 1 }} to
+                            {{ Math.min(participants.current_page * participants.per_page, participants.total) }} of
+                            {{ participants.total }} participants
+                        </div>
+                        <div class="flex gap-2">
+                            <Button
+                                v-for="page in participants.last_page"
+                                :key="page"
+                                variant="outline"
+                                size="sm"
+                                :disabled="page === participants.current_page"
+                                @click="router.get('/training-participants', { ...filters, page })"
+                            >
+                                {{ page }}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AppLayout>
+</template>

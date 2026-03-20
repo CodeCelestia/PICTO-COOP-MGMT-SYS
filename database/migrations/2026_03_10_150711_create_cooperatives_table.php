@@ -1,0 +1,43 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cooperatives', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('registration_number')->unique();
+            $table->string('coop_type'); // Credit, Marketing, Multi-purpose, etc.
+            $table->date('date_established');
+            $table->text('address');
+            $table->string('province');
+            $table->string('email')->nullable();
+            $table->string('phone')->nullable();
+            $table->enum('status', ['Active', 'Inactive', 'Dissolved', 'Suspended'])->default('Active');
+            $table->string('accreditation_status')->nullable(); // Accredited / Pending / Revoked
+            $table->date('accreditation_date')->nullable();
+            $table->timestamps();
+
+            // Indexes for performance
+            $table->index('status');
+            $table->index('province');
+            $table->index('coop_type');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cooperatives');
+    }
+};

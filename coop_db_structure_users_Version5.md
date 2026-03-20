@@ -268,7 +268,8 @@ SystemUsers (Table 1)
 
 | User Type          | Can Register? | Approves Account? | Scope of Access              |
 |--------------------|:-------------:|:-----------------:|------------------------------|
-| Provincial Admin   | Admin creates | Self or Super     | All cooperatives, all modules|
+|Super admin         | The creator   | self             | Everything                    |
+| Provincial Admin   | Admin creates | Self or Super admin | All cooperatives, all modules|
 | Coop Admin         | Admin creates | Provincial Admin  | Own coop only, all modules   |
 | Officer            | Admin creates | Coop Admin        | Own coop, limited modules    |
 | Committee Member   | Admin creates | Coop Admin        | Own committee module only    |

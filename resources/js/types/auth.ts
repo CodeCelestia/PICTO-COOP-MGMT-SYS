@@ -6,6 +6,12 @@ export type User = {
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
+    account_type?: string;
+    account_status?: string;
+    profile_photo?: string;
+    last_login_at?: string;
+    password_changed_at?: string;
+    created_by?: string;
     [key: string]: unknown;
 };
 

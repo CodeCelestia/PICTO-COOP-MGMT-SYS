@@ -4,7 +4,6 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
-    SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
@@ -22,16 +21,16 @@ const { isCurrentUrl } = useCurrentUrl();
         <SidebarGroupLabel>Platform</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem v-for="item in items" :key="item.title">
-                <SidebarMenuButton
-                    as-child
-                    :is-active="isCurrentUrl(item.href)"
-                    :tooltip="item.title"
+                <Link
+                    :href="item.href"
+                    class="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    :class="{
+                        'bg-sidebar-accent text-sidebar-accent-foreground font-medium': isCurrentUrl(item.href),
+                    }"
                 >
-                    <Link :href="item.href">
-                        <component :is="item.icon" />
-                        <span>{{ item.title }}</span>
-                    </Link>
-                </SidebarMenuButton>
+                    <component :is="item.icon" />
+                    <span>{{ item.title }}</span>
+                </Link>
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarGroup>

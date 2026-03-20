@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/DeleteUser.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useInitials } from '@/composables/useInitials';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { edit } from '@/routes/profile';
@@ -30,6 +32,14 @@ const breadcrumbItems: BreadcrumbItem[] = [
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+const { getInitials } = useInitials();
+const photoPreview = ref<string | null>(null);
+
+const onPhotoChange = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    photoPreview.value = file ? URL.createObjectURL(file) : null;
+};
 </script>
 
 <template>
@@ -48,9 +58,36 @@ const user = computed(() => page.props.auth.user);
 
                 <Form
                     v-bind="ProfileController.update.form()"
+                    :options="{
+                        preserveScroll: true,
+                        forceFormData: true,
+                    }"
                     class="space-y-6"
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
+                    <div class="flex flex-col gap-4 rounded-lg border border-slate-200/70 bg-slate-50/60 p-4 sm:flex-row sm:items-center">
+                        <Avatar class="h-16 w-16 overflow-hidden rounded-full">
+                            <AvatarImage
+                                v-if="photoPreview || user.avatar"
+                                :src="photoPreview || user.avatar"
+                                :alt="user.name || 'Profile photo'"
+                            />
+                            <AvatarFallback class="rounded-full text-lg font-semibold">
+                                {{ getInitials(user.name || 'User') }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div class="flex-1">
+                            <Label for="profile_photo">Profile photo</Label>
+                            <Input
+                                id="profile_photo"
+                                name="profile_photo"
+                                type="file"
+                                accept="image/*"
+                                @change="onPhotoChange"
+                            />
+                            <InputError class="mt-2" :message="errors.profile_photo" />
+                        </div>
+                    </div>
                     <div class="grid gap-2">
                         <Label for="name">Name</Label>
                         <Input
