@@ -6,6 +6,9 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/temp/
+/storage/app/temp/*
+!/storage/app/temp/.gitkeep
 /resources/js/actions
 /resources/js/routes
 /resources/js/wayfinder
