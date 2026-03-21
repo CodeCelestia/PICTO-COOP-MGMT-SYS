@@ -160,6 +160,10 @@ class MemberController extends Controller
             $validated['share_capital'] = 0;
         }
 
+        if (empty($validated['date_joined'])) {
+            $validated['date_joined'] = now()->toDateString();
+        }
+
         if ($this->isCoopAdmin() && $coopId) {
             $validated['coop_id'] = $coopId;
         }

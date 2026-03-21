@@ -44,10 +44,16 @@ class HandleInertiaRequests extends Middleware
                 'isCoopAdmin' => $request->user()
                     ? ($request->user()->hasRole('Coop Admin') || $request->user()->account_type === 'Coop Admin')
                     : false,
+                'isMember' => $request->user()
+                    ? ($request->user()->hasRole('Member') || $request->user()->account_type === 'Member')
+                    : false,
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'trigger_download' => (bool) $request->session()->get('trigger_download', false),
+                'pds_id' => $request->session()->get('pds_id'),
+                'pds_download_id' => $request->session()->get('pds_download_id'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

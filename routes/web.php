@@ -23,6 +23,7 @@ use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingParticipantController;
 use App\Http\Controllers\SkillInventoryController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\PdsController;
 
 Route::redirect('/', '/login')->name('home');
 
@@ -114,6 +115,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('members/{member}/services-availed/{service}', [MemberServiceAvailedController::class, 'destroy'])
         ->middleware('role:Provincial Admin|Coop Admin')
         ->name('members.services-availed.destroy');
+
+    // Member-facing: single PDS route (their own only)
+    Route::get('pds/my', [PdsController::class, 'myPds'])
+        ->middleware('role:Member')
+        ->name('pds.my');
+    Route::post('pds/my', [PdsController::class, 'myPdsUpdate'])
+        ->middleware('role:Member')
+        ->name('pds.my.update');
+
+    // Personal Data Sheet
+    Route::resource('pds', PdsController::class)
+        ->except(['show'])
+        ->parameters(['pds' => 'pds'])
+        ->middleware('role:Provincial Admin|Coop Admin');
+    Route::get('pds/{pds}/download', [PdsController::class, 'download'])
+        ->middleware('role:Provincial Admin|Coop Admin|Member')
+        ->name('pds.download');
 
     // Member Self-Service
     Route::get('member-portal', [MemberPortalController::class, 'edit'])

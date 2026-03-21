@@ -11,6 +11,7 @@ import {
     Building2,
     GraduationCap,
     Sparkles,
+    FileSpreadsheet,
 } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -80,6 +81,11 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: Users,
         },
         {
+            title: isMember.value ? 'My PDS' : 'Personal Data Sheet',
+            href: isMember.value ? '/pds/my' : '/pds',
+            icon: FileSpreadsheet,
+        },
+        {
             title: 'Officers & Committees',
             href: '/officers',
             icon: Users,
@@ -145,6 +151,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         return [
             baseItems[0],
             baseItems[1],
+            baseItems[4],
             {
                 title: 'My Services',
                 href: '/member-portal/services',
@@ -176,44 +183,48 @@ const mainNavItems = computed<NavItem[]>(() => {
         items.push(baseItems[3]);
     }
 
-    if (canViewOfficers.value) {
+    if (canViewMembers.value || isMember.value) {
         items.push(baseItems[4]);
     }
 
-    if (canViewActivities.value) {
+    if (canViewOfficers.value) {
         items.push(baseItems[5]);
     }
 
-    if (canViewActivityFundingSources.value) {
+    if (canViewActivities.value) {
         items.push(baseItems[6]);
     }
 
-    if (canViewActivityParticipants.value) {
+    if (canViewActivityFundingSources.value) {
         items.push(baseItems[7]);
     }
 
-    if (canViewTrainings.value) {
+    if (canViewActivityParticipants.value) {
         items.push(baseItems[8]);
     }
 
-    if (canViewTrainingParticipants.value) {
+    if (canViewTrainings.value) {
         items.push(baseItems[9]);
     }
 
-    if (canViewSkillInventories.value) {
+    if (canViewTrainingParticipants.value) {
         items.push(baseItems[10]);
     }
 
-    if (canViewFinancialRecords.value) {
+    if (canViewSkillInventories.value) {
         items.push(baseItems[11]);
     }
 
-    if (canViewExternalSupports.value) {
+    if (canViewFinancialRecords.value) {
         items.push(baseItems[12]);
     }
 
+    if (canViewExternalSupports.value) {
+        items.push(baseItems[13]);
+    }
+
     if (isCoopAdmin.value || isProvincialAdmin.value) {
-        items.push(baseItems[13], baseItems[14], baseItems[15]);
+        items.push(baseItems[14], baseItems[15], baseItems[16]);
     }
 
     if (canViewActivityLogs.value) {
