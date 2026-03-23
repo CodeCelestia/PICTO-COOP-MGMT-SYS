@@ -66,7 +66,7 @@ const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const form = useForm({
     training_id: props.participant.training_id.toString(),
     member_id: props.participant.member_id.toString(),
-    officer_id: props.participant.officer_id?.toString() || '',
+    officer_id: props.participant.officer_id?.toString() || 'none',
     outcome: props.participant.outcome || 'No Assessment',
     certificate_no: props.participant.certificate_no || '',
     certificate_date: props.participant.certificate_date || '',
@@ -90,6 +90,11 @@ const filteredOfficers = computed(() => {
 });
 
 const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        officer_id: data.officer_id === 'none' ? '' : data.officer_id,
+    }));
+
     form.put(`/training-participants/${props.participant.id}`, {
         preserveScroll: true,
     });
@@ -157,7 +162,7 @@ const cancel = () => {
                                         <SelectValue placeholder="Select officer" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">No officer</SelectItem>
+                                        <SelectItem value="none">No officer</SelectItem>
                                         <SelectItem v-for="officer in filteredOfficers" :key="officer.id" :value="officer.id.toString()">
                                             {{ officer.name || 'Officer' }}
                                         </SelectItem>

@@ -135,7 +135,7 @@ const clearFilters = () => {
                     <h1 class="text-3xl font-bold text-gray-900">Personal Data Sheet</h1>
                     <p class="mt-1 text-sm text-gray-500">CS Form No. 212 Revised 2025 submissions</p>
                 </div>
-                <Link href="/pds/create">
+                <Link href="/pds/create" prefetch>
                     <Button>New PDS</Button>
                 </Link>
             </div>

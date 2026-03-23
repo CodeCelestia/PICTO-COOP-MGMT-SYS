@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -60,6 +61,12 @@ class PdsExportService
         $this->fillC3($spreadsheet->getSheetByName('C3'), $c3, $signatureDate);
         $this->fillC4($spreadsheet->getSheetByName('C4'), $c4);
 
+        // Open exported file on C1 for a professional first view.
+        $c1Sheet = $spreadsheet->getSheetByName('C1');
+        if ($c1Sheet !== null) {
+            $spreadsheet->setActiveSheetIndex($spreadsheet->getIndex($c1Sheet));
+        }
+
         $filePath = $tempDir . DIRECTORY_SEPARATOR . 'pds_' . uniqid('', true) . '.xlsx';
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->save($filePath);
@@ -70,7 +77,12 @@ class PdsExportService
             Arr::get($pdsData, 'c3_data', []),
             Arr::get($pdsData, 'c4_data', [])
         );
-        $this->applyCheckboxes($filePath, $flat);
+        $safeMode = filter_var((string) env('PDS_EXPORT_SAFE_MODE', 'true'), FILTER_VALIDATE_BOOLEAN);
+        if ($safeMode) {
+            Log::info('PDS export safe mode enabled: skipping checkbox XML mutations for compatibility.');
+        } else {
+            $this->applyCheckboxes($filePath, $flat);
+        }
 
         if (!file_exists($filePath)) {
             throw new Exception('Temp file was not created at: ' . $filePath);
@@ -87,12 +99,13 @@ class PdsExportService
             return;
         }
 
+        $this->cleanupC1TemplateArtifacts($sheet);
+
         $map = [
             'surname' => 'D10',
             'first_name' => 'D11',
             'name_extension' => 'L11',
             'middle_name' => 'D12',
-            'date_of_birth' => 'D13',
             'place_of_birth' => 'D15',
             'dual_country' => 'L15',
             'height' => 'D22',
@@ -128,6 +141,36 @@ class PdsExportService
             $this->writeInput($sheet, $cell, Arr::get($data, $key));
         }
 
+        // Keep first name in a regular, non-merged cell block for consistent layout.
+        if ($sheet->getCell('D11')->isInMergeRange()) {
+            $sheet->unmergeCells($sheet->getCell('D11')->getMergeRange());
+        }
+        $sheet->getStyle('D11')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Surname cell is merged and should match template behavior (not hard-centered).
+        $sheet->getStyle('D10')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('D11')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Lastname cell is merged and should match template behavior (not hard-centered).
+        $sheet->getStyle('D10')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('D12')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        $this->writeInput($sheet, 'D13', $this->formatDateForDisplay(Arr::get($data, 'date_of_birth')));
+        $sheet->getStyle('D24')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Ensure C1 explicitly labels this section as mother's maiden name.
+        $sheet->getCell('B46')->setValue("MOTHER'S MAIDEN NAME");
+
         // Address fields: write only non-empty values so placeholder labels remain when blank.
         $this->writeInput($sheet, 'I17', Arr::get($data, 'res_house_no'));
         $this->writeInput($sheet, 'L17', Arr::get($data, 'res_street'));
@@ -144,6 +187,32 @@ class PdsExportService
         $this->writeInput($sheet, 'I29', Arr::get($data, 'perm_city'));
         $this->writeInput($sheet, 'L29', Arr::get($data, 'perm_province'));
         $this->writeInput($sheet, 'I31', Arr::get($data, 'perm_zipcode'));
+
+        // Normalize permanent city/province row to match residential merged answer layout.
+        if (!$sheet->getCell('I29')->isInMergeRange()) {
+            $sheet->mergeCells('I29:K29');
+        }
+        if (!$sheet->getCell('L29')->isInMergeRange()) {
+            $sheet->mergeCells('L29:N29');
+        }
+
+        // Permanent City/Province should render like regular answers (non-italic, centered).
+        $sheet->getStyle('I29')->getFont()->setItalic(false);
+        $sheet->getStyle('L29')->getFont()->setItalic(false);
+        $sheet->getStyle('I29')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('L29')->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('I29:K29')->getFont()
+            ->setName('Arial Narrow')
+            ->setSize(8)
+            ->setItalic(false);
+        $sheet->getStyle('L29:N29')->getFont()
+            ->setName('Arial Narrow')
+            ->setSize(8)
+            ->setItalic(false);
 
         $childNameCells = ['I37', 'I38', 'I39', 'I40', 'I41', 'I42', 'I43', 'I44', 'I45', 'I46'];
         $childDobCells = ['M37', 'M38', 'M39', 'M40', 'M41', 'M42', 'M43', 'M44', 'M45', 'M46'];
@@ -168,14 +237,34 @@ class PdsExportService
             $education = Arr::get($data, "education.{$level}", []);
             $this->writeInput($sheet, "D{$row}", Arr::get($education, 'school_name'));
             $this->writeInput($sheet, "G{$row}", Arr::get($education, 'degree'));
-            $this->writeInput($sheet, "J{$row}", Arr::get($education, 'from'));
-            $this->writeInput($sheet, "K{$row}", Arr::get($education, 'to'));
+            $this->writeInput($sheet, "J{$row}", $this->extractYear(Arr::get($education, 'from')));
+            $this->writeInput($sheet, "K{$row}", $this->extractYear(Arr::get($education, 'to')));
             $this->writeInput($sheet, "L{$row}", Arr::get($education, 'units'));
-            $this->writeInput($sheet, "M{$row}", Arr::get($education, 'year_graduated'));
+            $this->writeInput($sheet, "M{$row}", $this->extractYear(Arr::get($education, 'year_graduated')));
             $this->writeInput($sheet, "N{$row}", Arr::get($education, 'honors'));
+
+            foreach (['D', 'G', 'J', 'K', 'L', 'M', 'N'] as $column) {
+                $sheet->getStyle($column . $row)->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+            }
         }
 
         $this->writeInput($sheet, 'L60', $signatureDate);
+    }
+
+    private function cleanupC1TemplateArtifacts(Worksheet $sheet): void
+    {
+        // C1 template ships with helper/lookup content at the far right.
+        // Hide these columns and clear helper values so the list never shows in exports.
+        foreach (['O', 'P', 'Q'] as $column) {
+            $sheet->getColumnDimension($column)->setVisible(false);
+        }
+
+        for ($row = 1; $row <= 350; $row++) {
+            $cell = 'Q' . $row;
+            $sheet->getCell($cell)->setValue(null);
+        }
     }
 
     private function fillC2(?Worksheet $sheet, array $data, ?string $signatureDate = null): void
@@ -323,12 +412,58 @@ class PdsExportService
     private function writeInput(Worksheet $sheet, string $cell, mixed $value): void
     {
         if ($value !== null && trim((string) $value) !== '') {
-            $sheet->getCell($cell)->setValue($value);
+            $clean = $this->sanitizeCellValue($value);
+            if (is_scalar($clean)) {
+                $sheet->getCell($cell)->setValueExplicit((string) $clean, DataType::TYPE_STRING);
+            } else {
+                $sheet->getCell($cell)->setValue($clean);
+            }
         }
 
         $sheet->getStyle($cell)->getAlignment()
-            ->setVertical(Alignment::VERTICAL_BOTTOM)
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(false);
+    }
+
+    private function formatDateForDisplay(mixed $value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        $ts = strtotime((string) $value);
+        if ($ts === false) {
+            return (string) $value;
+        }
+
+        return date('d/m/Y', $ts);
+    }
+
+    private function extractYear(mixed $value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        if (preg_match('/^\d{4}$/', $raw) === 1) {
+            return $raw;
+        }
+
+        if (is_numeric($value)) {
+            $numeric = (int) $value;
+            if ($numeric >= 1900 && $numeric <= 2999) {
+                return (string) $numeric;
+            }
+        }
+
+        $ts = strtotime($raw);
+        if ($ts !== false) {
+            return date('Y', $ts);
+        }
+
+        return $raw;
     }
 
     private function sanitizeDefinedNames(Spreadsheet $spreadsheet): int
@@ -554,24 +689,25 @@ class PdsExportService
 
     private function deduplicateVmlRels(string $relsContent): string
     {
-        preg_match_all('/<Relationship[^>]+\/>/i', $relsContent, $matches);
-        if (empty($matches[0])) {
-            return $relsContent;
-        }
-
         $seen = [];
-        foreach ($matches[0] as $rel) {
-            preg_match('/Target="([^"]+)"/i', $rel, $targetMatch);
-            $target = $targetMatch[1] ?? $rel;
 
-            if (in_array($target, $seen, true)) {
-                $relsContent = str_replace($rel, '', $relsContent);
-            } else {
+        return preg_replace_callback(
+            '/<Relationship\b[^>]*\/>/i',
+            function (array $matches) use (&$seen): string {
+                $rel = $matches[0];
+                preg_match('/Target="([^"]+)"/i', $rel, $targetMatch);
+                $target = $targetMatch[1] ?? $rel;
+
+                if (in_array($target, $seen, true)) {
+                    return '';
+                }
+
                 $seen[] = $target;
-            }
-        }
 
-        return $relsContent;
+                return $rel;
+            },
+            $relsContent
+        ) ?? $relsContent;
     }
 
     private function applyVmlChecks(string $vml, array $shapeStates): string
@@ -674,7 +810,7 @@ class PdsExportService
 
                 $attrs = preg_replace('/\schecked="[^"]*"/i', '', $matches[3]) ?? $matches[3];
                 if ($shapeIdStates[$shapeId]) {
-                    $attrs .= ' checked="Checked"';
+                    $attrs .= ' checked="1"';
                 }
 
                 return $matches[1] . $attrs . $matches[4];
@@ -683,6 +819,16 @@ class PdsExportService
         ) ?? $sheetXml;
 
         $zip->addFromString($sheetXmlPath, $sheetXml);
+    }
+
+    private function sanitizeCellValue(mixed $value): mixed
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        // Keep tab/newline/carriage return, strip other control chars that can corrupt XML parts.
+        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value) ?? '';
     }
 
     private function resolveWorksheetShapeId(string $vml, string $shapeKey): ?int

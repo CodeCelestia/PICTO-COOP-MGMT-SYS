@@ -85,16 +85,16 @@ const canDeleteMember = computed(() => isProvincialAdmin.value || isCoopAdmin.va
 const showActions = computed(() => canEditMember.value || canDeleteMember.value);
 
 const search = ref(props.filters.search || '');
-const coopId = ref(props.filters.coop_id || '');
-const sector = ref(props.filters.sector || '');
-const membershipStatus = ref(props.filters.membership_status || '');
+const coopId = ref(props.filters.coop_id || 'all');
+const sector = ref(props.filters.sector || 'all');
+const membershipStatus = ref(props.filters.membership_status || 'all');
 
 const applyFilters = () => {
     router.get('/members', {
         search: search.value,
-        coop_id: coopId.value,
-        sector: sector.value,
-        membership_status: membershipStatus.value,
+        coop_id: coopId.value === 'all' ? '' : coopId.value,
+        sector: sector.value === 'all' ? '' : sector.value,
+        membership_status: membershipStatus.value === 'all' ? '' : membershipStatus.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -103,9 +103,9 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     search.value = '';
-    coopId.value = '';
-    sector.value = '';
-    membershipStatus.value = '';
+    coopId.value = 'all';
+    sector.value = 'all';
+    membershipStatus.value = 'all';
     router.get('/members');
 };
 
@@ -194,7 +194,7 @@ const formatLocation = (member: Member) => {
                                 <SelectValue placeholder="All Cooperatives" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Cooperatives</SelectItem>
+                                <SelectItem value="all">All Cooperatives</SelectItem>
                                 <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
                                     {{ coop.name }}
                                 </SelectItem>
@@ -208,7 +208,7 @@ const formatLocation = (member: Member) => {
                                 <SelectValue placeholder="All Sectors" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Sectors</SelectItem>
+                                <SelectItem value="all">All Sectors</SelectItem>
                                 <SelectItem value="Farmer">Farmer</SelectItem>
                                 <SelectItem value="Fishfolk">Fishfolk</SelectItem>
                                 <SelectItem value="Employee">Employee</SelectItem>
@@ -228,7 +228,7 @@ const formatLocation = (member: Member) => {
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="Active">Active</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>

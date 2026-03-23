@@ -7,6 +7,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
 
 defineProps<{
@@ -14,15 +15,29 @@ defineProps<{
 }>();
 
 const { isCurrentUrl } = useCurrentUrl();
+
+function getHrefKey(href: NavItem['href']) {
+    return toUrl(href);
+}
+
+function isPlaceholderHref(href: NavItem['href']) {
+    const url = toUrl(href);
+
+    return !url || url === '#';
+}
 </script>
 
 <template>
     <SidebarGroup class="px-2 py-0">
         <SidebarGroupLabel>Platform</SidebarGroupLabel>
         <SidebarMenu>
-            <SidebarMenuItem v-for="item in items" :key="item.title">
+            <SidebarMenuItem v-for="item in items" :key="`${item.title}:${getHrefKey(item.href)}`">
                 <Link
+                    v-if="!isPlaceholderHref(item.href)"
                     :href="item.href"
+                    prefetch
+                    :preserve-state="false"
+                    :preserve-scroll="false"
                     class="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     :class="{
                         'bg-sidebar-accent text-sidebar-accent-foreground font-medium': isCurrentUrl(item.href),
@@ -31,6 +46,13 @@ const { isCurrentUrl } = useCurrentUrl();
                     <component :is="item.icon" />
                     <span>{{ item.title }}</span>
                 </Link>
+                <span
+                    v-else
+                    class="flex w-full cursor-not-allowed items-center gap-2 rounded-md p-2 text-left text-sm text-sidebar-foreground/50"
+                >
+                    <component :is="item.icon" />
+                    <span>{{ item.title }}</span>
+                </span>
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarGroup>

@@ -17,6 +17,9 @@ export type User = {
 
 export type Auth = {
     user: User;
+    roles?: string[];
+    isCoopAdmin?: boolean;
+    isMember?: boolean;
 };
 
 export type TwoFactorConfigContent = {

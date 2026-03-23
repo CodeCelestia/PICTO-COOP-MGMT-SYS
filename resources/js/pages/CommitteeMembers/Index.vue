@@ -76,14 +76,14 @@ const canDelete = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
 const showActions = computed(() => canEdit.value || canDelete.value);
 
 const search = ref(props.filters.search || '');
-const coopId = ref(props.filters.coop_id || '');
-const status = ref(props.filters.status || '');
+const coopId = ref(props.filters.coop_id || 'all');
+const status = ref(props.filters.status || 'all');
 
 const applyFilters = () => {
     router.get('/committee-members', {
         search: search.value,
-        coop_id: coopId.value,
-        status: status.value,
+        coop_id: coopId.value === 'all' ? '' : coopId.value,
+        status: status.value === 'all' ? '' : status.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -92,8 +92,8 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     search.value = '';
-    coopId.value = '';
-    status.value = '';
+    coopId.value = 'all';
+    status.value = 'all';
     router.get('/committee-members');
 };
 
@@ -163,7 +163,7 @@ const formatDate = (date: string | null) => {
                                 <SelectValue placeholder="All Cooperatives" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Cooperatives</SelectItem>
+                                <SelectItem value="all">All Cooperatives</SelectItem>
                                 <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
                                     {{ coop.name }}
                                 </SelectItem>
@@ -177,7 +177,7 @@ const formatDate = (date: string | null) => {
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="Active">Active</SelectItem>
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                             </SelectContent>

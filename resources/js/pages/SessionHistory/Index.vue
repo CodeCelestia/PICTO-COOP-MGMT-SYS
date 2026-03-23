@@ -67,7 +67,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const search = ref(props.filters.search || '');
-const statusFilter = ref(props.filters.status || '');
+const statusFilter = ref(props.filters.status || 'all');
 const dateFrom = ref(props.filters.date_from || '');
 const dateTo = ref(props.filters.date_to || '');
 const expandedRows = ref<Set<number>>(new Set());
@@ -75,7 +75,7 @@ const expandedRows = ref<Set<number>>(new Set());
 const applyFilters = () => {
     router.get('/session-history', {
         search: search.value || undefined,
-        status: statusFilter.value || undefined,
+        status: statusFilter.value === 'all' ? undefined : statusFilter.value,
         date_from: dateFrom.value || undefined,
         date_to: dateTo.value || undefined,
     }, {
@@ -86,7 +86,7 @@ const applyFilters = () => {
 
 const clearFilters = () => {
     search.value = '';
-    statusFilter.value = '';
+    statusFilter.value = 'all';
     dateFrom.value = '';
     dateTo.value = '';
     applyFilters();
@@ -132,7 +132,7 @@ const formatDuration = (minutes: number | null) => {
 };
 
 const hasActiveFilters = computed(() => {
-    return search.value || statusFilter.value || dateFrom.value || dateTo.value;
+    return search.value || statusFilter.value !== 'all' || dateFrom.value || dateTo.value;
 });
 </script>
 
@@ -168,7 +168,7 @@ const hasActiveFilters = computed(() => {
                             <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Statuses</SelectItem>
+                            <SelectItem value="all">All Statuses</SelectItem>
                             <SelectItem value="Success">Success</SelectItem>
                             <SelectItem value="Failed">Failed</SelectItem>
                             <SelectItem value="Locked Out">Locked Out</SelectItem>

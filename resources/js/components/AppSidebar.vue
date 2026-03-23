@@ -31,15 +31,20 @@ import type { NavItem } from '@/types';
 import { computed } from 'vue';
 
 const page = usePage();
-const isCoopAdmin = computed(() => Boolean(page.props.auth?.isCoopAdmin));
-const roles = computed<string[]>(() => (page.props.auth?.roles as string[]) || []);
-const accountType = computed(() => page.props.auth?.user?.account_type as string | undefined);
+const auth = computed(() => page.props.auth as {
+    user?: { account_type?: string };
+    roles?: string[];
+    isCoopAdmin?: boolean;
+} | undefined);
+const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const roles = computed<string[]>(() => auth.value?.roles || []);
+const accountType = computed(() => auth.value?.user?.account_type as string | undefined);
 const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
 const isOfficer = computed(() => roles.value.includes('Officer') || accountType.value === 'Officer');
 const isCommitteeMember = computed(() => roles.value.includes('Committee Member') || accountType.value === 'Committee Member');
 const isViewer = computed(() => roles.value.includes('Viewer') || accountType.value === 'Viewer');
 const isMember = computed(() => {
-    const accountType = page.props.auth?.user?.account_type;
+    const accountType = auth.value?.user?.account_type;
     return roles.value.includes('Member') || accountType === 'Member';
 });
 const isMemberOnly = computed(() => isMember.value && !isCoopAdmin.value && !isProvincialAdmin.value && roles.value.length === 1);

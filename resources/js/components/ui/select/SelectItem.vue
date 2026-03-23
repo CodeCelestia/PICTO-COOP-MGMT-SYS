@@ -3,6 +3,7 @@ import type { SelectItemProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
 import { reactiveOmit } from "@vueuse/core"
 import { Check } from "lucide-vue-next"
+import { computed } from "vue"
 import {
   SelectItem,
   SelectItemIndicator,
@@ -11,11 +12,18 @@ import {
 } from "reka-ui"
 import { cn } from "@/lib/utils"
 
+const EMPTY_SELECT_VALUE = "__REKA_EMPTY_SELECT_VALUE__"
+
 const props = defineProps<SelectItemProps & { class?: HTMLAttributes["class"] }>()
 
-const delegatedProps = reactiveOmit(props, "class")
+const delegatedProps = reactiveOmit(props, "class", "value")
 
-const forwardedProps = useForwardProps(delegatedProps)
+const normalizedProps = computed(() => ({
+  ...delegatedProps,
+  value: props.value === "" ? EMPTY_SELECT_VALUE : props.value,
+}))
+
+const forwardedProps = useForwardProps(normalizedProps)
 </script>
 
 <template>

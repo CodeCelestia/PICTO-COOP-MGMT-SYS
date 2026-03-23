@@ -77,15 +77,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const search = ref(props.filters.search || '');
-const selectedEvent = ref(props.filters.event || '');
-const selectedSubjectType = ref(props.filters.subject_type || '');
+const selectedEvent = ref(props.filters.event || 'all');
+const selectedSubjectType = ref(props.filters.subject_type || 'all');
 const expandedRow = ref<number | null>(null);
 
 const applyFilters = () => {
     router.get('/audit-logs', {
         search: search.value || undefined,
-        event: selectedEvent.value || undefined,
-        subject_type: selectedSubjectType.value || undefined,
+        event: selectedEvent.value === 'all' ? undefined : selectedEvent.value,
+        subject_type: selectedSubjectType.value === 'all' ? undefined : selectedSubjectType.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -94,8 +94,8 @@ const applyFilters = () => {
 
 const clearFilters = () => {
     search.value = '';
-    selectedEvent.value = '';
-    selectedSubjectType.value = '';
+    selectedEvent.value = 'all';
+    selectedSubjectType.value = 'all';
     router.get('/audit-logs');
 };
 
@@ -167,7 +167,7 @@ const getSubjectIcon = (subjectType: string) => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="">All Events</SelectItem>
+                                    <SelectItem value="all">All Events</SelectItem>
                                     <SelectItem v-for="event in eventTypes" :key="event" :value="event">
                                         {{ event.charAt(0).toUpperCase() + event.slice(1) }}
                                     </SelectItem>
@@ -182,7 +182,7 @@ const getSubjectIcon = (subjectType: string) => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="">All Types</SelectItem>
+                                    <SelectItem value="all">All Types</SelectItem>
                                     <SelectItem v-for="type in subjectTypes" :key="type" :value="type">
                                         {{ type }}
                                     </SelectItem>

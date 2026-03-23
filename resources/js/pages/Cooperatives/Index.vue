@@ -71,16 +71,16 @@ const canDeleteCoop = computed(() => isProvincialAdmin.value);
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value);
 
 const search = ref(props.filters.search || '');
-const status = ref(props.filters.status || '');
-const coopType = ref(props.filters.coop_type || '');
-const province = ref(props.filters.province || '');
+const status = ref(props.filters.status || 'all');
+const coopType = ref(props.filters.coop_type || 'all');
+const province = ref(props.filters.province || 'all');
 
 const applyFilters = () => {
     router.get('/cooperatives', {
         search: search.value,
-        status: status.value,
-        coop_type: coopType.value,
-        province: province.value,
+        status: status.value === 'all' ? '' : status.value,
+        coop_type: coopType.value === 'all' ? '' : coopType.value,
+        province: province.value === 'all' ? '' : province.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -89,9 +89,9 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     search.value = '';
-    status.value = '';
-    coopType.value = '';
-    province.value = '';
+    status.value = 'all';
+    coopType.value = 'all';
+    province.value = 'all';
     router.get('/cooperatives');
 };
 
@@ -206,7 +206,7 @@ const coopTypes = [
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="Active">Active</SelectItem>
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
@@ -221,7 +221,7 @@ const coopTypes = [
                                 <SelectValue placeholder="All Types" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Types</SelectItem>
+                                <SelectItem value="all">All Types</SelectItem>
                                 <SelectItem v-for="type in coopTypes" :key="type" :value="type">
                                     {{ type }}
                                 </SelectItem>
@@ -235,7 +235,7 @@ const coopTypes = [
                                 <SelectValue placeholder="All Provinces" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Provinces</SelectItem>
+                                <SelectItem value="all">All Provinces</SelectItem>
                                 <SelectItem v-for="prov in provinces" :key="prov" :value="prov">
                                     {{ prov }}
                                 </SelectItem>

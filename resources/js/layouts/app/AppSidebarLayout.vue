@@ -47,7 +47,9 @@ watch(
         <AppSidebar />
         <AppContent variant="sidebar" class="overflow-x-hidden">
             <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
+            <div :key="page.component">
+                <slot />
+            </div>
         </AppContent>
     </AppShell>
 </template>
