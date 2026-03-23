@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { History, Filter, Search, Calendar, TrendingUp, User2 } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -11,16 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface User {
     id: number;
@@ -61,14 +61,14 @@ interface Props {
 const props = defineProps<Props>();
 
 const search = ref(props.filters.search || '');
-const statusFilter = ref(props.filters.new_status || '');
+const statusFilter = ref(props.filters.new_status || 'all');
 const dateFrom = ref(props.filters.date_from || '');
 const dateTo = ref(props.filters.date_to || '');
 
 const applyFilters = () => {
     router.get('/account-status-history', {
         search: search.value || undefined,
-        new_status: statusFilter.value || undefined,
+        new_status: statusFilter.value === 'all' ? undefined : statusFilter.value,
         date_from: dateFrom.value || undefined,
         date_to: dateTo.value || undefined,
     }, {
@@ -79,7 +79,7 @@ const applyFilters = () => {
 
 const clearFilters = () => {
     search.value = '';
-    statusFilter.value = '';
+    statusFilter.value = 'all';
     dateFrom.value = '';
     dateTo.value = '';
     applyFilters();
@@ -107,7 +107,7 @@ const formatDateTime = (date: string) => {
 };
 
 const hasActiveFilters = computed(() => {
-    return search.value || statusFilter.value || dateFrom.value || dateTo.value;
+    return search.value || statusFilter.value !== 'all' || dateFrom.value || dateTo.value;
 });
 </script>
 
@@ -143,7 +143,7 @@ const hasActiveFilters = computed(() => {
                             <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Statuses</SelectItem>
+                            <SelectItem value="all">All Statuses</SelectItem>
                             <SelectItem value="Active">Active</SelectItem>
                             <SelectItem value="Inactive">Inactive</SelectItem>
                             <SelectItem value="Suspended">Suspended</SelectItem>

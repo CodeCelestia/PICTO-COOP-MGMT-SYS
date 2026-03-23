@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
+import { Users, Save, X } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -13,7 +12,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Users, Save, X } from 'lucide-vue-next';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
     id: number;
@@ -54,7 +54,7 @@ const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const form = useForm({
     training_id: props.trainings[0]?.id?.toString() || '',
     member_id: '',
-    officer_id: '',
+    officer_id: 'none',
     outcome: 'No Assessment',
     certificate_no: '',
     certificate_date: '',
@@ -78,6 +78,11 @@ const filteredOfficers = computed(() => {
 });
 
 const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        officer_id: data.officer_id === 'none' ? '' : data.officer_id,
+    }));
+
     form.post('/training-participants', {
         preserveScroll: true,
     });
@@ -145,7 +150,7 @@ const cancel = () => {
                                         <SelectValue placeholder="Select officer" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">No officer</SelectItem>
+                                        <SelectItem value="none">No officer</SelectItem>
                                         <SelectItem v-for="officer in filteredOfficers" :key="officer.id" :value="officer.id.toString()">
                                             {{ officer.name || 'Officer' }}
                                         </SelectItem>

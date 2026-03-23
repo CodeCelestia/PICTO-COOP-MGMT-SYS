@@ -1,13 +1,10 @@
-<script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+﻿<script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
-import { usePsgc } from '@/composables/usePsgc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
@@ -15,6 +12,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { notifySuccess } from '@/lib/alerts';
+import { usePsgc } from '@/composables/usePsgc';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface DynamicText {
     value: string;
@@ -565,6 +566,8 @@ const submit = (downloadAfterSave: boolean) => {
     form.status = downloadAfterSave ? 'final' : 'draft';
 
     const onSuccess = (page: any) => {
+        notifySuccess(props.isEdit ? 'PDS updated successfully.' : 'PDS saved successfully.');
+
         const flash = page?.props?.flash || {};
 
         if (downloadAfterSave && flash.trigger_download && flash.pds_id) {
@@ -649,36 +652,36 @@ const tabs = [
             </div>
 
             <form class="space-y-6">
-                <div v-show="activeTab === 'c1'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+                <div v-if="activeTab === 'c1'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
                     <section>
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">Section 1: Personal Information</h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                             <div>
                                 <Label>Surname *</Label>
-                                <Input v-model="form.surname" />
+                                <Input v-model.lazy="form.surname" />
                                 <InputError :message="form.errors.surname" />
                             </div>
                             <div>
                                 <Label>First Name *</Label>
-                                <Input v-model="form.first_name" />
+                                <Input v-model.lazy="form.first_name" />
                                 <InputError :message="form.errors.first_name" />
                             </div>
                             <div>
                                 <Label>Middle Name</Label>
-                                <Input v-model="form.middle_name" />
+                                <Input v-model.lazy="form.middle_name" />
                             </div>
                             <div>
                                 <Label>Name Extension</Label>
-                                <Input v-model="form.name_extension" />
+                                <Input v-model.lazy="form.name_extension" />
                             </div>
                             <div>
                                 <Label>Date of Birth *</Label>
-                                <Input v-model="form.date_of_birth" type="date" />
+                                <Input v-model.lazy="form.date_of_birth" type="date" />
                                 <InputError :message="form.errors.date_of_birth" />
                             </div>
                             <div class="md:col-span-2">
                                 <Label>Place of Birth *</Label>
-                                <Input v-model="form.place_of_birth" />
+                                <Input v-model.lazy="form.place_of_birth" />
                                 <InputError :message="form.errors.place_of_birth" />
                             </div>
                             <div>
@@ -715,7 +718,7 @@ const tabs = [
                             </div>
                             <div v-if="form.citizenship === 'Dual Citizenship'">
                                 <Label>Dual Country</Label>
-                                <Input v-model="form.dual_country" />
+                                <Input v-model.lazy="form.dual_country" />
                             </div>
                             <div v-if="form.citizenship === 'Dual Citizenship'">
                                 <Label>Dual Citizenship Type</Label>
@@ -730,11 +733,11 @@ const tabs = [
                             </div>
                             <div>
                                 <Label>Height (m)</Label>
-                                <Input v-model="form.height" />
+                                <Input v-model.lazy="form.height" />
                             </div>
                             <div>
                                 <Label>Weight (kg)</Label>
-                                <Input v-model="form.weight" />
+                                <Input v-model.lazy="form.weight" />
                             </div>
                             <div>
                                 <Label>Blood Type</Label>
@@ -748,22 +751,22 @@ const tabs = [
                         </div>
 
                         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div><Label>UMID ID</Label><Input v-model="form.umid_id" /></div>
-                            <div><Label>Pag-IBIG ID</Label><Input v-model="form.pagibig_id" /></div>
-                            <div><Label>PhilHealth No</Label><Input v-model="form.philhealth_no" /></div>
-                            <div><Label>PhilSys No</Label><Input v-model="form.philsys_no" /></div>
-                            <div><Label>TIN No</Label><Input v-model="form.tin_no" /></div>
-                            <div><Label>Agency Employee No</Label><Input v-model="form.agency_employee_no" /></div>
-                            <div><Label>Telephone No</Label><Input v-model="form.telephone_no" /></div>
-                            <div><Label>Mobile No</Label><Input v-model="form.mobile_no" /></div>
-                            <div><Label>Email</Label><Input v-model="form.email" type="email" /></div>
+                            <div><Label>UMID ID</Label><Input v-model.lazy="form.umid_id" /></div>
+                            <div><Label>Pag-IBIG ID</Label><Input v-model.lazy="form.pagibig_id" /></div>
+                            <div><Label>PhilHealth No</Label><Input v-model.lazy="form.philhealth_no" /></div>
+                            <div><Label>PhilSys No</Label><Input v-model.lazy="form.philsys_no" /></div>
+                            <div><Label>TIN No</Label><Input v-model.lazy="form.tin_no" /></div>
+                            <div><Label>Agency Employee No</Label><Input v-model.lazy="form.agency_employee_no" /></div>
+                            <div><Label>Telephone No</Label><Input v-model.lazy="form.telephone_no" /></div>
+                            <div><Label>Mobile No</Label><Input v-model.lazy="form.mobile_no" /></div>
+                            <div><Label>Email</Label><Input v-model.lazy="form.email" type="email" /></div>
                         </div>
 
                         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                             <h3 class="md:col-span-3 text-base font-semibold text-gray-800">Residential Address</h3>
-                            <div><Label>House/Lot</Label><Input v-model="form.res_house_no" /></div>
-                            <div><Label>Street</Label><Input v-model="form.res_street" /></div>
-                            <div><Label>Subdivision</Label><Input v-model="form.res_subdivision" /></div>
+                            <div><Label>House/Lot</Label><Input v-model.lazy="form.res_house_no" /></div>
+                            <div><Label>Street</Label><Input v-model.lazy="form.res_street" /></div>
+                            <div><Label>Subdivision</Label><Input v-model.lazy="form.res_subdivision" /></div>
                             <div>
                                 <Label>Region</Label>
                                 <Select v-model="selectedResRegionCode">
@@ -816,7 +819,7 @@ const tabs = [
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div><Label>Zipcode</Label><Input v-model="form.res_zipcode" /></div>
+                            <div><Label>Zipcode</Label><Input v-model.lazy="form.res_zipcode" /></div>
                             <p v-if="loading" class="md:col-span-3 text-sm text-blue-600">Loading PSGC locations...</p>
                         </div>
 
@@ -828,9 +831,9 @@ const tabs = [
                                     Same as residential
                                 </label>
                             </div>
-                            <div><Label>House/Lot</Label><Input v-model="form.perm_house_no" /></div>
-                            <div><Label>Street</Label><Input v-model="form.perm_street" /></div>
-                            <div><Label>Subdivision</Label><Input v-model="form.perm_subdivision" /></div>
+                            <div><Label>House/Lot</Label><Input v-model.lazy="form.perm_house_no" /></div>
+                            <div><Label>Street</Label><Input v-model.lazy="form.perm_street" /></div>
+                            <div><Label>Subdivision</Label><Input v-model.lazy="form.perm_subdivision" /></div>
                             <div>
                                 <Label>Region</Label>
                                 <Select v-model="selectedPermRegionCode">
@@ -883,7 +886,7 @@ const tabs = [
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div><Label>Zipcode</Label><Input v-model="form.perm_zipcode" /></div>
+                            <div><Label>Zipcode</Label><Input v-model.lazy="form.perm_zipcode" /></div>
                             <p v-if="permLoading" class="md:col-span-3 text-sm text-blue-600">Loading PSGC locations...</p>
                         </div>
                     </section>
@@ -891,24 +894,24 @@ const tabs = [
                     <section>
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">Section 2: Family Background</h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-                            <div><Label>Spouse Surname</Label><Input v-model="form.spouse_surname" /></div>
-                            <div><Label>Spouse First Name</Label><Input v-model="form.spouse_firstname" /></div>
-                            <div><Label>Spouse Middle Name</Label><Input v-model="form.spouse_middlename" /></div>
-                            <div><Label>Spouse Extension</Label><Input v-model="form.spouse_extension" /></div>
-                            <div><Label>Occupation</Label><Input v-model="form.spouse_occupation" /></div>
-                            <div><Label>Employer</Label><Input v-model="form.spouse_employer" /></div>
-                            <div><Label>Business Address</Label><Input v-model="form.spouse_business_addr" /></div>
-                            <div><Label>Telephone</Label><Input v-model="form.spouse_telephone" /></div>
+                            <div><Label>Spouse Surname</Label><Input v-model.lazy="form.spouse_surname" /></div>
+                            <div><Label>Spouse First Name</Label><Input v-model.lazy="form.spouse_firstname" /></div>
+                            <div><Label>Spouse Middle Name</Label><Input v-model.lazy="form.spouse_middlename" /></div>
+                            <div><Label>Spouse Extension</Label><Input v-model.lazy="form.spouse_extension" /></div>
+                            <div><Label>Occupation</Label><Input v-model.lazy="form.spouse_occupation" /></div>
+                            <div><Label>Employer</Label><Input v-model.lazy="form.spouse_employer" /></div>
+                            <div><Label>Business Address</Label><Input v-model.lazy="form.spouse_business_addr" /></div>
+                            <div><Label>Telephone</Label><Input v-model.lazy="form.spouse_telephone" /></div>
                         </div>
 
                         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-                            <div><Label>Father Surname</Label><Input v-model="form.father_surname" /></div>
-                            <div><Label>Father First Name</Label><Input v-model="form.father_firstname" /></div>
-                            <div><Label>Father Middle Name</Label><Input v-model="form.father_middlename" /></div>
-                            <div><Label>Father Extension</Label><Input v-model="form.father_extension" /></div>
-                            <div><Label>Mother Surname</Label><Input v-model="form.mother_surname" /></div>
-                            <div><Label>Mother First Name</Label><Input v-model="form.mother_firstname" /></div>
-                            <div><Label>Mother Middle Name</Label><Input v-model="form.mother_middlename" /></div>
+                            <div><Label>Father Surname</Label><Input v-model.lazy="form.father_surname" /></div>
+                            <div><Label>Father First Name</Label><Input v-model.lazy="form.father_firstname" /></div>
+                            <div><Label>Father Middle Name</Label><Input v-model.lazy="form.father_middlename" /></div>
+                            <div><Label>Father Extension</Label><Input v-model.lazy="form.father_extension" /></div>
+                            <div><Label>Mother Surname</Label><Input v-model.lazy="form.mother_surname" /></div>
+                            <div><Label>Mother First Name</Label><Input v-model.lazy="form.mother_firstname" /></div>
+                            <div><Label>Mother Middle Name</Label><Input v-model.lazy="form.mother_middlename" /></div>
                         </div>
 
                         <div class="mt-6">
@@ -917,8 +920,8 @@ const tabs = [
                                 <Button type="button" variant="outline" @click="form.children.push({ name: '', date_of_birth: '' })">Add Child</Button>
                             </div>
                             <div v-for="(child, index) in form.children" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                                <div class="md:col-span-2"><Label>Name</Label><Input v-model="child.name" /></div>
-                                <div><Label>Date of Birth</Label><Input v-model="child.date_of_birth" type="date" /></div>
+                                <div class="md:col-span-2"><Label>Name</Label><Input v-model.lazy="child.name" /></div>
+                                <div><Label>Date of Birth</Label><Input v-model.lazy="child.date_of_birth" type="date" /></div>
                                 <div class="md:col-span-3">
                                     <Button type="button" variant="destructive" size="sm" @click="form.children.splice(index, 1)">Remove</Button>
                                 </div>
@@ -938,8 +941,8 @@ const tabs = [
                             }" :key="key" class="rounded-md border border-gray-200 p-4">
                                 <h3 class="mb-3 font-semibold text-gray-800">{{ label }}</h3>
                                 <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                    <div><Label>School Name</Label><Input v-model="form.education[key].school_name" /></div>
-                                    <div><Label>Degree/Course</Label><Input v-model="form.education[key].degree" /></div>
+                                    <div><Label>School Name</Label><Input v-model.lazy="form.education[key].school_name" /></div>
+                                    <div><Label>Degree/Course</Label><Input v-model.lazy="form.education[key].degree" /></div>
                                     <div>
                                         <Label>From</Label>
                                         <Select v-model="form.education[key].from">
@@ -966,7 +969,7 @@ const tabs = [
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div><Label>Highest Level/Units</Label><Input v-model="form.education[key].units" /></div>
+                                    <div><Label>Highest Level/Units</Label><Input v-model.lazy="form.education[key].units" /></div>
                                     <div>
                                         <Label>Year Graduated</Label>
                                         <Select v-model="form.education[key].year_graduated">
@@ -980,26 +983,26 @@ const tabs = [
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div class="md:col-span-3"><Label>Honors</Label><Input v-model="form.education[key].honors" /></div>
+                                    <div class="md:col-span-3"><Label>Honors</Label><Input v-model.lazy="form.education[key].honors" /></div>
                                 </div>
                             </div>
                         </div>
                     </section>
                 </div>
 
-                <div v-show="activeTab === 'c2'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+                <div v-else-if="activeTab === 'c2'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
                     <section>
                         <div class="mb-3 flex items-center justify-between">
                             <h2 class="text-lg font-semibold text-gray-900">Civil Service Eligibility</h2>
                             <Button type="button" variant="outline" @click="form.eligibility.push({ name: '', rating: '', exam_date: '', exam_place: '', license_number: '', license_validity: '' })">Add Row</Button>
                         </div>
                         <div v-for="(row, index) in form.eligibility" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div><Label>Name</Label><Input v-model="row.name" /></div>
-                            <div><Label>Rating</Label><Input v-model="row.rating" /></div>
-                            <div><Label>Exam Date</Label><Input v-model="row.exam_date" type="date" /></div>
-                            <div><Label>Exam Place</Label><Input v-model="row.exam_place" /></div>
-                            <div><Label>License Number</Label><Input v-model="row.license_number" /></div>
-                            <div><Label>Validity</Label><Input v-model="row.license_validity" type="date" /></div>
+                            <div><Label>Name</Label><Input v-model.lazy="row.name" /></div>
+                            <div><Label>Rating</Label><Input v-model.lazy="row.rating" /></div>
+                            <div><Label>Exam Date</Label><Input v-model.lazy="row.exam_date" type="date" /></div>
+                            <div><Label>Exam Place</Label><Input v-model.lazy="row.exam_place" /></div>
+                            <div><Label>License Number</Label><Input v-model.lazy="row.license_number" /></div>
+                            <div><Label>Validity</Label><Input v-model.lazy="row.license_validity" type="date" /></div>
                             <div class="md:col-span-3"><Button type="button" variant="destructive" size="sm" @click="form.eligibility.splice(index, 1)">Remove</Button></div>
                         </div>
                     </section>
@@ -1010,13 +1013,13 @@ const tabs = [
                             <Button type="button" variant="outline" @click="form.work_experience.push({ date_from: '', date_to: '', position_title: '', dept_agency: '', monthly_salary: '', salary_grade: '', status_appointment: '', govt_service: '' })">Add Row</Button>
                         </div>
                         <div v-for="(row, index) in form.work_experience" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-4">
-                            <div><Label>Date From</Label><Input v-model="row.date_from" type="date" /></div>
-                            <div><Label>Date To</Label><Input v-model="row.date_to" type="date" /></div>
-                            <div><Label>Position</Label><Input v-model="row.position_title" /></div>
-                            <div><Label>Dept/Agency</Label><Input v-model="row.dept_agency" /></div>
-                            <div><Label>Monthly Salary</Label><Input v-model="row.monthly_salary" /></div>
-                            <div><Label>Salary Grade</Label><Input v-model="row.salary_grade" /></div>
-                            <div><Label>Status</Label><Input v-model="row.status_appointment" /></div>
+                            <div><Label>Date From</Label><Input v-model.lazy="row.date_from" type="date" /></div>
+                            <div><Label>Date To</Label><Input v-model.lazy="row.date_to" type="date" /></div>
+                            <div><Label>Position</Label><Input v-model.lazy="row.position_title" /></div>
+                            <div><Label>Dept/Agency</Label><Input v-model.lazy="row.dept_agency" /></div>
+                            <div><Label>Monthly Salary</Label><Input v-model.lazy="row.monthly_salary" /></div>
+                            <div><Label>Salary Grade</Label><Input v-model.lazy="row.salary_grade" /></div>
+                            <div><Label>Status</Label><Input v-model.lazy="row.status_appointment" /></div>
                             <div>
                                 <Label>Govt Service</Label>
                                 <Select v-model="row.govt_service">
@@ -1032,18 +1035,18 @@ const tabs = [
                     </section>
                 </div>
 
-                <div v-show="activeTab === 'c3'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+                <div v-else-if="activeTab === 'c3'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
                     <section>
                         <div class="mb-3 flex items-center justify-between">
                             <h2 class="text-lg font-semibold text-gray-900">Voluntary Work</h2>
                             <Button type="button" variant="outline" @click="form.voluntary_work.push({ organization: '', date_from: '', date_to: '', hours: '', position: '' })">Add Row</Button>
                         </div>
                         <div v-for="(row, index) in form.voluntary_work" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div class="md:col-span-2"><Label>Organization</Label><Input v-model="row.organization" /></div>
-                            <div><Label>Hours</Label><Input v-model="row.hours" /></div>
-                            <div><Label>Date From</Label><Input v-model="row.date_from" type="date" /></div>
-                            <div><Label>Date To</Label><Input v-model="row.date_to" type="date" /></div>
-                            <div><Label>Position/Nature</Label><Input v-model="row.position" /></div>
+                            <div class="md:col-span-2"><Label>Organization</Label><Input v-model.lazy="row.organization" /></div>
+                            <div><Label>Hours</Label><Input v-model.lazy="row.hours" /></div>
+                            <div><Label>Date From</Label><Input v-model.lazy="row.date_from" type="date" /></div>
+                            <div><Label>Date To</Label><Input v-model.lazy="row.date_to" type="date" /></div>
+                            <div><Label>Position/Nature</Label><Input v-model.lazy="row.position" /></div>
                             <div class="md:col-span-3"><Button type="button" variant="destructive" size="sm" @click="form.voluntary_work.splice(index, 1)">Remove</Button></div>
                         </div>
                     </section>
@@ -1054,10 +1057,10 @@ const tabs = [
                             <Button type="button" variant="outline" @click="form.learning_development.push({ title: '', date_from: '', date_to: '', hours: '', type: '', conducted_by: '' })">Add Row</Button>
                         </div>
                         <div v-for="(row, index) in form.learning_development" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div class="md:col-span-2"><Label>Title</Label><Input v-model="row.title" /></div>
-                            <div><Label>Hours</Label><Input v-model="row.hours" /></div>
-                            <div><Label>Date From</Label><Input v-model="row.date_from" type="date" /></div>
-                            <div><Label>Date To</Label><Input v-model="row.date_to" type="date" /></div>
+                            <div class="md:col-span-2"><Label>Title</Label><Input v-model.lazy="row.title" /></div>
+                            <div><Label>Hours</Label><Input v-model.lazy="row.hours" /></div>
+                            <div><Label>Date From</Label><Input v-model.lazy="row.date_from" type="date" /></div>
+                            <div><Label>Date To</Label><Input v-model.lazy="row.date_to" type="date" /></div>
                             <div>
                                 <Label>Type</Label>
                                 <Select v-model="row.type">
@@ -1067,20 +1070,20 @@ const tabs = [
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div><Label>Conducted By</Label><Input v-model="row.conducted_by" /></div>
+                            <div><Label>Conducted By</Label><Input v-model.lazy="row.conducted_by" /></div>
                             <div class="md:col-span-3"><Button type="button" variant="destructive" size="sm" @click="form.learning_development.splice(index, 1)">Remove</Button></div>
                         </div>
                     </section>
                 </div>
 
-                <div v-show="activeTab === 'c4'" class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+                <div v-else class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
                     <section>
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">Other Information</h2>
 
                         <div class="mb-5">
                             <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Special Skills</h3><Button type="button" variant="outline" @click="addStringRow('special_skills')">Add</Button></div>
                             <div v-for="(row, index) in form.special_skills" :key="`skill-${index}`" class="mb-2 flex gap-2">
-                                <Input v-model="form.special_skills[index]" />
+                                <Input v-model.lazy="form.special_skills[index]" />
                                 <Button type="button" variant="destructive" size="sm" @click="removeStringRow('special_skills', index)">Remove</Button>
                             </div>
                         </div>
@@ -1088,7 +1091,7 @@ const tabs = [
                         <div class="mb-5">
                             <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Recognitions</h3><Button type="button" variant="outline" @click="addStringRow('recognitions')">Add</Button></div>
                             <div v-for="(row, index) in form.recognitions" :key="`recognition-${index}`" class="mb-2 flex gap-2">
-                                <Input v-model="form.recognitions[index]" />
+                                <Input v-model.lazy="form.recognitions[index]" />
                                 <Button type="button" variant="destructive" size="sm" @click="removeStringRow('recognitions', index)">Remove</Button>
                             </div>
                         </div>
@@ -1096,7 +1099,7 @@ const tabs = [
                         <div>
                             <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Memberships</h3><Button type="button" variant="outline" @click="addStringRow('memberships')">Add</Button></div>
                             <div v-for="(row, index) in form.memberships" :key="`membership-${index}`" class="mb-2 flex gap-2">
-                                <Input v-model="form.memberships[index]" />
+                                <Input v-model.lazy="form.memberships[index]" />
                                 <Button type="button" variant="destructive" size="sm" @click="removeStringRow('memberships', index)">Remove</Button>
                             </div>
                         </div>
@@ -1121,19 +1124,19 @@ const tabs = [
                     <section>
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">References</h2>
                         <div v-for="(row, index) in form.references" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div><Label>Name</Label><Input v-model="row.name" /></div>
-                            <div><Label>Address</Label><Input v-model="row.address" /></div>
-                            <div><Label>Tel No</Label><Input v-model="row.tel_no" /></div>
+                            <div><Label>Name</Label><Input v-model.lazy="row.name" /></div>
+                            <div><Label>Address</Label><Input v-model.lazy="row.address" /></div>
+                            <div><Label>Tel No</Label><Input v-model.lazy="row.tel_no" /></div>
                         </div>
                     </section>
 
                     <section>
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">Government ID</h2>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-                            <div><Label>Government-issued ID</Label><Input v-model="form.govt_id_type" /></div>
-                            <div><Label>ID No</Label><Input v-model="form.govt_id_no" /></div>
-                            <div><Label>Date of Issue</Label><Input v-model="form.id_issue_date" type="date" /></div>
-                            <div><Label>Place of Issue</Label><Input v-model="form.id_issue_place" /></div>
+                            <div><Label>Government-issued ID</Label><Input v-model.lazy="form.govt_id_type" /></div>
+                            <div><Label>ID No</Label><Input v-model.lazy="form.govt_id_no" /></div>
+                            <div><Label>Date of Issue</Label><Input v-model.lazy="form.id_issue_date" type="date" /></div>
+                            <div><Label>Place of Issue</Label><Input v-model.lazy="form.id_issue_place" /></div>
                         </div>
                     </section>
 
@@ -1141,7 +1144,7 @@ const tabs = [
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">Signature</h2>
                         <div class="max-w-sm">
                             <Label>Date Signed</Label>
-                            <Input v-model="form.signature_date" type="date" />
+                            <Input v-model.lazy="form.signature_date" type="date" />
                         </div>
                     </section>
                 </div>
@@ -1159,3 +1162,4 @@ const tabs = [
         </div>
     </AppLayout>
 </template>
+

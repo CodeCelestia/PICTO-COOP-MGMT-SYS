@@ -1,20 +1,5 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     Activity,
     Calendar,
@@ -30,6 +15,21 @@ import {
     Users,
     Eye,
 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
 interface Causer {
@@ -149,28 +149,28 @@ const setTab = (tab: 'audit' | 'sessions' | 'accounts') => {
 };
 
 const auditSearch = ref(props.filters.audit.search || '');
-const auditEvent = ref(props.filters.audit.event || '');
-const auditSubject = ref(props.filters.audit.subject_type || '');
+const auditEvent = ref(props.filters.audit.event || 'all');
+const auditSubject = ref(props.filters.audit.subject_type || 'all');
 const expandedRow = ref<number | null>(null);
 
 const applyAuditFilters = () => {
     router.get('/activity-logs', {
         tab: 'audit',
         search: auditSearch.value || undefined,
-        event: auditEvent.value || undefined,
-        subject_type: auditSubject.value || undefined,
+        event: auditEvent.value === 'all' ? undefined : auditEvent.value,
+        subject_type: auditSubject.value === 'all' ? undefined : auditSubject.value,
     }, { preserveState: true, preserveScroll: true });
 };
 
 const clearAuditFilters = () => {
     auditSearch.value = '';
-    auditEvent.value = '';
-    auditSubject.value = '';
+    auditEvent.value = 'all';
+    auditSubject.value = 'all';
     applyAuditFilters();
 };
 
 const sessionSearch = ref(props.filters.sessions.search || '');
-const sessionStatus = ref(props.filters.sessions.status || '');
+const sessionStatus = ref(props.filters.sessions.status || 'all');
 const sessionDateFrom = ref(props.filters.sessions.date_from || '');
 const sessionDateTo = ref(props.filters.sessions.date_to || '');
 const expandedSessions = ref<Set<number>>(new Set());
@@ -179,7 +179,7 @@ const applySessionFilters = () => {
     router.get('/activity-logs', {
         tab: 'sessions',
         search: sessionSearch.value || undefined,
-        status: sessionStatus.value || undefined,
+        status: sessionStatus.value === 'all' ? undefined : sessionStatus.value,
         date_from: sessionDateFrom.value || undefined,
         date_to: sessionDateTo.value || undefined,
     }, { preserveState: true, preserveScroll: true });
@@ -187,14 +187,14 @@ const applySessionFilters = () => {
 
 const clearSessionFilters = () => {
     sessionSearch.value = '';
-    sessionStatus.value = '';
+    sessionStatus.value = 'all';
     sessionDateFrom.value = '';
     sessionDateTo.value = '';
     applySessionFilters();
 };
 
 const accountSearch = ref(props.filters.accounts.search || '');
-const accountStatus = ref(props.filters.accounts.new_status || '');
+const accountStatus = ref(props.filters.accounts.new_status || 'all');
 const accountDateFrom = ref(props.filters.accounts.date_from || '');
 const accountDateTo = ref(props.filters.accounts.date_to || '');
 
@@ -202,7 +202,7 @@ const applyAccountFilters = () => {
     router.get('/activity-logs', {
         tab: 'accounts',
         search: accountSearch.value || undefined,
-        new_status: accountStatus.value || undefined,
+        new_status: accountStatus.value === 'all' ? undefined : accountStatus.value,
         date_from: accountDateFrom.value || undefined,
         date_to: accountDateTo.value || undefined,
     }, { preserveState: true, preserveScroll: true });
@@ -210,7 +210,7 @@ const applyAccountFilters = () => {
 
 const clearAccountFilters = () => {
     accountSearch.value = '';
-    accountStatus.value = '';
+    accountStatus.value = 'all';
     accountDateFrom.value = '';
     accountDateTo.value = '';
     applyAccountFilters();
@@ -353,7 +353,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="">All Events</SelectItem>
+                                        <SelectItem value="all">All Events</SelectItem>
                                         <SelectItem v-for="event in eventTypes" :key="event" :value="event">
                                             {{ event.charAt(0).toUpperCase() + event.slice(1) }}
                                         </SelectItem>
@@ -367,7 +367,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
-                                        <SelectItem value="">All Types</SelectItem>
+                                        <SelectItem value="all">All Types</SelectItem>
                                         <SelectItem v-for="type in subjectTypes" :key="type" :value="type">
                                             {{ type }}
                                         </SelectItem>
@@ -514,7 +514,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="Success">Success</SelectItem>
                                 <SelectItem value="Failed">Failed</SelectItem>
                                 <SelectItem value="Locked Out">Locked Out</SelectItem>
@@ -537,7 +537,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                             <Filter class="mr-2 h-4 w-4" />
                             Apply Filters
                         </Button>
-                        <Button v-if="sessionSearch || sessionStatus || sessionDateFrom || sessionDateTo" @click="clearSessionFilters" variant="outline" size="sm">
+                        <Button v-if="sessionSearch || sessionStatus !== 'all' || sessionDateFrom || sessionDateTo" @click="clearSessionFilters" variant="outline" size="sm">
                             Clear Filters
                         </Button>
                     </div>
@@ -682,7 +682,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="Active">Active</SelectItem>
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
@@ -707,7 +707,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                             <Filter class="mr-2 h-4 w-4" />
                             Apply Filters
                         </Button>
-                        <Button v-if="accountSearch || accountStatus || accountDateFrom || accountDateTo" @click="clearAccountFilters" variant="outline" size="sm">
+                        <Button v-if="accountSearch || accountStatus !== 'all' || accountDateFrom || accountDateTo" @click="clearAccountFilters" variant="outline" size="sm">
                             Clear Filters
                         </Button>
                     </div>

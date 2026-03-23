@@ -7,10 +7,12 @@ import type { User } from '@/types';
 type Props = {
     user: User;
     showEmail?: boolean;
+    showRole?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     showEmail: false,
+    showRole: false,
 });
 
 const { getInitials } = useInitials();
@@ -19,6 +21,11 @@ const { getInitials } = useInitials();
 const showAvatar = computed(
     () => props.user.avatar && props.user.avatar !== '',
 );
+
+const roleLabel = computed(() => {
+    const value = props.user.account_type;
+    return typeof value === 'string' && value.trim() !== '' ? value : 'User';
+});
 </script>
 
 <template>
@@ -31,6 +38,7 @@ const showAvatar = computed(
 
     <div class="grid flex-1 text-left text-sm leading-tight">
         <span class="truncate font-medium">{{ user.name }}</span>
+        <span v-if="showRole" class="truncate text-xs text-muted-foreground">{{ roleLabel }}</span>
         <span v-if="showEmail" class="truncate text-xs text-muted-foreground">{{
             user.email
         }}</span>

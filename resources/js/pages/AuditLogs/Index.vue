@@ -1,20 +1,5 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { 
     Search, 
     Filter,
@@ -24,6 +9,21 @@ import {
     Clock,
     Eye
 } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { 
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
 interface Causer {
@@ -77,15 +77,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const search = ref(props.filters.search || '');
-const selectedEvent = ref(props.filters.event || '');
-const selectedSubjectType = ref(props.filters.subject_type || '');
+const selectedEvent = ref(props.filters.event || 'all');
+const selectedSubjectType = ref(props.filters.subject_type || 'all');
 const expandedRow = ref<number | null>(null);
 
 const applyFilters = () => {
     router.get('/audit-logs', {
         search: search.value || undefined,
-        event: selectedEvent.value || undefined,
-        subject_type: selectedSubjectType.value || undefined,
+        event: selectedEvent.value === 'all' ? undefined : selectedEvent.value,
+        subject_type: selectedSubjectType.value === 'all' ? undefined : selectedSubjectType.value,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -94,8 +94,8 @@ const applyFilters = () => {
 
 const clearFilters = () => {
     search.value = '';
-    selectedEvent.value = '';
-    selectedSubjectType.value = '';
+    selectedEvent.value = 'all';
+    selectedSubjectType.value = 'all';
     router.get('/audit-logs');
 };
 
@@ -167,7 +167,7 @@ const getSubjectIcon = (subjectType: string) => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="">All Events</SelectItem>
+                                    <SelectItem value="all">All Events</SelectItem>
                                     <SelectItem v-for="event in eventTypes" :key="event" :value="event">
                                         {{ event.charAt(0).toUpperCase() + event.slice(1) }}
                                     </SelectItem>
@@ -182,7 +182,7 @@ const getSubjectIcon = (subjectType: string) => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectItem value="">All Types</SelectItem>
+                                    <SelectItem value="all">All Types</SelectItem>
                                     <SelectItem v-for="type in subjectTypes" :key="type" :value="type">
                                         {{ type }}
                                     </SelectItem>
