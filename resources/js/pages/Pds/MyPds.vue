@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -97,6 +96,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
 const {
     regions,
     provinces,
@@ -567,13 +567,22 @@ const switchToErrorTab = () => {
     }
 };
 
-const submit = () => {
-    form.download = false;
-    form.status = 'draft';
+const submit = (downloadAfterSave: boolean) => {
+    form.download = downloadAfterSave;
+    form.status = downloadAfterSave ? 'final' : 'draft';
+
+    const onSuccess = (responsePage: any) => {
+        const flash = responsePage?.props?.flash || page.props?.flash || {};
+
+        if (downloadAfterSave && flash.trigger_download && flash.pds_id) {
+            globalThis.location.href = `/pds/${flash.pds_id}/download`;
+        }
+    };
 
     form.post('/pds/my', {
         preserveScroll: true,
         onError: switchToErrorTab,
+        onSuccess,
     });
 };
 
@@ -600,28 +609,25 @@ const lastSavedDate = computed(() => {
         day: '2-digit',
     });
 });
-
-const submitButtonLabel = computed(() => (props.pds ? 'Update PDS' : 'Save PDS'));
 </script>
 
 <template>
     <AppLayout>
-        <div class="p-6 space-y-6">
-            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-slate-900">My Personal Data Sheet</h1>
-                        <p class="mt-1 text-sm text-slate-500">CS Form No. 212 Revised 2025</p>
-                        <p v-if="pds" class="mt-2 text-xs text-slate-600">
-                            Last saved on {{ lastSavedDate || 'a previous date' }}
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <a v-if="pds" :href="`/pds/${pds.id}/download`" target="_blank" rel="noopener noreferrer">
-                            <Button type="button" variant="outline">Download PDS (CS Form 212)</Button>
-                        </a>
-                        <Button v-else type="button" variant="outline" disabled>Download PDS (Save first)</Button>
-                    </div>
+        <div class="p-6">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900">My Personal Data Sheet</h1>
+                <p class="mt-1 text-sm text-gray-500">CS Form No. 212 Revised 2025</p>
+            </div>
+
+            <div v-if="pds" class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+                <p class="text-sm font-medium">
+                    Your PDS was last saved on {{ lastSavedDate || 'a previous date' }}.
+                    Download the official form using the button below.
+                </p>
+                <div class="mt-3">
+                    <a :href="`/pds/${pds.id}/download`" target="_blank" rel="noopener noreferrer">
+                        <Button type="button" variant="outline">Download PDS (CS Form 212)</Button>
+                    </a>
                 </div>
             </div>
 
@@ -664,13 +670,15 @@ const submitButtonLabel = computed(() => (props.pds ? 'Update PDS' : 'Save PDS')
                 <PdsTabC3 v-if="openedTabs.has('c3')" v-show="activeTab === 'c3'" :form="form" />
                 <PdsTabC4 v-if="openedTabs.has('c4')" v-show="activeTab === 'c4'" :form="form" />
 
-                <div class="sticky bottom-4 z-10 flex justify-end rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
-                    <Button type="button" :disabled="form.processing" @click="submit">
-                        {{ form.processing ? 'Saving...' : submitButtonLabel }}
+                <div class="flex flex-wrap gap-3">
+                    <Button type="button" :disabled="form.processing" @click="submit(false)">
+                        {{ form.processing ? 'Saving...' : 'Save as Draft' }}
+                    </Button>
+                    <Button type="button" :disabled="form.processing" @click="submit(true)">
+                        {{ form.processing ? 'Saving...' : 'Save & Download PDS' }}
                     </Button>
                 </div>
             </form>
         </div>
     </AppLayout>
 </template>
-

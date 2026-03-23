@@ -569,8 +569,6 @@ const submit = (downloadAfterSave: boolean) => {
     form.status = downloadAfterSave ? 'final' : 'draft';
 
     const onSuccess = (page: any) => {
-        notifySuccess(props.isEdit ? 'PDS updated successfully.' : 'PDS saved successfully.');
-
         const flash = page?.props?.flash || {};
 
         if (downloadAfterSave && flash.trigger_download && flash.pds_id) {
@@ -666,4 +664,3 @@ const tabs = [
         </div>
     </AppLayout>
 </template>
-
