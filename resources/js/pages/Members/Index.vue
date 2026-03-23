@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { router, Link, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
-import { confirmAction } from '@/lib/alerts';
+import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -12,16 +20,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;

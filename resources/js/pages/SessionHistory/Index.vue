@@ -1,19 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Activity, Filter, Search, Calendar, Monitor, MapPin, Clock } from 'lucide-vue-next';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -22,10 +18,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface User {
     id: number;

@@ -29,11 +29,11 @@ class DatabaseSeeder extends Seeder
         $admin = User::factory()->create([
             'name' => 'Admin User',
             'email' => 'admin@coopsystem.com',
-            'password' => Hash::make('password'),
-            'email_verified_at' => now(),
-            'account_type' => 'Provincial Admin',
-            'account_status' => 'Active',
-            'created_by' => 'System',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'account_type' => 'Provincial Admin',
+                'account_status' => 'Active',
+                'created_by' => 'System',
             'password_changed_at' => now(),
         ]);
         $admin->assignRole($provincialAdminRole);

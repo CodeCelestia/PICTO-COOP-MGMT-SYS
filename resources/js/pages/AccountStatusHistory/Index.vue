@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { History, Filter, Search, Calendar, TrendingUp, User2 } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -11,16 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface User {
     id: number;

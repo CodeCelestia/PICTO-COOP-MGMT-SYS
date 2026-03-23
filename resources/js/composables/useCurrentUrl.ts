@@ -23,9 +23,13 @@ export type UseCurrentUrlReturn = {
 };
 
 const page = usePage();
-const currentUrlReactive = computed(
-    () => new URL(page.url, window?.location.origin).pathname,
-);
+const currentUrlReactive = computed(() => {
+    try {
+        return new URL(page.url, window?.location.origin).pathname;
+    } catch {
+        return '/';
+    }
+});
 
 export function useCurrentUrl(): UseCurrentUrlReturn {
     function isCurrentUrl(
@@ -35,6 +39,10 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
     ) {
         const urlToCompare = currentUrl ?? currentUrlReactive.value;
         const urlString = toUrl(urlToCheck);
+
+        if (!urlString) {
+            return false;
+        }
 
         const comparePath = (path: string): boolean =>
             startsWith ? urlToCompare.startsWith(path) : path === urlToCompare;

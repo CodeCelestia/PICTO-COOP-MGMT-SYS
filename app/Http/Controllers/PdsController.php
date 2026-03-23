@@ -201,7 +201,7 @@ class PdsController extends Controller
 
         $pds = PdsSubmission::query()
             ->where('user_id', $user->id)
-            ->latest()
+            ->latest('updated_at')
             ->first();
 
         return Inertia::render('Pds/MyPds', [
@@ -217,7 +217,7 @@ class PdsController extends Controller
 
         $pds = PdsSubmission::query()
             ->where('user_id', $user->id)
-            ->latest()
+            ->latest('updated_at')
             ->first();
 
         $coopId = $this->resolvedCooperativeId($user);
