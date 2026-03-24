@@ -106,6 +106,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('members/{member}/activity-participants', [MemberController::class, 'activityParticipants'])
         ->middleware('role:Provincial Admin|Coop Admin|Officer')
         ->name('members.activity-participants.index');
+    Route::get('members/{member}', [MemberController::class, 'show'])
+        ->middleware('role:Provincial Admin|Coop Admin|Officer|Committee Member|Viewer')
+        ->name('members.show');
     Route::post('members/{member}/services-availed', [MemberServiceAvailedController::class, 'store'])
         ->middleware('role:Provincial Admin|Coop Admin')
         ->name('members.services-availed.store');
@@ -120,6 +123,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('pds/my', [PdsController::class, 'myPds'])
         ->middleware('role:Member')
         ->name('pds.my');
+    Route::get('pds/member/{member}', [PdsController::class, 'memberPds'])
+        ->middleware('role:Provincial Admin|Coop Admin|Officer|Committee Member|Viewer')
+        ->name('pds.member');
     Route::post('pds/my', [PdsController::class, 'myPdsUpdate'])
         ->middleware('role:Member')
         ->name('pds.my.update');

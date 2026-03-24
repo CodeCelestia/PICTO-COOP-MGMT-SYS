@@ -6,9 +6,13 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\Member;
 use App\Models\Cooperative;
+use App\Models\Activity;
+use App\Models\Training;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 class DashboardController extends Controller
 {
@@ -28,14 +32,18 @@ class DashboardController extends Controller
         $coopStats = null;
         $coopMembers = [];
         $coopInfo = null;
+        $coopTrends = null;
         $memberProfile = null;
         $memberCoop = null;
 
         if ($isCoopAdmin && $coopId) {
+            $period = $this->normalizeTrendPeriod(request('period', 'month'));
+            $trendFilters = $this->resolveTrendFilters();
             $coopData = $this->getCoopDashboard($coopId);
             $coopInfo = $coopData['coopInfo'];
             $coopStats = $coopData['coopStats'];
             $coopMembers = $coopData['coopMembers'];
+            $coopTrends = $this->getCoopTrends($coopId, $period, $trendFilters);
         }
 
         if ($isMember && $authUser?->member_id) {
@@ -53,6 +61,7 @@ class DashboardController extends Controller
             'coopInfo' => $coopInfo,
             'coopStats' => $coopStats,
             'coopMembers' => $coopMembers,
+            'coopTrends' => $coopTrends,
             'memberProfile' => $memberProfile,
             'memberCoop' => $memberCoop,
         ]);
@@ -115,6 +124,8 @@ class DashboardController extends Controller
             'totalMembers' => (int) $membersQuery->count(),
             'activeMembers' => (int) $membersQuery->where('membership_status', 'Active')->count(),
             'inactiveMembers' => (int) $membersQuery->whereIn('membership_status', ['Suspended', 'Resigned', 'Deceased'])->count(),
+            'totalActivities' => (int) Activity::where('coop_id', $coopId)->count(),
+            'totalTrainings' => (int) Training::where('coop_id', $coopId)->count(),
         ];
 
         $coopMembers = Member::where('coop_id', $coopId)
@@ -175,5 +186,186 @@ class DashboardController extends Controller
             'memberProfile' => $memberProfile,
             'memberCoop' => $memberCoop,
         ];
+    }
+
+    private function normalizeTrendPeriod(string $period): string
+    {
+        $allowed = ['day', 'week', 'month', 'year'];
+
+        return in_array($period, $allowed, true) ? $period : 'month';
+    }
+
+    private function getCoopTrends(int $coopId, string $period, array $filters = []): array
+    {
+        [$start, $end, $labels, $keys] = $this->getTrendPeriodConfig($period);
+
+        $activitySeries = $this->buildTrendSeries(
+            Activity::query()
+                ->where('coop_id', $coopId)
+                ->when($filters['activity_status'] ?? null, function ($query, $value) {
+                    $query->where('status', $value);
+                })
+                ->when($filters['activity_category'] ?? null, function ($query, $value) {
+                    $query->where('category', $value);
+                }),
+            'date_started',
+            $start,
+            $end,
+            $period,
+            $keys
+        );
+
+        $trainingSeries = $this->buildTrendSeries(
+            Training::query()
+                ->where('coop_id', $coopId)
+                ->when($filters['training_status'] ?? null, function ($query, $value) {
+                    $query->where('status', $value);
+                })
+                ->when($filters['training_target_group'] ?? null, function ($query, $value) {
+                    $query->where('target_group', $value);
+                }),
+            'date_conducted',
+            $start,
+            $end,
+            $period,
+            $keys
+        );
+
+        $memberSeries = $this->buildTrendSeries(
+            Member::query()
+                ->where('coop_id', $coopId)
+                ->when($filters['member_status'] ?? null, function ($query, $value) {
+                    $query->where('membership_status', $value);
+                }),
+            'date_joined',
+            $start,
+            $end,
+            $period,
+            $keys
+        );
+
+        return [
+            'period' => $period,
+            'labels' => $labels,
+            'activities' => $activitySeries,
+            'trainings' => $trainingSeries,
+            'members' => $memberSeries,
+            'filters' => $filters,
+        ];
+    }
+
+    private function resolveTrendFilters(): array
+    {
+        return [
+            'member_status' => $this->sanitizeFilter(
+                request('member_status'),
+                ['Active', 'Suspended', 'Resigned', 'Deceased']
+            ),
+            'activity_status' => $this->sanitizeFilter(
+                request('activity_status'),
+                ['Planned', 'In Progress', 'Completed', 'Cancelled']
+            ),
+            'activity_category' => $this->sanitizeFilter(
+                request('activity_category'),
+                ['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other']
+            ),
+            'training_status' => $this->sanitizeFilter(
+                request('training_status'),
+                ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending']
+            ),
+            'training_target_group' => $this->sanitizeFilter(
+                request('training_target_group'),
+                ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other']
+            ),
+        ];
+    }
+
+    private function sanitizeFilter(?string $value, array $allowed): ?string
+    {
+        return in_array($value, $allowed, true) ? $value : null;
+    }
+
+    private function getTrendPeriodConfig(string $period): array
+    {
+        $today = Carbon::now();
+
+        switch ($period) {
+            case 'day':
+                $start = $today->copy()->startOfDay()->subDays(6);
+                $end = $today->copy()->endOfDay();
+                $interval = '1 day';
+                $labelFormat = 'M d';
+                $keyFormat = 'Y-m-d';
+                break;
+            case 'week':
+                $start = $today->copy()->startOfWeek()->subWeeks(7);
+                $end = $today->copy()->endOfWeek();
+                $interval = '1 week';
+                $labelFormat = 'M d';
+                $keyFormat = 'o-W';
+                break;
+            case 'year':
+                $start = $today->copy()->startOfYear()->subYears(4);
+                $end = $today->copy()->endOfYear();
+                $interval = '1 year';
+                $labelFormat = 'Y';
+                $keyFormat = 'Y';
+                break;
+            case 'month':
+            default:
+                $start = $today->copy()->startOfMonth()->subMonths(11);
+                $end = $today->copy()->endOfMonth();
+                $interval = '1 month';
+                $labelFormat = 'M Y';
+                $keyFormat = 'Y-m';
+                break;
+        }
+
+        $labels = [];
+        $keys = [];
+
+        foreach (CarbonPeriod::create($start, $interval, $end) as $point) {
+            $labels[] = $point->format($labelFormat);
+            $keys[] = $point->format($keyFormat);
+        }
+
+        return [$start, $end, $labels, $keys];
+    }
+
+    private function buildTrendSeries($query, string $dateColumn, Carbon $start, Carbon $end, string $period, array $keys): array
+    {
+        $dates = $query
+            ->whereNotNull($dateColumn)
+            ->whereBetween($dateColumn, [$start->toDateString(), $end->toDateString()])
+            ->pluck($dateColumn)
+            ->map(function ($date) {
+                return Carbon::parse($date);
+            });
+
+        $buckets = [];
+
+        foreach ($dates as $date) {
+            $bucketKey = $this->resolveTrendBucketKey($date, $period);
+            $buckets[$bucketKey] = ($buckets[$bucketKey] ?? 0) + 1;
+        }
+
+        return array_map(function ($key) use ($buckets) {
+            return $buckets[$key] ?? 0;
+        }, $keys);
+    }
+
+    private function resolveTrendBucketKey(Carbon $date, string $period): string
+    {
+        switch ($period) {
+            case 'week':
+                return $date->copy()->startOfWeek()->format('o-W');
+            case 'month':
+                return $date->copy()->startOfMonth()->format('Y-m');
+            case 'year':
+                return $date->copy()->startOfYear()->format('Y');
+            case 'day':
+            default:
+                return $date->format('Y-m-d');
+        }
     }
 }

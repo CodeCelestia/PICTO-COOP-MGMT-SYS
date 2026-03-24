@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePdsRequest;
 use App\Models\Cooperative;
+use App\Models\Member;
 use App\Models\PdsSubmission;
 use App\Models\User;
 use App\Services\PdsExportService;
@@ -207,6 +208,36 @@ class PdsController extends Controller
         return Inertia::render('Pds/MyPds', [
             'pds' => $pds,
             'isEdit' => !is_null($pds),
+        ]);
+    }
+
+    public function memberPds(Member $member): Response
+    {
+        $user = auth()->user();
+
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$user->hasRole('Officer') && !$user->hasRole('Committee Member') && !$user->hasRole('Viewer')) {
+            abort(403);
+        }
+
+        if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        $memberUser = $member->user;
+
+        if (!$memberUser) {
+            abort(404, 'Member is not linked to a user account.');
+        }
+
+        $pds = PdsSubmission::query()
+            ->where('user_id', $memberUser->id)
+            ->latest('updated_at')
+            ->first();
+
+        return Inertia::render('Pds/MyPds', [
+            'pds' => $pds,
+            'isEdit' => !is_null($pds),
+            'member' => $member,
         ]);
     }
 

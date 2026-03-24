@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Member;
 use App\Models\Cooperative;
+use App\Models\PdsSubmission;
 use App\Models\Role;
 use App\Models\MemberSectorHistory;
 use App\Models\MemberServiceAvailed;
@@ -86,12 +87,31 @@ class MemberController extends Controller
             $query->where('membership_status', $request->membership_status);
         }
 
-        $members = $query->latest()->paginate(15)->withQueryString();
+        $members = $query->with(['cooperative', 'user'])->latest()->paginate(15)->withQueryString();
+
+        $userIds = $members->pluck('user.id')->filter()->all();
+        $latestPdsByUserId = PdsSubmission::whereIn('user_id', $userIds)
+            ->latest('updated_at')
+            ->get()
+            ->unique('user_id')
+            ->keyBy('user_id');
+
+        $members->getCollection()->transform(function ($member) use ($latestPdsByUserId) {
+            $pdsStatus = 'None';
+
+            if ($member->user?->id && isset($latestPdsByUserId[$member->user->id])) {
+                $pdsStatus = ucfirst($latestPdsByUserId[$member->user->id]->status);
+            }
+
+            $member->pds_status = $pdsStatus;
+
+            return $member;
+        });
 
         return Inertia::render('Members/Index', [
             'members' => $members,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-            'filters' => $request->only(['search', 'coop_id', 'sector', 'membership_status']),
+            'filters' => $request->only(['search', 'membership_status']),
         ]);
     }
 
@@ -114,6 +134,69 @@ class MemberController extends Controller
         return Inertia::render('Members/Create', [
             'cooperatives' => $cooperativesQuery->get(),
             'availableRoles' => Role::orderBy('level')->get(),
+        ]);
+    }
+
+    /**
+     * Display the specified member
+     */
+    public function show(Member $member): Response
+    {
+        $user = auth()->user();
+
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer() && !$user->hasRole('Committee Member') && !$user->hasRole('Viewer')) {
+            abort(403);
+        }
+
+        if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        if ($this->isOfficer() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        $userAccount = User::with('roles')->where('member_id', $member->id)->first();
+
+        $servicesAvailed = $member->servicesAvailed()
+            ->latest('date_availed')
+            ->get()
+            ->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'service_type' => $service->service_type,
+                    'service_detail' => $service->service_detail,
+                    'date_availed' => optional($service->date_availed)->toDateString(),
+                    'amount' => $service->amount,
+                    'status' => $service->status,
+                    'reference_no' => $service->reference_no,
+                    'remarks' => $service->remarks,
+                    'recorded_by' => $service->recorded_by,
+                ];
+            });
+
+        $participants = $member->activityParticipants()
+            ->with('activity')
+            ->latest('date_joined')
+            ->get()
+            ->map(function ($participant) {
+                return [
+                    'id' => $participant->id,
+                    'activity' => $participant->activity?->title,
+                    'role' => $participant->role,
+                    'date_joined' => optional($participant->date_joined)->toDateString(),
+                    'is_beneficiary' => (bool) $participant->is_beneficiary,
+                ];
+            });
+
+        return Inertia::render('Members/Show', [
+            'member' => $member->load('cooperative'),
+            'userAccount' => $userAccount ? [
+                'email' => $userAccount->email,
+                'roles' => $userAccount->roles->pluck('name')->toArray(),
+            ] : null,
+            'servicesAvailed' => $servicesAvailed,
+            'activityParticipants' => $participants,
         ]);
     }
 

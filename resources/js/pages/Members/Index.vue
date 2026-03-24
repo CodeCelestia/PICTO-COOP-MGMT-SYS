@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { Users, Plus, Pencil, Trash2, Search, Eye } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,8 +65,6 @@ interface Props {
     cooperatives: Cooperative[];
     filters: {
         search?: string;
-        coop_id?: string;
-        sector?: string;
         membership_status?: string;
     };
 }
@@ -85,15 +83,11 @@ const canDeleteMember = computed(() => isProvincialAdmin.value || isCoopAdmin.va
 const showActions = computed(() => canEditMember.value || canDeleteMember.value);
 
 const search = ref(props.filters.search || '');
-const coopId = ref(props.filters.coop_id || 'all');
-const sector = ref(props.filters.sector || 'all');
 const membershipStatus = ref(props.filters.membership_status || 'all');
 
 const applyFilters = () => {
     router.get('/members', {
         search: search.value,
-        coop_id: coopId.value === 'all' ? '' : coopId.value,
-        sector: sector.value === 'all' ? '' : sector.value,
         membership_status: membershipStatus.value === 'all' ? '' : membershipStatus.value,
     }, {
         preserveState: true,
@@ -103,8 +97,6 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     search.value = '';
-    coopId.value = 'all';
-    sector.value = 'all';
     membershipStatus.value = 'all';
     router.get('/members');
 };
@@ -174,7 +166,7 @@ const formatLocation = (member: Member) => {
 
             <!-- Filters -->
             <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
                         <div class="relative">
@@ -186,40 +178,6 @@ const formatLocation = (member: Member) => {
                                 class="pl-9"
                             />
                         </div>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
-                        <Select v-model="coopId">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Cooperatives" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
-                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                    {{ coop.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Sector</label>
-                        <Select v-model="sector">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Sectors" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Sectors</SelectItem>
-                                <SelectItem value="Farmer">Farmer</SelectItem>
-                                <SelectItem value="Fishfolk">Fishfolk</SelectItem>
-                                <SelectItem value="Employee">Employee</SelectItem>
-                                <SelectItem value="Entrepreneur">Entrepreneur</SelectItem>
-                                <SelectItem value="Youth">Youth</SelectItem>
-                                <SelectItem value="Women">Women</SelectItem>
-                                <SelectItem value="Senior Citizen">Senior Citizen</SelectItem>
-                                <SelectItem value="PWD">PWD</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
                     </div>
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700">Membership Status</label>
@@ -254,19 +212,17 @@ const formatLocation = (member: Member) => {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Member Name</TableHead>
-                            <TableHead>Cooperative</TableHead>
                             <TableHead>Contact</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead>Sector</TableHead>
                             <TableHead>Membership</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>PDS Status</TableHead>
                             <TableHead>Date Joined</TableHead>
                             <TableHead v-if="showActions" class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="members.data.length === 0">
-                            <TableCell :colspan="showActions ? 9 : 8" class="text-center text-gray-500">
+                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-gray-500">
                                 No members found.
                             </TableCell>
                         </TableRow>
@@ -278,20 +234,11 @@ const formatLocation = (member: Member) => {
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <span class="text-sm text-gray-900">{{ member.cooperative.name }}</span>
-                            </TableCell>
-                            <TableCell>
                                 <div class="flex flex-col text-sm">
                                     <span v-if="member.email" class="text-gray-900">{{ member.email }}</span>
                                     <span v-if="member.phone" class="text-xs text-gray-500">{{ member.phone }}</span>
                                     <span v-if="!member.email && !member.phone" class="text-gray-400">N/A</span>
                                 </div>
-                            </TableCell>
-                            <TableCell>
-                                <span class="text-sm text-gray-600">{{ formatLocation(member) }}</span>
-                            </TableCell>
-                            <TableCell>
-                                <span class="text-sm text-gray-600">{{ member.sector || 'N/A' }}</span>
                             </TableCell>
                             <TableCell>
                                 <span class="text-sm text-gray-600">{{ member.membership_type || 'N/A' }}</span>
@@ -302,10 +249,25 @@ const formatLocation = (member: Member) => {
                                 </Badge>
                             </TableCell>
                             <TableCell>
+                                <Badge :class="member.pds_status === 'Final' ? 'bg-green-100 text-green-800 border-green-200' : member.pds_status === 'Draft' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200'" class="border">
+                                    {{ member.pds_status || 'None' }}
+                                </Badge>
+                            </TableCell>
+                            <TableCell>
                                 <span class="text-sm text-gray-600">{{ formatDate(member.date_joined) }}</span>
                             </TableCell>
                             <TableCell v-if="showActions" class="text-right">
                                 <div class="flex justify-end gap-2">
+                                    <Link :href="`/pds/member/${member.id}`">
+                                        <Button variant="outline" size="sm" class="gap-2">
+                                            PDS
+                                        </Button>
+                                    </Link>
+                                    <Link :href="`/members/${member.id}`">
+                                        <Button variant="ghost" size="sm" class="gap-2 hover:bg-slate-100">
+                                            <Eye class="h-4 w-4" />
+                                        </Button>
+                                    </Link>
                                     <Link v-if="canEditMember" :href="`/members/${member.id}/services-availed`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             Services

@@ -69,6 +69,8 @@ const canCreateCoop = computed(() => isProvincialAdmin.value);
 const canEditCoop = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
 const canDeleteCoop = computed(() => isProvincialAdmin.value);
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value);
+const isCoopAdminOnly = computed(() => isCoopAdmin.value && !isProvincialAdmin.value);
+const coopProfile = computed(() => props.cooperatives.data[0] || null);
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
@@ -185,7 +187,7 @@ const coopTypes = [
             </div>
 
             <!-- Filters -->
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div v-if="!isCoopAdminOnly" class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
@@ -254,8 +256,73 @@ const coopTypes = [
                 </div>
             </div>
 
+            <!-- Coop Admin Profile -->
+            <div v-if="isCoopAdminOnly" class="grid gap-4">
+                <div class="rounded-xl border border-slate-200/70 bg-white/90 p-6 shadow-sm">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">My Cooperative Profile</h2>
+                            <p class="text-sm text-slate-500">Official cooperative registration details.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span
+                                v-if="coopProfile"
+                                :class="[getStatusBadgeColor(coopProfile.status), 'rounded-md border px-2 py-1 text-xs font-semibold']"
+                            >
+                                {{ coopProfile.status }}
+                            </span>
+                            <Link v-if="coopProfile && canEditCoop" :href="`/cooperatives/${coopProfile.id}/edit`">
+                                <Button class="gap-2">
+                                    <Pencil class="h-4 w-4" />
+                                    Edit Cooperative
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div v-if="coopProfile" class="mt-6 grid gap-4 md:grid-cols-2">
+                        <div class="rounded-lg border border-slate-200/70 bg-slate-50/60 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Registration</div>
+                            <div class="mt-2 space-y-1 text-sm text-slate-700">
+                                <div><strong>Name:</strong> {{ coopProfile.name }}</div>
+                                <div><strong>Registration #:</strong> {{ coopProfile.registration_number }}</div>
+                                <div><strong>Type:</strong> {{ coopProfile.coop_type }}</div>
+                                <div><strong>Date Established:</strong> {{ formatDate(coopProfile.date_established) }}</div>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200/70 bg-slate-50/60 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Contact</div>
+                            <div class="mt-2 space-y-1 text-sm text-slate-700">
+                                <div><strong>Email:</strong> {{ coopProfile.email || 'N/A' }}</div>
+                                <div><strong>Phone:</strong> {{ coopProfile.phone || 'N/A' }}</div>
+                                <div><strong>Address:</strong> {{ formatFullAddress(coopProfile) }}</div>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200/70 bg-slate-50/60 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Accreditation</div>
+                            <div class="mt-2 space-y-1 text-sm text-slate-700">
+                                <div><strong>Status:</strong> {{ coopProfile.accreditation_status || 'N/A' }}</div>
+                                <div><strong>Date:</strong> {{ formatDate(coopProfile.accreditation_date) }}</div>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200/70 bg-slate-50/60 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Jurisdiction</div>
+                            <div class="mt-2 space-y-1 text-sm text-slate-700">
+                                <div><strong>Province:</strong> {{ coopProfile.province }}</div>
+                                <div><strong>City/Municipality:</strong> {{ coopProfile.city_municipality || 'N/A' }}</div>
+                                <div><strong>Barangay:</strong> {{ coopProfile.barangay || 'N/A' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="mt-6 rounded-lg border border-dashed border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+                        No cooperative is assigned to this account yet. Please contact your system administrator.
+                    </div>
+                </div>
+            </div>
+
             <!-- Table -->
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div v-else class="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <Table>
                     <TableHeader>
                         <TableRow>
