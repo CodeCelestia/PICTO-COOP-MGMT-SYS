@@ -87,7 +87,10 @@ class MemberController extends Controller
             $query->where('membership_status', $request->membership_status);
         }
 
-        $members = $query->with(['cooperative', 'user'])->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $members = $query->with(['cooperative', 'user'])->latest()->paginate($perPage)->withQueryString();
 
         $userIds = $members->pluck('user.id')->filter()->all();
         $latestPdsByUserId = PdsSubmission::whereIn('user_id', $userIds)
@@ -111,7 +114,7 @@ class MemberController extends Controller
         return Inertia::render('Members/Index', [
             'members' => $members,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-            'filters' => $request->only(['search', 'membership_status']),
+            'filters' => $request->only(['search', 'membership_status', 'per_page']),
         ]);
     }
 

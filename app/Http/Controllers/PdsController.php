@@ -162,9 +162,12 @@ class PdsController extends Controller
             });
         }
 
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = max(1, min($perPage, 500));
+
         $submissions = $query
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $cooperatives = Cooperative::query()
@@ -183,6 +186,7 @@ class PdsController extends Controller
                 'search' => $search,
                 'status' => $status,
                 'coop_id' => $filterCoopId ? (string) $filterCoopId : '',
+                'per_page' => (string) $perPage,
             ],
             'cooperatives' => $cooperatives,
         ]);

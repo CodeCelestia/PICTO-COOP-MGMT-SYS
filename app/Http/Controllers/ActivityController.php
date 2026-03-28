@@ -83,12 +83,15 @@ class ActivityController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $activities = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $activities = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Activities/Index', [
             'activities' => $activities,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-            'filters' => $request->only(['search', 'status', 'category', 'coop_id']),
+            'filters' => $request->only(['search', 'status', 'category', 'coop_id', 'per_page']),
         ]);
     }
 

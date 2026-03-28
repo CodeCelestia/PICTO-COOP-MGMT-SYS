@@ -62,11 +62,14 @@ class CooperativeController extends Controller
             $query->where('province', $request->province);
         }
 
-        $cooperatives = $query->orderBy('name')->paginate(20)->withQueryString();
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = max(1, min($perPage, 500));
+
+        $cooperatives = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
         return Inertia::render('Cooperatives/Index', [
             'cooperatives' => $cooperatives,
-            'filters' => $request->only(['search', 'status', 'coop_type', 'province']),
+            'filters' => $request->only(['search', 'status', 'coop_type', 'province', 'per_page']),
         ]);
     }
 

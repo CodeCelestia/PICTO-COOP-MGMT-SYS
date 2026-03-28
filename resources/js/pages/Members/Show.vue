@@ -2,7 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ArrowLeft, Pencil, User, MapPin, Briefcase, Calendar, ClipboardList, Users, CheckCircle2 } from 'lucide-vue-next';
+import { ArrowLeft, Pencil, CheckCircle2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -97,58 +97,66 @@ const fullName = `${props.member.first_name} ${props.member.last_name}`;
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-slate-900">Member Details</h1>
-                    <p class="text-sm text-slate-500">View full profile and activity details.</p>
+        <!-- Sticky Member Info Card -->
+        <div class="sticky top-16 z-30 bg-background/95 px-6 pt-6 pb-4 backdrop-blur-sm">
+            <section class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg">
+                <!-- Member Details Title with Buttons -->
+                <div class="mb-4 flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Member Details</h1>
+                    </div>
+                    <div class="flex shrink-0 flex-wrap items-center gap-2">
+                        <Link href="/members">
+                            <Button variant="outline" size="sm" class="gap-2">
+                                <ArrowLeft class="h-4 w-4" />
+                                Back to list
+                            </Button>
+                        </Link>
+                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/services-availed`">
+                            <Button variant="outline" size="sm">Services</Button>
+                        </Link>
+                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/activity-participants`">
+                            <Button variant="outline" size="sm">Activities</Button>
+                        </Link>
+                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/edit`">
+                            <Button size="sm" class="gap-2">
+                                <Pencil class="h-4 w-4" />
+                                Edit Member
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <Link href="/members">
-                        <Button variant="outline" class="gap-2">
-                            <ArrowLeft class="h-4 w-4" />
-                            Back to list
-                        </Button>
-                    </Link>
-                    <Link v-if="canEditMember" :href="`/members/${props.member.id}/edit`">
-                        <Button class="gap-2">
-                            <Pencil class="h-4 w-4" />
-                            Edit Member
-                        </Button>
-                    </Link>
-                </div>
-            </div>
 
-            <div class="grid gap-4 lg:grid-cols-3">
-                <div class="lg:col-span-2 space-y-4">
-                    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <div class="flex items-start justify-between">
-                            <div>
-                                <h2 class="text-xl font-semibold">{{ fullName }}</h2>
-                                <p class="text-sm text-slate-500">{{ props.member.cooperative.name }}</p>
-                            </div>
-                            <div class="text-right">
-                                <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
-                                    <CheckCircle2 class="h-3.5 w-3.5" />
-                                    {{ props.member.membership_status || 'N/A' }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <!-- Member Name & Status -->
+                <div class="mb-5 flex flex-col gap-2 border-b border-slate-200/80 pb-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-xl font-semibold text-slate-900">{{ fullName }}</h2>
+                        <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
+                            <CheckCircle2 class="h-3.5 w-3.5" />
+                            {{ props.member.membership_status || 'N/A' }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-slate-500">{{ props.member.cooperative.name }}</p>
+                </div>
+
+                <!-- Personal Information -->
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="min-w-0 flex-1">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div class="space-y-3">
                                 <div class="text-xs uppercase tracking-wider text-slate-400">Personal information</div>
                                 <div class="space-y-1 text-sm text-slate-700">
-                                    <div><strong>Date of birth:</strong> {{ formatDate(props.member.birth_date) }}</div>
                                     <div><strong>Gender:</strong> {{ props.member.gender || 'N/A' }}</div>
+                                    <div><strong>Profession:</strong> {{ props.member.primary_livelihood || 'N/A' }}</div>
+                                    <div><strong>Education:</strong> {{ props.member.educational_attainment || 'N/A' }}</div>
                                     <div><strong>Joined:</strong> {{ formatDate(props.member.date_joined) }}</div>
                                 </div>
                             </div>
                             <div class="space-y-3">
                                 <div class="text-xs uppercase tracking-wider text-slate-400">Contact</div>
                                 <div class="space-y-1 text-sm text-slate-700">
-                                    <div><strong>Email:</strong> {{ props.member.email || 'N/A' }}</div>
-                                    <div><strong>Phone:</strong> {{ props.member.phone || 'N/A' }}</div>
-                                    <div><strong>Address:</strong>
+                                    <div><strong>Email: </strong> {{ props.member.email || 'N/A' }}</div>
+                                    <div><strong>Address: </strong>
                                         <span>
                                             {{ [props.member.address, props.member.city_municipality, props.member.province, props.member.barangay, props.member.region]
                                                 .filter(Boolean)
@@ -158,8 +166,14 @@ const fullName = `${props.member.first_name} ${props.member.last_name}`;
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    </div>
+                </div>
+            </section>
+        </div>
 
+        <!-- Scrollable Content -->
+        <div class="px-6 pb-6">
+            <div class="space-y-4">
                     <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 class="text-lg font-semibold text-slate-900">Membership & Socio-Economic</h3>
                         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -251,42 +265,6 @@ const fullName = `${props.member.first_name} ${props.member.last_name}`;
                             </Table>
                         </div>
                     </section>
-                </div>
-
-                <aside class="space-y-4">
-                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 class="text-base font-semibold text-slate-900">Quick Summary</h3>
-                        <div class="mt-4 grid grid-cols-2 gap-3">
-                            <div class="rounded-lg bg-slate-50 p-3">
-                                <div class="text-xs uppercase tracking-widest text-slate-400">Total Services</div>
-                                <div class="mt-1 text-xl font-semibold text-slate-800">{{ servicesAvailed.length }}</div>
-                            </div>
-                            <div class="rounded-lg bg-slate-50 p-3">
-                                <div class="text-xs uppercase tracking-widest text-slate-400">Total Activities</div>
-                                <div class="mt-1 text-xl font-semibold text-slate-800">{{ activityParticipants.length }}</div>
-                            </div>
-                            <div class="rounded-lg bg-slate-50 p-3">
-                                <div class="text-xs uppercase tracking-widest text-slate-400">Cooperative</div>
-                                <div class="mt-1 text-xl font-semibold text-slate-800">{{ props.member.cooperative.name }}</div>
-                            </div>
-                            <div class="rounded-lg bg-slate-50 p-3">
-                                <div class="text-xs uppercase tracking-widest text-slate-400">Status</div>
-                                <div class="mt-1 text-xl font-semibold text-slate-800">{{ props.member.membership_status || 'N/A' }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 class="text-base font-semibold text-slate-900">Key Details</h3>
-                        <ul class="mt-4 space-y-2 text-sm text-slate-700">
-                            <li class="flex items-center gap-2"><User class="h-4 w-4 text-slate-400"/> <span>{{ props.member.gender || 'No gender specified' }}</span></li>
-                            <li class="flex items-center gap-2"><MapPin class="h-4 w-4 text-slate-400"/> <span>{{ [props.member.city_municipality, props.member.province].filter(Boolean).join(', ') || 'Location not set' }}</span></li>
-                            <li class="flex items-center gap-2"><Briefcase class="h-4 w-4 text-slate-400"/> <span>{{ props.member.sector || 'Sector not set' }}</span></li>
-                            <li class="flex items-center gap-2"><Calendar class="h-4 w-4 text-slate-400"/> <span>Joined {{ formatDate(props.member.date_joined) }}</span></li>
-                            <li class="flex items-center gap-2"><ClipboardList class="h-4 w-4 text-slate-400"/> <span>Education - {{ props.member.educational_attainment || 'N/A' }}</span></li>
-                        </ul>
-                    </div>
-                </aside>
             </div>
         </div>
     </AppLayout>

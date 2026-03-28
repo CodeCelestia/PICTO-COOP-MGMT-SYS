@@ -378,7 +378,7 @@ const requiresCoop = () => {
                             <TableHead>Email</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Roles</TableHead>
-                            <TableHead class="text-right">Actions</TableHead>
+                            <TableHead class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -441,38 +441,45 @@ const requiresCoop = () => {
                                     </button>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-right">
-                                <div class="flex items-center justify-end gap-2">
+                            <TableCell class="text-center">
+                                <div class="flex flex-wrap items-center justify-center gap-2">
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        class="gap-1.5"
                                         @click="openViewDialog(user)"
                                         title="View details"
                                     >
                                         <Eye class="h-4 w-4" />
+                                        View
                                     </Button>
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        class="gap-1.5"
                                         @click="openEditDialog(user)"
                                         title="Edit user"
                                     >
                                         <Pencil class="h-4 w-4" />
+                                        Edit
                                     </Button>
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        class="text-red-600 hover:text-red-700"
+                                        class="gap-1.5 text-red-600 hover:text-red-700"
                                         @click="deleteUser(user)"
                                         title="Delete user"
                                     >
                                         <Trash2 class="h-4 w-4" />
+                                        Delete
                                     </Button>
                                     <Button
                                         variant="ghost"
                                         size="sm"
+                                        class="gap-1.5"
                                         @click="openAssignDialog(user)"
                                     >
+                                        <UserPlus class="h-4 w-4" />
                                         Manage Roles
                                     </Button>
                                 </div>

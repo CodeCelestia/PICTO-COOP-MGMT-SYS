@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { Pencil, Download, Trash2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -58,6 +59,7 @@ interface Props {
         search?: string;
         status?: string;
         coop_id?: string;
+        per_page?: string;
     };
     cooperatives: CooperativeOption[];
 }
@@ -67,6 +69,19 @@ const props = defineProps<Props>();
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.submissions.per_page || 10);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const isProvincialAdmin = computed(() => props.userRole === 'Provincial Admin');
 const isCoopAdmin = computed(() => props.userRole === 'Coop Admin');
@@ -113,6 +128,7 @@ const applyFilters = () => {
         search: search.value,
         status: status.value === 'all' ? '' : status.value,
         coop_id: coopId.value === 'all' ? '' : coopId.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -123,6 +139,8 @@ const clearFilters = () => {
     search.value = '';
     status.value = 'all';
     coopId.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/pds');
 };
 </script>
@@ -178,6 +196,33 @@ const clearFilters = () => {
                         </Select>
                     </div>
                 </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters">Apply Filters</Button>
                     <Button variant="outline" @click="clearFilters">Clear</Button>
@@ -194,7 +239,7 @@ const clearFilters = () => {
                             <TableHead>Date Saved</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Date Submitted</TableHead>
-                            <TableHead class="text-right">Actions</TableHead>
+                            <TableHead class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -213,15 +258,22 @@ const clearFilters = () => {
                                 </Badge>
                             </TableCell>
                             <TableCell>{{ formatDate(pds.submitted_at) }}</TableCell>
-                            <TableCell>
-                                <div class="flex justify-end gap-2">
+                            <TableCell class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link :href="`/pds/${pds.id}/edit`">
-                                        <Button variant="outline" size="sm">Edit</Button>
+                                        <Button variant="outline" size="sm" class="gap-1.5">
+                                            <Pencil class="h-4 w-4" />
+                                            Edit
+                                        </Button>
                                     </Link>
                                     <a :href="`/pds/${pds.id}/download`" target="_blank" rel="noopener noreferrer">
-                                        <Button variant="outline" size="sm">Download</Button>
+                                        <Button variant="outline" size="sm" class="gap-1.5">
+                                            <Download class="h-4 w-4" />
+                                            Download
+                                        </Button>
                                     </a>
-                                    <Button variant="destructive" size="sm" @click="deleteSubmission(pds.id)">
+                                    <Button variant="destructive" size="sm" class="gap-1.5" @click="deleteSubmission(pds.id)">
+                                        <Trash2 class="h-4 w-4" />
                                         Delete
                                     </Button>
                                 </div>
@@ -246,6 +298,7 @@ const clearFilters = () => {
                                     search: search || '',
                                     status: status === 'all' ? '' : status,
                                     coop_id: coopId === 'all' ? '' : coopId,
+                                    per_page: resolvedPerPage(),
                                 })"
                                 :variant="page === submissions.current_page ? 'default' : 'outline'"
                                 size="sm"

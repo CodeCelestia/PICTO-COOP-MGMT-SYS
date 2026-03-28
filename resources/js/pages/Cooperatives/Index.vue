@@ -55,6 +55,7 @@ interface Props {
         status: string;
         coop_type: string;
         province: string;
+        per_page?: string;
     };
 }
 
@@ -76,6 +77,19 @@ const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopType = ref(props.filters.coop_type || 'all');
 const province = ref(props.filters.province || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.cooperatives.per_page || 20);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const applyFilters = () => {
     router.get('/cooperatives', {
@@ -83,6 +97,7 @@ const applyFilters = () => {
         status: status.value === 'all' ? '' : status.value,
         coop_type: coopType.value === 'all' ? '' : coopType.value,
         province: province.value === 'all' ? '' : province.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -94,6 +109,8 @@ const resetFilters = () => {
     status.value = 'all';
     coopType.value = 'all';
     province.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/cooperatives');
 };
 
@@ -245,6 +262,33 @@ const coopTypes = [
                         </Select>
                     </div>
                 </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters" variant="default" class="gap-2">
                         <Filter class="h-4 w-4" />
@@ -333,7 +377,7 @@ const coopTypes = [
                             <TableHead>Status</TableHead>
                             <TableHead>Accreditation</TableHead>
                             <TableHead>Established</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -381,8 +425,8 @@ const coopTypes = [
                             <TableCell class="text-gray-600">
                                 {{ formatDate(coop.date_established) }}
                             </TableCell>
-                            <TableCell v-if="showActions" class="text-right">
-                                <div class="flex justify-end gap-2">
+                            <TableCell v-if="showActions" class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEditCoop" :href="`/cooperatives/${coop.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-1">
                                             <Pencil class="h-3 w-3" />
@@ -419,7 +463,14 @@ const coopTypes = [
                                 :key="page"
                                 :variant="page === cooperatives.current_page ? 'default' : 'outline'"
                                 size="sm"
-                                @click="router.get(`/cooperatives?page=${page}`)"
+                                @click="router.get('/cooperatives', {
+                                    page,
+                                    search: search || '',
+                                    status: status === 'all' ? '' : status,
+                                    coop_type: coopType === 'all' ? '' : coopType,
+                                    province: province === 'all' ? '' : province,
+                                    per_page: resolvedPerPage(),
+                                })"
                             >
                                 {{ page }}
                             </Button>

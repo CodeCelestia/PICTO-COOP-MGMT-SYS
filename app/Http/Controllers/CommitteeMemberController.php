@@ -77,12 +77,15 @@ class CommitteeMemberController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $committeeMembers = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $committeeMembers = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('CommitteeMembers/Index', [
             'committeeMembers' => $committeeMembers,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-            'filters' => $request->only(['search', 'status', 'coop_id']),
+            'filters' => $request->only(['search', 'status', 'coop_id', 'per_page']),
         ]);
     }
 

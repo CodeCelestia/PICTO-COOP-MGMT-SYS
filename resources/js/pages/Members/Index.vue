@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search, Eye } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Search, Eye } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,7 @@ interface Props {
     filters: {
         search?: string;
         membership_status?: string;
+        per_page?: string;
     };
 }
 
@@ -84,11 +85,25 @@ const showActions = computed(() => canEditMember.value || canDeleteMember.value)
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.members.per_page || 15);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const applyFilters = () => {
     router.get('/members', {
         search: search.value,
         membership_status: membershipStatus.value === 'all' ? '' : membershipStatus.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -98,6 +113,8 @@ const applyFilters = () => {
 const resetFilters = () => {
     search.value = '';
     membershipStatus.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/members');
 };
 
@@ -166,7 +183,7 @@ const formatLocation = (member: Member) => {
 
             <!-- Filters -->
             <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
                         <div class="relative">
@@ -194,6 +211,31 @@ const formatLocation = (member: Member) => {
                             </SelectContent>
                         </Select>
                     </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
                 </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters" class="gap-2">
@@ -215,14 +257,13 @@ const formatLocation = (member: Member) => {
                             <TableHead>Contact</TableHead>
                             <TableHead>Membership</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>PDS Status</TableHead>
                             <TableHead>Date Joined</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="members.data.length === 0">
-                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-gray-500">
+                            <TableCell :colspan="showActions ? 6 : 5" class="text-center text-gray-500">
                                 No members found.
                             </TableCell>
                         </TableRow>
@@ -230,14 +271,12 @@ const formatLocation = (member: Member) => {
                             <TableCell>
                                 <div class="flex flex-col">
                                     <span class="font-medium text-gray-900">{{ member.full_name }}</span>
-                                    <span v-if="member.age" class="text-xs text-gray-500">{{ member.age }} years old</span>
                                 </div>
                             </TableCell>
                             <TableCell>
                                 <div class="flex flex-col text-sm">
                                     <span v-if="member.email" class="text-gray-900">{{ member.email }}</span>
-                                    <span v-if="member.phone" class="text-xs text-gray-500">{{ member.phone }}</span>
-                                    <span v-if="!member.email && !member.phone" class="text-gray-400">N/A</span>
+                                    <span v-if="!member.email" class="text-gray-400">N/A</span>
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -249,38 +288,20 @@ const formatLocation = (member: Member) => {
                                 </Badge>
                             </TableCell>
                             <TableCell>
-                                <Badge :class="member.pds_status === 'Final' ? 'bg-green-100 text-green-800 border-green-200' : member.pds_status === 'Draft' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200'" class="border">
-                                    {{ member.pds_status || 'None' }}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
                                 <span class="text-sm text-gray-600">{{ formatDate(member.date_joined) }}</span>
                             </TableCell>
-                            <TableCell v-if="showActions" class="text-right">
-                                <div class="flex justify-end gap-2">
-                                    <Link :href="`/pds/member/${member.id}`">
-                                        <Button variant="outline" size="sm" class="gap-2">
-                                            PDS
-                                        </Button>
-                                    </Link>
+                            <TableCell v-if="showActions" class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link :href="`/members/${member.id}`">
-                                        <Button variant="ghost" size="sm" class="gap-2 hover:bg-slate-100">
+                                        <Button variant="ghost" size="sm" class="gap-1.5 hover:bg-slate-100" title="View member">
                                             <Eye class="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    <Link v-if="canEditMember" :href="`/members/${member.id}/services-availed`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            Services
-                                        </Button>
-                                    </Link>
-                                    <Link v-if="canEditMember" :href="`/members/${member.id}/activity-participants`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            Activities
+                                            View
                                         </Button>
                                     </Link>
                                     <Link v-if="canEditMember" :href="`/members/${member.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
+                                        <Button variant="ghost" size="sm" class="gap-1.5" title="Edit member">
                                             <Pencil class="h-4 w-4" />
+                                            Edit
                                         </Button>
                                     </Link>
                                     <Button
@@ -288,9 +309,11 @@ const formatLocation = (member: Member) => {
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
+                                        class="gap-1.5 text-red-600 hover:text-red-700"
+                                        title="Delete member"
                                     >
                                         <Trash2 class="h-4 w-4" />
+                                        Delete
                                     </Button>
                                 </div>
                             </TableCell>
@@ -310,7 +333,12 @@ const formatLocation = (member: Member) => {
                             <Button
                                 v-for="page in members.last_page"
                                 :key="page"
-                                @click="router.get(`/members?page=${page}`)"
+                                @click="router.get('/members', {
+                                    page,
+                                    search: search || '',
+                                    membership_status: membershipStatus === 'all' ? '' : membershipStatus,
+                                    per_page: resolvedPerPage(),
+                                })"
                                 :variant="page === members.current_page ? 'default' : 'outline'"
                                 size="sm"
                             >

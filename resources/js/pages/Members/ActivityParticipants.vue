@@ -69,7 +69,7 @@ const beneficiaryLabel = (value: boolean) => (value ? 'Yes' : 'No');
                         {{ member.first_name }} {{ member.last_name }} · {{ member.cooperative.name }}
                     </p>
                 </div>
-                <Link :href="`/members/${member.id}/edit`">
+                <Link :href="`/members/${member.id}`">
                     <Button variant="outline">Back to Member</Button>
                 </Link>
             </div>

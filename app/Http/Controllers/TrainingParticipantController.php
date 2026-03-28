@@ -82,7 +82,10 @@ class TrainingParticipantController extends Controller
             });
         }
 
-        $participants = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $participants = $query->latest()->paginate($perPage)->withQueryString();
 
         $trainingsQuery = Training::select('id', 'title', 'coop_id')->orderBy('title');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
@@ -116,7 +119,7 @@ class TrainingParticipantController extends Controller
                 ];
             }),
             'cooperatives' => $cooperativesQuery->get(),
-            'filters' => $request->only(['search', 'training_id', 'coop_id']),
+            'filters' => $request->only(['search', 'training_id', 'coop_id', 'per_page']),
         ]);
     }
 

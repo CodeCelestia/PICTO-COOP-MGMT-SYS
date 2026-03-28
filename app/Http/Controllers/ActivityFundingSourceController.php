@@ -87,7 +87,10 @@ class ActivityFundingSourceController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $fundingSources = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $fundingSources = $query->latest()->paginate($perPage)->withQueryString();
 
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
@@ -101,7 +104,7 @@ class ActivityFundingSourceController extends Controller
             'fundingSources' => $fundingSources,
             'activities' => $activitiesQuery->get(),
             'cooperatives' => $cooperativesQuery->get(),
-            'filters' => $request->only(['search', 'status', 'funder_type', 'activity_id', 'coop_id']),
+            'filters' => $request->only(['search', 'status', 'funder_type', 'activity_id', 'coop_id', 'per_page']),
         ]);
     }
 

@@ -52,6 +52,7 @@ interface Props {
         status?: string;
         target_group?: string;
         coop_id?: string;
+        per_page?: string;
     };
 }
 
@@ -75,6 +76,19 @@ const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const targetGroup = ref(props.filters.target_group || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.trainings.per_page || 15);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const statusOptions = ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'];
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
@@ -85,6 +99,7 @@ const applyFilters = () => {
         status: status.value === 'all' ? '' : status.value,
         target_group: targetGroup.value === 'all' ? '' : targetGroup.value,
         coop_id: coopId.value === 'all' ? '' : coopId.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -96,6 +111,8 @@ const resetFilters = () => {
     status.value = 'all';
     targetGroup.value = 'all';
     coopId.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/trainings');
 };
 
@@ -204,6 +221,33 @@ const formatDate = (date: string | null) => {
                         </Select>
                     </div>
                 </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
@@ -222,7 +266,7 @@ const formatDate = (date: string | null) => {
                             <TableHead>Date</TableHead>
                             <TableHead>Target Group</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -247,11 +291,12 @@ const formatDate = (date: string | null) => {
                             <TableCell class="text-sm text-gray-600">{{ formatDate(training.date_conducted) }}</TableCell>
                             <TableCell class="text-sm text-gray-600">{{ training.target_group }}</TableCell>
                             <TableCell class="text-sm text-gray-600">{{ training.status }}</TableCell>
-                            <TableCell v-if="showActions" class="text-right">
-                                <div class="flex justify-end gap-2">
+                            <TableCell v-if="showActions" class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEdit" :href="`/trainings/${training.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             <Pencil class="h-4 w-4" />
+                                            Edit
                                         </Button>
                                     </Link>
                                     <Button
@@ -262,6 +307,7 @@ const formatDate = (date: string | null) => {
                                         class="gap-2 text-red-600 hover:text-red-700"
                                     >
                                         <Trash2 class="h-4 w-4" />
+                                        Delete
                                     </Button>
                                 </div>
                             </TableCell>

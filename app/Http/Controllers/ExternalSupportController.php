@@ -75,7 +75,10 @@ class ExternalSupportController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $supports = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $supports = $query->latest()->paginate($perPage)->withQueryString();
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id')
@@ -90,7 +93,7 @@ class ExternalSupportController extends Controller
             'supports' => $supports,
             'cooperatives' => $cooperativesQuery->get(),
             'financialRecords' => $financialQuery->get(),
-            'filters' => $request->only(['search', 'support_type', 'status', 'coop_id']),
+            'filters' => $request->only(['search', 'support_type', 'status', 'coop_id', 'per_page']),
         ]);
     }
 

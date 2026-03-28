@@ -74,7 +74,10 @@ class FinancialRecordController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $records = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $records = $query->latest()->paginate($perPage)->withQueryString();
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
 
@@ -85,7 +88,7 @@ class FinancialRecordController extends Controller
         return Inertia::render('FinancialRecords/Index', [
             'records' => $records,
             'cooperatives' => $cooperativesQuery->get(),
-            'filters' => $request->only(['search', 'type', 'coop_id']),
+            'filters' => $request->only(['search', 'type', 'coop_id', 'per_page']),
         ]);
     }
 

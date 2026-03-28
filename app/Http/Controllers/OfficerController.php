@@ -80,12 +80,15 @@ class OfficerController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $officers = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $officers = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Officers/Index', [
             'officers' => $officers,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-            'filters' => $request->only(['search', 'status', 'coop_id']),
+            'filters' => $request->only(['search', 'status', 'coop_id', 'per_page']),
         ]);
     }
 

@@ -87,6 +87,7 @@ interface Props {
         search?: string;
         training_id?: string;
         coop_id?: string;
+        per_page?: string;
     };
 }
 
@@ -109,12 +110,26 @@ const showActions = computed(() => canEdit.value || canDelete.value);
 const search = ref(props.filters.search || '');
 const trainingId = ref(props.filters.training_id || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.participants.per_page || 15);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const applyFilters = () => {
     router.get('/training-participants', {
         search: search.value,
         training_id: trainingId.value === 'all' ? '' : trainingId.value,
         coop_id: coopId.value === 'all' ? '' : coopId.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -125,6 +140,8 @@ const resetFilters = () => {
     search.value = '';
     trainingId.value = 'all';
     coopId.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/training-participants');
 };
 
@@ -223,6 +240,33 @@ const formatOfficerName = (participant: TrainingParticipant) => {
                         </Select>
                     </div>
                 </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
@@ -241,7 +285,7 @@ const formatOfficerName = (participant: TrainingParticipant) => {
                             <TableHead>Officer</TableHead>
                             <TableHead>Outcome</TableHead>
                             <TableHead>Certificate</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -269,11 +313,12 @@ const formatOfficerName = (participant: TrainingParticipant) => {
                                 <div>{{ participant.certificate_no || 'N/A' }}</div>
                                 <div class="text-xs text-gray-400">{{ formatDate(participant.certificate_date) }}</div>
                             </TableCell>
-                            <TableCell v-if="showActions" class="text-right">
-                                <div class="flex justify-end gap-2">
+                            <TableCell v-if="showActions" class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEdit" :href="`/training-participants/${participant.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             <Pencil class="h-4 w-4" />
+                                            Edit
                                         </Button>
                                     </Link>
                                     <Button
@@ -284,6 +329,7 @@ const formatOfficerName = (participant: TrainingParticipant) => {
                                         class="gap-2 text-red-600 hover:text-red-700"
                                     >
                                         <Trash2 class="h-4 w-4" />
+                                        Delete
                                     </Button>
                                 </div>
                             </TableCell>

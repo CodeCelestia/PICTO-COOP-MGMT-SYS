@@ -65,6 +65,7 @@ interface Props {
         search?: string;
         activity_id?: string;
         coop_id?: string;
+        per_page?: string;
     };
 }
 
@@ -87,12 +88,26 @@ const showActions = computed(() => canEdit.value || canDelete.value);
 const search = ref(props.filters.search || '');
 const activityId = ref(props.filters.activity_id || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.participants.per_page || 15);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
 
 const applyFilters = () => {
     router.get('/activity-participants', {
         search: search.value,
         activity_id: activityId.value === 'all' ? '' : activityId.value,
         coop_id: coopId.value === 'all' ? '' : coopId.value,
+        per_page: resolvedPerPage(),
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -103,6 +118,8 @@ const resetFilters = () => {
     search.value = '';
     activityId.value = 'all';
     coopId.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
     router.get('/activity-participants');
 };
 
@@ -196,6 +213,33 @@ const beneficiaryLabel = (value: boolean) => (value ? 'Yes' : 'No');
                         </Select>
                     </div>
                 </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div class="mt-4 flex gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
@@ -215,7 +259,7 @@ const beneficiaryLabel = (value: boolean) => (value ? 'Yes' : 'No');
                             <TableHead>Role</TableHead>
                             <TableHead>Date Joined</TableHead>
                             <TableHead>Beneficiary</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Actions</TableHead>
+                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -231,11 +275,12 @@ const beneficiaryLabel = (value: boolean) => (value ? 'Yes' : 'No');
                             <TableCell class="text-sm text-gray-600">{{ participant.role || 'N/A' }}</TableCell>
                             <TableCell class="text-sm text-gray-600">{{ formatDate(participant.date_joined) }}</TableCell>
                             <TableCell class="text-sm text-gray-600">{{ beneficiaryLabel(participant.is_beneficiary) }}</TableCell>
-                            <TableCell v-if="showActions" class="text-right">
-                                <div class="flex justify-end gap-2">
+                            <TableCell v-if="showActions" class="text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEdit" :href="`/activity-participants/${participant.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             <Pencil class="h-4 w-4" />
+                                            Edit
                                         </Button>
                                     </Link>
                                     <Button
@@ -246,6 +291,7 @@ const beneficiaryLabel = (value: boolean) => (value ? 'Yes' : 'No');
                                         class="gap-2 text-red-600 hover:text-red-700"
                                     >
                                         <Trash2 class="h-4 w-4" />
+                                        Remove
                                     </Button>
                                 </div>
                             </TableCell>

@@ -78,7 +78,10 @@ class TrainingController extends Controller
             $query->where('coop_id', $request->coop_id);
         }
 
-        $trainings = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 500));
+
+        $trainings = $query->latest()->paginate($perPage)->withQueryString();
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -88,7 +91,7 @@ class TrainingController extends Controller
         return Inertia::render('Trainings/Index', [
             'trainings' => $trainings,
             'cooperatives' => $cooperativesQuery->get(),
-            'filters' => $request->only(['search', 'status', 'target_group', 'coop_id']),
+            'filters' => $request->only(['search', 'status', 'target_group', 'coop_id', 'per_page']),
         ]);
     }
 
