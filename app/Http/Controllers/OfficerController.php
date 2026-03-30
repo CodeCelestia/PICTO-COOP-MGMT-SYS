@@ -72,7 +72,9 @@ class OfficerController extends Controller
             });
         }
 
-        if ($request->filled('status')) {
+        if ($request->input('status') === 'Archived') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -318,6 +320,20 @@ class OfficerController extends Controller
 
         return redirect()->route('officers.index')
             ->with('success', 'Officer deleted successfully.');
+    }
+
+    public function restore(int $id): RedirectResponse
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+            abort(403);
+        }
+
+        $officer = Officer::withTrashed()->findOrFail($id);
+        $this->enforceCoopScope($officer->coop_id);
+        $officer->restore();
+
+        return redirect()->route('officers.index')
+            ->with('success', 'Officer restored successfully.');
     }
 
     private function logTermHistory(

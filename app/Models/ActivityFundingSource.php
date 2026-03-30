@@ -17,8 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $status
  * @property string|null $remarks
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class ActivityFundingSource extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'activity_id',
         'coop_id',
@@ -50,3 +53,5 @@ class ActivityFundingSource extends Model
         return $this->belongsTo(Cooperative::class, 'coop_id');
     }
 }
+
+

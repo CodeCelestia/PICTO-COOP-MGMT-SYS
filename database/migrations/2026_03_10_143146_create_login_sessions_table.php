@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('fail_reason')->nullable();
             $table->string('session_token')->unique()->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes for performance
             $table->index(['user_id', 'login_at']);

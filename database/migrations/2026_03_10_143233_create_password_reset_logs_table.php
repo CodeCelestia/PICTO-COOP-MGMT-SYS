@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('ip_address', 45)->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes for performance
             $table->index(['user_id', 'status']);

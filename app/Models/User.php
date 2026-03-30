@@ -23,8 +23,11 @@ use Illuminate\Support\Str;
  * @property string|null $account_type
  * @property string|null $account_status
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class User extends Authenticatable
 {
+    use SoftDeletes;
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles, LogsActivity;
 
@@ -161,3 +164,5 @@ class User extends Authenticatable
         return $this->hasMany(AccountStatusHistory::class);
     }
 }
+
+

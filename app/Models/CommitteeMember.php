@@ -15,8 +15,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $date_removed
  * @property string $status
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class CommitteeMember extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'coop_id',
         'member_id',
@@ -51,3 +54,5 @@ class CommitteeMember extends Model
         return $this->belongsTo(Cooperative::class, 'coop_id');
     }
 }
+
+

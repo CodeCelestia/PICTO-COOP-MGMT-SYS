@@ -22,6 +22,7 @@ return new class extends Migration
             $table->enum('status', ['Active', 'Revoked', 'Expired'])->default('Active');
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes for performance
             $table->index(['user_id', 'status']);

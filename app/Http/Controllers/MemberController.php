@@ -83,7 +83,9 @@ class MemberController extends Controller
         }
 
         // Filter by membership status
-        if ($request->filled('membership_status')) {
+        if ($request->input('membership_status') === 'Archived') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('membership_status')) {
             $query->where('membership_status', $request->membership_status);
         }
 
@@ -665,6 +667,26 @@ class MemberController extends Controller
 
         return redirect()->route('members.index')
             ->with('success', 'Member deleted successfully.');
+    }
+
+    public function restore(int $id): RedirectResponse
+    {
+        $user = auth()->user();
+
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+            abort(403);
+        }
+
+        $member = Member::withTrashed()->findOrFail($id);
+
+        if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        $member->restore();
+
+        return redirect()->route('members.index')
+            ->with('success', 'Member restored successfully.');
     }
 }
 

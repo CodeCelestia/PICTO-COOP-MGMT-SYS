@@ -59,6 +59,7 @@ return new class extends Migration
             ])->nullable();
             
             $table->timestamps();
+            $table->softDeletes();
             
             // Indexes
             $table->index('coop_id');

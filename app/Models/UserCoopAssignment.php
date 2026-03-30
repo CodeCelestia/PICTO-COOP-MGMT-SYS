@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class UserCoopAssignment extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'user_id',
         'coop_id',
@@ -36,3 +39,5 @@ class UserCoopAssignment extends Model
         return $this->belongsTo(Cooperative::class, 'coop_id');
     }
 }
+
+

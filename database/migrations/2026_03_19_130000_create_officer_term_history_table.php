@@ -25,6 +25,7 @@ return new class extends Migration
             $table->year('election_year')->nullable();
             $table->string('recorded_by')->nullable();
             $table->timestamp('recorded_at')->useCurrent();
+            $table->softDeletes();
 
             $table->index('officer_id');
             $table->index('member_id');

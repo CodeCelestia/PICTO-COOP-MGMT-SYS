@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamp('changed_at');
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes for performance
             $table->index(['user_id', 'changed_at']);

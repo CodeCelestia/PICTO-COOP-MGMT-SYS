@@ -16,8 +16,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $term_end
  * @property string|null $status
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Officer extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'member_id',
         'coop_id',
@@ -68,3 +71,5 @@ class Officer extends Model
         return $this->hasMany(TrainingParticipant::class);
     }
 }
+
+

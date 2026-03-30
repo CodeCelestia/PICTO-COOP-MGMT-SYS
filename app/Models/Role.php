@@ -14,8 +14,11 @@ use Spatie\Activitylog\LogOptions;
  * @property int|null $level
  * @property bool $is_active
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Role extends SpatieRole
 {
+    use SoftDeletes;
     use LogsActivity;
     /**
      * The attributes that are mass assignable.
@@ -56,3 +59,5 @@ class Role extends SpatieRole
     // If you need extended tracking (assigned_by, remarks, etc.), 
     // consider using the user_role_assignments table alongside Spatie
 }
+
+

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->text('change_reason')->nullable();
             $table->string('changed_by')->nullable();
             $table->timestamp('changed_at')->useCurrent();
+            $table->softDeletes();
             $table->text('remarks')->nullable();
 
             $table->index('coop_id');

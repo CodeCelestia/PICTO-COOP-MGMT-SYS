@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { router, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins } from 'lucide-vue-next';
+import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw } from 'lucide-vue-next';
 import { confirmAction } from '@/lib/alerts';
 import {
     Table,
@@ -87,6 +87,7 @@ const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
 const category = ref(props.filters.category || 'all');
+const isArchivedView = computed(() => status.value === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -137,6 +138,20 @@ const deleteActivity = async (activity: Activity) => {
     if (!confirmed) return;
 
     router.delete(`/activities/${activity.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const restoreActivity = async (activity: Activity) => {
+    const confirmed = await confirmAction({
+        title: 'Restore activity?',
+        text: `Restore ${activity.title} to active records?`,
+        confirmButtonText: 'Restore',
+    });
+
+    if (!confirmed) return;
+
+    router.post(`/activities/${activity.id}/restore`, {}, {
         preserveScroll: true,
     });
 };
@@ -224,6 +239,7 @@ const formatOfficerName = (activity: Activity) => {
                                 <SelectItem v-for="option in statusOptions" :key="option" :value="option">
                                     {{ option }}
                                 </SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -310,14 +326,14 @@ const formatOfficerName = (activity: Activity) => {
                                             Funding
                                         </Button>
                                     </Link>
-                                    <Link v-if="canEdit" :href="`/activities/${activity.id}/edit`">
+                                    <Link v-if="!isArchivedView && canEdit" :href="`/activities/${activity.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDelete"
+                                        v-if="!isArchivedView && canDelete"
                                         @click="deleteActivity(activity)"
                                         variant="ghost"
                                         size="sm"
@@ -325,6 +341,16 @@ const formatOfficerName = (activity: Activity) => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="isArchivedView && canDelete"
+                                        @click="restoreActivity(activity)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="gap-2 text-emerald-700 hover:text-emerald-800"
+                                    >
+                                        <RotateCcw class="h-4 w-4" />
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

@@ -71,7 +71,9 @@ class ActivityController extends Controller
             });
         }
 
-        if ($request->filled('status')) {
+        if ($request->input('status') === 'Archived') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -288,5 +290,19 @@ class ActivityController extends Controller
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity deleted successfully.');
+    }
+
+    public function restore(int $id): RedirectResponse
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+            abort(403);
+        }
+
+        $activity = Activity::withTrashed()->findOrFail($id);
+        $this->enforceCoopScope($activity->coop_id);
+        $activity->restore();
+
+        return redirect()->route('activities.index')
+            ->with('success', 'Activity restored successfully.');
     }
 }

@@ -13,10 +13,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('cooperative_id')->nullable()->constrained('cooperatives')->nullOnDelete();
             $table->enum('status', ['draft', 'final'])->default('draft');
-            $table->json('c1_data')->nullable();
-            $table->json('c2_data')->nullable();
-            $table->json('c3_data')->nullable();
-            $table->json('c4_data')->nullable();
             $table->timestamp('submitted_at')->nullable();
             $table->timestamps();
             $table->softDeletes();

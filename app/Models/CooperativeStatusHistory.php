@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class CooperativeStatusHistory extends Model
 {
+    use SoftDeletes;
     public $timestamps = false;
 
     protected $table = 'cooperative_status_history';
@@ -36,3 +39,5 @@ class CooperativeStatusHistory extends Model
         return $this->belongsTo(Cooperative::class, 'coop_id');
     }
 }
+
+

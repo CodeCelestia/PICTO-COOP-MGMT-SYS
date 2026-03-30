@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('reference_doc')->nullable();
             $table->string('recorded_by')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

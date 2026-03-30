@@ -21,6 +21,7 @@ return new class extends Migration
             $table->date('term_end')->nullable();
             $table->enum('status', ['Active', 'Retired', 'Removed', 'Resigned'])->default('Active');
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index('member_id');
             $table->index('coop_id');

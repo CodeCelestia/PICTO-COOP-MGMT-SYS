@@ -20,6 +20,7 @@ return new class extends Migration
             $table->enum('status', ['Released', 'Pending', 'Partially Released']);
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

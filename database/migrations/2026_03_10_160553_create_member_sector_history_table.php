@@ -22,6 +22,7 @@ return new class extends Migration
             $table->text('change_reason')->nullable();
             $table->string('changed_by')->nullable();
             $table->timestamp('changed_at')->useCurrent();
+            $table->softDeletes();
             
             // Indexes
             $table->index('member_id');

@@ -31,8 +31,11 @@ use Spatie\Activitylog\LogOptions;
  * @property string|null $primary_livelihood
  * @property string|null $sector
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Member extends Model
 {
+    use SoftDeletes;
     use LogsActivity;
 
     protected $appends = [
@@ -163,3 +166,5 @@ class Member extends Model
         return $this->birth_date ? $this->birth_date->diffInYears(now()) : null;
     }
 }
+
+

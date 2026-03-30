@@ -20,6 +20,7 @@ return new class extends Migration
             $table->boolean('is_beneficiary')->default(false);
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index('activity_id');
             $table->index('member_id');

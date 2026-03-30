@@ -24,8 +24,11 @@ use Spatie\Activitylog\LogOptions;
  * @property string|null $accreditation_status
  * @property \Illuminate\Support\Carbon|null $accreditation_date
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Cooperative extends Model
 {
+    use SoftDeletes;
     use LogsActivity;
 
     protected $fillable = [
@@ -97,6 +100,27 @@ class Cooperative extends Model
         return $this->hasMany(Activity::class, 'coop_id');
     }
 
+    public function types()
+    {
+        return $this->belongsToMany(CooperativeType::class, 'cooperative_cooperative_type')
+                    ->withTimestamps();
+    }
+
+    public function regionTypes()
+    {
+        return $this->types()->where('level', 'region');
+    }
+
+    public function provinceTypes()
+    {
+        return $this->types()->where('level', 'province');
+    }
+
+    public function municipalityTypes()
+    {
+        return $this->types()->where('level', 'municipality');
+    }
+
     /**
      * Get the cooperative status history entries.
      */
@@ -105,3 +129,5 @@ class Cooperative extends Model
         return $this->hasMany(CooperativeStatusHistory::class, 'coop_id');
     }
 }
+
+

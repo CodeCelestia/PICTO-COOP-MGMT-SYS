@@ -48,7 +48,9 @@ class CooperativeController extends Controller
         }
 
         // Status filter
-        if ($request->filled('status')) {
+        if ($request->input('status') === 'Archived') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -57,19 +59,27 @@ class CooperativeController extends Controller
             $query->where('coop_type', $request->coop_type);
         }
 
-        // Province filter
+        // Geographical filters (Region -> Province -> Municipality)
+        if ($request->filled('region')) {
+            $query->where('region', $request->region);
+        }
+
         if ($request->filled('province')) {
             $query->where('province', $request->province);
+        }
+
+        if ($request->filled('municipality')) {
+            $query->where('city_municipality', $request->municipality);
         }
 
         $perPage = (int) $request->input('per_page', 20);
         $perPage = max(1, min($perPage, 500));
 
-        $cooperatives = $query->orderBy('name')->paginate($perPage)->withQueryString();
+        $cooperatives = $query->with('types')->orderBy('name')->paginate($perPage)->withQueryString();
 
         return Inertia::render('Cooperatives/Index', [
             'cooperatives' => $cooperatives,
-            'filters' => $request->only(['search', 'status', 'coop_type', 'province', 'per_page']),
+            'filters' => $request->only(['search', 'status', 'coop_type', 'region', 'province', 'municipality', 'per_page']),
         ]);
     }
 
@@ -224,4 +234,18 @@ class CooperativeController extends Controller
         return redirect()->route('cooperatives.index')
             ->with('success', 'Cooperative deleted successfully.');
     }
+
+    public function restore(int $id)
+    {
+        if ($this->isCoopAdmin()) {
+            abort(403);
+        }
+
+        $cooperative = Cooperative::withTrashed()->findOrFail($id);
+        $cooperative->restore();
+
+        return redirect()->route('cooperatives.index')
+            ->with('success', 'Cooperative restored successfully.');
+    }
+
 }

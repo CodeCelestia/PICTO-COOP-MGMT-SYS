@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class SkillInventory extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'member_id',
         'coop_id',
@@ -41,3 +44,5 @@ class SkillInventory extends Model
         return $this->belongsTo(Training::class);
     }
 }
+
+

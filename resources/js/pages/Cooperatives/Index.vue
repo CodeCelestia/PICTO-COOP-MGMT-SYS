@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Plus, Pencil, Trash2, Search, Filter } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Building2, Plus, Pencil, Trash2, Search, Filter, RotateCcw } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { usePsgc } from '@/composables/usePsgc';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,8 @@ interface Cooperative {
     accreditation_status: string | null;
     accreditation_date: string | null;
     created_at: string;
+    deleted_at?: string | null;
+    types?: Array<{ id: number; name: string }>;
 }
 
 interface Props {
@@ -53,8 +56,10 @@ interface Props {
     filters: {
         search: string;
         status: string;
-        coop_type: string;
-        province: string;
+        coop_type?: string;
+        region?: string;
+        province?: string;
+        municipality?: string;
         per_page?: string;
     };
 }
@@ -72,15 +77,53 @@ const canDeleteCoop = computed(() => isProvincialAdmin.value);
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value);
 const isCoopAdminOnly = computed(() => isCoopAdmin.value && !isProvincialAdmin.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
+const isArchivedView = computed(() => status.value === 'Archived');
+
+const coopTypes = [
+    'Credit', 'Consumers', 'Producers', 'Marketing', 'Service', 'Multipurpose',
+    'Advocacy', 'Agrarian Reform', 'Dairy', 'Education', 'Electric', 'Fishermen',
+    'Health Services', 'Housing', 'Insurance', 'Laboratory', 'Transport', 'Water Service', 'Workers'
+];
+
+const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopType = ref(props.filters.coop_type || 'all');
-const province = ref(props.filters.province || 'all');
+const selectedRegionCode = ref('all');
+const selectedProvinceCode = ref('all');
+const selectedMunicipalityCode = ref('all');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.cooperatives.per_page || 20);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
 const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+onMounted(async () => {
+    await fetchRegions();
+
+    if (props.filters.region) {
+        const regionObj = regions.value.find((r) => r.name === props.filters.region);
+        if (regionObj) {
+            selectedRegionCode.value = regionObj.code;
+            await fetchProvinces(regionObj.code);
+        }
+    }
+
+    if (props.filters.province) {
+        const provinceObj = provinces.value.find((p) => p.name === props.filters.province);
+        if (provinceObj) {
+            selectedProvinceCode.value = provinceObj.code;
+            await fetchCities(provinceObj.code);
+        }
+    }
+
+    if (props.filters.municipality) {
+        const cityObj = cities.value.find((c) => c.name === props.filters.municipality);
+        if (cityObj) {
+            selectedMunicipalityCode.value = cityObj.code;
+        }
+    }
+});
 
 const resolvedPerPage = () => {
     if (perPage.value !== 'custom') return perPage.value;
@@ -91,12 +134,43 @@ const resolvedPerPage = () => {
     return String(Math.min(parsed, 500));
 };
 
+watch(selectedRegionCode, async (newCode) => {
+    if (newCode && newCode !== 'all') {
+        const region = regions.value.find((r) => r.code === newCode);
+        await fetchProvinces(newCode);
+        selectedProvinceCode.value = 'all';
+        selectedMunicipalityCode.value = 'all';
+    } else {
+        selectedProvinceCode.value = 'all';
+        selectedMunicipalityCode.value = 'all';
+        provinces.value = [];
+        cities.value = [];
+    }
+});
+
+watch(selectedProvinceCode, async (newCode) => {
+    if (newCode && newCode !== 'all') {
+        const province = provinces.value.find((p) => p.code === newCode);
+        await fetchCities(newCode);
+        selectedMunicipalityCode.value = 'all';
+    } else {
+        selectedMunicipalityCode.value = 'all';
+        cities.value = [];
+    }
+});
+
 const applyFilters = () => {
+    const regionName = (selectedRegionCode.value !== 'all' && regions.value.find((r) => r.code === selectedRegionCode.value)?.name) || '';
+    const provinceName = (selectedProvinceCode.value !== 'all' && provinces.value.find((p) => p.code === selectedProvinceCode.value)?.name) || '';
+    const municipalityName = (selectedMunicipalityCode.value !== 'all' && cities.value.find((c) => c.code === selectedMunicipalityCode.value)?.name) || '';
+
     router.get('/cooperatives', {
         search: search.value,
         status: status.value === 'all' ? '' : status.value,
         coop_type: coopType.value === 'all' ? '' : coopType.value,
-        province: province.value === 'all' ? '' : province.value,
+        region: regionName,
+        province: provinceName,
+        municipality: municipalityName,
         per_page: resolvedPerPage(),
     }, {
         preserveState: true,
@@ -108,7 +182,9 @@ const resetFilters = () => {
     search.value = '';
     status.value = 'all';
     coopType.value = 'all';
-    province.value = 'all';
+    selectedRegionCode.value = 'all';
+    selectedProvinceCode.value = 'all';
+    selectedMunicipalityCode.value = 'all';
     perPage.value = '15';
     customPerPage.value = '';
     router.get('/cooperatives');
@@ -124,6 +200,20 @@ const deleteCooperative = async (cooperative: Cooperative) => {
     if (!confirmed) return;
 
     router.delete(`/cooperatives/${cooperative.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const restoreCooperative = async (cooperative: Cooperative) => {
+    const confirmed = await confirmAction({
+        title: 'Restore cooperative?',
+        text: `Restore ${cooperative.name} to active records?`,
+        confirmButtonText: 'Restore',
+    });
+
+    if (!confirmed) return;
+
+    router.post(`/cooperatives/${cooperative.id}/restore`, {}, {
         preserveScroll: true,
     });
 };
@@ -158,31 +248,6 @@ const formatFullAddress = (coop: Cooperative) => {
     
     return parts.join(', ') || 'N/A';
 };
-
-const provinces = [
-    'Ilocos Norte', 'Ilocos Sur', 'La Union', 'Pangasinan', 'Batanes', 'Cagayan',
-    'Isabela', 'Nueva Vizcaya', 'Quirino', 'Aurora', 'Bataan', 'Bulacan', 'Nueva Ecija',
-    'Pampanga', 'Tarlac', 'Zambales', 'Batangas', 'Cavite', 'Laguna', 'Quezon', 'Rizal',
-    'Marinduque', 'Occidental Mindoro', 'Oriental Mindoro', 'Palawan', 'Romblon',
-    'Albay', 'Camarines Norte', 'Camarines Sur', 'Catanduanes', 'Masbate', 'Sorsogon',
-    'Aklan', 'Antique', 'Capiz', 'Guimaras', 'Iloilo', 'Negros Occidental',
-    'Bohol', 'Cebu', 'Negros Oriental', 'Siquijor',
-    'Eastern Samar', 'Leyte', 'Northern Samar', 'Samar', 'Southern Leyte', 'Biliran',
-    'Zamboanga del Norte', 'Zamboanga del Sur', 'Zamboanga Sibugay',
-    'Bukidnon', 'Camiguin', 'Lanao del Norte', 'Misamis Occidental', 'Misamis Oriental',
-    'Davao de Oro', 'Davao del Norte', 'Davao del Sur', 'Davao Occidental', 'Davao Oriental',
-    'Cotabato', 'Sarangani', 'South Cotabato', 'Sultan Kudarat',
-    'Agusan del Norte', 'Agusan del Sur', 'Dinagat Islands', 'Surigao del Norte', 'Surigao del Sur',
-    'Basilan', 'Lanao del Sur', 'Maguindanao', 'Sulu', 'Tawi-Tawi',
-    'Abra', 'Apayao', 'Benguet', 'Ifugao', 'Kalinga', 'Mountain Province',
-    'Metro Manila'
-];
-
-const coopTypes = [
-    'Credit', 'Consumers', 'Producers', 'Marketing', 'Service', 'Multipurpose',
-    'Advocacy', 'Agrarian Reform', 'Dairy', 'Education', 'Electric', 'Fishermen',
-    'Health Services', 'Housing', 'Insurance', 'Laboratory', 'Transport', 'Water Service', 'Workers'
-];
 </script>
 
 <template>
@@ -230,6 +295,7 @@ const coopTypes = [
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Dissolved">Dissolved</SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -248,15 +314,55 @@ const coopTypes = [
                         </Select>
                     </div>
                     <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Region</label>
+                        <Select v-model="selectedRegionCode">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Regions" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Regions</SelectItem>
+                                <SelectItem
+                                    v-for="regionItem in regions"
+                                    :key="regionItem.code"
+                                    :value="regionItem.code"
+                                >
+                                    {{ regionItem.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
                         <label class="mb-2 block text-sm font-medium text-gray-700">Province</label>
-                        <Select v-model="province">
+                        <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Provinces" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Provinces</SelectItem>
-                                <SelectItem v-for="prov in provinces" :key="prov" :value="prov">
-                                    {{ prov }}
+                                <SelectItem
+                                    v-for="provinceItem in provinces"
+                                    :key="provinceItem.code"
+                                    :value="provinceItem.code"
+                                >
+                                    {{ provinceItem.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Municipality</label>
+                        <Select v-model="selectedMunicipalityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Municipalities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Municipalities</SelectItem>
+                                <SelectItem
+                                    v-for="municipalityItem in cities"
+                                    :key="municipalityItem.code"
+                                    :value="municipalityItem.code"
+                                >
+                                    {{ municipalityItem.name }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -402,7 +508,9 @@ const coopTypes = [
                                 {{ coop.registration_number }}
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline">{{ coop.coop_type }}</Badge>
+                                <Badge variant="outline">
+                                    {{ coop.types?.length ? coop.types.map(t => t.name).join(', ') : coop.coop_type }}
+                                </Badge>
                             </TableCell>
                             <TableCell class="text-gray-600">
                                 <div class="text-sm">
@@ -434,7 +542,7 @@ const coopTypes = [
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDeleteCoop"
+                                        v-if="canDeleteCoop && !isArchivedView"
                                         @click="deleteCooperative(coop)"
                                         variant="ghost"
                                         size="sm"
@@ -442,6 +550,16 @@ const coopTypes = [
                                     >
                                         <Trash2 class="h-3 w-3" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="canDeleteCoop && isArchivedView"
+                                        @click="restoreCooperative(coop)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="gap-1 text-emerald-600 hover:text-emerald-700"
+                                    >
+                                        <RotateCcw class="h-3 w-3" />
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>
@@ -468,7 +586,9 @@ const coopTypes = [
                                     search: search || '',
                                     status: status === 'all' ? '' : status,
                                     coop_type: coopType === 'all' ? '' : coopType,
-                                    province: province === 'all' ? '' : province,
+                                    region: (selectedRegionCode !== 'all' && regions.find((r) => r.code === selectedRegionCode)?.name) || '',
+                                    province: (selectedProvinceCode !== 'all' && provinces.find((p) => p.code === selectedProvinceCode)?.name) || '',
+                                    municipality: (selectedMunicipalityCode !== 'all' && cities.find((c) => c.code === selectedMunicipalityCode)?.name) || '',
                                     per_page: resolvedPerPage(),
                                 })"
                             >

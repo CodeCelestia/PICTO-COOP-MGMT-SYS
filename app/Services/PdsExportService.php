@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PdsSubmission;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
@@ -14,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class PdsExportService
 {
-    public function generate(array $pdsData): string
+    public function generate(PdsSubmission $pds): string
     {
         $path = storage_path('app/templates/pds_template.xlsx');
         if (!file_exists($path)) {
@@ -50,11 +51,106 @@ class PdsExportService
             Log::info('Removed invalid defined names: ' . $removedDefinedNames);
         }
 
-        $c1 = Arr::get($pdsData, 'c1_data', []);
-        $c2 = Arr::get($pdsData, 'c2_data', []);
-        $c3 = Arr::get($pdsData, 'c3_data', []);
-        $c4 = Arr::get($pdsData, 'c4_data', []);
-        $signatureDate = Arr::get($c4, 'signature_date');
+        $pds->loadFullPds();
+
+        $c1Profile = $pds->c1Profile;
+        $c1 = $c1Profile ? $c1Profile->toArray() : [];
+        $c1['children'] = $pds->c1Children->map(fn ($item) => [
+            'name' => $item->name,
+            'date_of_birth' => $item->date_of_birth?->format('Y-m-d'),
+        ])->toArray();
+
+        $education = [];
+        foreach ($pds->c1Education as $item) {
+            $education[$item->level] = [
+                'school_name' => $item->school_name,
+                'degree' => $item->degree,
+                'from' => $item->from,
+                'to' => $item->to,
+                'units' => $item->units,
+                'year_graduated' => $item->year_graduated,
+                'honors' => $item->honors,
+            ];
+        }
+        $c1['education'] = $education;
+
+        $c2 = [
+            'eligibility' => $pds->c2Eligibilities->map(fn ($item) => [
+                'name' => $item->name,
+                'rating' => $item->rating,
+                'exam_date' => $item->exam_date?->format('Y-m-d'),
+                'exam_place' => $item->exam_place,
+                'license_number' => $item->license_number,
+                'license_validity' => $item->license_validity?->format('Y-m-d'),
+            ])->toArray(),
+            'work_experience' => $pds->c2WorkExperiences->map(fn ($item) => [
+                'date_from' => $item->date_from?->format('Y-m-d'),
+                'date_to' => $item->date_to?->format('Y-m-d'),
+                'position_title' => $item->position_title,
+                'dept_agency' => $item->dept_agency,
+                'monthly_salary' => $item->monthly_salary,
+                'salary_grade' => $item->salary_grade,
+                'status_appointment' => $item->status_appointment,
+                'govt_service' => $item->govt_service,
+            ])->toArray(),
+        ];
+
+        $c3 = [
+            'voluntary_work' => $pds->c3VoluntaryWorks->map(fn ($item) => [
+                'organization' => $item->organization,
+                'date_from' => $item->date_from?->format('Y-m-d'),
+                'date_to' => $item->date_to?->format('Y-m-d'),
+                'hours' => $item->hours,
+                'position' => $item->position,
+            ])->toArray(),
+            'learning_development' => $pds->c3LearningDevelopments->map(fn ($item) => [
+                'title' => $item->title,
+                'date_from' => $item->date_from?->format('Y-m-d'),
+                'date_to' => $item->date_to?->format('Y-m-d'),
+                'hours' => $item->hours,
+                'type' => $item->type,
+                'conducted_by' => $item->conducted_by,
+            ])->toArray(),
+            'special_skills' => $pds->c3SpecialSkills->pluck('skill')->toArray(),
+            'recognitions' => $pds->c3Recognitions->pluck('recognition')->toArray(),
+            'memberships' => $pds->c3Memberships->pluck('membership')->toArray(),
+        ];
+
+        $c4Declaration = $pds->c4Declaration;
+        $c4 = [
+            'q34' => $c4Declaration ? ($c4Declaration->q34 ? 'Yes' : 'No') : null,
+            'q34_details' => $c4Declaration?->q34_details,
+            'q35' => $c4Declaration ? ($c4Declaration->q35 ? 'Yes' : 'No') : null,
+            'q35_details' => $c4Declaration?->q35_details,
+            'q36' => $c4Declaration ? ($c4Declaration->q36 ? 'Yes' : 'No') : null,
+            'q36_details' => $c4Declaration?->q36_details,
+            'q37' => $c4Declaration ? ($c4Declaration->q37 ? 'Yes' : 'No') : null,
+            'q37_details' => $c4Declaration?->q37_details,
+            'q38a' => $c4Declaration ? ($c4Declaration->q38a ? 'Yes' : 'No') : null,
+            'q38a_details' => $c4Declaration?->q38a_details,
+            'q38b' => $c4Declaration ? ($c4Declaration->q38b ? 'Yes' : 'No') : null,
+            'q38b_details' => $c4Declaration?->q38b_details,
+            'q39' => $c4Declaration ? ($c4Declaration->q39 ? 'Yes' : 'No') : null,
+            'q39_details' => $c4Declaration?->q39_details,
+            'q40a' => $c4Declaration ? ($c4Declaration->q40a ? 'Yes' : 'No') : null,
+            'q40a_details' => $c4Declaration?->q40a_details,
+            'q40b' => $c4Declaration ? ($c4Declaration->q40b ? 'Yes' : 'No') : null,
+            'q40b_details' => $c4Declaration?->q40b_details,
+            'q41' => $c4Declaration ? ($c4Declaration->q41 ? 'Yes' : 'No') : null,
+            'q41_details' => $c4Declaration?->q41_details,
+            'signature_date' => $c4Declaration?->signature_date?->format('Y-m-d'),
+            'references' => $pds->c4References->map(fn ($item) => [
+                'name' => $item->name,
+                'address' => $item->address,
+                'tel_no' => $item->tel_no,
+            ])->toArray(),
+            'govt_id_type' => $pds->c4GovernmentId?->govt_id_type,
+            'govt_id_no' => $pds->c4GovernmentId?->govt_id_no,
+            'id_issue_date' => $pds->c4GovernmentId?->id_issue_date?->format('Y-m-d'),
+            'id_issue_place' => $pds->c4GovernmentId?->id_issue_place,
+        ];
+
+        $signatureDate = $c4['signature_date'] ?? null;
 
         $this->fillC1($spreadsheet->getSheetByName('C1'), $c1, $signatureDate);
         $this->fillC2($spreadsheet->getSheetByName('C2'), $c2, $signatureDate);
@@ -72,10 +168,10 @@ class PdsExportService
         $writer->save($filePath);
 
         $flat = array_merge(
-            Arr::get($pdsData, 'c1_data', []),
-            Arr::get($pdsData, 'c2_data', []),
-            Arr::get($pdsData, 'c3_data', []),
-            Arr::get($pdsData, 'c4_data', [])
+            $c1,
+            $c2,
+            $c3,
+            $c4
         );
         $safeMode = filter_var((string) env('PDS_EXPORT_SAFE_MODE', 'true'), FILTER_VALIDATE_BOOLEAN);
         if ($safeMode) {

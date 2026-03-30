@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class LoginSession extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'user_id',
         'login_at',
@@ -43,3 +46,5 @@ class LoginSession extends Model
         return $this->login_at->diffInMinutes($this->logout_at);
     }
 }
+
+

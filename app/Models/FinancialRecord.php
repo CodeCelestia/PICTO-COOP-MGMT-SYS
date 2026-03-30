@@ -24,8 +24,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $reference_doc
  * @property string|null $recorded_by
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class FinancialRecord extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'coop_id',
         'period',
@@ -67,3 +70,5 @@ class FinancialRecord extends Model
         return $this->hasMany(ExternalSupport::class);
     }
 }
+
+

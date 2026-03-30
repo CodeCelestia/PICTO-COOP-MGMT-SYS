@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { Users, Plus, Pencil, Trash2, Search, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +79,7 @@ const showActions = computed(() => canEditOfficer.value || canDeleteOfficer.valu
 const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
+const isArchivedView = computed(() => status.value === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.officers.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -124,6 +125,20 @@ const deleteOfficer = async (officer: Officer) => {
     if (!confirmed) return;
 
     router.delete(`/officers/${officer.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const restoreOfficer = async (officer: Officer) => {
+    const confirmed = await confirmAction({
+        title: 'Restore officer record?',
+        text: `Restore ${officer.member.full_name} to active records?`,
+        confirmButtonText: 'Restore',
+    });
+
+    if (!confirmed) return;
+
+    router.post(`/officers/${officer.id}/restore`, {}, {
         preserveScroll: true,
     });
 };
@@ -196,6 +211,7 @@ const formatTerm = (start: string | null, end: string | null) => {
                                 <SelectItem value="Retired">Retired</SelectItem>
                                 <SelectItem value="Removed">Removed</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -271,14 +287,14 @@ const formatTerm = (start: string | null, end: string | null) => {
                             <TableCell class="text-sm text-gray-600">{{ officer.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEditOfficer" :href="`/officers/${officer.id}/edit`">
+                                    <Link v-if="!isArchivedView && canEditOfficer" :href="`/officers/${officer.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDeleteOfficer"
+                                        v-if="!isArchivedView && canDeleteOfficer"
                                         @click="deleteOfficer(officer)"
                                         variant="ghost"
                                         size="sm"
@@ -286,6 +302,16 @@ const formatTerm = (start: string | null, end: string | null) => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="isArchivedView && canDeleteOfficer"
+                                        @click="restoreOfficer(officer)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="gap-2 text-emerald-700 hover:text-emerald-800"
+                                    >
+                                        <RotateCcw class="h-4 w-4" />
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

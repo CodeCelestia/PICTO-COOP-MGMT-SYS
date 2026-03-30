@@ -2,10 +2,11 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Pencil, Download, Trash2 } from 'lucide-vue-next';
+import { Pencil, Download, Trash2, RotateCcw } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { confirmAction } from '@/lib/alerts';
 import {
     Select,
     SelectContent,
@@ -69,6 +70,7 @@ const props = defineProps<Props>();
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
+const isArchivedView = computed(() => status.value === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.submissions.per_page || 10);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -119,6 +121,20 @@ const deleteSubmission = (id: number) => {
     }
 
     router.delete(`/pds/${id}`, {
+        preserveScroll: true,
+    });
+};
+
+const restoreSubmission = async (pds: PdsSubmission) => {
+    const confirmed = await confirmAction({
+        title: 'Restore PDS submission?',
+        text: `Restore PDS #${pds.id} to active records?`,
+        confirmButtonText: 'Restore',
+    });
+
+    if (!confirmed) return;
+
+    router.post(`/pds/${pds.id}/restore`, {}, {
         preserveScroll: true,
     });
 };
@@ -178,6 +194,7 @@ const clearFilters = () => {
                                 <SelectItem value="all">All Statuses</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="final">Final</SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -260,7 +277,7 @@ const clearFilters = () => {
                             <TableCell>{{ formatDate(pds.submitted_at) }}</TableCell>
                             <TableCell class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link :href="`/pds/${pds.id}/edit`">
+                                    <Link v-if="!isArchivedView" :href="`/pds/${pds.id}/edit`">
                                         <Button variant="outline" size="sm" class="gap-1.5">
                                             <Pencil class="h-4 w-4" />
                                             Edit
@@ -272,9 +289,19 @@ const clearFilters = () => {
                                             Download
                                         </Button>
                                     </a>
-                                    <Button variant="destructive" size="sm" class="gap-1.5" @click="deleteSubmission(pds.id)">
+                                    <Button v-if="!isArchivedView" variant="destructive" size="sm" class="gap-1.5" @click="deleteSubmission(pds.id)">
                                         <Trash2 class="h-4 w-4" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="isArchivedView"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-1.5 text-emerald-700 hover:text-emerald-800"
+                                        @click="restoreSubmission(pds)"
+                                    >
+                                        <RotateCcw class="h-4 w-4" />
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

@@ -21,8 +21,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $follow_up_remarks
  * @property string $status
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Training extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'coop_id',
         'title',
@@ -62,3 +65,5 @@ class Training extends Model
         return $this->hasMany(SkillInventory::class);
     }
 }
+
+

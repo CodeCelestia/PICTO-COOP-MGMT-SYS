@@ -19,6 +19,7 @@ return new class extends Migration
             $table->timestamp('last_updated')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

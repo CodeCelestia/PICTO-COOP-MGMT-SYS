@@ -20,8 +20,11 @@ use Spatie\Activitylog\LogOptions;
  * @property string|null $remarks
  * @property string|null $recorded_by
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class MemberServiceAvailed extends Model
 {
+    use SoftDeletes;
     use LogsActivity;
 
     protected $table = 'member_services_availed';
@@ -75,3 +78,5 @@ class MemberServiceAvailed extends Model
         return $this->belongsTo(Cooperative::class, 'coop_id');
     }
 }
+
+

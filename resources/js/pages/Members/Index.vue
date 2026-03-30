@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Plus, Pencil, Trash2, Search, Eye } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Search, Eye, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,7 @@ const showActions = computed(() => canEditMember.value || canDeleteMember.value)
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
+const isArchivedView = computed(() => membershipStatus.value === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.members.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -128,6 +129,20 @@ const deleteMember = async (member: Member) => {
     if (!confirmed) return;
 
     router.delete(`/members/${member.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const restoreMember = async (member: Member) => {
+    const confirmed = await confirmAction({
+        title: 'Restore member?',
+        text: `Restore ${member.full_name} to active records?`,
+        confirmButtonText: 'Restore',
+    });
+
+    if (!confirmed) return;
+
+    router.post(`/members/${member.id}/restore`, {}, {
         preserveScroll: true,
     });
 };
@@ -208,6 +223,7 @@ const formatLocation = (member: Member) => {
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
                                 <SelectItem value="Deceased">Deceased</SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -298,14 +314,14 @@ const formatLocation = (member: Member) => {
                                             View
                                         </Button>
                                     </Link>
-                                    <Link v-if="canEditMember" :href="`/members/${member.id}/edit`">
+                                    <Link v-if="!isArchivedView && canEditMember" :href="`/members/${member.id}/edit`">
                                         <Button variant="ghost" size="sm" class="gap-1.5" title="Edit member">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDeleteMember"
+                                        v-if="!isArchivedView && canDeleteMember"
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
@@ -314,6 +330,17 @@ const formatLocation = (member: Member) => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="isArchivedView && canDeleteMember"
+                                        @click="restoreMember(member)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="gap-1.5 text-emerald-700 hover:text-emerald-800"
+                                        title="Restore member"
+                                    >
+                                        <RotateCcw class="h-4 w-4" />
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

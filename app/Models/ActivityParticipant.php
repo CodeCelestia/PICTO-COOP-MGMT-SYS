@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class ActivityParticipant extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'activity_id',
         'member_id',
@@ -40,3 +43,5 @@ class ActivityParticipant extends Model
         return $this->belongsTo(Member::class);
     }
 }
+
+

@@ -22,8 +22,8 @@ return new class extends Migration
             $table->enum('status', ['Planned', 'In Progress', 'Completed', 'Cancelled'])->default('Planned');
             $table->foreignId('responsible_officer_id')->nullable()->constrained('officers')->nullOnDelete();
             $table->string('funding_source')->nullable();
-            $table->decimal('budget', 12, 2)->nullable();
-            $table->decimal('actual_expense', 12, 2)->nullable();
+            $table->decimal('budget', 15, 2)->nullable();
+            $table->decimal('actual_expense', 15, 2)->nullable();
             $table->unsignedInteger('target_member_beneficiaries')->nullable();
             $table->unsignedInteger('target_community_beneficiaries')->nullable();
             $table->unsignedInteger('actual_member_beneficiaries')->nullable();
@@ -32,6 +32,7 @@ return new class extends Migration
             $table->text('outcomes')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index('coop_id');
             $table->index('category');

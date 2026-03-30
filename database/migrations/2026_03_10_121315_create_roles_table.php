@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('level')->comment('Hierarchy level: 1=highest/admin, 6=lowest/view-only');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

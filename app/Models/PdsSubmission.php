@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -18,23 +20,12 @@ class PdsSubmission extends Model
         'user_id',
         'cooperative_id',
         'status',
-        'c1_data',
-        'c2_data',
-        'c3_data',
-        'c4_data',
         'submitted_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'c1_data' => 'array',
-            'c2_data' => 'array',
-            'c3_data' => 'array',
-            'c4_data' => 'array',
-            'submitted_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'submitted_at' => 'datetime',
+    ];
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -53,6 +44,92 @@ class PdsSubmission extends Model
     public function cooperative(): BelongsTo
     {
         return $this->belongsTo(Cooperative::class, 'cooperative_id');
+    }
+
+    public function c1Profile(): HasOne
+    {
+        return $this->hasOne(PdsC1Profile::class);
+    }
+
+    public function c1Children(): HasMany
+    {
+        return $this->hasMany(PdsC1Child::class);
+    }
+
+    public function c1Education(): HasMany
+    {
+        return $this->hasMany(PdsC1Education::class);
+    }
+
+    public function c2Eligibilities(): HasMany
+    {
+        return $this->hasMany(PdsC2Eligibility::class);
+    }
+
+    public function c2WorkExperiences(): HasMany
+    {
+        return $this->hasMany(PdsC2WorkExperience::class);
+    }
+
+    public function c3VoluntaryWorks(): HasMany
+    {
+        return $this->hasMany(PdsC3VoluntaryWork::class);
+    }
+
+    public function c3LearningDevelopments(): HasMany
+    {
+        return $this->hasMany(PdsC3LearningDevelopment::class);
+    }
+
+    public function c3SpecialSkills(): HasMany
+    {
+        return $this->hasMany(PdsC3SpecialSkill::class);
+    }
+
+    public function c3Recognitions(): HasMany
+    {
+        return $this->hasMany(PdsC3Recognition::class);
+    }
+
+    public function c3Memberships(): HasMany
+    {
+        return $this->hasMany(PdsC3Membership::class);
+    }
+
+    public function c4Declaration(): HasOne
+    {
+        return $this->hasOne(PdsC4Declaration::class);
+    }
+
+    public function c4References(): HasMany
+    {
+        return $this->hasMany(PdsC4Reference::class);
+    }
+
+    public function c4GovernmentId(): HasOne
+    {
+        return $this->hasOne(PdsC4GovernmentId::class);
+    }
+
+    public function loadFullPds(): self
+    {
+        $this->load([
+            'c1Profile',
+            'c1Children',
+            'c1Education',
+            'c2Eligibilities',
+            'c2WorkExperiences',
+            'c3VoluntaryWorks',
+            'c3LearningDevelopments',
+            'c3SpecialSkills',
+            'c3Recognitions',
+            'c3Memberships',
+            'c4Declaration',
+            'c4References',
+            'c4GovernmentId',
+        ]);
+
+        return $this;
     }
 
     public function scopeForUser(Builder $query, int $userId): Builder
@@ -75,3 +152,5 @@ class PdsSubmission extends Model
         return $query->where('status', 'final');
     }
 }
+
+

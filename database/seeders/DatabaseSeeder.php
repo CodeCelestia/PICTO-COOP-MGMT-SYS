@@ -64,6 +64,9 @@ class DatabaseSeeder extends Seeder
         ]);
         $manager->assignRole($memberRole);
 
+        // Seed cooperative types and hierarchy
+        $this->call(CooperativeTypeSeeder::class);
+
         // Seed cooperatives and members
         $this->call(CooperativeSeeder::class);
         $this->call(MemberSeeder::class);

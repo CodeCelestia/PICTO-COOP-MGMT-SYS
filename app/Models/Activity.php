@@ -27,8 +27,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $outcomes
  * @property string|null $remarks
  */
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class Activity extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'coop_id',
         'title',
@@ -92,3 +95,5 @@ class Activity extends Model
         return $this->hasMany(ActivityFundingSource::class);
     }
 }
+
+

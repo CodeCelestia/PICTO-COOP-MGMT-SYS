@@ -34,6 +34,7 @@ return new class extends Migration
             $table->string('recorded_by')->nullable();
             
             $table->timestamps();
+            $table->softDeletes();
             
             // Indexes
             $table->index('member_id');

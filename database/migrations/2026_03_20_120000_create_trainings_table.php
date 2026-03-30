@@ -23,6 +23,7 @@ return new class extends Migration
             $table->text('follow_up_remarks')->nullable();
             $table->enum('status', ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending']);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

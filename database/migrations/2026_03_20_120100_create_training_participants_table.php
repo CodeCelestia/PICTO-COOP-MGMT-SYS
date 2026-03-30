@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('certificate_date')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

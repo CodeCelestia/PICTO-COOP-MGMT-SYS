@@ -9,6 +9,7 @@ use App\Http\Controllers\ActivityLogsController;
 use App\Http\Controllers\SessionHistoryController;
 use App\Http\Controllers\AccountStatusHistoryController;
 use App\Http\Controllers\CooperativeController;
+use App\Http\Controllers\CooperativeTypeController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberServiceAvailedController;
 use App\Http\Controllers\MemberPortalController;
@@ -80,6 +81,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('cooperatives/{cooperative}', [CooperativeController::class, 'destroy'])
         ->middleware('role:Provincial Admin')
         ->name('cooperatives.destroy');
+    Route::post('cooperatives/{id}/restore', [CooperativeController::class, 'restore'])
+        ->middleware('role:Provincial Admin')
+        ->name('cooperatives.restore');
+
+    // Cooperative Type Management
+    Route::get('cooperative-types', [CooperativeTypeController::class, 'index'])
+        ->middleware('role:Provincial Admin')
+        ->name('cooperative-types.index');
+    Route::post('cooperative-types', [CooperativeTypeController::class, 'store'])
+        ->middleware('role:Provincial Admin')
+        ->name('cooperative-types.store');
+    Route::put('cooperative-types/{cooperativeType}', [CooperativeTypeController::class, 'update'])
+        ->middleware('role:Provincial Admin')
+        ->name('cooperative-types.update');
+    Route::delete('cooperative-types/{cooperativeType}', [CooperativeTypeController::class, 'destroy'])
+        ->middleware('role:Provincial Admin')
+        ->name('cooperative-types.destroy');
     
     // Member Management
     Route::get('members', [MemberController::class, 'index'])
@@ -100,6 +118,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('members/{member}', [MemberController::class, 'destroy'])
         ->middleware('role:Provincial Admin|Coop Admin')
         ->name('members.destroy');
+    Route::post('members/{id}/restore', [MemberController::class, 'restore'])
+        ->middleware('role:Provincial Admin|Coop Admin')
+        ->name('members.restore');
     Route::get('members/{member}/services-availed', [MemberController::class, 'servicesAvailed'])
         ->middleware('role:Provincial Admin|Coop Admin|Officer')
         ->name('members.services-availed.index');
@@ -135,6 +156,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->except(['show'])
         ->parameters(['pds' => 'pds'])
         ->middleware('role:Provincial Admin|Coop Admin');
+    Route::post('pds/{id}/restore', [PdsController::class, 'restore'])
+        ->middleware('role:Provincial Admin|Coop Admin')
+        ->name('pds.restore');
     Route::get('pds/{pds}/download', [PdsController::class, 'download'])
         ->middleware('role:Provincial Admin|Coop Admin|Member')
         ->name('pds.download');
@@ -172,6 +196,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('officers/{officer}', [OfficerController::class, 'destroy'])
         ->middleware('role:Provincial Admin|Coop Admin')
         ->name('officers.destroy');
+    Route::post('officers/{id}/restore', [OfficerController::class, 'restore'])
+        ->middleware('role:Provincial Admin|Coop Admin')
+        ->name('officers.restore');
 
     Route::get('committee-members', [CommitteeMemberController::class, 'index'])
         ->middleware('role:Provincial Admin|Coop Admin|Officer|Committee Member|Viewer')
@@ -211,6 +238,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])
         ->middleware('role:Provincial Admin|Coop Admin')
         ->name('activities.destroy');
+    Route::post('activities/{id}/restore', [ActivityController::class, 'restore'])
+        ->middleware('role:Provincial Admin|Coop Admin')
+        ->name('activities.restore');
 
     // Activity Funding Sources
     Route::get('activity-funding-sources', [ActivityFundingSourceController::class, 'index'])
