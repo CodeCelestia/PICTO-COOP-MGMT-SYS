@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { Accessibility, Moon, Sun } from 'lucide-vue-next';
+import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { useAppearance } from '@/composables/useAppearance';
 import type { BreadcrumbItem } from '@/types';
 
 withDefaults(
@@ -11,6 +15,15 @@ withDefaults(
         breadcrumbs: () => [],
     },
 );
+
+const { isLargeMode, toggleLargeMode } = useSidebar();
+const { resolvedAppearance, updateAppearance } = useAppearance();
+
+const isDarkMode = computed(() => resolvedAppearance.value === 'dark');
+
+function toggleAppearance() {
+    updateAppearance(isDarkMode.value ? 'light' : 'dark');
+}
 </script>
 
 <template>
@@ -22,6 +35,44 @@ withDefaults(
             <template v-if="breadcrumbs && breadcrumbs.length > 0">
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </template>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                :aria-pressed="isLargeMode"
+                :title="isLargeMode ? 'Use default sidebar size' : 'Use larger sidebar size'"
+                class="h-8 gap-1.5 px-2 text-xs"
+                :class="isLargeMode ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''"
+                @click="toggleLargeMode"
+            >
+                <Accessibility class="size-4" />
+                <span class="hidden sm:inline">{{ isLargeMode ? 'Large On' : 'Large Off' }}</span>
+            </Button>
+
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                :aria-pressed="isDarkMode"
+                :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+                class="h-8 gap-1.5 px-2 text-xs"
+                :class="isDarkMode ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''"
+                @click="toggleAppearance"
+            >
+                <span class="relative size-4">
+                    <Sun
+                        class="absolute inset-0 transition-all duration-300 ease-out"
+                        :class="isDarkMode ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'"
+                    />
+                    <Moon
+                        class="absolute inset-0 transition-all duration-300 ease-out"
+                        :class="isDarkMode ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'"
+                    />
+                </span>
+                <span class="hidden sm:inline">{{ isDarkMode ? 'Dark Mode' : 'Light Mode' }}</span>
+            </Button>
         </div>
     </header>
 </template>
