@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { onMounted, watch, ref } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
+import { router } from '@inertiajs/vue3';
 import { Users, Save, X, MapPin, Building2, Lock, UserPlus } from 'lucide-vue-next';
+import { onMounted, watch, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -15,8 +14,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { router } from '@inertiajs/vue3';
+import { Textarea } from '@/components/ui/textarea';
 import { usePsgc } from '@/composables/usePsgc';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
     id: number;

@@ -2,7 +2,7 @@
 import type { HTMLAttributes, Ref } from "vue"
 import { defaultDocument, useEventListener, useMediaQuery, useStorage, useVModel } from "@vueuse/core"
 import { TooltipProvider } from "reka-ui"
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { cn } from "@/lib/utils"
 import {
   provideSidebarContext,
@@ -57,6 +57,20 @@ function toggleLargeMode() {
   setLargeMode(!isLargeMode.value)
 }
 
+// Keep a single global flag on <html> so large mode can scale app typography
+// without wiring classes across individual pages/components.
+watch(
+  isLargeMode,
+  (value) => {
+    if (!defaultDocument?.documentElement) {
+      return
+    }
+
+    defaultDocument.documentElement.dataset.a11ySize = value ? "large" : "default"
+  },
+  { immediate: true },
+)
+
 // Helper to toggle the sidebar.
 function toggleSidebar() {
   return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!open.value)
@@ -95,15 +109,15 @@ provideSidebarContext({
       :style="{
         '--sidebar-width': isLargeMode ? SIDEBAR_WIDTH_LARGE : SIDEBAR_WIDTH,
         '--sidebar-width-icon': isLargeMode ? SIDEBAR_WIDTH_ICON_LARGE : SIDEBAR_WIDTH_ICON,
-        '--sidebar-menu-item-gap': isLargeMode ? '1rem' : '0.75rem',
-        '--sidebar-menu-font-size': isLargeMode ? '1.125rem' : '1rem',
-        '--sidebar-menu-item-height': isLargeMode ? '2.75rem' : '2.25rem',
-        '--sidebar-menu-item-height-lg': isLargeMode ? '3.25rem' : '3rem',
-        '--sidebar-menu-icon-size': isLargeMode ? '1.5rem' : '1.25rem',
-        '--sidebar-menu-collapsed-size': isLargeMode ? '2.5rem' : '2rem',
-        '--sidebar-menu-collapsed-padding': isLargeMode ? '0.625rem' : '0.5rem',
-        '--sidebar-group-label-font-size': isLargeMode ? '1rem' : '0.875rem',
-        '--sidebar-group-label-icon-size': isLargeMode ? '1.5rem' : '1.25rem',
+        '--sidebar-menu-item-gap': isLargeMode ? '16px' : '12px',
+        '--sidebar-menu-font-size': isLargeMode ? '18px' : '16px',
+        '--sidebar-menu-item-height': isLargeMode ? '44px' : '36px',
+        '--sidebar-menu-item-height-lg': isLargeMode ? '52px' : '48px',
+        '--sidebar-menu-icon-size': isLargeMode ? '24px' : '20px',
+        '--sidebar-menu-collapsed-size': isLargeMode ? '40px' : '32px',
+        '--sidebar-menu-collapsed-padding': isLargeMode ? '10px' : '8px',
+        '--sidebar-group-label-font-size': isLargeMode ? '16px' : '14px',
+        '--sidebar-group-label-icon-size': isLargeMode ? '24px' : '20px',
       }"
       :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full', props.class)"
       v-bind="$attrs"

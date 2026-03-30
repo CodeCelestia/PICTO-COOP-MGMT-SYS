@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Users, Plus, X, Calendar, MessageSquare, UserPlus, Mail, Lock, User as UserIcon, Pencil, Trash2, Eye } from 'lucide-vue-next';
-import { confirmAction } from '@/lib/alerts';
+import { ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -20,7 +19,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -29,9 +28,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction } from '@/lib/alerts';
 
 interface Role {
     id: number;
@@ -350,144 +357,168 @@ const requiresCoop = () => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">User Management</h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Manage users and their role assignments
-                    </p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <Button @click="openRoleDialog" variant="outline" class="gap-2">
-                        <Plus class="h-4 w-4" />
-                        Add Role
-                    </Button>
-                    <Button @click="openCreateDialog" class="gap-2">
-                        <UserPlus class="h-4 w-4" />
-                        Create User
-                    </Button>
-                </div>
-            </div>
+        <div class="space-y-6 p-4 sm:p-6 lg:p-8">
+            <Card class="border-border/80 bg-card/95 shadow-sm">
+                <CardContent class="p-5 sm:p-6">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">User Management</h1>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                Manage users and their role assignments
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Button @click="openRoleDialog" variant="outline" class="gap-2">
+                                <Plus class="h-4 w-4" />
+                                Add Role
+                            </Button>
+                            <Button @click="openCreateDialog" class="gap-2">
+                                <UserPlus class="h-4 w-4" />
+                                Create User
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>User</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Roles</TableHead>
-                            <TableHead class="text-center">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-for="user in users" :key="user.id">
-                            <TableCell class="font-medium">
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                                        <Users class="h-5 w-5" />
-                                    </div>
-                                    <span>{{ user.name }}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-gray-600">{{ user.email }}</TableCell>
-                            <TableCell>
-                                <Badge
-                                    :class="getAccountStatusBadgeColor(user.account_status)"
-                                    class="border"
-                                >
-                                    {{ user.account_status || 'Pending Approval' }}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <div class="flex flex-wrap gap-1">
-                                    <div
-                                        v-for="role in user.roles"
-                                        :key="role.id"
-                                        class="group relative"
-                                    >
+            <Card class="overflow-hidden border-border/80 bg-card shadow-sm">
+                <CardHeader class="pb-3">
+                    <CardTitle class="text-base font-semibold text-foreground">Users</CardTitle>
+                    <CardDescription>
+                        View user accounts, status, and role assignments.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <div class="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Roles</TableHead>
+                                    <TableHead class="text-center">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="!users.length">
+                                    <TableCell colspan="5" class="py-10 text-center text-sm text-muted-foreground">
+                                        No users found.
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-for="user in users" :key="user.id">
+                                    <TableCell class="font-medium">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                                <Users class="h-5 w-5" />
+                                            </div>
+                                            <span class="text-foreground">{{ user.name }}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell class="text-muted-foreground">{{ user.email }}</TableCell>
+                                    <TableCell>
                                         <Badge
-                                            :class="getRoleLevelBadgeColor(role.level)"
+                                            :class="getAccountStatusBadgeColor(user.account_status)"
                                             class="border"
                                         >
-                                            {{ role.name }}
-                                            <button
-                                                @click="removeRole(user, role.id)"
-                                                class="ml-1 hover:text-red-600"
-                                            >
-                                                <X class="h-3 w-3" />
-                                            </button>
+                                            {{ user.account_status || 'Pending Approval' }}
                                         </Badge>
-                                        <div
-                                            class="absolute bottom-full left-0 z-10 mb-2 hidden w-64 rounded-md bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block"
-                                        >
-                                            <div class="space-y-1">
-                                                <div><strong>Assigned By:</strong> {{ role.assigned_by }}</div>
-                                                <div><strong>Assigned On:</strong> {{ formatDate(role.assigned_at) }}</div>
-                                                <div><strong>Status:</strong> {{ role.status }}</div>
-                                                <div v-if="role.expires_at">
-                                                    <strong>Expires:</strong> {{ formatDate(role.expires_at) }}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <div
+                                                v-for="role in user.roles"
+                                                :key="role.id"
+                                                class="group relative"
+                                            >
+                                                <Badge
+                                                    :class="getRoleLevelBadgeColor(role.level)"
+                                                    class="border"
+                                                >
+                                                    {{ role.name }}
+                                                    <button
+                                                        type="button"
+                                                        @click="removeRole(user, role.id)"
+                                                        :aria-label="`Remove ${role.name} from ${user.name}`"
+                                                        class="ml-1 rounded-sm hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                    >
+                                                        <X class="h-3 w-3" />
+                                                    </button>
+                                                </Badge>
+                                                <div
+                                                    class="absolute bottom-full left-0 z-10 mb-2 hidden w-64 rounded-md border border-border bg-popover p-2 text-xs text-popover-foreground shadow-lg group-hover:block group-focus-within:block"
+                                                >
+                                                    <div class="space-y-1">
+                                                        <div><strong>Assigned By:</strong> {{ role.assigned_by }}</div>
+                                                        <div><strong>Assigned On:</strong> {{ formatDate(role.assigned_at) }}</div>
+                                                        <div><strong>Status:</strong> {{ role.status }}</div>
+                                                        <div v-if="role.expires_at">
+                                                            <strong>Expires:</strong> {{ formatDate(role.expires_at) }}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="openAssignDialog(user)"
+                                                class="h-7 gap-1 border-dashed px-2 text-xs"
+                                            >
+                                                <Plus class="h-3 w-3" />
+                                                Add Role
+                                            </Button>
                                         </div>
-                                    </div>
-                                    <button
-                                        @click="openAssignDialog(user)"
-                                        class="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
-                                    >
-                                        <Plus class="h-3 w-3" />
-                                        Add Role
-                                    </button>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-center">
-                                <div class="flex flex-wrap items-center justify-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-1.5"
-                                        @click="openViewDialog(user)"
-                                        title="View details"
-                                    >
-                                        <Eye class="h-4 w-4" />
-                                        View
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-1.5"
-                                        @click="openEditDialog(user)"
-                                        title="Edit user"
-                                    >
-                                        <Pencil class="h-4 w-4" />
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-1.5 text-red-600 hover:text-red-700"
-                                        @click="deleteUser(user)"
-                                        title="Delete user"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-1.5"
-                                        @click="openAssignDialog(user)"
-                                    >
-                                        <UserPlus class="h-4 w-4" />
-                                        Manage Roles
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="gap-1.5"
+                                                @click="openViewDialog(user)"
+                                                title="View details"
+                                            >
+                                                <Eye class="h-4 w-4" />
+                                                View
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="gap-1.5"
+                                                @click="openEditDialog(user)"
+                                                title="Edit user"
+                                            >
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="gap-1.5 text-red-600 hover:text-red-700"
+                                                @click="deleteUser(user)"
+                                                title="Delete user"
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                                Delete
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                class="gap-1.5"
+                                                @click="openAssignDialog(user)"
+                                            >
+                                                <UserPlus class="h-4 w-4" />
+                                                Manage Roles
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
 
             <!-- View User Dialog -->
             <Dialog v-model:open="isViewDialogOpen">
@@ -500,9 +531,9 @@ const requiresCoop = () => {
                     </DialogHeader>
 
                     <div v-if="selectedUser" class="grid gap-4 py-2">
-                        <div class="rounded-md border border-gray-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-widest text-gray-500">Basic</div>
-                            <div class="mt-2 grid gap-2 text-sm text-gray-700">
+                        <div class="rounded-md border border-border bg-muted/30 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Basic</div>
+                            <div class="mt-2 grid gap-2 text-sm text-foreground">
                                 <div><strong>Name:</strong> {{ selectedUser.name }}</div>
                                 <div><strong>Email:</strong> {{ selectedUser.email }}</div>
                                 <div>
@@ -526,8 +557,9 @@ const requiresCoop = () => {
                                     <span class="ml-2 inline-flex">
                                         <Badge
                                             :class="selectedUser.email_verified_at
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'"
+                                                ? 'bg-green-100 text-green-800 border-green-200'
+                                                : 'bg-red-100 text-red-800 border-red-200'"
+                                            class="border"
                                         >
                                             {{ selectedUser.email_verified_at ? 'Verified' : 'Unverified' }}
                                         </Badge>
@@ -538,8 +570,8 @@ const requiresCoop = () => {
                             </div>
                         </div>
 
-                        <div class="rounded-md border border-gray-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-widest text-gray-500">Roles</div>
+                        <div class="rounded-md border border-border bg-muted/30 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Roles</div>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <Badge
                                     v-for="role in selectedUser.roles"
@@ -549,20 +581,20 @@ const requiresCoop = () => {
                                 >
                                     {{ role.name }}
                                 </Badge>
-                                <span v-if="!selectedUser.roles.length" class="text-sm text-gray-500">No roles assigned.</span>
+                                <span v-if="!selectedUser.roles.length" class="text-sm text-muted-foreground">No roles assigned.</span>
                             </div>
                         </div>
 
-                        <div class="rounded-md border border-gray-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-widest text-gray-500">Cooperative</div>
-                            <div class="mt-2 text-sm text-gray-700">
+                        <div class="rounded-md border border-border bg-muted/30 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Cooperative</div>
+                            <div class="mt-2 text-sm text-foreground">
                                 <div><strong>Assigned Cooperative:</strong> {{ getCoopName(selectedUser.coop_id) }}</div>
                             </div>
                         </div>
 
-                        <div class="rounded-md border border-gray-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-widest text-gray-500">Security</div>
-                            <div class="mt-2 grid gap-2 text-sm text-gray-700">
+                        <div class="rounded-md border border-border bg-muted/30 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Security</div>
+                            <div class="mt-2 grid gap-2 text-sm text-foreground">
                                 <div><strong>Last Login:</strong> {{ selectedUser.last_login_at ? formatDate(selectedUser.last_login_at) : 'N/A' }}</div>
                                 <div><strong>Password Changed:</strong> {{ selectedUser.password_changed_at ? formatDate(selectedUser.password_changed_at) : 'N/A' }}</div>
                             </div>
@@ -592,7 +624,7 @@ const requiresCoop = () => {
                                 id="edit_name"
                                 v-model="editForm.name"
                                 placeholder="Full name"
-                                :class="{ 'border-red-500': editForm.errors.name }"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': editForm.errors.name }"
                             />
                             <p v-if="editForm.errors.name" class="text-sm text-red-600">
                                 {{ editForm.errors.name }}
@@ -606,7 +638,7 @@ const requiresCoop = () => {
                                 type="email"
                                 v-model="editForm.email"
                                 placeholder="user@example.com"
-                                :class="{ 'border-red-500': editForm.errors.email }"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': editForm.errors.email }"
                             />
                             <p v-if="editForm.errors.email" class="text-sm text-red-600">
                                 {{ editForm.errors.email }}
@@ -616,7 +648,7 @@ const requiresCoop = () => {
                         <div class="grid gap-2">
                             <Label for="edit_status">Account Status</Label>
                             <Select v-model="editForm.account_status">
-                                <SelectTrigger id="edit_status" :class="{ 'border-red-500': editForm.errors.account_status }">
+                                <SelectTrigger id="edit_status" :class="{ 'border-red-500 focus-visible:ring-red-500': editForm.errors.account_status }">
                                     <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -635,7 +667,7 @@ const requiresCoop = () => {
                         <div v-if="isCoopAdminAccount(selectedUser)" class="grid gap-2">
                             <Label for="edit_coop_id">Cooperative</Label>
                             <Select v-model="editForm.coop_id">
-                                <SelectTrigger id="edit_coop_id" :class="{ 'border-red-500': editForm.errors.coop_id }">
+                                <SelectTrigger id="edit_coop_id" :class="{ 'border-red-500 focus-visible:ring-red-500': editForm.errors.coop_id }">
                                     <SelectValue placeholder="Select cooperative" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -783,7 +815,7 @@ const requiresCoop = () => {
                                 id="name"
                                 v-model="createForm.name"
                                 placeholder="Enter full name"
-                                :class="{ 'border-red-500': createForm.errors.name }"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.name }"
                             />
                             <p v-if="createForm.errors.name" class="text-sm text-red-600">
                                 {{ createForm.errors.name }}
@@ -800,7 +832,7 @@ const requiresCoop = () => {
                                 type="email"
                                 v-model="createForm.email"
                                 placeholder="user@example.com"
-                                :class="{ 'border-red-500': createForm.errors.email }"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.email }"
                             />
                             <p v-if="createForm.errors.email" class="text-sm text-red-600">
                                 {{ createForm.errors.email }}
@@ -817,7 +849,7 @@ const requiresCoop = () => {
                                 type="password"
                                 v-model="createForm.password"
                                 placeholder="Enter password"
-                                :class="{ 'border-red-500': createForm.errors.password }"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.password }"
                             />
                             <p v-if="createForm.errors.password" class="text-sm text-red-600">
                                 {{ createForm.errors.password }}
@@ -840,24 +872,26 @@ const requiresCoop = () => {
                         <div class="grid gap-2">
                             <Label>Assign Roles (Optional)</Label>
                             <div class="flex flex-wrap gap-2">
-                                <Badge
+                                <Button
+                                    type="button"
                                     v-for="role in availableRoles"
                                     :key="role.id"
                                     @click="toggleRole(role.id)"
+                                    :aria-pressed="createForm.role_ids.includes(role.id)"
                                     :class="[
-                                        'cursor-pointer border-2 transition-all',
+                                        'h-auto border-2 px-2.5 py-1 text-xs transition-all',
                                         createForm.role_ids.includes(role.id)
                                             ? getRoleLevelBadgeColor(role.level)
-                                            : 'bg-gray-50 text-gray-500 border-gray-300 hover:border-gray-400'
+                                            : 'bg-muted text-muted-foreground border-border hover:border-primary/40'
                                     ]"
                                 >
                                     <span class="flex items-center gap-1">
                                         {{ role.name }}
                                         <span v-if="createForm.role_ids.includes(role.id)" class="ml-1">✓</span>
                                     </span>
-                                </Badge>
+                                </Button>
                             </div>
-                            <p class="text-xs text-gray-500">
+                            <p class="text-xs text-muted-foreground">
                                 Click to select/deselect roles. You can also assign roles later.
                             </p>
                         </div>
@@ -865,7 +899,7 @@ const requiresCoop = () => {
                         <div v-if="requiresCoop()" class="grid gap-2">
                             <Label for="create_coop_id">Cooperative</Label>
                             <Select v-model="createForm.coop_id">
-                                <SelectTrigger id="create_coop_id" :class="{ 'border-red-500': createForm.errors.coop_id }">
+                                <SelectTrigger id="create_coop_id" :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.coop_id }">
                                     <SelectValue placeholder="Select cooperative" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -920,7 +954,7 @@ const requiresCoop = () => {
                                     id="role_name"
                                     v-model="roleForm.name"
                                     placeholder="e.g., Auditor"
-                                    :class="{ 'border-red-500': roleForm.errors.name }"
+                                    :class="{ 'border-red-500 focus-visible:ring-red-500': roleForm.errors.name }"
                                 />
                                 <p v-if="roleForm.errors.name" class="text-sm text-red-600">
                                     {{ roleForm.errors.name }}
@@ -936,7 +970,7 @@ const requiresCoop = () => {
                                     min="1"
                                     max="20"
                                     placeholder="1"
-                                    :class="{ 'border-red-500': roleForm.errors.level }"
+                                    :class="{ 'border-red-500 focus-visible:ring-red-500': roleForm.errors.level }"
                                 />
                                 <p v-if="roleForm.errors.level" class="text-sm text-red-600">
                                     {{ roleForm.errors.level }}
@@ -945,14 +979,15 @@ const requiresCoop = () => {
 
                             <div class="grid gap-2">
                                 <Label for="role_status">Status</Label>
-                                <select
-                                    id="role_status"
-                                    v-model="roleForm.is_active"
-                                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                >
-                                    <option value="true">Active</option>
-                                    <option value="false">Inactive</option>
-                                </select>
+                                <Select v-model="roleForm.is_active">
+                                    <SelectTrigger id="role_status" :class="{ 'border-red-500 focus-visible:ring-red-500': roleForm.errors.is_active }">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="true">Active</SelectItem>
+                                        <SelectItem value="false">Inactive</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <p v-if="roleForm.errors.is_active" class="text-sm text-red-600">
                                     {{ roleForm.errors.is_active }}
                                 </p>
@@ -965,7 +1000,7 @@ const requiresCoop = () => {
                                     v-model="roleForm.description"
                                     placeholder="Describe what this role can do"
                                     rows="3"
-                                    :class="{ 'border-red-500': roleForm.errors.description }"
+                                    :class="{ 'border-red-500 focus-visible:ring-red-500': roleForm.errors.description }"
                                 />
                                 <p v-if="roleForm.errors.description" class="text-sm text-red-600">
                                     {{ roleForm.errors.description }}
@@ -987,20 +1022,20 @@ const requiresCoop = () => {
                         </div>
 
                         <div class="border-t pt-4">
-                            <div class="mb-2 text-sm font-medium text-gray-700">Existing Roles</div>
+                            <div class="mb-2 text-sm font-medium text-foreground">Existing Roles</div>
                             <div class="space-y-2">
                                 <div
                                     v-for="role in availableRoles"
                                     :key="role.id"
-                                    class="flex flex-col gap-3 rounded-md border border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+                                    class="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div class="flex items-start gap-3">
                                         <Badge :class="getRoleLevelBadgeColor(role.level)" class="border">
                                             L{{ role.level }}
                                         </Badge>
                                         <div>
-                                            <div class="font-medium text-gray-900">{{ role.name }}</div>
-                                            <div class="text-xs text-gray-500">
+                                            <div class="font-medium text-foreground">{{ role.name }}</div>
+                                            <div class="text-xs text-muted-foreground">
                                                 {{ role.description || 'No description provided.' }}
                                             </div>
                                         </div>

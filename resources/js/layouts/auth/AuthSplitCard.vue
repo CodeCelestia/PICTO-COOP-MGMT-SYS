@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import ThreeBackground from '@/components/ThreeBackground.vue';
-import CoopLogo from '@/components/CoopLogo.vue';
+import { CircuitBoard, LockKeyhole, Workflow } from 'lucide-vue-next';
+import LandingPage from '@/components/landing/LandingPage.vue';
 
 defineProps<{
     title?: string;
@@ -9,62 +9,48 @@ defineProps<{
 </script>
 
 <template>
-    <div class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0f1e] p-4 md:p-8">
-        <!-- Three.js Animated Background -->
-        <ThreeBackground />
-        
-        <!-- Split Card Container -->
-        <div class="relative w-full max-w-6xl" style="z-index: 10;">
-            <div class="grid overflow-hidden rounded-2xl shadow-2xl md:grid-cols-2 lg:min-h-150">
-                <!-- Left Side - Branding -->
-                <div class="relative flex flex-col items-center justify-center bg-linear-to-br from-[#4a90e2] to-[#357abd] p-12 text-white">
-                    <!-- Decorative circles -->
-                    <div class="absolute inset-0 overflow-hidden">
-                        <div class="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white opacity-5"></div>
-                        <div class="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-white opacity-5"></div>
-                        <div class="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-5"></div>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div class="relative z-10 flex flex-col items-center text-center">
-                        <!-- Logo -->
-                        <div class="mb-8">
-                            <CoopLogo :size="140" />
+    <div class="landing-auth relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020910] p-4 md:p-6 lg:p-8">
+        <LandingPage />
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(15,52,71,0.35),transparent_60%)]" />
+
+        <div class="relative z-10 w-full max-w-6xl">
+            <div class="grid gap-4 lg:grid-cols-12 lg:gap-6">
+                <div class="hidden rounded-2xl border border-sky-300/20 bg-slate-950/55 p-8 text-slate-100 shadow-[0_0_0_1px_rgba(148,210,236,0.08),0_24px_70px_-30px_rgba(13,90,123,0.65)] backdrop-blur-sm lg:col-span-5 lg:flex lg:flex-col lg:justify-between">
+                    <div>
+                        <div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-sky-300/30 bg-slate-950/75 text-sky-200">
+                            <CircuitBoard class="h-6 w-6" />
                         </div>
-                        
-                        <!-- Title -->
-                        <h1 class="mb-4 text-4xl font-bold tracking-tight lg:text-5xl">
-                            COOP SYSTEM
+                        <h1 class="font-display text-3xl font-semibold leading-tight text-white">
+                            {{ title || 'Coop System Access Portal' }}
                         </h1>
-                        
-                        <!-- Subtitle -->
-                        <p class="mb-2 text-lg font-medium opacity-90">
-                            Management Information System
+                        <p class="mt-3 text-sm leading-relaxed text-slate-300/90">
+                            {{
+                                description ||
+                                'Securely manage cooperative records and workflows through one connected digital platform.'
+                            }}
                         </p>
-                        
-                        <p class="max-w-md text-sm opacity-75">
-                            Provincial ICT Office
-                        </p>
-                        
-                        <!-- Tagline -->
-                        <div class="mt-12 max-w-md">
-                            <p class="text-sm leading-relaxed opacity-80">
-                                Streamlining government operations through modern digital solutions.
-                            </p>
+                    </div>
+
+                    <div class="space-y-3 text-sm text-slate-300/90">
+                        <div class="flex items-center gap-2">
+                            <LockKeyhole class="h-4 w-4 text-sky-200" />
+                            <p>Protected, role-based system access</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Workflow class="h-4 w-4 text-sky-200" />
+                            <p>Seamless operations across cooperative teams</p>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Right Side - Login Form -->
-                <div class="flex flex-col justify-center bg-[#1a1f2e] p-8 md:p-12">
-                    <div class="mx-auto w-full max-w-md">
+
+                <div class="rounded-2xl border border-sky-300/20 bg-slate-950/55 shadow-[0_0_0_1px_rgba(148,210,236,0.08),0_24px_70px_-30px_rgba(13,90,123,0.65)] backdrop-blur-sm lg:col-span-7">
+                    <div class="mx-auto w-full max-w-md px-6 py-8 md:px-10 md:py-10">
                         <slot />
                     </div>
-                    
-                    <!-- Footer -->
-                    <div class="mt-8 text-center">
-                        <p class="text-xs text-gray-500">
-                            © {{ new Date().getFullYear() }} Provincial ICT Office. All rights reserved.
+
+                    <div class="border-t border-sky-300/15 px-6 py-4 text-center md:px-10">
+                        <p class="text-xs text-slate-400">
+                            © 2026 Provincial ICT Office. All rights reserved.
                         </p>
                     </div>
                 </div>
@@ -72,3 +58,20 @@ defineProps<{
         </div>
     </div>
 </template>
+
+<style scoped>
+.landing-auth {
+    font-family:
+        'IBM Plex Sans',
+        'Segoe UI',
+        sans-serif;
+}
+
+.font-display {
+    font-family:
+        'Sora',
+        'IBM Plex Sans',
+        sans-serif;
+    letter-spacing: -0.025em;
+}
+</style>

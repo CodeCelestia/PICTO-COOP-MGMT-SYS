@@ -8,6 +8,13 @@
         <script>
             (function() {
                 const appearance = '{{ $appearance ?? "system" }}';
+                const largeMode = localStorage.getItem('sidebar_large_mode') === 'true';
+
+                if (largeMode) {
+                    document.documentElement.dataset.a11ySize = 'large';
+                } else {
+                    document.documentElement.dataset.a11ySize = 'default';
+                }
 
                 if (appearance === 'system') {
                     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;

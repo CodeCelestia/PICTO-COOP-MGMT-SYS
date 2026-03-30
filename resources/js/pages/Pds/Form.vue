@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { usePsgc } from '@/composables/usePsgc';
+import { onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
+import { usePsgc } from '@/composables/usePsgc';
+import AppLayout from '@/layouts/AppLayout.vue';
 import PdsTabC1 from '@/pages/Pds/components/PdsTabC1.vue';
 import PdsTabC2 from '@/pages/Pds/components/PdsTabC2.vue';
 import PdsTabC3 from '@/pages/Pds/components/PdsTabC3.vue';

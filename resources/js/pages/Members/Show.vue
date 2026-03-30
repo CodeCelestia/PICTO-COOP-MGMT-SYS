@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { ArrowLeft, Pencil, CheckCircle2 } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
+import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
     id: number;

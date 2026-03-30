@@ -28,7 +28,7 @@ function toggleAppearance() {
 
 <template>
     <header
-        class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4"
+        class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 bg-background/80 px-6 backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4"
     >
         <div class="flex items-center gap-2">
             <SidebarTrigger class="-ml-1" />
@@ -42,7 +42,7 @@ function toggleAppearance() {
                 variant="ghost"
                 size="sm"
                 :aria-pressed="isLargeMode"
-                :title="isLargeMode ? 'Use default sidebar size' : 'Use larger sidebar size'"
+                :title="isLargeMode ? 'Use default text and sidebar size' : 'Use larger text and sidebar size'"
                 class="h-8 gap-1.5 px-2 text-xs"
                 :class="isLargeMode ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''"
                 @click="toggleLargeMode"

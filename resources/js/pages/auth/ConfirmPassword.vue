@@ -1,20 +1,40 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
+import { LockKeyhole } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import AuthLayout from '@/layouts/AuthLayout.vue';
+import AuthSplitCard from '@/layouts/auth/AuthSplitCard.vue';
 import { store } from '@/routes/password/confirm';
 </script>
 
 <template>
-    <AuthLayout
+    <AuthSplitCard
         title="Confirm your password"
         description="This is a secure area of the application. Please confirm your password before continuing."
     >
-        <Head title="Confirm password" />
+        <Head title="Confirm password - Coop System">
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+            <link
+                href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
+                rel="stylesheet"
+            />
+        </Head>
+
+        <div class="mb-8 text-white">
+            <div class="mb-2 flex items-center gap-2">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 text-sky-100">
+                    <LockKeyhole class="h-5 w-5" />
+                </div>
+            </div>
+            <h2 class="font-display text-2xl font-semibold">Confirm your password</h2>
+            <p class="mt-1 text-sm text-slate-300/90">
+                This is a secure area of the application. Please confirm your password before continuing.
+            </p>
+        </div>
 
         <Form
             v-bind="store.form()"
@@ -23,12 +43,12 @@ import { store } from '@/routes/password/confirm';
         >
             <div class="space-y-6">
                 <div class="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label for="password" class="text-slate-200">Password</Label>
                     <Input
                         id="password"
                         type="password"
                         name="password"
-                        class="mt-1 block w-full"
+                        class="mt-1 block h-12 w-full border-sky-200/20 bg-slate-900/50 text-slate-100 placeholder:text-slate-400 focus:border-sky-400 focus:ring-sky-400"
                         required
                         autocomplete="current-password"
                         autofocus
@@ -39,7 +59,7 @@ import { store } from '@/routes/password/confirm';
 
                 <div class="flex items-center">
                     <Button
-                        class="w-full"
+                        class="h-12 w-full bg-[#0e7ea0] text-white hover:bg-[#1294bc]"
                         :disabled="processing"
                         data-test="confirm-password-button"
                     >
@@ -49,5 +69,15 @@ import { store } from '@/routes/password/confirm';
                 </div>
             </div>
         </Form>
-    </AuthLayout>
+    </AuthSplitCard>
 </template>
+
+<style scoped>
+.font-display {
+    font-family:
+        'Sora',
+        'IBM Plex Sans',
+        sans-serif;
+    letter-spacing: -0.025em;
+}
+</style>

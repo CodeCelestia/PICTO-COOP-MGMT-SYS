@@ -13,6 +13,7 @@ import {
     Sparkles,
     FileSpreadsheet,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -28,7 +29,6 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
-import { computed } from 'vue';
 
 const page = usePage();
 const auth = computed(() => page.props.auth as {

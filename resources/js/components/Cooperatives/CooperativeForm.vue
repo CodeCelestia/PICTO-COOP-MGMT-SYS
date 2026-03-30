@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
-import { usePsgc } from '@/composables/usePsgc';
+import { Building2, Save, X, MapPin } from 'lucide-vue-next';
+import { ref, watch, onMounted } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Save, X, MapPin } from 'lucide-vue-next';
+import { Textarea } from '@/components/ui/textarea';
+import { usePsgc } from '@/composables/usePsgc';
 
 interface CooperativeData {
   id?: number;
@@ -34,7 +34,7 @@ const props = defineProps<{
   onCancel: () => void;
 }>();
 
-const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
+const { regions, provinces, cities, barangays, fetchRegions, fetchProvinces, fetchCities } = usePsgc();
 
 const selectedRegionCode = ref(props.cooperative?.region ? '' : '');
 const selectedProvinceCode = ref(props.cooperative?.province ? '' : '');
@@ -146,29 +146,28 @@ const submit = () => {
 </script>
 
 <template>
-  <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-    <form @submit.prevent="submit" class="space-y-6">
-      <!-- Basic Information -->
-      <div>
-        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Building2 class="h-5 w-5" />
+  <div class="rounded-xl border border-border/80 bg-card shadow-sm">
+    <form @submit.prevent="submit" class="space-y-6 p-5 sm:p-6">
+      <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
+        <h2 class="mb-4 flex items-center gap-2 text-base font-semibold text-foreground sm:text-lg">
+          <Building2 class="h-5 w-5 text-primary" />
           Basic Information
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label for="name">Cooperative Name <span class="text-red-500">*</span></Label>
-            <Input id="name" v-model="form.name" required placeholder="Enter cooperative name" :class="{'border-red-500': form.errors.name}" />
+            <Input id="name" v-model="form.name" required placeholder="Enter cooperative name" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.name}" />
             <p v-if="form.errors.name" class="mt-1 text-sm text-red-500">{{ form.errors.name }}</p>
           </div>
           <div>
             <Label for="registration_number">Registration Number <span class="text-red-500">*</span></Label>
-            <Input id="registration_number" v-model="form.registration_number" required placeholder="e.g., CDA-REG-5-2024-001" :class="{'border-red-500': form.errors.registration_number}" />
+            <Input id="registration_number" v-model="form.registration_number" required placeholder="e.g., CDA-REG-5-2024-001" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.registration_number}" />
             <p v-if="form.errors.registration_number" class="mt-1 text-sm text-red-500">{{ form.errors.registration_number }}</p>
           </div>
           <div>
             <Label for="coop_type">Cooperative Type <span class="text-red-500">*</span></Label>
             <Select v-model="form.coop_type" required>
-              <SelectTrigger :class="{'border-red-500': form.errors.coop_type}"><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.coop_type}"><SelectValue placeholder="Select type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Select type</SelectItem>
                 <SelectItem v-for="type in coopTypes" :key="type" :value="type">{{ type }}</SelectItem>
@@ -178,28 +177,27 @@ const submit = () => {
           </div>
           <div>
             <Label for="date_established">Date Established <span class="text-red-500">*</span></Label>
-            <Input id="date_established" v-model="form.date_established" type="date" required :class="{'border-red-500': form.errors.date_established}" />
+            <Input id="date_established" v-model="form.date_established" type="date" required :class="{'border-red-500 focus-visible:ring-red-500': form.errors.date_established}" />
             <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
           </div>
           <div class="md:col-span-2">
             <Label for="address">Address <span class="text-red-500">*</span></Label>
-            <Textarea id="address" v-model="form.address" required rows="3" placeholder="e.g., 123 Main Street" :class="{'border-red-500': form.errors.address}" />
+            <Textarea id="address" v-model="form.address" required rows="3" placeholder="e.g., 123 Main Street" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.address}" />
             <p v-if="form.errors.address" class="mt-1 text-sm text-red-500">{{ form.errors.address }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Address Information -->
-      <div>
-        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <MapPin class="h-5 w-5" />
+      <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
+        <h2 class="mb-4 flex items-center gap-2 text-base font-semibold text-foreground sm:text-lg">
+          <MapPin class="h-5 w-5 text-primary" />
           Address Information (PSGC)
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label for="region">Region <span class="text-red-500">*</span></Label>
             <Select v-model="selectedRegionCode" required>
-              <SelectTrigger :class="{'border-red-500': form.errors.region}"><SelectValue placeholder="Select region" /></SelectTrigger>
+              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.region}"><SelectValue placeholder="Select region" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Regions</SelectItem>
                 <SelectItem v-for="region in regions" :key="region.code" :value="region.code">{{ region.name }}</SelectItem>
@@ -210,7 +208,7 @@ const submit = () => {
           <div>
             <Label for="province">Province <span class="text-red-500">*</span></Label>
             <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0" required>
-              <SelectTrigger :class="{'border-red-500': form.errors.province}"><SelectValue placeholder="Select province" /></SelectTrigger>
+              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.province}"><SelectValue placeholder="Select province" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Provinces</SelectItem>
                 <SelectItem v-for="provinceItem in provinces" :key="provinceItem.code" :value="provinceItem.code">{{ provinceItem.name }}</SelectItem>
@@ -221,7 +219,7 @@ const submit = () => {
           <div>
             <Label for="city_municipality">City/Municipality <span class="text-red-500">*</span></Label>
             <Select v-model="selectedCityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0" required>
-              <SelectTrigger :class="{'border-red-500': form.errors.city_municipality}"><SelectValue placeholder="Select city/municipality" /></SelectTrigger>
+              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.city_municipality}"><SelectValue placeholder="Select city/municipality" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Municipalities</SelectItem>
                 <SelectItem v-for="cityItem in cities" :key="cityItem.code" :value="cityItem.code">{{ cityItem.name }}</SelectItem>
@@ -232,7 +230,7 @@ const submit = () => {
           <div>
             <Label for="barangay">Barangay</Label>
             <Select v-model="form.barangay" :disabled="selectedCityCode === 'all' || barangays.length === 0">
-              <SelectTrigger :class="{'border-red-500': form.errors.barangay}"><SelectValue placeholder="Select barangay" /></SelectTrigger>
+              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.barangay}"><SelectValue placeholder="Select barangay" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
                 <SelectItem v-for="barangay in barangays" :key="barangay.code" :value="barangay.name">{{ barangay.name }}</SelectItem>
@@ -243,45 +241,42 @@ const submit = () => {
         </div>
       </div>
 
-      <!-- Contact Information -->
-      <div>
-        <h2 class="mb-4 text-lg font-semibold text-gray-900">Contact Information</h2>
+      <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
+        <h2 class="mb-4 text-base font-semibold text-foreground sm:text-lg">Contact Information</h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label for="email">Email Address</Label>
-            <Input id="email" v-model="form.email" type="email" placeholder="email@example.com" :class="{'border-red-500': form.errors.email}" />
+            <Input id="email" v-model="form.email" type="email" placeholder="email@example.com" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.email}" />
             <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">{{ form.errors.email }}</p>
           </div>
           <div>
             <Label for="phone">Phone Number</Label>
-            <Input id="phone" v-model="form.phone" type="text" placeholder="+63 XXX XXX XXXX" :class="{'border-red-500': form.errors.phone}" />
+            <Input id="phone" v-model="form.phone" type="text" placeholder="+63 XXX XXX XXXX" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.phone}" />
             <p v-if="form.errors.phone" class="mt-1 text-sm text-red-500">{{ form.errors.phone }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Accreditation Information -->
-      <div>
-        <h2 class="mb-4 text-lg font-semibold text-gray-900">Accreditation Information</h2>
+      <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
+        <h2 class="mb-4 text-base font-semibold text-foreground sm:text-lg">Accreditation Information</h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label for="accreditation_status">Accreditation Status</Label>
-            <Input id="accreditation_status" v-model="form.accreditation_status" type="text" placeholder="e.g. Level 1" :class="{'border-red-500': form.errors.accreditation_status}" />
+            <Input id="accreditation_status" v-model="form.accreditation_status" type="text" placeholder="e.g. Level 1" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.accreditation_status}" />
             <p v-if="form.errors.accreditation_status" class="mt-1 text-sm text-red-500">{{ form.errors.accreditation_status }}</p>
           </div>
           <div>
             <Label for="accreditation_date">Accreditation Date</Label>
-            <Input id="accreditation_date" v-model="form.accreditation_date" type="date" :class="{'border-red-500': form.errors.accreditation_date}" />
+            <Input id="accreditation_date" v-model="form.accreditation_date" type="date" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.accreditation_date}" />
             <p v-if="form.errors.accreditation_date" class="mt-1 text-sm text-red-500">{{ form.errors.accreditation_date }}</p>
           </div>
         </div>
       </div>
 
-      <div class="flex justify-end gap-3 border-t border-gray-200 pt-6">
+      <div class="flex flex-wrap justify-end gap-3 border-t border-border pt-6">
         <Button type="button" variant="outline" @click="props.onCancel" class="gap-2"><X class="h-4 w-4" />Cancel</Button>
         <Button type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
       </div>
     </form>
   </div>
 </template>
-"@; $complete | Set-Content -Path resources/js/components/Cooperatives/CooperativeForm.vue -Force
