@@ -165,14 +165,14 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">External Supports</h1>
-                    <p class="mt-1 text-sm text-gray-500">Track government and external support</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">External Supports</h1>
+                    <p class="text-sm text-muted-foreground">Track government and external support</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link href="/financial-records" class="text-sm text-blue-600 hover:underline">
+                <div class="flex items-center gap-2 self-start">
+                    <Link href="/financial-records" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Financial Records
                     </Link>
                     <Link v-if="canCreate" href="/external-supports/create">
@@ -184,12 +184,12 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                 </div>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -199,7 +199,7 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
                                 <SelectValue placeholder="All Cooperatives" />
@@ -213,7 +213,7 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Support Type</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Support Type</label>
                         <Select v-model="supportType">
                             <SelectTrigger id="support_type_filter">
                                 <SelectValue placeholder="All Types" />
@@ -227,7 +227,7 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
                         <Select v-model="status">
                             <SelectTrigger id="status_filter">
                                 <SelectValue placeholder="All Statuses" />
@@ -243,7 +243,7 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -268,7 +268,7 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -277,76 +277,78 @@ const recordLabel = (record?: FinancialRecordOption | null) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                            <TableHead>Provider</TableHead>
-                            <TableHead>Cooperative</TableHead>
-                            <TableHead>Support Type</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Granted</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Linked Record</TableHead>
-                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
+                            <TableHead class="text-muted-foreground">Provider</TableHead>
+                            <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                            <TableHead class="text-muted-foreground">Support Type</TableHead>
+                            <TableHead class="text-muted-foreground">Amount</TableHead>
+                            <TableHead class="text-muted-foreground">Granted</TableHead>
+                            <TableHead class="text-muted-foreground">Status</TableHead>
+                            <TableHead class="text-muted-foreground">Linked Record</TableHead>
+                            <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="supports.data.length === 0">
-                            <TableCell :colspan="showActions ? 8 : 7" class="text-center text-gray-500">
-                                No external support records found.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="support in supports.data" :key="support.id">
-                            <TableCell>
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-teal-600">
-                                        <LifeBuoy class="h-4 w-4" />
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="supports.data.length === 0">
+                                <TableCell :colspan="showActions ? 8 : 7" class="py-8 text-center text-muted-foreground">
+                                    No external support records found.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="support in supports.data" :key="support.id">
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                                            <LifeBuoy class="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-foreground">{{ support.provider_name }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ support.support_type }}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ support.provider_name }}</div>
-                                        <div class="text-xs text-gray-500">{{ support.support_type }}</div>
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ support.cooperative.name }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ support.support_type }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(support.amount) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(support.date_granted) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ support.status }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ recordLabel(support.financial_record) }}</TableCell>
-                            <TableCell v-if="showActions" class="text-center">
-                                <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEdit" :href="`/external-supports/${support.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            <Pencil class="h-4 w-4" />
-                                            Edit
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ support.cooperative.name }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ support.support_type }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(support.amount) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(support.date_granted) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ support.status }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ recordLabel(support.financial_record) }}</TableCell>
+                                <TableCell v-if="showActions" class="text-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <Link v-if="canEdit" :href="`/external-supports/${support.id}/edit`">
+                                            <Button variant="ghost" size="sm" class="gap-2">
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            v-if="canDelete"
+                                            @click="deleteSupport(support)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="gap-2 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            Delete
                                         </Button>
-                                    </Link>
-                                    <Button
-                                        v-if="canDelete"
-                                        @click="deleteSupport(support)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
 
-                <div v-if="supports.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="supports.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (supports.current_page - 1) * supports.per_page + 1 }} to
                             {{ Math.min(supports.current_page * supports.per_page, supports.total) }} of
                             {{ supports.total }} supports
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2" aria-label="External supports pagination">
                             <Button
                                 v-for="page in supports.last_page"
                                 :key="page"

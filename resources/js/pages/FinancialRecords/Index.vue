@@ -145,14 +145,14 @@ const formatAmount = (value: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Financial Records</h1>
-                    <p class="mt-1 text-sm text-gray-500">Track cooperative financial entries</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Financial Records</h1>
+                    <p class="text-sm text-muted-foreground">Track cooperative financial entries</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link href="/external-supports" class="text-sm text-blue-600 hover:underline">
+                <div class="flex items-center gap-2 self-start">
+                    <Link href="/external-supports" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View External Supports
                     </Link>
                     <Link v-if="canCreate" href="/financial-records/create">
@@ -164,12 +164,12 @@ const formatAmount = (value: string | null) => {
                 </div>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -179,7 +179,7 @@ const formatAmount = (value: string | null) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
                                 <SelectValue placeholder="All Cooperatives" />
@@ -193,7 +193,7 @@ const formatAmount = (value: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Type</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Type</label>
                         <Select v-model="type">
                             <SelectTrigger id="type_filter">
                                 <SelectValue placeholder="All Types" />
@@ -209,7 +209,7 @@ const formatAmount = (value: string | null) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -234,7 +234,7 @@ const formatAmount = (value: string | null) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -243,72 +243,74 @@ const formatAmount = (value: string | null) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                            <TableHead>Record</TableHead>
-                            <TableHead>Cooperative</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Date Recorded</TableHead>
-                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
+                            <TableHead class="text-muted-foreground">Record</TableHead>
+                            <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                            <TableHead class="text-muted-foreground">Type</TableHead>
+                            <TableHead class="text-muted-foreground">Amount</TableHead>
+                            <TableHead class="text-muted-foreground">Date Recorded</TableHead>
+                            <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="records.data.length === 0">
-                            <TableCell :colspan="showActions ? 6 : 5" class="text-center text-gray-500">
-                                No financial records found.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="record in records.data" :key="record.id">
-                            <TableCell>
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                                        <Wallet class="h-4 w-4" />
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="records.data.length === 0">
+                                <TableCell :colspan="showActions ? 6 : 5" class="py-8 text-center text-muted-foreground">
+                                    No financial records found.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="record in records.data" :key="record.id">
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
+                                            <Wallet class="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-foreground">{{ record.period }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ record.source || 'No source' }}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ record.period }}</div>
-                                        <div class="text-xs text-gray-500">{{ record.source || 'No source' }}</div>
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ record.cooperative.name }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ record.type }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(record.amount) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(record.date_recorded) }}</TableCell>
-                            <TableCell v-if="showActions" class="text-center">
-                                <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEdit" :href="`/financial-records/${record.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            <Pencil class="h-4 w-4" />
-                                            Edit
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ record.cooperative.name }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ record.type }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(record.amount) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(record.date_recorded) }}</TableCell>
+                                <TableCell v-if="showActions" class="text-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <Link v-if="canEdit" :href="`/financial-records/${record.id}/edit`">
+                                            <Button variant="ghost" size="sm" class="gap-2">
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            v-if="canDelete"
+                                            @click="deleteRecord(record)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="gap-2 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            Delete
                                         </Button>
-                                    </Link>
-                                    <Button
-                                        v-if="canDelete"
-                                        @click="deleteRecord(record)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
 
-                <div v-if="records.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="records.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (records.current_page - 1) * records.per_page + 1 }} to
                             {{ Math.min(records.current_page * records.per_page, records.total) }} of
                             {{ records.total }} records
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2" aria-label="Financial records pagination">
                             <Button
                                 v-for="page in records.last_page"
                                 :key="page"

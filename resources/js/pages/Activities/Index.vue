@@ -172,11 +172,11 @@ const formatOfficerName = (activity: Activity) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Activities & Projects</h1>
-                    <p class="mt-1 text-sm text-gray-500">Track cooperative activities and projects</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activities & Projects</h1>
+                    <p class="text-sm text-muted-foreground">Track cooperative activities and projects</p>
                 </div>
                 <Link v-if="canCreate" href="/activities/create">
                     <Button class="gap-2">
@@ -186,12 +186,12 @@ const formatOfficerName = (activity: Activity) => {
                 </Link>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -201,7 +201,7 @@ const formatOfficerName = (activity: Activity) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Cooperatives" />
@@ -215,7 +215,7 @@ const formatOfficerName = (activity: Activity) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Category</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Category</label>
                         <Select v-model="category">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Categories" />
@@ -229,7 +229,7 @@ const formatOfficerName = (activity: Activity) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
                         <Select v-model="status">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Statuses" />
@@ -246,7 +246,7 @@ const formatOfficerName = (activity: Activity) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -271,7 +271,7 @@ const formatOfficerName = (activity: Activity) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -280,8 +280,9 @@ const formatOfficerName = (activity: Activity) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Activity</TableHead>
@@ -295,29 +296,29 @@ const formatOfficerName = (activity: Activity) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="activities.data.length === 0">
-                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-gray-500">
+                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-muted-foreground">
                                 No activities found.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="activity in activities.data" :key="activity.id">
                             <TableCell>
                                 <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
                                         <ClipboardList class="h-4 w-4" />
                                     </div>
                                     <div>
-                                        <div class="font-medium text-gray-900">{{ activity.title }}</div>
-                                        <div class="text-xs text-gray-500">{{ activity.funding_source || 'No funding source' }}</div>
+                                        <div class="font-medium text-foreground">{{ activity.title }}</div>
+                                        <div class="text-xs text-muted-foreground">{{ activity.funding_source || 'No funding source' }}</div>
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ activity.cooperative.name }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ activity.category }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">
+                            <TableCell class="text-sm text-muted-foreground">{{ activity.cooperative.name }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ activity.category }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">
                                 {{ formatDate(activity.date_started) }} - {{ formatDate(activity.date_ended) }}
                             </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ activity.status }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatOfficerName(activity) }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ activity.status }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link :href="`/activity-funding-sources?activity_id=${activity.id}`">
@@ -337,7 +338,7 @@ const formatOfficerName = (activity: Activity) => {
                                         @click="deleteActivity(activity)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
+                                        class="gap-2 text-destructive hover:text-destructive"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
@@ -356,16 +357,17 @@ const formatOfficerName = (activity: Activity) => {
                             </TableCell>
                         </TableRow>
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
 
-                <div v-if="activities.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="activities.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (activities.current_page - 1) * activities.per_page + 1 }} to
                             {{ Math.min(activities.current_page * activities.per_page, activities.total) }} of
                             {{ activities.total }} activities
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2">
                             <Button
                                 v-for="page in activities.last_page"
                                 :key="page"

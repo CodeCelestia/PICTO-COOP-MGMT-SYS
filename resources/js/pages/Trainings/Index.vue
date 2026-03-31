@@ -142,17 +142,17 @@ const formatDate = (date: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Training & Capacity Building</h1>
-                    <p class="mt-1 text-sm text-gray-500">Track training programs and capacity building</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Training & Capacity Building</h1>
+                    <p class="text-sm text-muted-foreground">Track training programs and capacity building</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link href="/training-participants" class="text-sm text-blue-600 hover:underline">
+                <div class="flex items-center gap-2 self-start">
+                    <Link href="/training-participants" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Participants
                     </Link>
-                    <Link href="/skill-inventories" class="text-sm text-blue-600 hover:underline">
+                    <Link href="/skill-inventories" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Skills Inventory
                     </Link>
                     <Link v-if="canCreate" href="/trainings/create">
@@ -164,12 +164,12 @@ const formatDate = (date: string | null) => {
                 </div>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -179,7 +179,7 @@ const formatDate = (date: string | null) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
                                 <SelectValue placeholder="All Cooperatives" />
@@ -193,7 +193,7 @@ const formatDate = (date: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Target Group</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Target Group</label>
                         <Select v-model="targetGroup">
                             <SelectTrigger id="target_group_filter">
                                 <SelectValue placeholder="All Groups" />
@@ -207,7 +207,7 @@ const formatDate = (date: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
                         <Select v-model="status">
                             <SelectTrigger id="status_filter">
                                 <SelectValue placeholder="All Statuses" />
@@ -223,7 +223,7 @@ const formatDate = (date: string | null) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -248,7 +248,7 @@ const formatDate = (date: string | null) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -257,8 +257,9 @@ const formatDate = (date: string | null) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Training</TableHead>
@@ -271,26 +272,26 @@ const formatDate = (date: string | null) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="trainings.data.length === 0">
-                            <TableCell :colspan="showActions ? 6 : 5" class="text-center text-gray-500">
+                            <TableCell :colspan="showActions ? 6 : 5" class="text-center text-muted-foreground">
                                 No training records found.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="training in trainings.data" :key="training.id">
                             <TableCell>
                                 <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
                                         <GraduationCap class="h-4 w-4" />
                                     </div>
                                     <div>
-                                        <div class="font-medium text-gray-900">{{ training.title }}</div>
-                                        <div class="text-xs text-gray-500">{{ training.facilitator || 'No facilitator' }}</div>
+                                        <div class="font-medium text-foreground">{{ training.title }}</div>
+                                        <div class="text-xs text-muted-foreground">{{ training.facilitator || 'No facilitator' }}</div>
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ training.cooperative.name }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(training.date_conducted) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ training.target_group }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ training.status }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ training.cooperative.name }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ formatDate(training.date_conducted) }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ training.target_group }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ training.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEdit" :href="`/trainings/${training.id}/edit`">
@@ -304,7 +305,7 @@ const formatDate = (date: string | null) => {
                                         @click="deleteTraining(training)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
+                                        class="gap-2 text-destructive hover:text-destructive"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
@@ -313,16 +314,17 @@ const formatDate = (date: string | null) => {
                             </TableCell>
                         </TableRow>
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
 
-                <div v-if="trainings.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="trainings.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (trainings.current_page - 1) * trainings.per_page + 1 }} to
                             {{ Math.min(trainings.current_page * trainings.per_page, trainings.total) }} of
                             {{ trainings.total }} trainings
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2">
                             <Button
                                 v-for="page in trainings.last_page"
                                 :key="page"

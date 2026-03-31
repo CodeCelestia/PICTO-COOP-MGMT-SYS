@@ -170,14 +170,14 @@ const formatAmount = (value: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Activity Funding Sources</h1>
-                    <p class="mt-1 text-sm text-gray-500">Track funding sources per activity</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activity Funding Sources</h1>
+                    <p class="text-sm text-muted-foreground">Track funding sources per activity</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link href="/activities" class="text-sm text-blue-600 hover:underline">
+                <div class="flex items-center gap-2 self-start">
+                    <Link href="/activities" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Activities
                     </Link>
                     <Link v-if="canCreate" href="/activity-funding-sources/create">
@@ -189,12 +189,12 @@ const formatAmount = (value: string | null) => {
                 </div>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -204,7 +204,7 @@ const formatAmount = (value: string | null) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
                                 <SelectValue placeholder="All Cooperatives" />
@@ -218,7 +218,7 @@ const formatAmount = (value: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Activity</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Activity</label>
                         <Select v-model="activityId">
                             <SelectTrigger id="activity_filter">
                                 <SelectValue placeholder="All Activities" />
@@ -232,7 +232,7 @@ const formatAmount = (value: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Funder Type</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Funder Type</label>
                         <Select v-model="funderType">
                             <SelectTrigger id="funder_type_filter">
                                 <SelectValue placeholder="All Types" />
@@ -246,7 +246,7 @@ const formatAmount = (value: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
                         <Select v-model="status">
                             <SelectTrigger id="status_filter">
                                 <SelectValue placeholder="All Statuses" />
@@ -262,7 +262,7 @@ const formatAmount = (value: string | null) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -287,7 +287,7 @@ const formatAmount = (value: string | null) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -296,76 +296,78 @@ const formatAmount = (value: string | null) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                            <TableHead>Funder</TableHead>
-                            <TableHead>Activity</TableHead>
-                            <TableHead>Cooperative</TableHead>
-                            <TableHead>Allocated</TableHead>
-                            <TableHead>Released</TableHead>
-                            <TableHead>Date Released</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
+                            <TableHead class="text-muted-foreground">Funder</TableHead>
+                            <TableHead class="text-muted-foreground">Activity</TableHead>
+                            <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                            <TableHead class="text-muted-foreground">Allocated</TableHead>
+                            <TableHead class="text-muted-foreground">Released</TableHead>
+                            <TableHead class="text-muted-foreground">Date Released</TableHead>
+                            <TableHead class="text-muted-foreground">Status</TableHead>
+                            <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="fundingSources.data.length === 0">
-                            <TableCell :colspan="showActions ? 8 : 7" class="text-center text-gray-500">
-                                No funding sources found.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="source in fundingSources.data" :key="source.id">
-                            <TableCell>
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                                        <HandCoins class="h-4 w-4" />
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="fundingSources.data.length === 0">
+                                <TableCell :colspan="showActions ? 8 : 7" class="py-8 text-center text-muted-foreground">
+                                    No funding sources found.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="source in fundingSources.data" :key="source.id">
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                            <HandCoins class="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-foreground">{{ source.funder_name }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ source.funder_type }}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ source.funder_name }}</div>
-                                        <div class="text-xs text-gray-500">{{ source.funder_type }}</div>
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ source.activity?.title || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ source.cooperative?.name || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(source.amount_allocated) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(source.amount_released) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(source.date_released) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ source.status }}</TableCell>
-                            <TableCell v-if="showActions" class="text-center">
-                                <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEdit" :href="`/activity-funding-sources/${source.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            <Pencil class="h-4 w-4" />
-                                            Edit
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ source.activity?.title || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ source.cooperative?.name || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(source.amount_allocated) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(source.amount_released) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(source.date_released) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ source.status }}</TableCell>
+                                <TableCell v-if="showActions" class="text-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <Link v-if="canEdit" :href="`/activity-funding-sources/${source.id}/edit`">
+                                            <Button variant="ghost" size="sm" class="gap-2">
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            v-if="canDelete"
+                                            @click="deleteFundingSource(source)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="gap-2 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            Delete
                                         </Button>
-                                    </Link>
-                                    <Button
-                                        v-if="canDelete"
-                                        @click="deleteFundingSource(source)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
 
-                <div v-if="fundingSources.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="fundingSources.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (fundingSources.current_page - 1) * fundingSources.per_page + 1 }} to
                             {{ Math.min(fundingSources.current_page * fundingSources.per_page, fundingSources.total) }} of
                             {{ fundingSources.total }} funding sources
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2" aria-label="Funding sources pagination">
                             <Button
                                 v-for="page in fundingSources.last_page"
                                 :key="page"

@@ -62,16 +62,16 @@ const cancel = () => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">Add Training</h1>
-                <p class="mt-1 text-sm text-gray-500">Record a training or capacity building session.</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="space-y-1">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Training</h1>
+                <p class="text-sm text-muted-foreground">Record a training or capacity building session.</p>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
                 <form @submit.prevent="submit" class="space-y-6">
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <GraduationCap class="h-5 w-5" />
                             Training Details
                         </h2>
@@ -176,7 +176,7 @@ const cancel = () => {
                             </div>
 
                             <div class="md:col-span-2">
-                                <Label for="follow_up_needed" class="flex items-center gap-2 text-sm text-gray-700">
+                                <Label for="follow_up_needed" class="flex items-center gap-2 text-sm text-foreground/80">
                                     <Checkbox id="follow_up_needed" v-model:checked="form.follow_up_needed" />
                                     <span>Follow-up needed</span>
                                 </Label>
@@ -203,7 +203,7 @@ const cancel = () => {
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-3 border-t pt-6">
+                    <div class="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
                         <Button @click="cancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
