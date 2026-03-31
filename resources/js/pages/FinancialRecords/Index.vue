@@ -3,6 +3,7 @@ import { router, Link, usePage } from '@inertiajs/vue3';
 import { Wallet, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -19,6 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -70,6 +72,7 @@ const isOfficer = computed(() => roles.value.includes('Officer') || accountType.
 const canCreate = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
 const canEdit = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value);
 const canDelete = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const canBulkDelete = computed(() => canDelete.value);
 const showActions = computed(() => canEdit.value || canDelete.value);
 
 const search = ref(props.filters.search || '');
@@ -141,17 +144,56 @@ const formatAmount = (value: string | null) => {
     if (Number.isNaN(numberValue)) return value;
     return numberValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const visibleRecords = computed(() => props.records.data);
+
+const {
+    allVisibleSelected,
+    clearSelection,
+    isSelected,
+    selectedCount,
+    selectedIds,
+    toggleAll,
+    toggleOne,
+} = useBulkSelection(visibleRecords);
+
+const bulkDeleteRecords = async () => {
+    if (!selectedCount.value || !canBulkDelete.value) return;
+
+    const confirmed = await confirmAction({
+        title: 'Delete selected financial records?',
+        text: `Delete ${selectedCount.value} selected financial record(s)? This action cannot be undone.`,
+        confirmButtonText: 'Delete selected',
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = [...selectedIds.value];
+    await runBulkDelete(idsToDelete, (id) => `/financial-records/${id}`);
+    clearSelection();
+};
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                     <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Financial Records</h1>
                     <p class="text-sm text-muted-foreground">Track cooperative financial entries</p>
                 </div>
                 <div class="flex items-center gap-2 self-start">
+                    <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                        <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteRecords">
+                            <Trash2 class="h-3.5 w-3.5" />
+                            Delete Selected
+                        </Button>
+                        <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                            Clear
+                        </Button>
+                    </div>
                     <Link href="/external-supports" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View External Supports
                     </Link>
@@ -162,10 +204,10 @@ const formatAmount = (value: string | null) => {
                         </Button>
                     </Link>
                 </div>
-            </div>
+                </div>
 
-            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div class="mt-5 border-t border-border/60 pt-5">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
@@ -206,8 +248,6 @@ const formatAmount = (value: string | null) => {
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
@@ -234,6 +274,7 @@ const formatAmount = (value: string | null) => {
                         </div>
                     </div>
                 </div>
+
                 <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
@@ -242,12 +283,21 @@ const formatAmount = (value: string | null) => {
                     <Button @click="resetFilters" variant="outline">Clear Filters</Button>
                 </div>
             </div>
+            </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div class="overflow-x-auto">
                     <Table>
                         <TableHeader>
                         <TableRow>
+                            <TableHead v-if="canBulkDelete" class="w-12">
+                                <Checkbox
+                                    :model-value="allVisibleSelected"
+                                    :disabled="records.data.length === 0"
+                                    aria-label="Select all financial records"
+                                    @update:model-value="toggleAll"
+                                />
+                            </TableHead>
                             <TableHead class="text-muted-foreground">Record</TableHead>
                             <TableHead class="text-muted-foreground">Cooperative</TableHead>
                             <TableHead class="text-muted-foreground">Type</TableHead>
@@ -258,11 +308,18 @@ const formatAmount = (value: string | null) => {
                         </TableHeader>
                         <TableBody>
                             <TableRow v-if="records.data.length === 0">
-                                <TableCell :colspan="showActions ? 6 : 5" class="py-8 text-center text-muted-foreground">
+                                <TableCell :colspan="(showActions ? 6 : 5) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
                                     No financial records found.
                                 </TableCell>
                             </TableRow>
                             <TableRow v-for="record in records.data" :key="record.id">
+                                <TableCell v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="isSelected(record.id)"
+                                        :aria-label="`Select financial record ${record.period}`"
+                                        @update:model-value="(checked) => toggleOne(record.id, checked)"
+                                    />
+                                </TableCell>
                                 <TableCell>
                                     <div class="flex items-center gap-3">
                                         <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
@@ -317,7 +374,7 @@ const formatAmount = (value: string | null) => {
                                 variant="outline"
                                 size="sm"
                                 :disabled="page === records.current_page"
-                                @click="router.get('/financial-records', { ...filters, page })"
+                                @click="router.get('/financial-records', { ...filters, page }, { preserveScroll: true, preserveState: true })"
                             >
                                 {{ page }}
                             </Button>

@@ -365,6 +365,18 @@ function toggleSection(sectionId: string) {
     transition: gap 0.28s ease;
 }
 
+:deep(.group[data-collapsible='icon']) .section-group {
+    padding-top: 0.5rem;
+}
+
+:deep(.group[data-collapsible='icon']) .section-list {
+    gap: 0.65rem;
+}
+
+:deep(.group[data-collapsible='icon']) .section-item {
+    gap: 0.35rem;
+}
+
 :deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-trigger {
     padding-top: 0.72rem;
     padding-bottom: 0.72rem;

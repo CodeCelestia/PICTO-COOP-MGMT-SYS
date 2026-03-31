@@ -4,6 +4,7 @@ import { Pencil, Download, Trash2, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -20,6 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -71,6 +73,7 @@ const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
 const isArchivedView = computed(() => status.value === 'Archived');
+const canBulkDelete = computed(() => !isArchivedView.value);
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.submissions.per_page || 10);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -115,10 +118,14 @@ const displayName = (pds: PdsSubmission) => {
     return fullName || pds.user?.name || 'N/A';
 };
 
-const deleteSubmission = (id: number) => {
-    if (!globalThis.confirm('Delete this PDS submission?')) {
-        return;
-    }
+const deleteSubmission = async (id: number) => {
+    const confirmed = await confirmAction({
+        title: 'Delete PDS submission?',
+        text: 'This action cannot be undone.',
+        confirmButtonText: 'Delete',
+    });
+
+    if (!confirmed) return;
 
     router.delete(`/pds/${id}`, {
         preserveScroll: true,
@@ -159,12 +166,40 @@ const clearFilters = () => {
     customPerPage.value = '';
     router.get('/pds');
 };
+
+const visibleSubmissions = computed(() => props.submissions.data);
+
+const {
+    allVisibleSelected,
+    clearSelection,
+    isSelected,
+    selectedCount,
+    selectedIds,
+    toggleAll,
+    toggleOne,
+} = useBulkSelection(visibleSubmissions);
+
+const bulkDeleteSubmissions = async () => {
+    if (!selectedCount.value || !canBulkDelete.value) return;
+
+    const confirmed = await confirmAction({
+        title: 'Delete selected PDS submissions?',
+        text: `Delete ${selectedCount.value} selected PDS submission(s)? This action cannot be undone.`,
+        confirmButtonText: 'Delete selected',
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = [...selectedIds.value];
+    await runBulkDelete(idsToDelete, (id) => `/pds/${id}`);
+    clearSelection();
+};
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Personal Data Sheet</h1>
@@ -172,16 +207,25 @@ const clearFilters = () => {
                     </div>
                     <div class="flex items-center gap-3">
                         <Badge variant="outline" class="hidden sm:inline-flex">{{ submissions.total }} total</Badge>
+                        <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                            <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                            <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteSubmissions">
+                                <Trash2 class="h-3.5 w-3.5" />
+                                Delete Selected
+                            </Button>
+                            <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                                Clear
+                            </Button>
+                        </div>
                         <Link href="/pds/create" prefetch>
                             <Button>New PDS</Button>
                         </Link>
                     </div>
                 </div>
-            </section>
 
-            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
-                    <div class="xl:col-span-5">
+                <div class="mt-5 border-t border-border/60 pt-5">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                    <div>
                         <label for="pds-search" class="mb-2 block text-sm font-medium text-foreground">Search</label>
                         <Input
                             id="pds-search"
@@ -190,7 +234,7 @@ const clearFilters = () => {
                             placeholder="Name, coop, or submission ID"
                         />
                     </div>
-                    <div class="xl:col-span-3">
+                    <div>
                         <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
                         <Select v-model="status">
                             <SelectTrigger aria-label="Filter by PDS status">
@@ -204,7 +248,7 @@ const clearFilters = () => {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div v-if="isProvincialAdmin" class="xl:col-span-4">
+                    <div v-if="isProvincialAdmin">
                         <label class="mb-2 block text-sm font-medium text-foreground">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger aria-label="Filter by cooperative">
@@ -218,8 +262,6 @@ const clearFilters = () => {
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
                         <div class="flex gap-2">
@@ -246,9 +288,11 @@ const clearFilters = () => {
                         </div>
                     </div>
                 </div>
+
                 <div class="mt-4 flex flex-wrap gap-2">
                     <Button @click="applyFilters">Apply Filters</Button>
                     <Button variant="outline" @click="clearFilters">Clear</Button>
+                </div>
                 </div>
             </section>
 
@@ -257,6 +301,14 @@ const clearFilters = () => {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="allVisibleSelected"
+                                        :disabled="submissions.data.length === 0"
+                                        aria-label="Select all PDS submissions"
+                                        @update:model-value="toggleAll"
+                                    />
+                                </TableHead>
                                 <TableHead>PDS ID</TableHead>
                                 <TableHead>Member</TableHead>
                                 <TableHead v-if="showAdminColumns">Cooperative</TableHead>
@@ -268,10 +320,17 @@ const clearFilters = () => {
                         </TableHeader>
                         <TableBody>
                             <TableRow v-if="submissions.data.length === 0">
-                                <TableCell :colspan="showAdminColumns ? 7 : 6" class="py-10 text-center text-muted-foreground">No PDS submissions yet.</TableCell>
+                                <TableCell :colspan="(showAdminColumns ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">No PDS submissions yet.</TableCell>
                             </TableRow>
 
                             <TableRow v-for="pds in submissions.data" :key="pds.id">
+                                <TableCell v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="isSelected(pds.id)"
+                                        :aria-label="`Select PDS ${pds.id}`"
+                                        @update:model-value="(checked) => toggleOne(pds.id, checked)"
+                                    />
+                                </TableCell>
                                 <TableCell>#{{ pds.id }}</TableCell>
                                 <TableCell>{{ displayName(pds) }}</TableCell>
                                 <TableCell v-if="showAdminColumns">{{ pds.cooperative?.name || 'N/A' }}</TableCell>
@@ -334,7 +393,7 @@ const clearFilters = () => {
                                     status: status === 'all' ? '' : status,
                                     coop_id: coopId === 'all' ? '' : coopId,
                                     per_page: resolvedPerPage(),
-                                })"
+                                }, { preserveScroll: true, preserveState: true })"
                                 :variant="page === submissions.current_page ? 'default' : 'outline'"
                                 size="sm"
                                 :aria-current="page === submissions.current_page ? 'page' : undefined"

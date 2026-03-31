@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Accessibility, Moon, Sun } from 'lucide-vue-next';
+import { Accessibility, Eye, EyeOff, Moon, Sun } from 'lucide-vue-next';
 import { computed } from 'vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { useAppBackgroundPreference } from '@/composables/useAppBackgroundPreference';
 import { useAppearance } from '@/composables/useAppearance';
 import type { BreadcrumbItem } from '@/types';
 
@@ -18,6 +19,11 @@ withDefaults(
 
 const { isLargeMode, toggleLargeMode } = useSidebar();
 const { resolvedAppearance, updateAppearance } = useAppearance();
+const {
+    prefersReducedMotion,
+    isAppBackgroundVisible,
+    toggleAppBackground,
+} = useAppBackgroundPreference();
 
 const isDarkMode = computed(() => resolvedAppearance.value === 'dark');
 
@@ -28,7 +34,7 @@ function toggleAppearance() {
 
 <template>
     <header
-        class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 bg-background/80 px-6 backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4"
+        class="app-header-surface flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/60 px-6 backdrop-blur-xl transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4"
     >
         <div class="flex items-center gap-2">
             <SidebarTrigger class="-ml-1" />
@@ -37,6 +43,29 @@ function toggleAppearance() {
             </template>
         </div>
         <div class="ml-auto flex items-center gap-2">
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                :aria-pressed="isAppBackgroundVisible"
+                :aria-label="isAppBackgroundVisible ? 'Hide animated background' : 'Show animated background'"
+                :title="
+                    prefersReducedMotion
+                        ? 'Animated background follows reduced-motion preference and is disabled'
+                        : isAppBackgroundVisible
+                          ? 'Hide animated background'
+                          : 'Show animated background'
+                "
+                :disabled="prefersReducedMotion"
+                class="h-8 gap-1.5 px-2 text-xs"
+                :class="isAppBackgroundVisible ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''"
+                @click="toggleAppBackground"
+            >
+                <Eye v-if="isAppBackgroundVisible" class="size-4" />
+                <EyeOff v-else class="size-4" />
+                <span class="hidden sm:inline">{{ isAppBackgroundVisible ? 'Bg On' : 'Bg Off' }}</span>
+            </Button>
+
             <Button
                 type="button"
                 variant="ghost"

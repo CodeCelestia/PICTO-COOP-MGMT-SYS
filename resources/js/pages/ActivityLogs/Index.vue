@@ -666,7 +666,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                     variant="outline"
                                     size="sm"
                                     :disabled="sessions.current_page === 1"
-                                    @click="router.get(`/activity-logs?page=${sessions.current_page - 1}&tab=sessions`)"
+                                    @click="router.get(`/activity-logs?page=${sessions.current_page - 1}&tab=sessions`, {}, { preserveScroll: true, preserveState: true })"
                                 >
                                     Previous
                                 </Button>
@@ -674,7 +674,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                     variant="outline"
                                     size="sm"
                                     :disabled="sessions.current_page === sessions.last_page"
-                                    @click="router.get(`/activity-logs?page=${sessions.current_page + 1}&tab=sessions`)"
+                                    @click="router.get(`/activity-logs?page=${sessions.current_page + 1}&tab=sessions`, {}, { preserveScroll: true, preserveState: true })"
                                 >
                                     Next
                                 </Button>
@@ -818,7 +818,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                     variant="outline"
                                     size="sm"
                                     :disabled="accounts.current_page === 1"
-                                    @click="router.get(`/activity-logs?page=${accounts.current_page - 1}&tab=accounts`)"
+                                    @click="router.get(`/activity-logs?page=${accounts.current_page - 1}&tab=accounts`, {}, { preserveScroll: true, preserveState: true })"
                                 >
                                     Previous
                                 </Button>
@@ -826,7 +826,7 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                     variant="outline"
                                     size="sm"
                                     :disabled="accounts.current_page === accounts.last_page"
-                                    @click="router.get(`/activity-logs?page=${accounts.current_page + 1}&tab=accounts`)"
+                                    @click="router.get(`/activity-logs?page=${accounts.current_page + 1}&tab=accounts`, {}, { preserveScroll: true, preserveState: true })"
                                 >
                                     Next
                                 </Button>

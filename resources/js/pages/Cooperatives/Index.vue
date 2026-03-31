@@ -4,6 +4,7 @@ import { Building2, Plus, Pencil, Trash2, Search, Filter, RotateCcw } from 'luci
 import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Card,
     CardContent,
@@ -27,6 +28,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
@@ -81,6 +83,7 @@ const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin'
 const canCreateCoop = computed(() => isProvincialAdmin.value);
 const canEditCoop = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
 const canDeleteCoop = computed(() => isProvincialAdmin.value);
+const canBulkDelete = computed(() => canDeleteCoop.value && !isArchivedView.value && !isCoopAdminOnly.value);
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value);
 const isCoopAdminOnly = computed(() => isCoopAdmin.value && !isProvincialAdmin.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
@@ -253,12 +256,40 @@ const formatFullAddress = (coop: Cooperative) => {
     
     return parts.join(', ') || 'N/A';
 };
+
+    const visibleCooperatives = computed(() => props.cooperatives.data);
+
+    const {
+        allVisibleSelected,
+        clearSelection,
+        isSelected,
+        selectedCount,
+        selectedIds,
+        toggleAll,
+        toggleOne,
+    } = useBulkSelection(visibleCooperatives);
+
+    const bulkDeleteCooperatives = async () => {
+        if (!selectedCount.value || !canBulkDelete.value) return;
+
+        const confirmed = await confirmAction({
+            title: 'Delete selected cooperatives?',
+            text: `Delete ${selectedCount.value} selected cooperative record(s)? This action cannot be undone.`,
+            confirmButtonText: 'Delete selected',
+        });
+
+        if (!confirmed) return;
+
+        const idsToDelete = [...selectedIds.value];
+        await runBulkDelete(idsToDelete, (id) => `/cooperatives/${id}`);
+        clearSelection();
+    };
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6 lg:p-8">
-            <Card class="border-border/80 bg-card/95 shadow-sm">
+            <Card :class="['border-border/80 bg-card/95 shadow-sm', !isCoopAdminOnly ? 'rounded-b-none' : '']">
                 <CardContent class="p-5 sm:p-6">
                     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -267,23 +298,35 @@ const formatFullAddress = (coop: Cooperative) => {
                                 Manage cooperative master profiles
                             </p>
                         </div>
-                        <Link v-if="canCreateCoop" href="/cooperatives/create">
-                            <Button class="gap-2">
-                                <Plus class="h-4 w-4" />
-                                Register Cooperative
-                            </Button>
-                        </Link>
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                                <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                                <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteCooperatives">
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                    Delete Selected
+                                </Button>
+                                <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                                    Clear
+                                </Button>
+                            </div>
+                            <Link v-if="canCreateCoop" href="/cooperatives/create">
+                                <Button class="gap-2">
+                                    <Plus class="h-4 w-4" />
+                                    Register Cooperative
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card v-if="!isCoopAdminOnly" class="border-border/80 bg-card shadow-sm">
+            <Card v-if="!isCoopAdminOnly" class="-mt-6 rounded-t-none border-border/80 border-t-0 bg-card shadow-sm">
                 <CardHeader class="pb-3">
                     <CardTitle class="text-base font-semibold text-foreground">Filters</CardTitle>
                     <CardDescription>Refine cooperative records by status, type, and location.</CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                         <div>
                             <label class="mb-2 block text-sm font-medium text-foreground">Search</label>
                             <div class="relative">
@@ -380,9 +423,6 @@ const formatFullAddress = (coop: Cooperative) => {
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                         <div>
                             <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
                             <div class="flex gap-2">
@@ -499,8 +539,15 @@ const formatFullAddress = (coop: Cooperative) => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead v-if="canBulkDelete" class="w-12">
+                                        <Checkbox
+                                            :model-value="allVisibleSelected"
+                                            :disabled="cooperatives.data.length === 0"
+                                            aria-label="Select all cooperatives"
+                                            @update:model-value="toggleAll"
+                                        />
+                                    </TableHead>
                                     <TableHead>Cooperative</TableHead>
-                                    <TableHead>Registration #</TableHead>
                                     <TableHead>Type</TableHead>
                                     <TableHead>Location</TableHead>
                                     <TableHead>Status</TableHead>
@@ -511,11 +558,18 @@ const formatFullAddress = (coop: Cooperative) => {
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-if="cooperatives.data.length === 0">
-                                    <TableCell :colspan="showActions ? 8 : 7" class="py-10 text-center text-muted-foreground">
+                                    <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
                                         No cooperatives found
                                     </TableCell>
                                 </TableRow>
                                 <TableRow v-for="coop in cooperatives.data" :key="coop.id">
+                                    <TableCell v-if="canBulkDelete" class="w-12">
+                                        <Checkbox
+                                            :model-value="isSelected(coop.id)"
+                                            :aria-label="`Select ${coop.name}`"
+                                            @update:model-value="(checked) => toggleOne(coop.id, checked)"
+                                        />
+                                    </TableCell>
                                     <TableCell class="font-medium">
                                         <div class="flex items-center gap-3">
                                             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -523,12 +577,8 @@ const formatFullAddress = (coop: Cooperative) => {
                                             </div>
                                             <div>
                                                 <div class="text-foreground">{{ coop.name }}</div>
-                                                <div class="text-xs text-muted-foreground">{{ coop.email || 'No email' }}</div>
                                             </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell class="font-mono text-sm text-muted-foreground">
-                                        {{ coop.registration_number }}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline">
@@ -613,7 +663,7 @@ const formatFullAddress = (coop: Cooperative) => {
                                         province: (selectedProvinceCode !== 'all' && provinces.find((p) => p.code === selectedProvinceCode)?.name) || '',
                                         municipality: (selectedMunicipalityCode !== 'all' && cities.find((c) => c.code === selectedMunicipalityCode)?.name) || '',
                                         per_page: resolvedPerPage(),
-                                    })"
+                                    }, { preserveScroll: true, preserveState: true })"
                                 >
                                     {{ page }}
                                 </Button>

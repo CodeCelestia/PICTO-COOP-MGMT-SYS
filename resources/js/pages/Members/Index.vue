@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, Eye, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -20,6 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection, type CheckedState } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -81,6 +83,7 @@ const isOfficer = computed(() => roles.value.includes('Officer') || accountType.
 const canCreateMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
 const canEditMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value);
 const canDeleteMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const canBulkDelete = computed(() => canDeleteMember.value && !isArchivedView.value);
 const showActions = computed(() => canEditMember.value || canDeleteMember.value);
 
 const search = ref(props.filters.search || '');
@@ -177,12 +180,48 @@ const formatLocation = (member: Member) => {
     return parts.join(', ') || 'N/A';
 };
 
+const visibleMembers = computed(() => props.members.data);
+
+const {
+    allVisibleSelected,
+    clearSelection,
+    isSelected,
+    selectedCount,
+    selectedIds,
+    toggleAll,
+    toggleOne,
+} = useBulkSelection(visibleMembers);
+
+const bulkDeleteMembers = async () => {
+    if (!selectedCount.value || !canBulkDelete.value) return;
+
+    const confirmed = await confirmAction({
+        title: 'Delete selected members?',
+        text: `Delete ${selectedCount.value} selected member record(s)? This action cannot be undone.`,
+        confirmButtonText: 'Delete selected',
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = [...selectedIds.value];
+    await runBulkDelete(idsToDelete, (id) => `/members/${id}`);
+    clearSelection();
+};
+
+const onToggleAllMembers = (checked: CheckedState) => {
+    toggleAll(checked);
+};
+
+const onToggleMember = (memberId: number, checked: CheckedState) => {
+    toggleOne(memberId, checked);
+};
+
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Member Management</h1>
@@ -194,6 +233,16 @@ const formatLocation = (member: Member) => {
                         <Badge variant="outline" class="hidden sm:inline-flex">
                             {{ members.total }} total
                         </Badge>
+                        <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                            <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                            <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteMembers">
+                                <Trash2 class="h-3.5 w-3.5" />
+                                Delete Selected
+                            </Button>
+                            <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                                Clear
+                            </Button>
+                        </div>
                         <Link v-if="canCreateMember" href="/members/create">
                             <Button class="gap-2">
                                 <Plus class="h-4 w-4" />
@@ -202,11 +251,10 @@ const formatLocation = (member: Member) => {
                         </Link>
                     </div>
                 </div>
-            </section>
 
-            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
-                    <div class="xl:col-span-5">
+                <div class="mt-5 border-t border-border/60 pt-5">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                    <div>
                         <label for="member-search" class="mb-2 block text-sm font-medium text-foreground">Search</label>
                         <div class="relative">
                             <Search class="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -220,7 +268,7 @@ const formatLocation = (member: Member) => {
                         </div>
                     </div>
 
-                    <div class="xl:col-span-4">
+                    <div>
                         <label class="mb-2 block text-sm font-medium text-foreground">Membership Status</label>
                         <Select v-model="membershipStatus">
                             <SelectTrigger aria-label="Filter by membership status">
@@ -237,7 +285,7 @@ const formatLocation = (member: Member) => {
                         </Select>
                     </div>
 
-                    <div class="xl:col-span-3">
+                    <div>
                         <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
@@ -273,6 +321,7 @@ const formatLocation = (member: Member) => {
                         Clear Filters
                     </Button>
                 </div>
+                </div>
             </section>
 
             <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -280,6 +329,14 @@ const formatLocation = (member: Member) => {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="allVisibleSelected"
+                                        :disabled="members.data.length === 0"
+                                        aria-label="Select all members"
+                                        @update:model-value="onToggleAllMembers"
+                                    />
+                                </TableHead>
                                 <TableHead>Member Name</TableHead>
                                 <TableHead>Contact</TableHead>
                                 <TableHead>Membership</TableHead>
@@ -290,11 +347,18 @@ const formatLocation = (member: Member) => {
                         </TableHeader>
                         <TableBody>
                             <TableRow v-if="members.data.length === 0">
-                                <TableCell :colspan="showActions ? 6 : 5" class="py-10 text-center text-muted-foreground">
+                                <TableCell :colspan="(showActions ? 6 : 5) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
                                     No members found.
                                 </TableCell>
                             </TableRow>
                             <TableRow v-for="member in members.data" :key="member.id">
+                                <TableCell v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="isSelected(member.id)"
+                                        :aria-label="`Select ${member.full_name}`"
+                                        @update:model-value="(checked) => onToggleMember(member.id, checked)"
+                                    />
+                                </TableCell>
                                 <TableCell>
                                     <span class="font-medium text-foreground">{{ member.full_name }}</span>
                                 </TableCell>
@@ -374,7 +438,7 @@ const formatLocation = (member: Member) => {
                                     search: search || '',
                                     membership_status: membershipStatus === 'all' ? '' : membershipStatus,
                                     per_page: resolvedPerPage(),
-                                })"
+                                }, { preserveScroll: true, preserveState: true })"
                                 :variant="page === members.current_page ? 'default' : 'outline'"
                                 size="sm"
                                 :aria-current="page === members.current_page ? 'page' : undefined"

@@ -56,6 +56,8 @@ class DashboardController extends Controller
             'stats' => $systemStats['stats'],
             'usersByRole' => $systemStats['usersByRole'],
             'recentUsers' => $systemStats['recentUsers'],
+            'systemTrends' => $systemStats['systemTrends'],
+            'sectorDistribution' => $systemStats['sectorDistribution'],
             'isCoopAdmin' => $isCoopAdmin,
             'isMember' => $isMember,
             'coopInfo' => $coopInfo,
@@ -71,6 +73,47 @@ class DashboardController extends Controller
     {
         $totalUsers = User::count();
         $totalRoles = Role::count();
+
+        $trendStart = Carbon::now()->startOfMonth()->subMonths(5);
+        $trendEnd = Carbon::now()->endOfMonth();
+        $trendLabels = [];
+        $trendKeys = [];
+
+        foreach (CarbonPeriod::create($trendStart, '1 month', $trendEnd) as $point) {
+            $trendLabels[] = $point->format('M Y');
+            $trendKeys[] = $point->format('Y-m');
+        }
+
+        $trendBuckets = [];
+
+        User::query()
+            ->whereBetween('created_at', [$trendStart, $trendEnd])
+            ->pluck('created_at')
+            ->each(function ($createdAt) use (&$trendBuckets): void {
+                $key = Carbon::parse($createdAt)->startOfMonth()->format('Y-m');
+                $trendBuckets[$key] = ($trendBuckets[$key] ?? 0) + 1;
+            });
+
+        $systemTrendValues = array_map(function ($key) use ($trendBuckets) {
+            return $trendBuckets[$key] ?? 0;
+        }, $trendKeys);
+
+        $sectorGroupExpression = "COALESCE(NULLIF(TRIM(coop_type), ''), 'Unspecified')";
+
+        $sectorRows = Cooperative::query()
+            ->selectRaw("{$sectorGroupExpression} as label, COUNT(*) as count")
+            ->groupBy(DB::raw($sectorGroupExpression))
+            ->orderByDesc('count')
+            ->limit(8)
+            ->get();
+
+        $sectorLabels = $sectorRows->pluck('label')->map(function ($label) {
+            return (string) $label;
+        })->values()->all();
+
+        $sectorValues = $sectorRows->pluck('count')->map(function ($count) {
+            return (int) $count;
+        })->values()->all();
 
         $usersWithRoles = DB::table('model_has_roles')
             ->distinct('model_id')
@@ -109,6 +152,15 @@ class DashboardController extends Controller
             ],
             'usersByRole' => $usersByRole,
             'recentUsers' => $recentUsers,
+            'systemTrends' => [
+                'labels' => $trendLabels,
+                'registrations' => $systemTrendValues,
+            ],
+            'sectorDistribution' => [
+                'labels' => $sectorLabels,
+                'values' => $sectorValues,
+                'total' => array_sum($sectorValues),
+            ],
         ];
     }
 

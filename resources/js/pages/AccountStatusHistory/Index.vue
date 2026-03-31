@@ -270,7 +270,7 @@ const hasActiveFilters = computed(() => {
                             variant="outline"
                             size="sm"
                             :disabled="histories.current_page === 1"
-                            @click="router.get(`/account-status-history?page=${histories.current_page - 1}`)"
+                            @click="router.get(`/account-status-history?page=${histories.current_page - 1}`, {}, { preserveScroll: true, preserveState: true })"
                         >
                             Previous
                         </Button>
@@ -278,7 +278,7 @@ const hasActiveFilters = computed(() => {
                             variant="outline"
                             size="sm"
                             :disabled="histories.current_page === histories.last_page"
-                            @click="router.get(`/account-status-history?page=${histories.current_page + 1}`)"
+                            @click="router.get(`/account-status-history?page=${histories.current_page + 1}`, {}, { preserveScroll: true, preserveState: true })"
                         >
                             Next
                         </Button>

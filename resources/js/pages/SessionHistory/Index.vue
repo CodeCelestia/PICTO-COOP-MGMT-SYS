@@ -327,7 +327,7 @@ const hasActiveFilters = computed(() => {
                             variant="outline"
                             size="sm"
                             :disabled="sessions.current_page === 1"
-                            @click="router.get(`/session-history?page=${sessions.current_page - 1}`)"
+                            @click="router.get(`/session-history?page=${sessions.current_page - 1}`, {}, { preserveScroll: true, preserveState: true })"
                         >
                             Previous
                         </Button>
@@ -335,7 +335,7 @@ const hasActiveFilters = computed(() => {
                             variant="outline"
                             size="sm"
                             :disabled="sessions.current_page === sessions.last_page"
-                            @click="router.get(`/session-history?page=${sessions.current_page + 1}`)"
+                            @click="router.get(`/session-history?page=${sessions.current_page + 1}`, {}, { preserveScroll: true, preserveState: true })"
                         >
                             Next
                         </Button>

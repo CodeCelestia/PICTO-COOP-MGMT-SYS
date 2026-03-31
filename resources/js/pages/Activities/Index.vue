@@ -3,6 +3,7 @@ import { router, Link, usePage } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -19,6 +20,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -88,6 +90,7 @@ const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
 const category = ref(props.filters.category || 'all');
 const isArchivedView = computed(() => status.value === 'Archived');
+const canBulkDelete = computed(() => canDelete.value && !isArchivedView.value);
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -168,26 +171,67 @@ const formatDate = (date: string | null) => {
 const formatOfficerName = (activity: Activity) => {
     return activity.responsible_officer?.member?.full_name || 'N/A';
 };
+
+const visibleActivities = computed(() => props.activities.data);
+
+const {
+    allVisibleSelected,
+    clearSelection,
+    isSelected,
+    selectedCount,
+    selectedIds,
+    toggleAll,
+    toggleOne,
+} = useBulkSelection(visibleActivities);
+
+const bulkDeleteActivities = async () => {
+    if (!selectedCount.value || !canBulkDelete.value) return;
+
+    const confirmed = await confirmAction({
+        title: 'Delete selected activities?',
+        text: `Delete ${selectedCount.value} selected activity record(s)? This action cannot be undone.`,
+        confirmButtonText: 'Delete selected',
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = [...selectedIds.value];
+    await runBulkDelete(idsToDelete, (id) => `/activities/${id}`);
+    clearSelection();
+};
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                     <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activities & Projects</h1>
                     <p class="text-sm text-muted-foreground">Track cooperative activities and projects</p>
                 </div>
-                <Link v-if="canCreate" href="/activities/create">
-                    <Button class="gap-2">
-                        <Plus class="h-4 w-4" />
-                        Add Activity
-                    </Button>
-                </Link>
-            </div>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                        <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteActivities">
+                            <Trash2 class="h-3.5 w-3.5" />
+                            Delete Selected
+                        </Button>
+                        <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                            Clear
+                        </Button>
+                    </div>
+                    <Link v-if="canCreate" href="/activities/create">
+                        <Button class="gap-2">
+                            <Plus class="h-4 w-4" />
+                            Add Activity
+                        </Button>
+                    </Link>
+                </div>
+                </div>
 
-            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
+                <div class="mt-5 border-t border-border/60 pt-5">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
@@ -243,8 +287,6 @@ const formatOfficerName = (activity: Activity) => {
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
@@ -279,12 +321,21 @@ const formatOfficerName = (activity: Activity) => {
                     <Button @click="resetFilters" variant="outline">Clear Filters</Button>
                 </div>
             </div>
+            </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div class="overflow-x-auto">
                     <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead v-if="canBulkDelete" class="w-12">
+                                <Checkbox
+                                    :model-value="allVisibleSelected"
+                                    :disabled="activities.data.length === 0"
+                                    aria-label="Select all activities"
+                                    @update:model-value="toggleAll"
+                                />
+                            </TableHead>
                             <TableHead>Activity</TableHead>
                             <TableHead>Cooperative</TableHead>
                             <TableHead>Category</TableHead>
@@ -296,11 +347,18 @@ const formatOfficerName = (activity: Activity) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="activities.data.length === 0">
-                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-muted-foreground">
+                            <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="text-center text-muted-foreground">
                                 No activities found.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="activity in activities.data" :key="activity.id">
+                            <TableCell v-if="canBulkDelete" class="w-12">
+                                <Checkbox
+                                    :model-value="isSelected(activity.id)"
+                                    :aria-label="`Select ${activity.title}`"
+                                    @update:model-value="(checked) => toggleOne(activity.id, checked)"
+                                />
+                            </TableCell>
                             <TableCell>
                                 <div class="flex items-center gap-3">
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -374,7 +432,7 @@ const formatOfficerName = (activity: Activity) => {
                                 variant="outline"
                                 size="sm"
                                 :disabled="page === activities.current_page"
-                                @click="router.get('/activities', { ...filters, page })"
+                                @click="router.get('/activities', { ...filters, page }, { preserveScroll: true, preserveState: true })"
                             >
                                 {{ page }}
                             </Button>

@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, CheckCircle2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAppBackgroundPreference } from '@/composables/useAppBackgroundPreference';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -72,6 +73,13 @@ const accountType = computed(() => page.props.auth?.user?.account_type as string
 const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
 const isCoopAdmin = computed(() => roles.value.includes('Coop Admin') || accountType.value === 'Coop Admin');
 const canEditMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value || roles.value.includes('Officer'));
+const { isAppBackgroundVisible } = useAppBackgroundPreference();
+
+const detailsCardClass = computed(() =>
+    isAppBackgroundVisible.value
+    ? 'border-border/40 bg-card/95 shadow-[0_10px_32px_rgba(2,8,20,0.24)] backdrop-blur-md'
+        : 'border-border bg-card shadow-sm'
+);
 
 const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
@@ -93,13 +101,33 @@ const badgeStyle = (status: string | null) => {
 };
 
 const fullName = `${props.member.first_name} ${props.member.last_name}`;
+
+const fullAddress = computed(() => {
+    return (
+        [
+            props.member.address,
+            props.member.barangay,
+            props.member.city_municipality,
+            props.member.province,
+            props.member.region,
+        ]
+            .filter(Boolean)
+            .join(', ') || 'N/A'
+    );
+});
+
+const memberInfoPanelClass = computed(() =>
+    isAppBackgroundVisible.value
+        ? 'rounded-xl border border-border/50 bg-background/55 p-4 shadow-[0_6px_20px_rgba(2,8,20,0.16)] backdrop-blur-sm'
+        : 'rounded-xl border border-border bg-muted/20 p-4'
+);
 </script>
 
 <template>
     <AppLayout>
-        <div class="sticky top-16 z-30 bg-background/95 px-4 pb-4 pt-4 backdrop-blur-sm md:px-6 md:pt-6">
-            <section class="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6">
-                <div class="mb-4 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="sticky top-0 z-40 px-4 pb-4 pt-4 backdrop-blur-sm md:px-6 md:pt-6" :class="isAppBackgroundVisible ? 'bg-background/45' : 'bg-background/95'">
+            <section class="rounded-2xl border p-5 md:p-6" :class="detailsCardClass">
+                <div class="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between" :class="isAppBackgroundVisible ? 'border-border/40' : 'border-border'">
                     <div class="min-w-0">
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground">Member Details</h1>
                     </div>
@@ -125,7 +153,7 @@ const fullName = `${props.member.first_name} ${props.member.last_name}`;
                     </div>
                 </div>
 
-                <div class="mb-5 flex flex-col gap-2 border-b border-border pb-4">
+                <div class="mb-5 flex flex-col gap-2 border-b pb-4" :class="isAppBackgroundVisible ? 'border-border/40' : 'border-border'">
                     <div class="flex flex-wrap items-center gap-2">
                         <h2 class="text-xl font-semibold text-foreground">{{ fullName }}</h2>
                         <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
@@ -136,33 +164,46 @@ const fullName = `${props.member.first_name} ${props.member.last_name}`;
                     <p class="text-sm text-muted-foreground">{{ props.member.cooperative.name }}</p>
                 </div>
 
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div class="min-w-0 flex-1">
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div class="space-y-3">
-                                <div class="text-xs uppercase tracking-wider text-muted-foreground">Personal information</div>
-                                <div class="space-y-1 text-sm text-foreground/90">
-                                    <div><strong>Gender:</strong> {{ props.member.gender || 'N/A' }}</div>
-                                    <div><strong>Profession:</strong> {{ props.member.primary_livelihood || 'N/A' }}</div>
-                                    <div><strong>Education:</strong> {{ props.member.educational_attainment || 'N/A' }}</div>
-                                    <div><strong>Joined:</strong> {{ formatDate(props.member.date_joined) }}</div>
-                                </div>
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <section :class="memberInfoPanelClass">
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Personal Information</h3>
+                        <dl class="mt-3 divide-y divide-border/60">
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Gender</dt>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.gender || 'N/A' }}</dd>
                             </div>
-                            <div class="space-y-3">
-                                <div class="text-xs uppercase tracking-wider text-muted-foreground">Contact</div>
-                                <div class="space-y-1 text-sm text-foreground/90">
-                                    <div><strong>Email: </strong> {{ props.member.email || 'N/A' }}</div>
-                                    <div><strong>Address: </strong>
-                                        <span>
-                                            {{ [props.member.address, props.member.city_municipality, props.member.province, props.member.barangay, props.member.region]
-                                                .filter(Boolean)
-                                                .join(', ') || 'N/A' }}
-                                        </span>
-                                    </div>
-                                </div>
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Profession</dt>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.primary_livelihood || 'N/A' }}</dd>
                             </div>
-                        </div>
-                    </div>
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Education</dt>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.educational_attainment || 'N/A' }}</dd>
+                            </div>
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Date Joined</dt>
+                                <dd class="text-base font-medium text-foreground">{{ formatDate(props.member.date_joined) }}</dd>
+                            </div>
+                        </dl>
+                    </section>
+
+                    <section :class="memberInfoPanelClass">
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Contact Information</h3>
+                        <dl class="mt-3 divide-y divide-border/60">
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Email</dt>
+                                <dd class="text-base font-medium text-foreground break-all">{{ props.member.email || 'N/A' }}</dd>
+                            </div>
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Phone</dt>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.phone || 'N/A' }}</dd>
+                            </div>
+                            <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                <dt class="text-sm font-medium text-muted-foreground">Address</dt>
+                                <dd class="text-base font-medium leading-relaxed text-foreground wrap-break-word">{{ fullAddress }}</dd>
+                            </div>
+                        </dl>
+                    </section>
                 </div>
             </section>
         </div>

@@ -16,11 +16,11 @@ export type SidebarContext = {
 
 export const SIDEBAR_COOKIE_NAME = "sidebar_state"
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-export const SIDEBAR_WIDTH = "240px"
-export const SIDEBAR_WIDTH_LARGE = "280px"
+export const SIDEBAR_WIDTH = "296px"
+export const SIDEBAR_WIDTH_LARGE = "328px"
 export const SIDEBAR_WIDTH_MOBILE = "288px"
-export const SIDEBAR_WIDTH_ICON = "42px"
-export const SIDEBAR_WIDTH_ICON_LARGE = "53px"
+export const SIDEBAR_WIDTH_ICON = "48px"
+export const SIDEBAR_WIDTH_ICON_LARGE = "58px"
 export const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 export const SIDEBAR_LARGE_MODE_STORAGE_KEY = "sidebar_large_mode"
 

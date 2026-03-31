@@ -150,6 +150,28 @@ html[data-a11y-size='large'] {
     --sidebar-border: hsl(0 0% 91%);
     --sidebar-ring: hsl(217.2 91.2% 59.8%);
     --sidebar: hsl(0 0% 98%);
+
+    --app-bg-opacity: 0.75;
+    --app-bg-grid-opacity: 0.20;
+    --app-bg-overlay-light: 0.74;
+    --app-bg-overlay-dark: 0.58;
+
+    --app-header-opacity-light: 0.58;
+    --app-header-opacity-dark: 0.50;
+
+    --app-sidebar-static-light: 0.78;
+    --app-sidebar-static-dark: 0.64;
+    --app-sidebar-mobile-light: 0.84;
+    --app-sidebar-mobile-dark: 0.72;
+    --app-sidebar-panel-light: 0.74;
+    --app-sidebar-panel-dark: 0.62;
+
+    --app-card-opacity-light: 0.72;
+    --app-card-opacity-dark: 0.62;
+    --app-popover-opacity-light: 0.78;
+    --app-popover-opacity-dark: 0.68;
+    --app-muted-opacity-light: 0.72;
+    --app-muted-opacity-dark: 0.62;
 }
 
 .dark {
@@ -194,5 +216,73 @@ html[data-a11y-size='large'] {
     }
     body {
         @apply bg-background text-foreground;
+    }
+}
+
+@layer components {
+    .app-bg-host {
+        opacity: var(--app-bg-opacity, 0.75);
+    }
+
+    .app-bg-grid {
+        opacity: var(--app-bg-grid-opacity, 0.2);
+    }
+
+    .app-bg-content-overlay {
+        background-color: hsl(0 0% 100% / var(--app-bg-overlay-light, 0.74));
+    }
+
+    .dark .app-bg-content-overlay {
+        background-color: hsl(0 0% 4% / var(--app-bg-overlay-dark, 0.58));
+    }
+
+    .app-header-surface {
+        background-color: hsl(0 0% 100% / var(--app-header-opacity-light, 0.58));
+    }
+
+    .dark .app-header-surface {
+        background-color: hsl(0 0% 4% / var(--app-header-opacity-dark, 0.5));
+    }
+
+    .app-sidebar-surface-static {
+        background-color: hsl(0 0% 100% / var(--app-sidebar-static-light, 0.78));
+    }
+
+    .dark .app-sidebar-surface-static {
+        background-color: hsl(0 0% 4% / var(--app-sidebar-static-dark, 0.64));
+    }
+
+    .app-sidebar-surface-mobile {
+        background-color: hsl(0 0% 100% / var(--app-sidebar-mobile-light, 0.84));
+    }
+
+    .dark .app-sidebar-surface-mobile {
+        background-color: hsl(0 0% 4% / var(--app-sidebar-mobile-dark, 0.72));
+    }
+
+    .app-sidebar-surface-panel {
+        background-color: hsl(0 0% 100% / var(--app-sidebar-panel-light, 0.74));
+    }
+
+    .dark .app-sidebar-surface-panel {
+        background-color: hsl(0 0% 4% / var(--app-sidebar-panel-dark, 0.62));
+    }
+
+    .app-glass-theme {
+        --card: hsl(0 0% 100% / var(--app-card-opacity-light, 0.72));
+        --popover: hsl(0 0% 100% / var(--app-popover-opacity-light, 0.78));
+        --muted: hsl(0 0% 96.1% / var(--app-muted-opacity-light, 0.72));
+    }
+
+    .dark .app-glass-theme {
+        --card: hsl(0 0% 8% / var(--app-card-opacity-dark, 0.62));
+        --popover: hsl(0 0% 8% / var(--app-popover-opacity-dark, 0.68));
+        --muted: hsl(0 0% 16.08% / var(--app-muted-opacity-dark, 0.62));
+    }
+
+    .app-glass-theme [data-slot='card'],
+    .app-glass-theme [data-slot='dialog-content'],
+    .app-glass-theme [data-slot='sheet-content'] {
+        backdrop-filter: blur(14px);
     }
 }

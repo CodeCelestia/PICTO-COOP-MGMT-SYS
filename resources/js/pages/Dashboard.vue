@@ -3,7 +3,6 @@ import { Head, router } from '@inertiajs/vue3';
 import { 
     Users, 
     TrendingUp, 
-    DollarSign, 
     FileText,
     Activity,
     ArrowUpRight,
@@ -44,6 +43,17 @@ interface RecentUser {
     email: string;
     roles: string[];
     created_at: string;
+}
+
+interface SystemTrends {
+    labels: string[];
+    registrations: number[];
+}
+
+interface SectorDistribution {
+    labels: string[];
+    values: number[];
+    total: number;
 }
 
 interface CoopInfo {
@@ -112,6 +122,8 @@ const props = defineProps<{
     stats: Stats;
     usersByRole: UserByRole[];
     recentUsers: RecentUser[];
+    systemTrends: SystemTrends;
+    sectorDistribution: SectorDistribution;
     isCoopAdmin: boolean;
     isMember: boolean;
     coopInfo: CoopInfo | null;
@@ -336,6 +348,77 @@ const chartGridLines = computed(() => [
 
 const hasVisibleSeries = computed(() =>
     visibleSeries.value.members || visibleSeries.value.activities || visibleSeries.value.trainings
+);
+
+type TrendMarker = {
+    x: number;
+    y: number;
+    value: number;
+};
+
+const systemChartWidth = 640;
+const systemChartHeight = 220;
+const systemChartPaddingX = 24;
+const systemChartPaddingY = 20;
+
+const systemTrendLabels = computed(() => props.systemTrends?.labels ?? []);
+const systemTrendValues = computed(() => props.systemTrends?.registrations ?? []);
+
+const systemTrendMax = computed(() => Math.max(1, ...systemTrendValues.value));
+
+const systemTrendGridLines = computed(() => [
+    systemChartPaddingY,
+    systemChartPaddingY + (systemChartHeight - systemChartPaddingY * 2) / 2,
+    systemChartHeight - systemChartPaddingY,
+]);
+
+const systemTrendMarkers = computed<TrendMarker[]>(() => {
+    if (!systemTrendValues.value.length) {
+        return [];
+    }
+
+    const drawableWidth = systemChartWidth - systemChartPaddingX * 2;
+    const drawableHeight = systemChartHeight - systemChartPaddingY * 2;
+    const step = systemTrendValues.value.length > 1 ? drawableWidth / (systemTrendValues.value.length - 1) : 0;
+
+    return systemTrendValues.value.map((value, index) => ({
+        x: systemChartPaddingX + index * step,
+        y: systemChartHeight - systemChartPaddingY - (value / systemTrendMax.value) * drawableHeight,
+        value,
+    }));
+});
+
+const systemTrendPoints = computed(() =>
+    systemTrendMarkers.value.map((point) => `${point.x},${point.y}`).join(' ')
+);
+
+const systemTrendAreaPoints = computed(() => {
+    if (!systemTrendMarkers.value.length) {
+        return '';
+    }
+
+    const baselineY = systemChartHeight - systemChartPaddingY;
+    const firstPoint = systemTrendMarkers.value[0];
+    const lastPoint = systemTrendMarkers.value[systemTrendMarkers.value.length - 1];
+
+    return `${firstPoint.x},${baselineY} ${systemTrendPoints.value} ${lastPoint.x},${baselineY}`;
+});
+
+const sectorValues = computed(() => props.sectorDistribution?.values ?? []);
+const sectorLabels = computed(() => props.sectorDistribution?.labels ?? []);
+const sectorTotal = computed(() => props.sectorDistribution?.total ?? 0);
+const sectorMax = computed(() => Math.max(1, ...sectorValues.value));
+
+const sectorBars = computed(() =>
+    sectorLabels.value.map((label, index) => {
+        const value = sectorValues.value[index] ?? 0;
+
+        return {
+            label,
+            value,
+            percent: (value / sectorMax.value) * 100,
+        };
+    })
 );
 
 const getRoleBadgeColor = (roleName: string) => {
@@ -838,8 +921,8 @@ const getMembershipBadgeColor = (status: string | null) => {
 
                 <!-- Analytics Panels -->
                 <div v-if="!props.isCoopAdmin && !props.isMember" class="grid gap-4 md:col-span-2">
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
-                        <div class="flex items-center justify-between">
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
+                        <div class="flex items-center justify-between border-b border-slate-200/70 p-6">
                             <div>
                                 <h2 class="text-lg font-semibold text-slate-900">Growth Analytics</h2>
                                 <p class="text-sm text-slate-500">Membership and activity trend</p>
@@ -848,10 +931,68 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 Weekly
                             </Badge>
                         </div>
-                        <div class="mt-6 h-56 rounded-lg border border-dashed border-slate-200 bg-slate-50/70" />
+                        <div class="p-6 pt-5">
+                            <div class="rounded-lg border border-slate-200/70 bg-slate-50/70 p-5">
+                            <div v-if="!systemTrendValues.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
+                                No growth data available.
+                            </div>
+                            <div v-else class="space-y-3">
+                                <svg
+                                    class="h-56 w-full"
+                                    :viewBox="`0 0 ${systemChartWidth} ${systemChartHeight}`"
+                                    role="img"
+                                    aria-label="User registration growth trend"
+                                >
+                                    <g>
+                                        <line
+                                            v-for="(lineY, index) in systemTrendGridLines"
+                                            :key="`system-grid-${index}`"
+                                            :x1="systemChartPaddingX"
+                                            :x2="systemChartWidth - systemChartPaddingX"
+                                            :y1="lineY"
+                                            :y2="lineY"
+                                            class="stroke-slate-200"
+                                        />
+                                    </g>
+                                    <polygon
+                                        :points="systemTrendAreaPoints"
+                                        fill="rgba(59, 130, 246, 0.18)"
+                                    />
+                                    <polyline
+                                        :points="systemTrendPoints"
+                                        fill="none"
+                                        stroke="#3b82f6"
+                                        stroke-width="3"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                    <circle
+                                        v-for="(point, index) in systemTrendMarkers"
+                                        :key="`system-point-${index}`"
+                                        :cx="point.x"
+                                        :cy="point.y"
+                                        r="4"
+                                        fill="#3b82f6"
+                                    >
+                                        <title>{{ systemTrendLabels[index] }}: {{ point.value }}</title>
+                                    </circle>
+                                </svg>
+
+                                <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-500 sm:grid-cols-3 lg:grid-cols-6">
+                                    <span
+                                        v-for="(label, index) in systemTrendLabels"
+                                        :key="`system-label-${index}`"
+                                        class="truncate"
+                                    >
+                                        {{ label }}
+                                    </span>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
                     </Card>
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
-                        <div class="flex items-center justify-between">
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
+                        <div class="flex items-center justify-between border-b border-slate-200/70 p-6">
                             <div>
                                 <h2 class="text-lg font-semibold text-slate-900">Sector Distribution</h2>
                                 <p class="text-sm text-slate-500">Active cooperatives by sector</p>
@@ -860,7 +1001,35 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 Updated
                             </Badge>
                         </div>
-                        <div class="mt-6 h-56 rounded-lg border border-dashed border-slate-200 bg-slate-50/70" />
+                        <div class="p-6 pt-5">
+                            <div class="rounded-lg border border-slate-200/70 bg-slate-50/70 p-5">
+                            <div v-if="!sectorBars.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
+                                No sector distribution data available.
+                            </div>
+                            <div v-else class="space-y-3">
+                                <div
+                                    v-for="(bar, index) in sectorBars"
+                                    :key="`sector-${bar.label}-${index}`"
+                                    class="space-y-1"
+                                >
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span class="font-medium text-slate-700">{{ bar.label }}</span>
+                                        <span class="text-slate-500">{{ bar.value }}</span>
+                                    </div>
+                                    <div class="h-2.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800/70">
+                                        <div
+                                            class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500"
+                                            :style="{ width: `${bar.percent}%` }"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="pt-1 text-xs text-slate-500">
+                                    Total cooperatives: {{ sectorTotal }}
+                                </div>
+                            </div>
+                            </div>
+                        </div>
                     </Card>
                 </div>
 

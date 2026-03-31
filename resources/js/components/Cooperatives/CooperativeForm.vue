@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { Building2, Save, X, MapPin } from 'lucide-vue-next';
-import { ref, watch, onMounted } from 'vue';
+import { Building2, Save, Search, X, MapPin } from 'lucide-vue-next';
+import { computed, ref, watch, onMounted } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,17 +35,60 @@ const props = defineProps<{
   onCancel: () => void;
 }>();
 
-const { regions, provinces, cities, barangays, fetchRegions, fetchProvinces, fetchCities } = usePsgc();
+const { regions, provinces, cities, barangays, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
-const selectedRegionCode = ref(props.cooperative?.region ? '' : '');
-const selectedProvinceCode = ref(props.cooperative?.province ? '' : '');
-const selectedCityCode = ref(props.cooperative?.city_municipality ? '' : '');
+const selectedRegionCode = ref('all');
+const selectedProvinceCode = ref('all');
+const selectedCityCode = ref('all');
+const isHydrating = ref(true);
+const isCoopTypeDialogOpen = ref(false);
+const coopTypeSearch = ref('');
+
+const normalizeDateInput = (value?: string | null): string => {
+  if (!value) return '';
+
+  const dateOnlyMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (dateOnlyMatch) return dateOnlyMatch[1];
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  return parsed.toISOString().slice(0, 10);
+};
+
+const normalizeLocationKey = (value?: string | null): string => {
+  if (!value) return '';
+
+  return value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/^province of\s+/, '')
+    .replace(/^city of\s+/, '')
+    .replace(/^municipality of\s+/, '')
+    .replace(/^brgy\s+/, '')
+    .replace(/^barangay\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const findByNameOrCode = <T extends { code: string; name: string }>(
+  items: T[],
+  value?: string | null,
+): T | undefined => {
+  if (!value) return undefined;
+
+  const normalizedValue = normalizeLocationKey(value);
+
+  return items.find((item) => item.code === value)
+    ?? items.find((item) => item.name === value)
+    ?? items.find((item) => normalizeLocationKey(item.name) === normalizedValue);
+};
 
 const form = useForm({
   name: props.cooperative?.name || '',
   registration_number: props.cooperative?.registration_number || '',
   coop_type: props.cooperative?.coop_type || '',
-  date_established: props.cooperative?.date_established || '',
+  date_established: normalizeDateInput(props.cooperative?.date_established),
   address: props.cooperative?.address || '',
   region: props.cooperative?.region || '',
   province: props.cooperative?.province || '',
@@ -54,7 +98,7 @@ const form = useForm({
   phone: props.cooperative?.phone || '',
   status: props.cooperative?.status || 'Active',
   accreditation_status: props.cooperative?.accreditation_status || '',
-  accreditation_date: props.cooperative?.accreditation_date || '',
+  accreditation_date: normalizeDateInput(props.cooperative?.accreditation_date),
 });
 
 const coopTypes = [
@@ -63,34 +107,63 @@ const coopTypes = [
   'Health Services', 'Housing', 'Insurance', 'Laboratory', 'Transport', 'Water Service', 'Workers',
 ];
 
-onMounted(async () => {
-  await fetchRegions();
+const filteredCoopTypes = computed(() => {
+  const query = coopTypeSearch.value.trim().toLowerCase();
 
-  if (props.cooperative?.region) {
-    const region = regions.value.find((r) => r.name === props.cooperative?.region);
+  if (!query) return coopTypes;
+
+  return coopTypes.filter((type) => type.toLowerCase().includes(query));
+});
+
+const selectCoopType = (type: string) => {
+  form.coop_type = type;
+  form.clearErrors('coop_type');
+  isCoopTypeDialogOpen.value = false;
+};
+
+const clearCoopType = () => {
+  form.coop_type = '';
+};
+
+onMounted(async () => {
+  try {
+    await fetchRegions();
+
+    if (!props.cooperative) return;
+
+    const region = findByNameOrCode(regions.value, props.cooperative.region);
     if (region) {
       selectedRegionCode.value = region.code;
+      form.region = region.name;
       await fetchProvinces(region.code);
     }
-  }
 
-  if (props.cooperative?.province) {
-    const province = provinces.value.find((p) => p.name === props.cooperative?.province);
+    const province = findByNameOrCode(provinces.value, props.cooperative.province);
     if (province) {
       selectedProvinceCode.value = province.code;
+      form.province = province.name;
       await fetchCities(province.code);
     }
-  }
 
-  if (props.cooperative?.city_municipality) {
-    const city = cities.value.find((c) => c.name === props.cooperative?.city_municipality);
+    const city = findByNameOrCode(cities.value, props.cooperative.city_municipality);
     if (city) {
       selectedCityCode.value = city.code;
+      form.city_municipality = city.name;
+      await fetchBarangays(city.code);
     }
+
+    if (props.cooperative.barangay) {
+      const barangay = findByNameOrCode(barangays.value, props.cooperative.barangay);
+      form.barangay = barangay?.name || props.cooperative.barangay;
+    }
+  } finally {
+    isHydrating.value = false;
   }
 });
 
 watch(selectedRegionCode, async (newRegion) => {
+  if (isHydrating.value) return;
+
   if (newRegion && newRegion !== 'all') {
     await fetchProvinces(newRegion);
     const region = regions.value.find((r) => r.code === newRegion);
@@ -107,10 +180,15 @@ watch(selectedRegionCode, async (newRegion) => {
     form.province = '';
     form.city_municipality = '';
     form.barangay = '';
+    provinces.value = [];
+    cities.value = [];
+    barangays.value = [];
   }
 });
 
 watch(selectedProvinceCode, async (newProvince) => {
+  if (isHydrating.value) return;
+
   if (newProvince && newProvince !== 'all') {
     await fetchCities(newProvince);
     const province = provinces.value.find((p) => p.code === newProvince);
@@ -123,20 +201,32 @@ watch(selectedProvinceCode, async (newProvince) => {
     form.province = '';
     form.city_municipality = '';
     form.barangay = '';
+    cities.value = [];
+    barangays.value = [];
   }
 });
 
-watch(selectedCityCode, (newCity) => {
+watch(selectedCityCode, async (newCity) => {
+  if (isHydrating.value) return;
+
   if (newCity && newCity !== 'all') {
+    await fetchBarangays(newCity);
     const city = cities.value.find((c) => c.code === newCity);
     form.city_municipality = city?.name || '';
     form.barangay = '';
   } else {
     form.city_municipality = '';
+    form.barangay = '';
+    barangays.value = [];
   }
 });
 
 const submit = () => {
+  if (!form.coop_type) {
+    form.setError('coop_type', 'Please select a cooperative type.');
+    return;
+  }
+
   if (props.method === 'post') {
     form.post(props.action, { preserveScroll: true });
   } else {
@@ -166,13 +256,18 @@ const submit = () => {
           </div>
           <div>
             <Label for="coop_type">Cooperative Type <span class="text-red-500">*</span></Label>
-            <Select v-model="form.coop_type" required>
-              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.coop_type}"><SelectValue placeholder="Select type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Select type</SelectItem>
-                <SelectItem v-for="type in coopTypes" :key="type" :value="type">{{ type }}</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button
+              id="coop_type"
+              type="button"
+              variant="outline"
+              class="w-full justify-between font-normal"
+              :class="{'border-red-500 focus-visible:ring-red-500': form.errors.coop_type, 'text-muted-foreground': !form.coop_type}"
+              @click="isCoopTypeDialogOpen = true"
+            >
+              <span class="truncate">{{ form.coop_type || 'Select cooperative type' }}</span>
+              <span class="text-xs text-muted-foreground">Choose</span>
+            </Button>
+            <p class="mt-1 text-xs text-muted-foreground">Use the picker to search and select a cooperative type.</p>
             <p v-if="form.errors.coop_type" class="mt-1 text-sm text-red-500">{{ form.errors.coop_type }}</p>
           </div>
           <div>
@@ -278,5 +373,55 @@ const submit = () => {
         <Button type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
       </div>
     </form>
+
+    <Dialog v-model:open="isCoopTypeDialogOpen">
+      <DialogContent class="max-w-xl p-0">
+        <DialogHeader class="border-b border-border px-6 py-4">
+          <DialogTitle>Select Cooperative Type</DialogTitle>
+          <DialogDescription>
+            Search and choose the cooperative type to avoid long scrolling in the form.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4 px-6 pb-6 pt-4">
+          <div class="relative">
+            <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              v-model="coopTypeSearch"
+              type="text"
+              placeholder="Search cooperative type..."
+              class="pl-9"
+            />
+          </div>
+
+          <div class="max-h-80 overflow-y-auto rounded-lg border border-border">
+            <label
+              v-for="type in filteredCoopTypes"
+              :key="type"
+              class="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-muted/30"
+            >
+              <input
+                type="radio"
+                name="coop-type-picker"
+                :value="type"
+                :checked="form.coop_type === type"
+                class="h-4 w-4 accent-primary"
+                @change="selectCoopType(type)"
+              />
+              <span class="font-medium text-foreground">{{ type }}</span>
+            </label>
+
+            <div v-if="filteredCoopTypes.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground">
+              No cooperative type matched your search.
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-3">
+            <Button type="button" variant="ghost" @click="clearCoopType">Clear selection</Button>
+            <Button type="button" variant="outline" @click="isCoopTypeDialogOpen = false">Close</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
