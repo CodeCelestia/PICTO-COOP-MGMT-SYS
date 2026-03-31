@@ -124,19 +124,19 @@ const toggleRole = (roleId: number) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">Register New Member</h1>
-                <p class="mt-1 text-sm text-gray-500">
+        <div class="space-y-6 p-4 md:p-6">
+            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Register New Member</h1>
+                <p class="mt-1 text-sm text-muted-foreground">
                     Create a new member profile
                 </p>
-            </div>
+            </section>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- Cooperative Association -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <Building2 class="h-5 w-5" />
                             Cooperative Association
                         </h2>
@@ -162,7 +162,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Personal Information -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <Users class="h-5 w-5" />
                             Personal Information
                         </h2>
@@ -231,7 +231,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Contact & Address Information -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <MapPin class="h-5 w-5" />
                             Contact & Address
                         </h2>
@@ -342,7 +342,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Membership Information -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900">Membership Information</h2>
+                        <h2 class="mb-4 text-lg font-semibold text-foreground">Membership Information</h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="date_joined">Date Joined</Label>
@@ -412,7 +412,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Socio-Economic Profile -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900">Socio-Economic Profile</h2>
+                        <h2 class="mb-4 text-lg font-semibold text-foreground">Socio-Economic Profile</h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="educational_attainment">Educational Attainment</Label>
@@ -475,7 +475,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Account Access -->
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <UserPlus class="h-5 w-5" />
                             Account Access
                         </h2>
@@ -534,8 +534,8 @@ const toggleRole = (roleId: number) => {
                                     :class="[
                                         'cursor-pointer border-2 transition-all',
                                         form.role_ids.includes(role.id)
-                                            ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                            : 'bg-gray-50 text-gray-500 border-gray-300 hover:border-gray-400'
+                                            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700'
+                                            : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
                                     ]"
                                 >
                                     <span class="flex items-center gap-1">
@@ -554,7 +554,7 @@ const toggleRole = (roleId: number) => {
                     </div>
 
                     <!-- Form Actions -->
-                    <div class="flex justify-end gap-3 border-t pt-6">
+                    <div class="flex justify-end gap-3 border-t border-border pt-6">
                         <Button @click="cancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
@@ -565,7 +565,7 @@ const toggleRole = (roleId: number) => {
                         </Button>
                     </div>
                 </form>
-            </div>
+            </section>
         </div>
     </AppLayout>
 </template>

@@ -152,14 +152,14 @@ const formatTerm = (start: string | null, end: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Officers & Committees</h1>
-                    <p class="mt-1 text-sm text-gray-500">Manage officer assignments and committees</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Officers & Committees</h1>
+                    <p class="text-sm text-muted-foreground">Manage officer assignments and committees</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link href="/committee-members" class="text-sm text-blue-600 hover:underline">
+                <div class="flex items-center gap-2 self-start">
+                    <Link href="/committee-members" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Committee Members
                     </Link>
                     <Link v-if="canCreateOfficer" href="/officers/create">
@@ -171,12 +171,12 @@ const formatTerm = (start: string | null, end: string | null) => {
                 </div>
             </div>
 
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Search</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                                 v-model="search"
                                 @keyup.enter="applyFilters"
@@ -186,7 +186,7 @@ const formatTerm = (start: string | null, end: string | null) => {
                         </div>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Cooperative</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Cooperatives" />
@@ -200,7 +200,7 @@ const formatTerm = (start: string | null, end: string | null) => {
                         </Select>
                     </div>
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Status</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
                         <Select v-model="status">
                             <SelectTrigger>
                                 <SelectValue placeholder="All Statuses" />
@@ -218,7 +218,7 @@ const formatTerm = (start: string | null, end: string | null) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[220px_1fr]">
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700">Rows Per Page</label>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
                         <div class="flex gap-2">
                             <Select v-model="perPage">
                                 <SelectTrigger>
@@ -243,7 +243,7 @@ const formatTerm = (start: string | null, end: string | null) => {
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
+                <div class="mt-5 flex flex-wrap gap-2">
                     <Button @click="applyFilters" class="gap-2">
                         <Search class="h-4 w-4" />
                         Apply Filters
@@ -252,81 +252,83 @@ const formatTerm = (start: string | null, end: string | null) => {
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                            <TableHead>Officer</TableHead>
-                            <TableHead>Cooperative</TableHead>
-                            <TableHead>Position</TableHead>
-                            <TableHead>Committee</TableHead>
-                            <TableHead>Term</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
+                                <TableHead class="text-muted-foreground">Officer</TableHead>
+                                <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                                <TableHead class="text-muted-foreground">Position</TableHead>
+                                <TableHead class="text-muted-foreground">Committee</TableHead>
+                                <TableHead class="text-muted-foreground">Term</TableHead>
+                                <TableHead class="text-muted-foreground">Status</TableHead>
+                                <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="officers.data.length === 0">
-                            <TableCell :colspan="showActions ? 7 : 6" class="text-center text-gray-500">
-                                No officer records found.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="officer in officers.data" :key="officer.id">
-                            <TableCell>
-                                <div class="flex items-center gap-3">
-                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                                        <Users class="h-4 w-4" />
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="officers.data.length === 0">
+                                <TableCell :colspan="showActions ? 7 : 6" class="py-8 text-center text-muted-foreground">
+                                    No officer records found.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="officer in officers.data" :key="officer.id">
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                            <Users class="h-4 w-4" />
+                                        </div>
+                                        <span class="font-medium text-foreground">{{ officer.member.full_name }}</span>
                                     </div>
-                                    <span class="font-medium text-gray-900">{{ officer.member.full_name }}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ officer.cooperative.name }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ officer.position }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ officer.committee || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatTerm(officer.term_start, officer.term_end) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ officer.status }}</TableCell>
-                            <TableCell v-if="showActions" class="text-center">
-                                <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="!isArchivedView && canEditOfficer" :href="`/officers/${officer.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
-                                            <Pencil class="h-4 w-4" />
-                                            Edit
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ officer.cooperative.name }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ officer.position }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ officer.committee || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatTerm(officer.term_start, officer.term_end) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ officer.status }}</TableCell>
+                                <TableCell v-if="showActions" class="text-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <Link v-if="!isArchivedView && canEditOfficer" :href="`/officers/${officer.id}/edit`">
+                                            <Button variant="ghost" size="sm" class="gap-2">
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            v-if="!isArchivedView && canDeleteOfficer"
+                                            @click="deleteOfficer(officer)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="gap-2 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            Delete
                                         </Button>
-                                    </Link>
-                                    <Button
-                                        v-if="!isArchivedView && canDeleteOfficer"
-                                        @click="deleteOfficer(officer)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-2 text-red-600 hover:text-red-700"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                    <Button
-                                        v-if="isArchivedView && canDeleteOfficer"
-                                        @click="restoreOfficer(officer)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="gap-2 text-emerald-700 hover:text-emerald-800"
-                                    >
-                                        <RotateCcw class="h-4 w-4" />
-                                        Restore
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+                                        <Button
+                                            v-if="isArchivedView && canDeleteOfficer"
+                                            @click="restoreOfficer(officer)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="gap-2 text-emerald-700 hover:text-emerald-800"
+                                        >
+                                            <RotateCcw class="h-4 w-4" />
+                                            Restore
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
 
-                <div v-if="officers.last_page > 1" class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="text-sm text-gray-500">
+                <div v-if="officers.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
                             Showing {{ (officers.current_page - 1) * officers.per_page + 1 }} to
                             {{ Math.min(officers.current_page * officers.per_page, officers.total) }} of
                             {{ officers.total }} officers
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex flex-wrap gap-2" aria-label="Officer pagination">
                             <Button
                                 v-for="page in officers.last_page"
                                 :key="page"

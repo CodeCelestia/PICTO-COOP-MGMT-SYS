@@ -613,13 +613,13 @@ const lastSavedDate = computed(() => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">My Personal Data Sheet</h1>
-                <p class="mt-1 text-sm text-gray-500">CS Form No. 212 Revised 2025</p>
-            </div>
+        <div class="space-y-6 p-4 md:p-6">
+            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">My Personal Data Sheet</h1>
+                <p class="mt-1 text-sm text-muted-foreground">CS Form No. 212 Revised 2025</p>
+            </section>
 
-            <div v-if="pds" class="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+            <section v-if="pds" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-200">
                 <p class="text-sm font-medium">
                     Your PDS was last saved on {{ lastSavedDate || 'a previous date' }}.
                     Download the official form using the button below.
@@ -629,21 +629,23 @@ const lastSavedDate = computed(() => {
                         <Button type="button" variant="outline">Download PDS (CS Form 212)</Button>
                     </a>
                 </div>
-            </div>
+            </section>
 
-            <div class="mb-6 flex flex-wrap gap-2">
-                <Button
-                    v-for="tab in tabs"
-                    :key="tab.id"
-                    type="button"
-                    :variant="activeTab === tab.id ? 'default' : 'outline'"
-                    @click="activeTab = tab.id"
-                >
-                    {{ tab.label }}
-                </Button>
-            </div>
+            <section class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-5">
+                <nav class="flex flex-wrap gap-2" aria-label="My PDS form sections">
+                    <Button
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        type="button"
+                        :variant="activeTab === tab.id ? 'default' : 'outline'"
+                        @click="activeTab = tab.id"
+                    >
+                        {{ tab.label }}
+                    </Button>
+                </nav>
+            </section>
 
-            <form class="space-y-6">
+            <form class="space-y-6" aria-label="My PDS form">
                 <PdsTabC1
                     v-if="openedTabs.has('c1')"
                     v-show="activeTab === 'c1'"
@@ -670,14 +672,16 @@ const lastSavedDate = computed(() => {
                 <PdsTabC3 v-if="openedTabs.has('c3')" v-show="activeTab === 'c3'" :form="form" />
                 <PdsTabC4 v-if="openedTabs.has('c4')" v-show="activeTab === 'c4'" :form="form" />
 
-                <div class="flex flex-wrap gap-3">
-                    <Button type="button" :disabled="form.processing" @click="submit(false)">
-                        {{ form.processing ? 'Saving...' : 'Save as Draft' }}
-                    </Button>
-                    <Button type="button" :disabled="form.processing" @click="submit(true)">
-                        {{ form.processing ? 'Saving...' : 'Save & Download PDS' }}
-                    </Button>
-                </div>
+                <section class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-5">
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="button" :disabled="form.processing" @click="submit(false)">
+                            {{ form.processing ? 'Saving...' : 'Save as Draft' }}
+                        </Button>
+                        <Button type="button" :disabled="form.processing" @click="submit(true)">
+                            {{ form.processing ? 'Saving...' : 'Save & Download PDS' }}
+                        </Button>
+                    </div>
+                </section>
             </form>
         </div>
     </AppLayout>

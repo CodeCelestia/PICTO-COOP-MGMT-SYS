@@ -120,16 +120,16 @@ const formatDateTime = (date: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">Edit Officer</h1>
-                <p class="mt-1 text-sm text-gray-500">Update officer assignment.</p>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="space-y-1">
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Officer</h1>
+                <p class="text-sm text-muted-foreground">Update officer assignment.</p>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
                 <form @submit.prevent="submit" class="space-y-6">
                     <div>
-                        <h2 class="mb-4 text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <Users class="h-5 w-5" />
                             Officer Details
                         </h2>
@@ -247,7 +247,7 @@ const formatDateTime = (date: string | null) => {
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-3 border-t pt-6">
+                    <div class="flex justify-end gap-3 border-t border-border pt-6">
                         <Button @click="cancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
@@ -260,39 +260,41 @@ const formatDateTime = (date: string | null) => {
                 </form>
             </div>
 
-            <div class="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 class="mb-4 text-lg font-semibold text-gray-900">Officer Term History</h2>
-                <Table>
+            <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                <h2 class="mb-4 text-lg font-semibold text-foreground">Officer Term History</h2>
+                <div class="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Position</TableHead>
-                            <TableHead>Committee</TableHead>
-                            <TableHead>Term</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Reason</TableHead>
-                            <TableHead>Recorded By</TableHead>
-                            <TableHead>Recorded At</TableHead>
+                            <TableHead class="text-muted-foreground">Position</TableHead>
+                            <TableHead class="text-muted-foreground">Committee</TableHead>
+                            <TableHead class="text-muted-foreground">Term</TableHead>
+                            <TableHead class="text-muted-foreground">Status</TableHead>
+                            <TableHead class="text-muted-foreground">Reason</TableHead>
+                            <TableHead class="text-muted-foreground">Recorded By</TableHead>
+                            <TableHead class="text-muted-foreground">Recorded At</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="termHistory.length === 0">
-                            <TableCell colspan="7" class="text-center text-gray-500">
+                            <TableCell colspan="7" class="py-8 text-center text-muted-foreground">
                                 No term history recorded yet.
                             </TableCell>
                         </TableRow>
                         <TableRow v-for="history in termHistory" :key="history.id">
-                            <TableCell class="text-sm text-gray-700">{{ history.position }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ history.committee || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">
+                            <TableCell class="text-sm text-foreground">{{ history.position }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ history.committee || 'N/A' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">
                                 {{ formatTerm(history.term_start, history.term_end) }}
                             </TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ history.status }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ history.reason_for_change || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ history.recorded_by || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDateTime(history.recorded_at) }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ history.status }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ history.reason_for_change || 'N/A' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ history.recorded_by || 'N/A' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ formatDateTime(history.recorded_at) }}</TableCell>
                         </TableRow>
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
             </div>
         </div>
     </AppLayout>

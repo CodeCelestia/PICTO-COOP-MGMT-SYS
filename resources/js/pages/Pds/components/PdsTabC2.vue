@@ -16,10 +16,10 @@ defineProps<{
 </script>
 
 <template>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+    <div class="space-y-8 rounded-xl border border-border bg-card p-6 shadow-sm">
         <section>
             <div class="mb-3 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Civil Service Eligibility</h2>
+                <h2 class="text-lg font-semibold text-foreground">Civil Service Eligibility</h2>
                 <Button type="button" variant="outline" @click="form.eligibility.push({ name: '', rating: '', exam_date: '', exam_place: '', license_number: '', license_validity: '' })">Add Row</Button>
             </div>
             <div v-for="(row, index) in form.eligibility" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -35,7 +35,7 @@ defineProps<{
 
         <section>
             <div class="mb-3 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Work Experience</h2>
+                <h2 class="text-lg font-semibold text-foreground">Work Experience</h2>
                 <Button type="button" variant="outline" @click="form.work_experience.push({ date_from: '', date_to: '', position_title: '', dept_agency: '', monthly_salary: '', salary_grade: '', status_appointment: '', govt_service: '' })">Add Row</Button>
             </div>
             <div v-for="(row, index) in form.work_experience" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-4">

@@ -61,11 +61,12 @@ const formatAmount = (amount: string | null) => {
 
 <template>
     <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div class="space-y-6 p-4 md:p-6">
+            <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Services Availed</h1>
-                    <p class="mt-1 text-sm text-gray-500">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Services Availed</h1>
+                    <p class="mt-1 text-sm text-muted-foreground">
                         {{ member.first_name }} {{ member.last_name }} · {{ member.cooperative.name }}
                     </p>
                 </div>
@@ -73,38 +74,41 @@ const formatAmount = (amount: string | null) => {
                     <Button variant="outline">Back to Member</Button>
                 </Link>
             </div>
+            </section>
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Service</TableHead>
-                            <TableHead>Details</TableHead>
-                            <TableHead>Date Availed</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Reference No</TableHead>
-                            <TableHead>Recorded By</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="services.length === 0">
-                            <TableCell colspan="7" class="text-center text-gray-500">
-                                No services availed recorded yet.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="service in services" :key="service.id">
-                            <TableCell class="text-sm text-gray-900">{{ service.service_type }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ service.service_detail || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(service.date_availed) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(service.amount) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ service.status }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ service.reference_no || 'N/A' }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ service.recorded_by || 'N/A' }}</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
+            <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Service</TableHead>
+                                <TableHead>Details</TableHead>
+                                <TableHead>Date Availed</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Reference No</TableHead>
+                                <TableHead>Recorded By</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="services.length === 0">
+                                <TableCell colspan="7" class="py-10 text-center text-muted-foreground">
+                                    No services availed recorded yet.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="service in services" :key="service.id">
+                                <TableCell class="text-sm text-foreground">{{ service.service_type }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ service.service_detail || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(service.date_availed) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(service.amount) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ service.status }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ service.reference_no || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ service.recorded_by || 'N/A' }}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
+            </section>
         </div>
     </AppLayout>
 </template>

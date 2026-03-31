@@ -18,10 +18,10 @@ defineProps<{
 </script>
 
 <template>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+    <div class="space-y-8 rounded-xl border border-border bg-card p-6 shadow-sm">
         <section>
             <div class="mb-3 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Voluntary Work</h2>
+                <h2 class="text-lg font-semibold text-foreground">Voluntary Work</h2>
                 <Button type="button" variant="outline" @click="form.voluntary_work.push({ organization: '', date_from: '', date_to: '', hours: '', position: '' })">Add Row</Button>
             </div>
             <div v-for="(row, index) in form.voluntary_work" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -36,7 +36,7 @@ defineProps<{
 
         <section>
             <div class="mb-3 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Learning & Development</h2>
+                <h2 class="text-lg font-semibold text-foreground">Learning & Development</h2>
                 <Button type="button" variant="outline" @click="form.learning_development.push({ title: '', date_from: '', date_to: '', hours: '', type: '', conducted_by: '' })">Add Row</Button>
             </div>
             <div v-for="(row, index) in form.learning_development" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">

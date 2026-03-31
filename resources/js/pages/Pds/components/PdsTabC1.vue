@@ -90,9 +90,9 @@ const copyAddressModel = computed({
 </script>
 
 <template>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+    <div class="space-y-8 rounded-xl border border-border bg-card p-6 shadow-sm">
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Section 1: Personal Information</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Section 1: Personal Information</h2>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div>
                     <Label>Surname *</Label>
@@ -201,7 +201,7 @@ const copyAddressModel = computed({
             </div>
 
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <h3 class="md:col-span-3 text-base font-semibold text-gray-800">Residential Address</h3>
+                <h3 class="md:col-span-3 text-base font-semibold text-foreground">Residential Address</h3>
                 <div><Label>House/Lot</Label><Input v-model="form.res_house_no" /></div>
                 <div><Label>Street</Label><Input v-model="form.res_street" /></div>
                 <div><Label>Subdivision</Label><Input v-model="form.res_subdivision" /></div>
@@ -263,8 +263,8 @@ const copyAddressModel = computed({
 
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="md:col-span-3 flex items-center gap-2">
-                    <h3 class="text-base font-semibold text-gray-800">Permanent Address</h3>
-                    <label class="flex items-center gap-2 text-sm text-gray-600">
+                    <h3 class="text-base font-semibold text-foreground">Permanent Address</h3>
+                    <label class="flex items-center gap-2 text-sm text-muted-foreground">
                         <input v-model="copyAddressModel" type="checkbox" class="h-4 w-4" />
                         Same as residential
                     </label>
@@ -330,7 +330,7 @@ const copyAddressModel = computed({
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Section 2: Family Background</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Section 2: Family Background</h2>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div><Label>Spouse Surname</Label><Input v-model="form.spouse_surname" /></div>
                 <div><Label>Spouse First Name</Label><Input v-model="form.spouse_firstname" /></div>
@@ -354,7 +354,7 @@ const copyAddressModel = computed({
 
             <div class="mt-6">
                 <div class="mb-3 flex items-center justify-between">
-                    <h3 class="text-base font-semibold text-gray-800">Children</h3>
+                    <h3 class="text-base font-semibold text-foreground">Children</h3>
                     <Button type="button" variant="outline" @click="form.children.push({ name: '', date_of_birth: '' })">Add Child</Button>
                 </div>
                 <div v-for="(child, index) in form.children" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -368,10 +368,10 @@ const copyAddressModel = computed({
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Section 3: Education</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Section 3: Education</h2>
             <div class="space-y-4">
-                <div v-for="level in educationLevels" :key="level.key" class="rounded-md border border-gray-200 p-4">
-                    <h3 class="mb-3 font-semibold text-gray-800">{{ level.label }}</h3>
+                <div v-for="level in educationLevels" :key="level.key" class="rounded-md border border-border bg-muted/30 p-4">
+                    <h3 class="mb-3 font-semibold text-foreground">{{ level.label }}</h3>
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div><Label>School Name</Label><Input v-model="form.education[level.key].school_name" /></div>
                         <div><Label>Degree/Course</Label><Input v-model="form.education[level.key].degree" /></div>

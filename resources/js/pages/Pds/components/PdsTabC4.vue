@@ -72,9 +72,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm space-y-8">
+    <div class="space-y-8 rounded-xl border border-border bg-card p-6 shadow-sm">
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Other Information</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Other Information</h2>
 
             <div class="mb-5">
                 <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Special Skills</h3><Button type="button" variant="outline" @click="form.special_skills.push('')">Add</Button></div>
@@ -102,8 +102,8 @@ onUnmounted(() => {
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Yes/No Questions</h2>
-            <div v-for="question in yesNoQuestions" :key="question.key" class="mb-4 rounded-md border border-gray-200 p-4">
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Yes/No Questions</h2>
+            <div v-for="question in yesNoQuestions" :key="question.key" class="mb-4 rounded-md border border-border bg-muted/30 p-4">
                 <Label class="mb-2 block">{{ question.text }}</Label>
                 <div class="flex gap-4">
                     <label class="flex items-center gap-2"><input type="radio" :name="question.key" value="Yes" v-model="form[question.key]" /> Yes</label>
@@ -118,7 +118,7 @@ onUnmounted(() => {
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">References</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">References</h2>
             <div v-for="(row, index) in form.references" :key="index" class="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div><Label>Name</Label><Input v-model="row.name" /></div>
                 <div><Label>Address</Label><Input v-model="row.address" /></div>
@@ -127,7 +127,7 @@ onUnmounted(() => {
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Government ID</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Government ID</h2>
             <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div><Label>Government-issued ID</Label><Input v-model="form.govt_id_type" /></div>
                 <div><Label>ID No</Label><Input v-model="form.govt_id_no" /></div>
@@ -137,7 +137,7 @@ onUnmounted(() => {
         </section>
 
         <section>
-            <h2 class="mb-4 text-lg font-semibold text-gray-900">Signature</h2>
+            <h2 class="mb-4 text-lg font-semibold text-foreground">Signature</h2>
             <div class="max-w-sm">
                 <Label>Date Signed</Label>
                 <Input v-model="form.signature_date" type="date" />
