@@ -3,38 +3,75 @@ import * as THREE from 'three';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 const host = ref<HTMLElement | null>(null);
+type Runtime = {
+    host: HTMLElement | null;
+    renderer: THREE.WebGLRenderer | null;
+    scene: THREE.Scene | null;
+    camera: THREE.PerspectiveCamera | null;
+    frameId: number;
+    clock: THREE.Clock | null;
+    visibilityPaused: boolean;
+    networkGroup: THREE.Group | null;
+    structures: THREE.InstancedMesh | null;
+    rings: THREE.Group | null;
+    geometryDisposables: THREE.BufferGeometry[];
+    materialDisposables: THREE.Material[];
+    mediaQueryList: MediaQueryList | null;
+    mediaChangeHandler: ((event: MediaQueryListEvent) => void) | null;
+    visibilityHandler: (() => void) | null;
+    resizeHandler: (() => void) | null;
+    structurePositions: Array<{ x: number; y: number; z: number; scale: number; phase: number }>;
+    initialized: boolean;
+};
 
-let renderer: THREE.WebGLRenderer | null = null;
-let scene: THREE.Scene | null = null;
-let camera: THREE.PerspectiveCamera | null = null;
-let frameId = 0;
-let clock: THREE.Clock | null = null;
-let visibilityPaused = false;
+type GlobalRuntime = typeof globalThis & {
+    __landingBackgroundRuntime__?: Runtime;
+    __landingBackgroundCleanup__?: boolean;
+};
 
-let networkGroup: THREE.Group | null = null;
-let structures: THREE.InstancedMesh | null = null;
-let rings: THREE.Group | null = null;
+const globalRuntime = globalThis as GlobalRuntime;
 
-const geometryDisposables: THREE.BufferGeometry[] = [];
-const materialDisposables: THREE.Material[] = [];
-let mediaQueryList: MediaQueryList | null = null;
-let mediaChangeHandler: ((event: MediaQueryListEvent) => void) | null = null;
-let visibilityHandler: (() => void) | null = null;
+const createRuntime = (): Runtime => ({
+    host: null,
+    renderer: null,
+    scene: null,
+    camera: null,
+    frameId: 0,
+    clock: null,
+    visibilityPaused: false,
+    networkGroup: null,
+    structures: null,
+    rings: null,
+    geometryDisposables: [],
+    materialDisposables: [],
+    mediaQueryList: null,
+    mediaChangeHandler: null,
+    visibilityHandler: null,
+    resizeHandler: null,
+    structurePositions: [],
+    initialized: false,
+});
 
-const structurePositions: Array<{ x: number; y: number; z: number; scale: number; phase: number }> = [];
+const getRuntime = () => {
+    if (!globalRuntime.__landingBackgroundRuntime__) {
+        globalRuntime.__landingBackgroundRuntime__ = createRuntime();
+    }
 
-const addDisposableGeometry = <T extends THREE.BufferGeometry>(geometry: T): T => {
-    geometryDisposables.push(geometry);
+    return globalRuntime.__landingBackgroundRuntime__;
+};
+
+const addDisposableGeometry = <T extends THREE.BufferGeometry>(runtime: Runtime, geometry: T): T => {
+    runtime.geometryDisposables.push(geometry);
     return geometry;
 };
 
-const addDisposableMaterial = <T extends THREE.Material>(material: T): T => {
-    materialDisposables.push(material);
+const addDisposableMaterial = <T extends THREE.Material>(runtime: Runtime, material: T): T => {
+    runtime.materialDisposables.push(material);
     return material;
 };
 
-const makeNetwork = (nodeCount: number) => {
-    const pointsGeometry = addDisposableGeometry(new THREE.BufferGeometry());
+const makeNetwork = (runtime: Runtime, nodeCount: number) => {
+    const pointsGeometry = addDisposableGeometry(runtime, new THREE.BufferGeometry());
     const positions = new Float32Array(nodeCount * 3);
     const connectionCap = 4;
     const connectionThreshold = 5.4;
@@ -81,6 +118,7 @@ const makeNetwork = (nodeCount: number) => {
     pointsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
     const pointsMaterial = addDisposableMaterial(
+        runtime,
         new THREE.PointsMaterial({
             color: 0x68d8ff,
             size: 0.08,
@@ -94,10 +132,11 @@ const makeNetwork = (nodeCount: number) => {
 
     const points = new THREE.Points(pointsGeometry, pointsMaterial);
 
-    const linesGeometry = addDisposableGeometry(new THREE.BufferGeometry());
+    const linesGeometry = addDisposableGeometry(runtime, new THREE.BufferGeometry());
     linesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
 
     const linesMaterial = addDisposableMaterial(
+        runtime,
         new THREE.LineBasicMaterial({
             color: 0x2ea8d6,
             transparent: true,
@@ -115,9 +154,10 @@ const makeNetwork = (nodeCount: number) => {
     return { group, pointsMaterial, linesMaterial };
 };
 
-const makeIndustrialStructures = (count: number) => {
-    const boxGeometry = addDisposableGeometry(new THREE.BoxGeometry(0.4, 1, 0.4));
+const makeIndustrialStructures = (runtime: Runtime, count: number) => {
+    const boxGeometry = addDisposableGeometry(runtime, new THREE.BoxGeometry(0.4, 1, 0.4));
     const boxMaterial = addDisposableMaterial(
+        runtime,
         new THREE.MeshStandardMaterial({
             color: 0x255f75,
             roughness: 0.55,
@@ -140,7 +180,7 @@ const makeIndustrialStructures = (count: number) => {
         const scale = 0.6 + Math.random() * 2.1;
         const phase = Math.random() * Math.PI * 2;
 
-        structurePositions.push({ x, y, z, scale, phase });
+        runtime.structurePositions.push({ x, y, z, scale, phase });
 
         matrix.compose(
             new THREE.Vector3(x, y, z),
@@ -153,12 +193,13 @@ const makeIndustrialStructures = (count: number) => {
     return mesh;
 };
 
-const makeRings = () => {
+const makeRings = (runtime: Runtime) => {
     const group = new THREE.Group();
 
     const torusA = new THREE.Mesh(
-        addDisposableGeometry(new THREE.TorusGeometry(7.5, 0.09, 16, 120)),
+        addDisposableGeometry(runtime, new THREE.TorusGeometry(7.5, 0.09, 16, 120)),
         addDisposableMaterial(
+            runtime,
             new THREE.MeshBasicMaterial({
                 color: 0x87dcff,
                 transparent: true,
@@ -168,8 +209,9 @@ const makeRings = () => {
     );
 
     const torusB = new THREE.Mesh(
-        addDisposableGeometry(new THREE.TorusGeometry(10, 0.06, 16, 120)),
+        addDisposableGeometry(runtime, new THREE.TorusGeometry(10, 0.06, 16, 120)),
         addDisposableMaterial(
+            runtime,
             new THREE.MeshBasicMaterial({
                 color: 0x26a5c7,
                 transparent: true,
@@ -190,48 +232,55 @@ const makeRings = () => {
 };
 
 const onResize = () => {
-    if (!renderer || !camera || !host.value) {
+    const runtime = getRuntime();
+    if (!runtime.renderer || !runtime.camera) {
         return;
     }
 
-    const width = host.value.clientWidth;
-    const height = host.value.clientHeight;
+    const width = runtime.host?.clientWidth ?? window.innerWidth;
+    const height = runtime.host?.clientHeight ?? window.innerHeight;
 
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    runtime.camera.aspect = width / height;
+    runtime.camera.updateProjectionMatrix();
 
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    runtime.renderer.setSize(width, height);
+    runtime.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 };
 
 const animate = () => {
-    if (!renderer || !scene || !camera || !clock) {
+    const runtime = getRuntime();
+    if (!runtime.renderer || !runtime.scene || !runtime.camera || !runtime.clock) {
         return;
     }
 
-    if (visibilityPaused) {
-        frameId = window.requestAnimationFrame(animate);
+    runtime.frameId = window.requestAnimationFrame(animate);
+
+    if (runtime.visibilityPaused) {
         return;
     }
 
-    const elapsed = clock.getElapsedTime();
-
-    if (networkGroup) {
-        networkGroup.rotation.y = elapsed * 0.055;
-        networkGroup.rotation.x = Math.sin(elapsed * 0.23) * 0.08;
+    if (!runtime.host) {
+        return;
     }
 
-    if (rings) {
-        rings.rotation.z = elapsed * 0.07;
-        rings.rotation.x = Math.sin(elapsed * 0.16) * 0.04;
+    const elapsed = runtime.clock.getElapsedTime();
+
+    if (runtime.networkGroup) {
+        runtime.networkGroup.rotation.y = elapsed * 0.055;
+        runtime.networkGroup.rotation.x = Math.sin(elapsed * 0.23) * 0.08;
     }
 
-    if (structures) {
+    if (runtime.rings) {
+        runtime.rings.rotation.z = elapsed * 0.07;
+        runtime.rings.rotation.x = Math.sin(elapsed * 0.16) * 0.04;
+    }
+
+    if (runtime.structures) {
         const matrix = new THREE.Matrix4();
         const quaternion = new THREE.Quaternion();
 
-        for (let i = 0; i < structurePositions.length; i += 1) {
-            const base = structurePositions[i];
+        for (let i = 0; i < runtime.structurePositions.length; i += 1) {
+            const base = runtime.structurePositions[i];
             const pulse = Math.sin(elapsed * 1.4 + base.phase) * 0.25;
             const y = base.y + pulse;
             const yScale = Math.max(0.35, base.scale + pulse * 0.35);
@@ -241,37 +290,94 @@ const animate = () => {
                 quaternion,
                 new THREE.Vector3(1, yScale, 1),
             );
-            structures.setMatrixAt(i, matrix);
+            runtime.structures.setMatrixAt(i, matrix);
         }
 
-        structures.instanceMatrix.needsUpdate = true;
+        runtime.structures.instanceMatrix.needsUpdate = true;
     }
 
-    renderer.render(scene, camera);
-    frameId = window.requestAnimationFrame(animate);
+    runtime.renderer.render(runtime.scene, runtime.camera);
 };
 
-onMounted(() => {
-    if (!host.value) {
+const attachRendererToHost = (runtime: Runtime, container: HTMLElement) => {
+    if (!runtime.renderer) {
         return;
     }
 
-    scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x030910, 10, 44);
+    const canvas = runtime.renderer.domElement;
+    if (canvas.parentElement !== container) {
+        canvas.parentElement?.removeChild(canvas);
+        container.appendChild(canvas);
+    }
 
-    camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
-    camera.position.set(0, 1.6, 19);
+    onResize();
+};
 
-    renderer = new THREE.WebGLRenderer({
+const disposeRuntime = (runtime: Runtime) => {
+    if (runtime.mediaQueryList && runtime.mediaChangeHandler) {
+        runtime.mediaQueryList.removeEventListener('change', runtime.mediaChangeHandler);
+    }
+
+    if (runtime.visibilityHandler) {
+        document.removeEventListener('visibilitychange', runtime.visibilityHandler);
+    }
+
+    if (runtime.resizeHandler) {
+        window.removeEventListener('resize', runtime.resizeHandler);
+    }
+
+    if (runtime.frameId) {
+        window.cancelAnimationFrame(runtime.frameId);
+        runtime.frameId = 0;
+    }
+
+    runtime.geometryDisposables.forEach((geometry) => geometry.dispose());
+    runtime.materialDisposables.forEach((material) => material.dispose());
+
+    if (runtime.renderer) {
+        runtime.renderer.dispose();
+        runtime.renderer.domElement.parentElement?.removeChild(runtime.renderer.domElement);
+    }
+
+    runtime.structurePositions.length = 0;
+    runtime.geometryDisposables.length = 0;
+    runtime.materialDisposables.length = 0;
+
+    runtime.renderer = null;
+    runtime.scene = null;
+    runtime.camera = null;
+    runtime.clock = null;
+    runtime.networkGroup = null;
+    runtime.structures = null;
+    runtime.rings = null;
+    runtime.mediaQueryList = null;
+    runtime.mediaChangeHandler = null;
+    runtime.visibilityHandler = null;
+    runtime.resizeHandler = null;
+    runtime.host = null;
+    runtime.initialized = false;
+};
+
+const initializeRuntime = (runtime: Runtime) => {
+    if (runtime.initialized) {
+        return;
+    }
+
+    runtime.scene = new THREE.Scene();
+    runtime.scene.fog = new THREE.Fog(0x030910, 10, 44);
+
+    runtime.camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
+    runtime.camera.position.set(0, 1.6, 19);
+
+    runtime.renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
         powerPreference: 'high-performance',
     });
 
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    host.value.appendChild(renderer.domElement);
+    runtime.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    runtime.renderer.setClearColor(0x000000, 0);
+    runtime.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
     const ambientLight = new THREE.AmbientLight(0x77b5cb, 0.75);
     const keyLight = new THREE.DirectionalLight(0x9fe7ff, 0.95);
@@ -279,84 +385,76 @@ onMounted(() => {
     const rimLight = new THREE.DirectionalLight(0xff9d57, 0.6);
     rimLight.position.set(-7, -1, 5);
 
-    scene.add(ambientLight, keyLight, rimLight);
+    runtime.scene.add(ambientLight, keyLight, rimLight);
 
-    const viewportWidth = host.value.clientWidth;
+    const viewportWidth = runtime.host?.clientWidth ?? window.innerWidth;
     const nodeCount = viewportWidth < 640 ? 90 : viewportWidth < 1024 ? 140 : 200;
     const structureCount = viewportWidth < 640 ? 14 : viewportWidth < 1024 ? 24 : 32;
 
-    const network = makeNetwork(nodeCount);
-    networkGroup = network.group;
-    scene.add(networkGroup);
+    const network = makeNetwork(runtime, nodeCount);
+    runtime.networkGroup = network.group;
+    runtime.scene.add(runtime.networkGroup);
 
-    structures = makeIndustrialStructures(structureCount);
-    scene.add(structures);
+    runtime.structures = makeIndustrialStructures(runtime, structureCount);
+    runtime.scene.add(runtime.structures);
 
-    rings = makeRings();
-    scene.add(rings);
+    runtime.rings = makeRings(runtime);
+    runtime.scene.add(runtime.rings);
 
-    clock = new THREE.Clock();
+    runtime.clock = new THREE.Clock();
     onResize();
 
-    visibilityHandler = () => {
-        visibilityPaused = document.hidden;
+    runtime.visibilityHandler = () => {
+        runtime.visibilityPaused = document.hidden;
     };
 
-    document.addEventListener('visibilitychange', visibilityHandler);
-    window.addEventListener('resize', onResize, { passive: true });
+    runtime.resizeHandler = () => onResize();
 
-    mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (mediaQueryList.matches) {
-        visibilityPaused = true;
+    document.addEventListener('visibilitychange', runtime.visibilityHandler);
+    window.addEventListener('resize', runtime.resizeHandler, { passive: true });
+
+    runtime.mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+    runtime.visibilityPaused = runtime.mediaQueryList.matches || document.hidden;
+
+    runtime.mediaChangeHandler = (event: MediaQueryListEvent) => {
+        runtime.visibilityPaused = event.matches || document.hidden;
+    };
+
+    runtime.mediaQueryList.addEventListener('change', runtime.mediaChangeHandler);
+
+    runtime.initialized = true;
+    animate();
+
+    if (!globalRuntime.__landingBackgroundCleanup__) {
+        window.addEventListener('beforeunload', () => disposeRuntime(runtime), {
+            once: true,
+        });
+        globalRuntime.__landingBackgroundCleanup__ = true;
+    }
+};
+
+onMounted(() => {
+    if (!host.value) {
+        return;
     }
 
-    mediaChangeHandler = (event: MediaQueryListEvent) => {
-        visibilityPaused = event.matches;
-    };
+    const runtime = getRuntime();
+    runtime.host = host.value;
 
-    mediaQueryList.addEventListener('change', mediaChangeHandler);
-    frameId = window.requestAnimationFrame(animate);
+    initializeRuntime(runtime);
+    attachRendererToHost(runtime, host.value);
 });
 
 onBeforeUnmount(() => {
-    if (mediaQueryList && mediaChangeHandler) {
-        mediaQueryList.removeEventListener('change', mediaChangeHandler);
+    const runtime = getRuntime();
+
+    if (runtime.host === host.value) {
+        runtime.host = null;
     }
 
-    if (visibilityHandler) {
-        document.removeEventListener('visibilitychange', visibilityHandler);
+    if (host.value && runtime.renderer?.domElement.parentElement === host.value) {
+        host.value.removeChild(runtime.renderer.domElement);
     }
-
-    window.removeEventListener('resize', onResize);
-
-    if (frameId) {
-        window.cancelAnimationFrame(frameId);
-        frameId = 0;
-    }
-
-    geometryDisposables.forEach((geometry) => geometry.dispose());
-    materialDisposables.forEach((material) => material.dispose());
-
-    if (renderer) {
-        renderer.dispose();
-
-        if (renderer.domElement.parentNode) {
-            renderer.domElement.parentNode.removeChild(renderer.domElement);
-        }
-    }
-
-    structurePositions.length = 0;
-
-    renderer = null;
-    scene = null;
-    camera = null;
-    clock = null;
-    networkGroup = null;
-    structures = null;
-    rings = null;
-    mediaQueryList = null;
-    mediaChangeHandler = null;
-    visibilityHandler = null;
 });
 </script>
 

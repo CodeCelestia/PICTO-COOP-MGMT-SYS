@@ -194,6 +194,8 @@ const trainingTargetOptions = ['All Members', 'Officers Only', 'Women', 'Youth',
 const memberStatusOptions = ['Active', 'Suspended', 'Resigned', 'Deceased'];
 
 const selectedTrendPeriod = ref(props.coopTrends?.period ?? 'month');
+const growthChartType = ref<'line' | 'bar'>('line');
+const sectorChartType = ref<'bars' | 'donut'>('bars');
 
 const trendFilters = ref({
     memberStatus: props.coopTrends?.filters.member_status ?? '',
@@ -356,6 +358,15 @@ type TrendMarker = {
     value: number;
 };
 
+type SystemBarPoint = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    value: number;
+    label: string;
+};
+
 const systemChartWidth = 640;
 const systemChartHeight = 220;
 const systemChartPaddingX = 24;
@@ -404,6 +415,30 @@ const systemTrendAreaPoints = computed(() => {
     return `${firstPoint.x},${baselineY} ${systemTrendPoints.value} ${lastPoint.x},${baselineY}`;
 });
 
+const systemTrendBarPoints = computed<SystemBarPoint[]>(() => {
+    if (!systemTrendValues.value.length) {
+        return [];
+    }
+
+    const drawableWidth = systemChartWidth - systemChartPaddingX * 2;
+    const drawableHeight = systemChartHeight - systemChartPaddingY * 2;
+    const slotWidth = drawableWidth / systemTrendValues.value.length;
+    const barWidth = Math.max(10, slotWidth * 0.55);
+
+    return systemTrendValues.value.map((value, index) => {
+        const height = (value / systemTrendMax.value) * drawableHeight;
+
+        return {
+            x: systemChartPaddingX + index * slotWidth + (slotWidth - barWidth) / 2,
+            y: systemChartHeight - systemChartPaddingY - height,
+            width: barWidth,
+            height,
+            value,
+            label: systemTrendLabels.value[index] ?? `Point ${index + 1}`,
+        };
+    });
+});
+
 const sectorValues = computed(() => props.sectorDistribution?.values ?? []);
 const sectorLabels = computed(() => props.sectorDistribution?.labels ?? []);
 const sectorTotal = computed(() => props.sectorDistribution?.total ?? 0);
@@ -420,6 +455,40 @@ const sectorBars = computed(() =>
         };
     })
 );
+
+type SectorDonutSegment = {
+    label: string;
+    value: number;
+    percentage: number;
+    color: string;
+    dash: number;
+    offset: number;
+};
+
+const sectorPalette = ['#2563eb', '#7c3aed', '#059669', '#ea580c', '#dc2626', '#0891b2', '#65a30d', '#db2777'];
+
+const sectorDonutSegments = computed<SectorDonutSegment[]>(() => {
+    if (!sectorBars.value.length || !sectorTotal.value) {
+        return [];
+    }
+
+    let cumulative = 0;
+
+    return sectorBars.value.map((bar, index) => {
+        const percentage = (bar.value / sectorTotal.value) * 100;
+        const segment = {
+            label: bar.label,
+            value: bar.value,
+            percentage,
+            color: sectorPalette[index % sectorPalette.length],
+            dash: percentage,
+            offset: 25 - cumulative,
+        };
+
+        cumulative += percentage;
+        return segment;
+    });
+});
 
 const getRoleBadgeColor = (roleName: string) => {
     const colors: Record<string, string> = {
@@ -922,112 +991,235 @@ const getMembershipBadgeColor = (status: string | null) => {
                 <!-- Analytics Panels -->
                 <div v-if="!props.isCoopAdmin && !props.isMember" class="grid gap-4 md:col-span-2">
                     <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
-                        <div class="flex items-center justify-between border-b border-slate-200/70 p-6">
-                            <div>
-                                <h2 class="text-lg font-semibold text-slate-900">Growth Analytics</h2>
-                                <p class="text-sm text-slate-500">Membership and activity trend</p>
-                            </div>
-                            <Badge class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white dark:bg-slate-100 dark:text-slate-900">
-                                Weekly
-                            </Badge>
+                        <div class="border-b border-slate-200/70 p-6">
+                            <h2 class="text-lg font-semibold text-slate-900">Analytics Overview</h2>
+                            <p class="text-sm text-slate-500">Growth and sector insights in one view.</p>
                         </div>
-                        <div class="p-6 pt-5">
-                            <div class="rounded-lg border border-slate-200/70 bg-slate-50/70 p-5">
-                            <div v-if="!systemTrendValues.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
-                                No growth data available.
-                            </div>
-                            <div v-else class="space-y-3">
-                                <svg
-                                    class="h-56 w-full"
-                                    :viewBox="`0 0 ${systemChartWidth} ${systemChartHeight}`"
-                                    role="img"
-                                    aria-label="User registration growth trend"
-                                >
-                                    <g>
-                                        <line
-                                            v-for="(lineY, index) in systemTrendGridLines"
-                                            :key="`system-grid-${index}`"
-                                            :x1="systemChartPaddingX"
-                                            :x2="systemChartWidth - systemChartPaddingX"
-                                            :y1="lineY"
-                                            :y2="lineY"
-                                            class="stroke-slate-200"
-                                        />
-                                    </g>
-                                    <polygon
-                                        :points="systemTrendAreaPoints"
-                                        fill="rgba(59, 130, 246, 0.18)"
-                                    />
-                                    <polyline
-                                        :points="systemTrendPoints"
-                                        fill="none"
-                                        stroke="#3b82f6"
-                                        stroke-width="3"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                    <circle
-                                        v-for="(point, index) in systemTrendMarkers"
-                                        :key="`system-point-${index}`"
-                                        :cx="point.x"
-                                        :cy="point.y"
-                                        r="4"
-                                        fill="#3b82f6"
-                                    >
-                                        <title>{{ systemTrendLabels[index] }}: {{ point.value }}</title>
-                                    </circle>
-                                </svg>
 
-                                <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-500 sm:grid-cols-3 lg:grid-cols-6">
-                                    <span
-                                        v-for="(label, index) in systemTrendLabels"
-                                        :key="`system-label-${index}`"
-                                        class="truncate"
-                                    >
-                                        {{ label }}
-                                    </span>
+                        <div class="grid gap-4 p-6 lg:grid-cols-2">
+                            <div class="rounded-lg border border-slate-200/70 bg-slate-50/70 p-5">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-slate-900">Growth Analytics</h3>
+                                        <p class="text-sm text-slate-500">Membership and activity trend</p>
+                                    </div>
+
+                                    <div class="inline-flex gap-1 rounded-lg bg-muted/55 p-1">
+                                        <button
+                                            type="button"
+                                            class="h-8 rounded-md border px-3 text-xs font-semibold transition-all duration-200"
+                                            :class="
+                                                growthChartType === 'line'
+                                                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-[0_10px_20px_-16px_hsl(var(--primary))]'
+                                                    : 'border-border/70 bg-background/80 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
+                                            "
+                                            @click="growthChartType = 'line'"
+                                        >
+                                            Line
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="h-8 rounded-md border px-3 text-xs font-semibold transition-all duration-200"
+                                            :class="
+                                                growthChartType === 'bar'
+                                                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-[0_10px_20px_-16px_hsl(var(--primary))]'
+                                                    : 'border-border/70 bg-background/80 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
+                                            "
+                                            @click="growthChartType = 'bar'"
+                                        >
+                                            Bar
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div v-if="!systemTrendValues.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
+                                        No growth data available.
+                                    </div>
+                                    <div v-else class="space-y-3">
+                                        <svg
+                                            class="h-56 w-full"
+                                            :viewBox="`0 0 ${systemChartWidth} ${systemChartHeight}`"
+                                            role="img"
+                                            aria-label="User registration growth trend"
+                                        >
+                                            <g>
+                                                <line
+                                                    v-for="(lineY, index) in systemTrendGridLines"
+                                                    :key="`system-grid-${index}`"
+                                                    :x1="systemChartPaddingX"
+                                                    :x2="systemChartWidth - systemChartPaddingX"
+                                                    :y1="lineY"
+                                                    :y2="lineY"
+                                                    class="stroke-slate-200"
+                                                />
+                                            </g>
+
+                                            <template v-if="growthChartType === 'line'">
+                                                <polygon
+                                                    :points="systemTrendAreaPoints"
+                                                    fill="rgba(59, 130, 246, 0.18)"
+                                                />
+                                                <polyline
+                                                    :points="systemTrendPoints"
+                                                    fill="none"
+                                                    stroke="#3b82f6"
+                                                    stroke-width="3"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                />
+                                                <circle
+                                                    v-for="(point, index) in systemTrendMarkers"
+                                                    :key="`system-point-${index}`"
+                                                    :cx="point.x"
+                                                    :cy="point.y"
+                                                    r="4"
+                                                    fill="#3b82f6"
+                                                >
+                                                    <title>{{ systemTrendLabels[index] }}: {{ point.value }}</title>
+                                                </circle>
+                                            </template>
+
+                                            <template v-else>
+                                                <rect
+                                                    v-for="(bar, index) in systemTrendBarPoints"
+                                                    :key="`system-bar-${index}`"
+                                                    :x="bar.x"
+                                                    :y="bar.y"
+                                                    :width="bar.width"
+                                                    :height="bar.height"
+                                                    rx="4"
+                                                    fill="#3b82f6"
+                                                >
+                                                    <title>{{ bar.label }}: {{ bar.value }}</title>
+                                                </rect>
+                                            </template>
+                                        </svg>
+
+                                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-500 sm:grid-cols-3 lg:grid-cols-6">
+                                            <span
+                                                v-for="(label, index) in systemTrendLabels"
+                                                :key="`system-label-${index}`"
+                                                class="truncate"
+                                            >
+                                                {{ label }}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
-                        <div class="flex items-center justify-between border-b border-slate-200/70 p-6">
-                            <div>
-                                <h2 class="text-lg font-semibold text-slate-900">Sector Distribution</h2>
-                                <p class="text-sm text-slate-500">Active cooperatives by sector</p>
-                            </div>
-                            <Badge class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-600 dark:bg-slate-600 dark:text-slate-100">
-                                Updated
-                            </Badge>
-                        </div>
-                        <div class="p-6 pt-5">
+
                             <div class="rounded-lg border border-slate-200/70 bg-slate-50/70 p-5">
-                            <div v-if="!sectorBars.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
-                                No sector distribution data available.
-                            </div>
-                            <div v-else class="space-y-3">
-                                <div
-                                    v-for="(bar, index) in sectorBars"
-                                    :key="`sector-${bar.label}-${index}`"
-                                    class="space-y-1"
-                                >
-                                    <div class="flex items-center justify-between text-xs">
-                                        <span class="font-medium text-slate-700">{{ bar.label }}</span>
-                                        <span class="text-slate-500">{{ bar.value }}</span>
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-slate-900">Sector Distribution</h3>
+                                        <p class="text-sm text-slate-500">Active cooperatives by sector</p>
                                     </div>
-                                    <div class="h-2.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800/70">
+
+                                    <div class="inline-flex gap-1 rounded-lg bg-muted/55 p-1">
+                                        <button
+                                            type="button"
+                                            class="h-8 rounded-md border px-3 text-xs font-semibold transition-all duration-200"
+                                            :class="
+                                                sectorChartType === 'bars'
+                                                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-[0_10px_20px_-16px_hsl(var(--primary))]'
+                                                    : 'border-border/70 bg-background/80 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
+                                            "
+                                            @click="sectorChartType = 'bars'"
+                                        >
+                                            Bars
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="h-8 rounded-md border px-3 text-xs font-semibold transition-all duration-200"
+                                            :class="
+                                                sectorChartType === 'donut'
+                                                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-[0_10px_20px_-16px_hsl(var(--primary))]'
+                                                    : 'border-border/70 bg-background/80 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
+                                            "
+                                            @click="sectorChartType = 'donut'"
+                                        >
+                                            Donut
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div v-if="!sectorBars.length" class="flex h-56 items-center justify-center text-sm text-slate-500">
+                                        No sector distribution data available.
+                                    </div>
+
+                                    <div v-else-if="sectorChartType === 'bars'" class="space-y-3">
                                         <div
-                                            class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500"
-                                            :style="{ width: `${bar.percent}%` }"
-                                        />
+                                            v-for="(bar, index) in sectorBars"
+                                            :key="`sector-${bar.label}-${index}`"
+                                            class="space-y-1"
+                                        >
+                                            <div class="flex items-center justify-between text-xs">
+                                                <span class="font-medium text-slate-700">{{ bar.label }}</span>
+                                                <span class="text-slate-500">{{ bar.value }}</span>
+                                            </div>
+                                            <div class="h-2.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800/70">
+                                                <div
+                                                    class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500"
+                                                    :style="{ width: `${bar.percent}%` }"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div class="pt-1 text-xs text-slate-500">
+                                            Total cooperatives: {{ sectorTotal }}
+                                        </div>
+                                    </div>
+
+                                    <div v-else class="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-center">
+                                        <div class="mx-auto flex items-center justify-center">
+                                            <svg
+                                                class="h-48 w-48"
+                                                viewBox="0 0 120 120"
+                                                role="img"
+                                                aria-label="Sector distribution donut chart"
+                                            >
+                                                <circle cx="60" cy="60" r="42" fill="none" stroke="rgba(148,163,184,0.25)" stroke-width="16" />
+                                                <circle
+                                                    v-for="(segment, index) in sectorDonutSegments"
+                                                    :key="`sector-donut-${segment.label}-${index}`"
+                                                    cx="60"
+                                                    cy="60"
+                                                    r="42"
+                                                    fill="none"
+                                                    :stroke="segment.color"
+                                                    stroke-width="16"
+                                                    stroke-linecap="butt"
+                                                    pathLength="100"
+                                                    :stroke-dasharray="`${segment.dash} ${100 - segment.dash}`"
+                                                    :stroke-dashoffset="segment.offset"
+                                                    transform="rotate(-90 60 60)"
+                                                >
+                                                    <title>{{ segment.label }}: {{ segment.value }} ({{ segment.percentage.toFixed(1) }}%)</title>
+                                                </circle>
+                                            </svg>
+                                        </div>
+
+                                        <div class="space-y-2">
+                                            <div
+                                                v-for="(segment, index) in sectorDonutSegments"
+                                                :key="`sector-legend-${segment.label}-${index}`"
+                                                class="flex items-center justify-between gap-3 text-xs"
+                                            >
+                                                <span class="flex items-center gap-2 text-slate-700">
+                                                    <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: segment.color }" />
+                                                    {{ segment.label }}
+                                                </span>
+                                                <span class="text-slate-500">{{ segment.value }} ({{ segment.percentage.toFixed(1) }}%)</span>
+                                            </div>
+
+                                            <div class="pt-1 text-xs text-slate-500">
+                                                Total cooperatives: {{ sectorTotal }}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div class="pt-1 text-xs text-slate-500">
-                                    Total cooperatives: {{ sectorTotal }}
-                                </div>
-                            </div>
                             </div>
                         </div>
                     </Card>

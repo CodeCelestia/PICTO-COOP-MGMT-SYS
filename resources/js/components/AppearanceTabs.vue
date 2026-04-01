@@ -12,22 +12,21 @@ const tabs = [
 </script>
 
 <template>
-    <div
-        class="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800"
-    >
+    <div class="grid grid-cols-1 gap-2 rounded-xl bg-muted/55 p-2 sm:grid-cols-3">
         <button
             v-for="{ value, Icon, label } in tabs"
             :key="value"
             @click="updateAppearance(value)"
             :class="[
-                'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
+                'flex items-center justify-center gap-2 rounded-lg border px-3.5 py-2.5 text-sm font-medium transition-all duration-200',
                 appearance === value
-                    ? 'bg-white shadow-xs dark:bg-neutral-700 dark:text-neutral-100'
-                    : 'text-neutral-500 hover:bg-neutral-200/60 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-700/60',
+                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-[0_10px_20px_-16px_hsl(var(--primary))]'
+                    : 'border-border/70 bg-background/80 text-muted-foreground hover:border-border hover:text-foreground',
             ]"
+            :aria-pressed="appearance === value"
         >
-            <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
+            <component :is="Icon" class="h-4 w-4" />
+            <span>{{ label }}</span>
         </button>
     </div>
 </template>
