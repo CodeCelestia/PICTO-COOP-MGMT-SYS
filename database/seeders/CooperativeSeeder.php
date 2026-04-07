@@ -97,7 +97,10 @@ class CooperativeSeeder extends Seeder
         ];
 
         foreach ($cooperatives as $cooperative) {
-            Cooperative::create($cooperative);
+            Cooperative::updateOrCreate(
+                ['registration_number' => $cooperative['registration_number']],
+                $cooperative
+            );
         }
     }
 }

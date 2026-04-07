@@ -125,6 +125,11 @@ const resolveTab = (url: string) => {
     return tabs.some((item) => item.id === tab) ? tab! : 'members';
 };
 
+const managementBasePath = computed(() => {
+    const [path] = page.url.split('?');
+    return path || '/members/management';
+});
+
 watch(
     () => page.url,
     (url) => {
@@ -160,7 +165,7 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                         <MemberListPanel
                             :members="members"
                             :filters="memberFilters"
-                            base-url="/members/management?tab=members"
+                            :base-url="`${managementBasePath}?tab=members`"
                             query-prefix="members_"
                         />
                     </div>
@@ -180,7 +185,7 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                             :activities="activities"
                             :cooperatives="cooperatives"
                             :filters="activityFilters"
-                            base-url="/members/management?tab=activities"
+                            :base-url="`${managementBasePath}?tab=activities`"
                             query-prefix="activities_"
                             :lock-coop-id="coopId"
                         />
@@ -191,7 +196,7 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                             :trainings="trainings"
                             :cooperatives="cooperatives"
                             :filters="trainingFilters"
-                            base-url="/members/management?tab=trainings"
+                            :base-url="`${managementBasePath}?tab=trainings`"
                             query-prefix="trainings_"
                             :lock-coop-id="coopId"
                         />

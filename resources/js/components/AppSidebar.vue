@@ -180,7 +180,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     if (canViewMembersManagement.value && !isCoopAdmin.value && canViewCoops.value) {
         items.push({
             title: 'Members Management',
-            href: '/members/management/select',
+            href: '/members/management',
             icon: Users,
         });
     }
