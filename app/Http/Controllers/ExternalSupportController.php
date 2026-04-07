@@ -17,27 +17,21 @@ class ExternalSupportController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
     }
 
     private function enforceCoopScope(int $coopId): void
@@ -94,6 +88,16 @@ class ExternalSupportController extends Controller
             'cooperatives' => $cooperativesQuery->get(),
             'financialRecords' => $financialQuery->get(),
             'filters' => $request->only(['search', 'support_type', 'status', 'coop_id', 'per_page']),
+        ]);
+    }
+
+    public function select(): Response
+    {
+        return Inertia::render('Cooperatives/Select', [
+            'title' => 'External Supports',
+            'description' => 'Select a cooperative to view external supports.',
+            'targetUrl' => '/external-supports',
+            'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 

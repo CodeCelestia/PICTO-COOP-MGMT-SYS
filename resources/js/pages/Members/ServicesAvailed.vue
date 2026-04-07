@@ -1,15 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
+import ServiceAvailedListPanel from '@/components/panels/ServiceAvailedListPanel.vue';
 
 interface Cooperative {
     id: number;
@@ -41,22 +34,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-const formatDate = (date: string | null) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
-};
-
-const formatAmount = (amount: string | null) => {
-    if (!amount) return 'N/A';
-    const value = Number(amount);
-    if (Number.isNaN(value)) return amount;
-    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 </script>
 
 <template>
@@ -76,39 +53,7 @@ const formatAmount = (amount: string | null) => {
             </div>
             </section>
 
-            <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                <div class="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Service</TableHead>
-                                <TableHead>Details</TableHead>
-                                <TableHead>Date Availed</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Reference No</TableHead>
-                                <TableHead>Recorded By</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow v-if="services.length === 0">
-                                <TableCell colspan="7" class="py-10 text-center text-muted-foreground">
-                                    No services availed recorded yet.
-                                </TableCell>
-                            </TableRow>
-                            <TableRow v-for="service in services" :key="service.id">
-                                <TableCell class="text-sm text-foreground">{{ service.service_type }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ service.service_detail || 'N/A' }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(service.date_availed) }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(service.amount) }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ service.status }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ service.reference_no || 'N/A' }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ service.recorded_by || 'N/A' }}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </div>
-            </section>
+            <ServiceAvailedListPanel :services="services" />
         </div>
     </AppLayout>
 </template>

@@ -53,8 +53,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdate = computed(() => permissions.value.includes('update training-&-capacity'));
 
 const form = useForm({
     coop_id: props.skill.coop_id.toString(),
@@ -79,6 +81,7 @@ const filteredTrainings = computed(() => {
 });
 
 const submit = () => {
+    if (!canUpdate.value) return;
     form.put(`/skill-inventories/${props.skill.id}`, {
         preserveScroll: true,
     });
@@ -204,7 +207,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdate" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Skill
                         </Button>

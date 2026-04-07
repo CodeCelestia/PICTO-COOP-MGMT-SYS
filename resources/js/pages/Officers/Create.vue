@@ -34,8 +34,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 
 const form = useForm({
     coop_id: props.cooperatives[0]?.id?.toString() || '',
@@ -55,6 +57,7 @@ const filteredMembers = computed(() => {
 });
 
 const submit = () => {
+    if (!canCreateOfficer.value) return;
     form.post('/officers', {
         preserveScroll: true,
     });
@@ -199,7 +202,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canCreateOfficer" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Save Officer
                         </Button>

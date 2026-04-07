@@ -19,27 +19,21 @@ class TrainingParticipantController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
     }
 
     private function enforceCoopScope(int $coopId): void

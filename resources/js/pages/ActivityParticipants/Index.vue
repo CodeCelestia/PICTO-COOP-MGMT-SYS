@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
 interface Cooperative {
@@ -76,15 +77,11 @@ const props = defineProps<Props>();
 const filters = computed(() => props.filters);
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { roles?: string[]; isCoopAdmin?: boolean; user?: { account_type?: string } } | undefined);
-const roles = computed<string[]>(() => auth.value?.roles || []);
-const accountType = computed(() => auth.value?.user?.account_type as string | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
-const isOfficer = computed(() => roles.value.includes('Officer') || accountType.value === 'Officer');
-const canCreate = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
-const canEdit = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value);
-const canDelete = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
+const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
+const canDelete = computed(() => permissions.value.includes('delete activities-&-projects'));
 const canBulkDelete = computed(() => canDelete.value);
 const showActions = computed(() => canEdit.value || canDelete.value);
 
@@ -127,6 +124,7 @@ const resetFilters = () => {
 };
 
 const deleteParticipant = async (participant: Participant) => {
+    if (!canDelete.value) return;
     const confirmed = await confirmAction({
         title: 'Remove participant?',
         text: 'This action cannot be undone.',
@@ -212,8 +210,13 @@ const bulkDeleteParticipants = async () => {
                 </div>
                 </div>
 
-                <div class="mt-5 border-t border-border/60 pt-5">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                <FilterPanel
+                    title="Filters"
+                    description="Show activity participant filters when ready."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
@@ -288,7 +291,7 @@ const bulkDeleteParticipants = async () => {
                     </Button>
                     <Button @click="resetFilters" variant="outline">Clear Filters</Button>
                 </div>
-            </div>
+            </FilterPanel>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

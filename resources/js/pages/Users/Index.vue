@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { Users, Plus, X, Calendar, MessageSquare, UserPlus, Mail, Lock, User as UserIcon, Pencil, Trash2, Eye } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -79,6 +79,13 @@ const props = defineProps<{
     cooperatives: Cooperative[];
 }>();
 
+const page = usePage();
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canCreateUsers = computed(() => permissions.value.includes('create user-accounts'));
+const canUpdateUsers = computed(() => permissions.value.includes('update user-accounts'));
+const canDeleteUsers = computed(() => permissions.value.includes('delete user-accounts'));
+const canManagePermissions = computed(() => permissions.value.includes('manage-permissions'));
+
 const isAssignDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const isViewDialogOpen = ref(false);
@@ -116,6 +123,7 @@ const createForm = useForm({
 });
 
 const openAssignDialog = (user: User) => {
+    if (!canUpdateUsers.value) return;
     selectedUser.value = user;
     selectedRoleId.value = null;
     expiresAt.value = '';
@@ -137,11 +145,12 @@ const editForm = useForm({
 });
 
 const isCoopAdminAccount = (user: User | null) => {
-    return user?.account_type === 'Coop Admin';
+    return (user?.roles || []).some((role) => role.name === 'Coop Admin');
 };
 
 
 const openEditDialog = (user: User) => {
+    if (!canUpdateUsers.value) return;
     selectedUser.value = user;
     editForm.name = user.name;
     editForm.email = user.email;
@@ -151,6 +160,7 @@ const openEditDialog = (user: User) => {
 };
 
 const updateUser = () => {
+    if (!canUpdateUsers.value) return;
     if (!selectedUser.value) return;
 
     editForm.put(`/users/${selectedUser.value.id}`, {
@@ -162,6 +172,7 @@ const updateUser = () => {
 };
 
 const deleteUser = async (user: User) => {
+    if (!canDeleteUsers.value) return;
     const confirmed = await confirmAction({
         title: 'Delete user?',
         text: `Delete user "${user.name}"? This cannot be undone.`,
@@ -181,6 +192,7 @@ const getCoopName = (coopId: number | null | undefined) => {
 };
 
 const assignRole = () => {
+    if (!canUpdateUsers.value) return;
     if (!selectedUser.value || !selectedRoleId.value) return;
 
     if (isCoopAdminRole(selectedRoleId.value) && !selectedCoopId.value) return;
@@ -199,6 +211,7 @@ const assignRole = () => {
 };
 
 const removeRole = async (user: User, roleId: number) => {
+    if (!canUpdateUsers.value) return;
     const confirmed = await confirmAction({
         title: 'Remove role?',
         text: 'Are you sure you want to remove this role?',
@@ -259,11 +272,13 @@ const getAccountStatusBadgeColor = (accountStatus: string | undefined) => {
 };
 
 const openCreateDialog = () => {
+    if (!canCreateUsers.value) return;
     createForm.reset();
     isCreateDialogOpen.value = true;
 };
 
 const openRoleDialog = () => {
+    if (!canManagePermissions.value) return;
     roleForm.reset();
     roleForm.clearErrors();
     isEditingRole.value = false;
@@ -272,6 +287,7 @@ const openRoleDialog = () => {
 };
 
 const startEditRole = (role: Role) => {
+    if (!canManagePermissions.value) return;
     roleForm.name = role.name;
     roleForm.description = role.description || '';
     roleForm.level = role.level?.toString() || '';
@@ -290,11 +306,20 @@ const cancelEditRole = () => {
 };
 
 const saveRole = () => {
+    if (!canManagePermissions.value) return;
+    // Temporarily convert is_active to boolean
+    const tempValue = roleForm.is_active;
+    roleForm.is_active = roleForm.is_active === 'true';
+    
     if (isEditingRole.value && editingRoleId.value) {
         roleForm.put(`/roles/${editingRoleId.value}`, {
             preserveScroll: true,
             onSuccess: () => {
                 cancelEditRole();
+            },
+            onError: () => {
+                // Restore string value on error for re-editing
+                roleForm.is_active = tempValue;
             },
         });
         return;
@@ -305,10 +330,15 @@ const saveRole = () => {
         onSuccess: () => {
             roleForm.reset();
         },
+        onError: () => {
+            // Restore string value on error for re-editing
+            roleForm.is_active = tempValue;
+        },
     });
 };
 
 const deleteRole = async (role: Role) => {
+    if (!canManagePermissions.value) return;
     const confirmed = await confirmAction({
         title: 'Delete role?',
         text: `Delete role "${role.name}"? This cannot be undone.`,
@@ -328,6 +358,7 @@ const deleteRole = async (role: Role) => {
 };
 
 const createUser = () => {
+    if (!canCreateUsers.value) return;
     createForm.post('/users', {
         preserveScroll: true,
         onSuccess: () => {
@@ -368,11 +399,11 @@ const requiresCoop = () => {
                             </p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <Button @click="openRoleDialog" variant="outline" class="gap-2">
+                            <Button v-if="canManagePermissions" @click="openRoleDialog" variant="outline" class="gap-2">
                                 <Plus class="h-4 w-4" />
                                 Add Role
                             </Button>
-                            <Button @click="openCreateDialog" class="gap-2">
+                            <Button v-if="canCreateUsers" @click="openCreateDialog" class="gap-2">
                                 <UserPlus class="h-4 w-4" />
                                 Create User
                             </Button>
@@ -437,6 +468,7 @@ const requiresCoop = () => {
                                                 >
                                                     {{ role.name }}
                                                     <button
+                                                        v-if="canUpdateUsers"
                                                         type="button"
                                                         @click="removeRole(user, role.id)"
                                                         :aria-label="`Remove ${role.name} from ${user.name}`"
@@ -459,6 +491,7 @@ const requiresCoop = () => {
                                                 </div>
                                             </div>
                                             <Button
+                                                v-if="canUpdateUsers"
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
@@ -483,6 +516,7 @@ const requiresCoop = () => {
                                                 View
                                             </Button>
                                             <Button
+                                                v-if="canUpdateUsers"
                                                 variant="ghost"
                                                 size="sm"
                                                 class="gap-1.5"
@@ -493,6 +527,7 @@ const requiresCoop = () => {
                                                 Edit
                                             </Button>
                                             <Button
+                                                v-if="canDeleteUsers"
                                                 variant="ghost"
                                                 size="sm"
                                                 class="gap-1.5 text-red-600 hover:text-red-700"
@@ -503,6 +538,7 @@ const requiresCoop = () => {
                                                 Delete
                                             </Button>
                                             <Button
+                                                v-if="canUpdateUsers"
                                                 variant="ghost"
                                                 size="sm"
                                                 class="gap-1.5"
@@ -608,7 +644,7 @@ const requiresCoop = () => {
             </Dialog>
 
             <!-- Edit User Dialog -->
-            <Dialog v-model:open="isEditDialogOpen">
+            <Dialog v-if="canUpdateUsers" v-model:open="isEditDialogOpen">
                 <DialogContent class="sm:max-w-125">
                     <DialogHeader>
                         <DialogTitle>Edit User</DialogTitle>
@@ -698,7 +734,7 @@ const requiresCoop = () => {
             </Dialog>
 
             <!-- Assign Role Dialog -->
-            <Dialog v-model:open="isAssignDialogOpen">
+            <Dialog v-if="canUpdateUsers" v-model:open="isAssignDialogOpen">
                 <DialogContent class="sm:max-w-125">
                     <DialogHeader>
                         <DialogTitle>Assign Role to {{ selectedUser?.name }}</DialogTitle>
@@ -796,7 +832,7 @@ const requiresCoop = () => {
             </Dialog>
 
             <!-- Create User Dialog -->
-            <Dialog v-model:open="isCreateDialogOpen">
+            <Dialog v-if="canCreateUsers" v-model:open="isCreateDialogOpen">
                 <DialogContent class="sm:max-w-125">
                     <DialogHeader>
                         <DialogTitle>Create New User</DialogTitle>
@@ -937,7 +973,7 @@ const requiresCoop = () => {
             </Dialog>
 
             <!-- Role Management Dialog -->
-            <Dialog v-model:open="isRoleDialogOpen">
+            <Dialog v-if="canManagePermissions" v-model:open="isRoleDialogOpen">
                 <DialogContent class="w-full max-w-3xl sm:max-w-4xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Role Management</DialogTitle>

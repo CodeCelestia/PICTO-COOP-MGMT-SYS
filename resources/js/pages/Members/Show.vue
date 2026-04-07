@@ -1,50 +1,24 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Pencil, CheckCircle2 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAppBackgroundPreference } from '@/composables/useAppBackgroundPreference';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
+import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
+import type { Member } from '@/types/models';
 
-interface Cooperative {
-    id: number;
-    name: string;
-}
-
-interface Member {
-    id: number;
-    coop_id: number;
-    first_name: string;
-    last_name: string;
-    full_name?: string;
-    birth_date: string | null;
-    gender: string | null;
-    address: string | null;
-    region: string | null;
-    province: string | null;
-    city_municipality: string | null;
-    barangay: string | null;
-    phone: string | null;
-    email: string | null;
-    date_joined: string | null;
-    membership_type: string | null;
-    membership_status: string | null;
-    share_capital: string | null;
-    educational_attainment: string | null;
-    primary_livelihood: string | null;
-    sector: string | null;
-    cooperative: Cooperative;
-}
+type MemberProps = Member;
 
 interface Props {
-    member: Member;
+    member: MemberProps;
     userAccount: {
         email: string;
         roles: string[];
     } | null;
-    servicesAvailed: Array<{
+    services: Array<{
         id: number;
         service_type: string;
         service_detail: string | null;
@@ -56,12 +30,23 @@ interface Props {
         remarks: string | null;
         recorded_by: string | null;
     }>;
-    activityParticipants: Array<{
+    activities: Array<{
         id: number;
-        activity: string | null;
+        title: string | null;
+        category: string | null;
+        date_started: string | null;
+        date_ended: string | null;
         role: string | null;
-        date_joined: string | null;
         is_beneficiary: boolean;
+    }>;
+    trainings: Array<{
+        id: number;
+        title: string | null;
+        category: string | null;
+        date_from: string | null;
+        date_to: string | null;
+        venue: string | null;
+        status: string | null;
     }>;
 }
 
@@ -73,7 +58,17 @@ const accountType = computed(() => page.props.auth?.user?.account_type as string
 const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
 const isCoopAdmin = computed(() => roles.value.includes('Coop Admin') || accountType.value === 'Coop Admin');
 const canEditMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value || roles.value.includes('Officer'));
+const backToListHref = computed(() => (isCoopAdmin.value ? '/cooperatives/my?tab=members' : '/members'));
 const { isAppBackgroundVisible } = useAppBackgroundPreference();
+
+const tabs: LiftedTab[] = [
+    { id: 'profile', label: 'Member Profile' },
+    { id: 'services', label: 'Services' },
+    { id: 'activities', label: 'Activities and Projects' },
+    { id: 'trainings', label: 'Trainings' },
+];
+
+const activeTab = ref('profile');
 
 const detailsCardClass = computed(() =>
     isAppBackgroundVisible.value
@@ -100,6 +95,8 @@ const badgeStyle = (status: string | null) => {
     return map[status || ''] ?? 'bg-slate-100 text-slate-700 border-slate-200';
 };
 
+const isOfficerMember = computed(() => (props.member.active_officers_count || 0) > 0);
+
 const fullName = `${props.member.first_name} ${props.member.last_name}`;
 
 const fullAddress = computed(() => {
@@ -115,6 +112,12 @@ const fullAddress = computed(() => {
             .join(', ') || 'N/A'
     );
 });
+
+const formatDateRange = (start: string | null, end: string | null) => {
+    if (!start && !end) return 'N/A';
+    if (start && end && start !== end) return `${formatDate(start)} - ${formatDate(end)}`;
+    return formatDate(start || end);
+};
 
 const memberInfoPanelClass = computed(() =>
     isAppBackgroundVisible.value
@@ -132,17 +135,11 @@ const memberInfoPanelClass = computed(() =>
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground">Member Details</h1>
                     </div>
                     <div class="flex shrink-0 flex-wrap items-center gap-2">
-                        <Link href="/members">
+                        <Link :href="backToListHref">
                             <Button variant="outline" size="sm" class="gap-2">
                                 <ArrowLeft class="h-4 w-4" />
                                 Back to list
                             </Button>
-                        </Link>
-                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/services-availed`">
-                            <Button variant="outline" size="sm">Services</Button>
-                        </Link>
-                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/activity-participants`">
-                            <Button variant="outline" size="sm">Activities</Button>
                         </Link>
                         <Link v-if="canEditMember" :href="`/members/${props.member.id}/edit`">
                             <Button size="sm" class="gap-2">
@@ -156,6 +153,9 @@ const memberInfoPanelClass = computed(() =>
                 <div class="mb-5 flex flex-col gap-2 border-b pb-4" :class="isAppBackgroundVisible ? 'border-border/40' : 'border-border'">
                     <div class="flex flex-wrap items-center gap-2">
                         <h2 class="text-xl font-semibold text-foreground">{{ fullName }}</h2>
+                        <Badge variant="outline" class="text-[11px]">
+                            {{ isOfficerMember ? 'Officer' : 'Member' }}
+                        </Badge>
                         <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
                             <CheckCircle2 class="h-3.5 w-3.5" />
                             {{ props.member.membership_status || 'N/A' }}
@@ -164,6 +164,14 @@ const memberInfoPanelClass = computed(() =>
                     <p class="text-sm text-muted-foreground">{{ props.member.cooperative.name }}</p>
                 </div>
 
+                <div class="sticky top-18 z-30 -mx-1 rounded-lg bg-background/80 px-1 py-2 backdrop-blur">
+                    <LiftedTabs v-model="activeTab" :tabs="tabs" />
+                </div>
+            </section>
+        </div>
+
+        <div class="px-4 pb-6 md:px-6">
+            <div v-show="activeTab === 'profile'" class="space-y-4">
                 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <section :class="memberInfoPanelClass">
                         <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Personal Information</h3>
@@ -205,102 +213,135 @@ const memberInfoPanelClass = computed(() =>
                         </dl>
                     </section>
                 </div>
-            </section>
-        </div>
 
-        <div class="px-4 pb-6 md:px-6">
-            <div class="space-y-4">
-                    <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                        <h3 class="text-lg font-semibold text-foreground">Membership & Socio-Economic</h3>
-                        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Member status</h4>
-                                <p class="mt-2 text-sm text-foreground/90">{{ props.member.membership_type || 'N/A' }}</p>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Share capital</h4>
-                                <p class="mt-2 text-sm text-foreground/90">{{ props.member.share_capital ? '₱ ' + Number(props.member.share_capital).toLocaleString() : 'N/A' }}</p>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Sector</h4>
-                                <p class="mt-2 text-sm text-foreground/90">{{ props.member.sector || 'N/A' }}</p>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Education</h4>
-                                <p class="mt-2 text-sm text-foreground/90">{{ props.member.educational_attainment || 'N/A' }}</p>
-                            </div>
+                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-foreground">Membership & Socio-Economic</h3>
+                    <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div class="rounded-lg border border-border bg-muted/40 p-4">
+                            <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Member status</h4>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.membership_type || 'N/A' }}</p>
                         </div>
-                    </section>
+                        <div class="rounded-lg border border-border bg-muted/40 p-4">
+                            <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Share capital</h4>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.share_capital ? '₱ ' + Number(props.member.share_capital).toLocaleString() : 'N/A' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-border bg-muted/40 p-4">
+                            <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Sector</h4>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.sector || 'N/A' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-border bg-muted/40 p-4">
+                            <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Education</h4>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.educational_attainment || 'N/A' }}</p>
+                        </div>
+                    </div>
+                </section>
 
-                    <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-foreground">Account & Roles</h3>
-                        </div>
-                        <div class="mt-4 text-sm text-foreground/90">
-                            <div><strong>Accounts:</strong> {{ props.userAccount?.email || 'No linked account' }}</div>
-                            <div><strong>Roles:</strong> {{ props.userAccount?.roles.length ? props.userAccount.roles.join(', ') : 'N/A' }}</div>
-                        </div>
-                    </section>
+                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-foreground">Account & Roles</h3>
+                    </div>
+                    <div class="mt-4 text-sm text-foreground/90">
+                        <div><strong>Accounts:</strong> {{ props.userAccount?.email || 'No linked account' }}</div>
+                        <div><strong>Roles:</strong> {{ props.userAccount?.roles.length ? props.userAccount.roles.join(', ') : 'N/A' }}</div>
+                    </div>
+                </section>
+            </div>
 
-                    <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                        <h3 class="text-lg font-semibold text-foreground">Services Availed</h3>
-                        <div class="mt-4">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Service</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Recorded By</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow v-if="servicesAvailed.length === 0">
-                                        <TableCell :colspan="5" class="py-4 text-center text-muted-foreground">No service history yet.</TableCell>
-                                    </TableRow>
-                                    <TableRow v-for="item in servicesAvailed" :key="item.id">
-                                        <TableCell>{{ formatDate(item.date_availed) }}</TableCell>
-                                        <TableCell>{{ item.service_type }}</TableCell>
-                                        <TableCell>{{ item.status }}</TableCell>
-                                        <TableCell>{{ item.amount !== null ? '₱ ' + Number(item.amount).toLocaleString() : '–' }}</TableCell>
-                                        <TableCell>{{ item.recorded_by || '-' }}</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </section>
+            <div v-show="activeTab === 'services'" class="space-y-4">
+                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-foreground">Services Availed</h3>
+                    <div class="mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Service</TableHead>
+                                    <TableHead>Detail</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Remarks</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="services.length === 0">
+                                    <TableCell :colspan="6" class="py-4 text-center text-muted-foreground">No service history yet.</TableCell>
+                                </TableRow>
+                                <TableRow v-for="item in services" :key="item.id">
+                                    <TableCell>{{ formatDate(item.date_availed) }}</TableCell>
+                                    <TableCell>{{ item.service_type }}</TableCell>
+                                    <TableCell>{{ item.service_detail || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.status || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.amount !== null ? '₱ ' + Number(item.amount).toLocaleString() : '–' }}</TableCell>
+                                    <TableCell>{{ item.remarks || '-' }}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                </section>
+            </div>
 
-                    <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                        <h3 class="text-lg font-semibold text-foreground">Activity Participation</h3>
-                        <div class="mt-4">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Activity</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead>Beneficiary</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow v-if="activityParticipants.length === 0">
-                                        <TableCell :colspan="4" class="py-4 text-center text-muted-foreground">No activity engagements yet.</TableCell>
-                                    </TableRow>
-                                    <TableRow v-for="item in activityParticipants" :key="item.id">
-                                        <TableCell>{{ formatDate(item.date_joined) }}</TableCell>
-                                        <TableCell>{{ item.activity || 'N/A' }}</TableCell>
-                                        <TableCell>{{ item.role || 'N/A' }}</TableCell>
-                                        <TableCell>
-                                            <Badge :class="item.is_beneficiary ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'" class="border">
-                                                {{ item.is_beneficiary ? 'Yes' : 'No' }}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </section>
+            <div v-show="activeTab === 'activities'" class="space-y-4">
+                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-foreground">Activities and Projects</h3>
+                    <div class="mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Activity</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Beneficiary</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="activities.length === 0">
+                                    <TableCell :colspan="5" class="py-4 text-center text-muted-foreground">No activity participation yet.</TableCell>
+                                </TableRow>
+                                <TableRow v-for="item in activities" :key="item.id">
+                                    <TableCell>{{ item.title || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.category || 'N/A' }}</TableCell>
+                                    <TableCell>{{ formatDateRange(item.date_started, item.date_ended) }}</TableCell>
+                                    <TableCell>{{ item.role || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.is_beneficiary ? 'Yes' : 'No' }}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                </section>
+            </div>
+
+            <div v-show="activeTab === 'trainings'" class="space-y-4">
+                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-foreground">Trainings</h3>
+                    <div class="mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Training</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Date From</TableHead>
+                                    <TableHead>Date To</TableHead>
+                                    <TableHead>Venue</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="trainings.length === 0">
+                                    <TableCell :colspan="6" class="py-4 text-center text-muted-foreground">No trainings found.</TableCell>
+                                </TableRow>
+                                <TableRow v-for="item in trainings" :key="item.id">
+                                    <TableCell>{{ item.title || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.category || 'N/A' }}</TableCell>
+                                    <TableCell>{{ formatDate(item.date_from) }}</TableCell>
+                                    <TableCell>{{ formatDate(item.date_to) }}</TableCell>
+                                    <TableCell>{{ item.venue || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.status || 'N/A' }}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                </section>
             </div>
         </div>
     </AppLayout>

@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int $id
+ * @mixin \Illuminate\Database\Eloquent\Model
+ * @property-read int $id
  * @property string $name
  * @property string|null $registration_number
  * @property string|null $coop_type
@@ -24,12 +27,14 @@ use Spatie\Activitylog\LogOptions;
  * @property string|null $accreditation_status
  * @property \Illuminate\Support\Carbon|null $accreditation_date
  */
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 class Cooperative extends Model
 {
     use SoftDeletes;
     use LogsActivity;
+    use CoopScoped;
+
+    protected string $coopScopeKey = 'id';
+    protected bool $attachCoopId = false;
 
     protected $fillable = [
         'name',

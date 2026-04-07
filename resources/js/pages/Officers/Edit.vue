@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useForm, router, usePage } from '@inertiajs/vue3';
-import { Users, Save, X } from 'lucide-vue-next';
+import { useForm, router, usePage, Link } from '@inertiajs/vue3';
+import { Users, Save, X, ArrowLeft } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,8 +70,11 @@ const props = defineProps<Props>();
 const termHistory = computed(() => props.termHistory);
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdateOfficer = computed(() => permissions.value.includes('update officers-&-committees'));
+const backToListHref = computed(() => (isCoopAdmin.value ? '/cooperatives/my?tab=officers' : '/officers'));
 
 const form = useForm({
     coop_id: props.officer.coop_id.toString(),
@@ -91,13 +94,14 @@ const filteredMembers = computed(() => {
 });
 
 const submit = () => {
+    if (!canUpdateOfficer.value) return;
     form.put(`/officers/${props.officer.id}`, {
         preserveScroll: true,
     });
 };
 
 const cancel = () => {
-    router.get('/officers');
+    router.get(backToListHref.value);
 };
 
 const formatTerm = (start: string | null, end: string | null) => {
@@ -121,9 +125,17 @@ const formatDateTime = (date: string | null) => {
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="space-y-1">
-                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Officer</h1>
-                <p class="text-sm text-muted-foreground">Update officer assignment.</p>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Officer</h1>
+                    <p class="text-sm text-muted-foreground">Update officer assignment.</p>
+                </div>
+                <Link :href="backToListHref">
+                    <Button variant="outline" size="sm" class="gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back to list
+                    </Button>
+                </Link>
             </div>
 
             <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -252,7 +264,7 @@ const formatDateTime = (date: string | null) => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdateOfficer" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Officer
                         </Button>

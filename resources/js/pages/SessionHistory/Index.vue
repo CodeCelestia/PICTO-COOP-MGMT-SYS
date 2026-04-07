@@ -26,6 +26,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 
 interface User {
     id: number;
@@ -149,7 +150,12 @@ const hasActiveFilters = computed(() => {
             </div>
 
             <!-- Filters -->
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <FilterPanel
+                title="Filters"
+                description="Show session history filters when ready to refine results."
+                showLabel="Show filters"
+                hideLabel="Hide filters"
+            >
                 <div class="grid gap-4 md:grid-cols-4">
                     <!-- Search -->
                     <div class="relative">
@@ -213,7 +219,7 @@ const hasActiveFilters = computed(() => {
                         Clear Filters
                     </Button>
                 </div>
-            </div>
+            </FilterPanel>
 
             <!-- Sessions Table -->
             <div class="rounded-lg border border-gray-200 bg-white shadow-sm">

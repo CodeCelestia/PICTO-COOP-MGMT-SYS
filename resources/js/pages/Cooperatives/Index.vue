@@ -31,6 +31,7 @@ import {
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
 interface Cooperative {
@@ -76,16 +77,14 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const roles = computed<string[]>(() => (page.props.auth?.roles as string[]) || []);
-const accountType = computed(() => page.props.auth?.user?.account_type as string | undefined);
-const isCoopAdmin = computed(() => Boolean(page.props.auth?.isCoopAdmin));
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
-const canCreateCoop = computed(() => isProvincialAdmin.value);
-const canEditCoop = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
-const canDeleteCoop = computed(() => isProvincialAdmin.value);
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
+const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
+const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
+const canDeleteCoop = computed(() => permissions.value.includes('delete coop-master-profile'));
 const canBulkDelete = computed(() => canDeleteCoop.value && !isArchivedView.value && !isCoopAdminOnly.value);
-const showActions = computed(() => canEditCoop.value || canDeleteCoop.value);
-const isCoopAdminOnly = computed(() => isCoopAdmin.value && !isProvincialAdmin.value);
+const showActions = computed(() => canEditCoop.value || canDeleteCoop.value || canViewAllCoops.value);
+const isCoopAdminOnly = computed(() => !canViewAllCoops.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
 const isArchivedView = computed(() => status.value === 'Archived');
 
@@ -212,6 +211,11 @@ const deleteCooperative = async (cooperative: Cooperative) => {
     });
 };
 
+const goToCooperative = (cooperative: Cooperative) => {
+    if (!canViewAllCoops.value) return;
+    router.get(`/cooperatives/${cooperative.id}`);
+};
+
 const restoreCooperative = async (cooperative: Cooperative) => {
     const confirmed = await confirmAction({
         title: 'Restore cooperative?',
@@ -288,179 +292,180 @@ const formatFullAddress = (coop: Cooperative) => {
 
 <template>
     <AppLayout>
-        <div class="space-y-6 p-4 sm:p-6 lg:p-8">
-            <Card :class="['border-border/80 bg-card/95 shadow-sm', !isCoopAdminOnly ? 'rounded-b-none' : '']">
-                <CardContent class="p-5 sm:p-6">
-                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Cooperative Management</h1>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                Manage cooperative master profiles
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap items-center justify-end gap-2">
-                            <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
-                                <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
-                                <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteCooperatives">
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                    Delete Selected
-                                </Button>
-                                <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
-                                    Clear
-                                </Button>
-                            </div>
-                            <Link v-if="canCreateCoop" href="/cooperatives/create">
-                                <Button class="gap-2">
-                                    <Plus class="h-4 w-4" />
-                                    Register Cooperative
-                                </Button>
-                            </Link>
-                        </div>
+        <div class="space-y-6 p-4 md:p-6">
+            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Cooperative Management</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Manage cooperative master profiles
+                        </p>
                     </div>
-                </CardContent>
-            </Card>
+                    <div class="flex items-center gap-3">
+                        <Badge variant="outline" class="hidden sm:inline-flex">
+                            {{ cooperatives.total }} total
+                        </Badge>
+                        <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                            <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                            <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteCooperatives">
+                                <Trash2 class="h-3.5 w-3.5" />
+                                Delete Selected
+                            </Button>
+                            <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                                Clear
+                            </Button>
+                        </div>
+                        <Link v-if="canCreateCoop" href="/cooperatives/create">
+                            <Button class="gap-2">
+                                <Plus class="h-4 w-4" />
+                                Register Cooperative
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
 
-            <Card v-if="!isCoopAdminOnly" class="-mt-6 rounded-t-none border-border/80 border-t-0 bg-card shadow-sm">
-                <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">Filters</CardTitle>
-                    <CardDescription>Refine cooperative records by status, type, and location.</CardDescription>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Search</label>
-                            <div class="relative">
-                                <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    v-model="search"
-                                    @keyup.enter="applyFilters"
-                                    placeholder="Name, Reg #, Province..."
-                                    class="pl-9"
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
-                            <Select v-model="status">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="Active">Active</SelectItem>
-                                    <SelectItem value="Inactive">Inactive</SelectItem>
-                                    <SelectItem value="Suspended">Suspended</SelectItem>
-                                    <SelectItem value="Dissolved">Dissolved</SelectItem>
-                                    <SelectItem value="Archived">Archived</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Type</label>
-                            <Select v-model="coopType">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Types" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Types</SelectItem>
-                                    <SelectItem v-for="type in coopTypes" :key="type" :value="type">
-                                        {{ type }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Region</label>
-                            <Select v-model="selectedRegionCode">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Regions" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Regions</SelectItem>
-                                    <SelectItem
-                                        v-for="regionItem in regions"
-                                        :key="regionItem.code"
-                                        :value="regionItem.code"
-                                    >
-                                        {{ regionItem.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Province</label>
-                            <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Provinces" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Provinces</SelectItem>
-                                    <SelectItem
-                                        v-for="provinceItem in provinces"
-                                        :key="provinceItem.code"
-                                        :value="provinceItem.code"
-                                    >
-                                        {{ provinceItem.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Municipality</label>
-                            <Select v-model="selectedMunicipalityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Municipalities" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Municipalities</SelectItem>
-                                    <SelectItem
-                                        v-for="municipalityItem in cities"
-                                        :key="municipalityItem.code"
-                                        :value="municipalityItem.code"
-                                    >
-                                        {{ municipalityItem.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
-                            <div class="flex gap-2">
-                                <Select v-model="perPage">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select size" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">5</SelectItem>
-                                        <SelectItem value="15">15</SelectItem>
-                                        <SelectItem value="30">30</SelectItem>
-                                        <SelectItem value="custom">Custom</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Input
-                                    v-if="perPage === 'custom'"
-                                    v-model="customPerPage"
-                                    type="number"
-                                    min="1"
-                                    max="500"
-                                    placeholder="Enter"
-                                    class="w-28"
-                                />
-                            </div>
+                <FilterPanel
+                    v-if="!isCoopAdminOnly"
+                    title="Filters"
+                    description="Show filter fields to refine cooperative results."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Search</label>
+                        <div class="relative">
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                v-model="search"
+                                @keyup.enter="applyFilters"
+                                placeholder="Name, Reg #, Province..."
+                                class="pl-9"
+                            />
                         </div>
                     </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
+                        <Select v-model="status">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                                <SelectItem value="Suspended">Suspended</SelectItem>
+                                <SelectItem value="Dissolved">Dissolved</SelectItem>
+                                <SelectItem value="Archived">Archived</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Type</label>
+                        <Select v-model="coopType">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Types" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Types</SelectItem>
+                                <SelectItem v-for="type in coopTypes" :key="type" :value="type">
+                                    {{ type }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Region</label>
+                        <Select v-model="selectedRegionCode">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Regions" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Regions</SelectItem>
+                                <SelectItem
+                                    v-for="regionItem in regions"
+                                    :key="regionItem.code"
+                                    :value="regionItem.code"
+                                >
+                                    {{ regionItem.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Province</label>
+                        <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Provinces" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Provinces</SelectItem>
+                                <SelectItem
+                                    v-for="provinceItem in provinces"
+                                    :key="provinceItem.code"
+                                    :value="provinceItem.code"
+                                >
+                                    {{ provinceItem.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Municipality</label>
+                        <Select v-model="selectedMunicipalityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0">
+                            <SelectTrigger>
+                                <SelectValue placeholder="All Municipalities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Municipalities</SelectItem>
+                                <SelectItem
+                                    v-for="municipalityItem in cities"
+                                    :key="municipalityItem.code"
+                                    :value="municipalityItem.code"
+                                >
+                                    {{ municipalityItem.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
 
-                    <div class="flex flex-wrap gap-2">
-                        <Button @click="applyFilters" variant="default" class="gap-2">
-                            <Filter class="h-4 w-4" />
-                            Apply Filters
-                        </Button>
-                        <Button @click="resetFilters" variant="outline">
-                            Reset
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                <div class="flex flex-wrap gap-2">
+                    <Button @click="applyFilters" variant="default" class="gap-2">
+                        <Filter class="h-4 w-4" />
+                        Apply Filters
+                    </Button>
+                    <Button @click="resetFilters" variant="outline">
+                        Reset
+                    </Button>
+                </div>
+                </FilterPanel>
+            </section>
 
             <Card v-if="isCoopAdminOnly" class="border-border/80 bg-card shadow-sm">
                 <CardHeader>
@@ -562,11 +567,17 @@ const formatFullAddress = (coop: Cooperative) => {
                                         No cooperatives found
                                     </TableCell>
                                 </TableRow>
-                                <TableRow v-for="coop in cooperatives.data" :key="coop.id">
+                                <TableRow
+                                    v-for="coop in cooperatives.data"
+                                    :key="coop.id"
+                                    class="cursor-pointer"
+                                    @click="goToCooperative(coop)"
+                                >
                                     <TableCell v-if="canBulkDelete" class="w-12">
                                         <Checkbox
                                             :model-value="isSelected(coop.id)"
                                             :aria-label="`Select ${coop.name}`"
+                                            @click.stop
                                             @update:model-value="(checked) => toggleOne(coop.id, checked)"
                                         />
                                     </TableCell>
@@ -608,7 +619,7 @@ const formatFullAddress = (coop: Cooperative) => {
                                     </TableCell>
                                     <TableCell v-if="showActions" class="text-center">
                                         <div class="flex flex-wrap justify-center gap-2">
-                                            <Link v-if="canEditCoop" :href="`/cooperatives/${coop.id}/edit`">
+                                            <Link v-if="canEditCoop" :href="`/cooperatives/${coop.id}/edit`" @click.stop>
                                                 <Button variant="ghost" size="sm" class="gap-1">
                                                     <Pencil class="h-3 w-3" />
                                                     Edit
@@ -617,6 +628,7 @@ const formatFullAddress = (coop: Cooperative) => {
                                             <Button
                                                 v-if="canDeleteCoop && !isArchivedView"
                                                 @click="deleteCooperative(coop)"
+                                                @click.stop
                                                 variant="ghost"
                                                 size="sm"
                                                 class="gap-1 text-red-600 hover:text-red-700"
@@ -627,6 +639,7 @@ const formatFullAddress = (coop: Cooperative) => {
                                             <Button
                                                 v-if="canDeleteCoop && isArchivedView"
                                                 @click="restoreCooperative(coop)"
+                                                @click.stop
                                                 variant="ghost"
                                                 size="sm"
                                                 class="gap-1 text-emerald-600 hover:text-emerald-700"

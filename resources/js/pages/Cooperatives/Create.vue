@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { Building2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import CooperativeForm from '@/components/Cooperatives/CooperativeForm.vue';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
+
+const page = usePage();
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
 
 const cancel = () => {
     router.get('/cooperatives');
@@ -33,6 +38,7 @@ const cancel = () => {
                 action="/cooperatives"
                 method="post"
                 :onCancel="cancel"
+                :canSubmit="canCreateCoop"
             />
         </div>
     </AppLayout>

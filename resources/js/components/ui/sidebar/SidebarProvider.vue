@@ -114,8 +114,8 @@ provideSidebarContext({
         '--sidebar-menu-item-height': isLargeMode ? '44px' : '36px',
         '--sidebar-menu-item-height-lg': isLargeMode ? '52px' : '48px',
         '--sidebar-menu-icon-size': isLargeMode ? '24px' : '20px',
-        '--sidebar-menu-collapsed-size': isLargeMode ? '40px' : '32px',
-        '--sidebar-menu-collapsed-padding': isLargeMode ? '10px' : '8px',
+        '--sidebar-menu-collapsed-size': isLargeMode ? '48px' : '40px',
+        '--sidebar-menu-collapsed-padding': isLargeMode ? '12px' : '10px',
         '--sidebar-group-label-font-size': isLargeMode ? '16px' : '14px',
         '--sidebar-group-label-icon-size': isLargeMode ? '24px' : '20px',
       }"

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\Activity;
+use App\Models\Training;
 use App\Models\Cooperative;
 use App\Models\PdsSubmission;
 use App\Models\Role;
@@ -21,31 +23,45 @@ use Illuminate\Http\RedirectResponse;
 
 class MemberController extends Controller
 {
-    private function isCoopAdmin(): bool
+    private function canViewAllCooperatives(): bool
     {
         $user = auth()->user();
 
         return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
+            ? ($user->can('view-all-cooperatives') || $this->isSuperAdmin() || $this->isProvincialAdmin())
             : false;
+    }
+
+    private function isSuperAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user ? $user->hasRole('Super Admin') : false;
+    }
+    private function isCoopAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
+    }
+
+    private function resolveAccountType(?Role $role): string
+    {
+        return $role?->name ?? 'Member';
     }
 
     /**
@@ -54,7 +70,12 @@ class MemberController extends Controller
     public function index(Request $request): Response
     {
         $user = auth()->user();
-        $query = Member::with('cooperative');
+        $query = Member::with('cooperative')
+            ->withCount([
+                'officers as active_officers_count' => function ($q) {
+                    $q->where('status', 'Active');
+                },
+            ]);
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $query->where('coop_id', $user->coop_id);
@@ -121,6 +142,187 @@ class MemberController extends Controller
     }
 
     /**
+     * Display the cooperative members management view.
+     */
+    public function management(Request $request, ?Cooperative $cooperative = null): Response
+    {
+        $user = auth()->user();
+        $canViewAll = $this->canViewAllCooperatives();
+
+        if ($this->isCoopAdmin()) {
+            if (!$user?->coop_id) {
+                abort(403);
+            }
+
+            $coopId = $user->coop_id;
+        } else {
+            if (!$canViewAll) {
+                abort(403);
+            }
+
+            if (!$cooperative) {
+                return redirect()->route('members.management.select');
+            }
+
+            $coopId = $cooperative->id;
+        }
+
+        $memberSearch = $request->input('members_search');
+        $memberStatus = $request->input('members_membership_status');
+        $memberPerPage = (int) $request->input('members_per_page', 15);
+        $memberPerPage = max(1, min($memberPerPage, 500));
+
+        $membersQuery = Member::with('cooperative')
+            ->withCount([
+                'officers as active_officers_count' => function ($q) {
+                    $q->where('status', 'Active');
+                },
+            ])
+            ->where('coop_id', $coopId);
+
+        if ($memberSearch) {
+            $membersQuery->where(function ($q) use ($memberSearch) {
+                $q->where('first_name', 'like', "%{$memberSearch}%")
+                    ->orWhere('last_name', 'like', "%{$memberSearch}%")
+                    ->orWhere('email', 'like', "%{$memberSearch}%");
+            });
+        }
+
+        if ($memberStatus === 'Archived') {
+            $membersQuery->onlyTrashed();
+        } elseif ($memberStatus) {
+            $membersQuery->where('membership_status', $memberStatus);
+        }
+
+        $members = $membersQuery->latest()->paginate($memberPerPage)->withQueryString();
+
+        $services = MemberServiceAvailed::with(['member:id,first_name,last_name'])
+            ->where('coop_id', $coopId)
+            ->latest('date_availed')
+            ->get()
+            ->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'service_type' => $service->service_type,
+                    'service_detail' => $service->service_detail,
+                    'date_availed' => optional($service->date_availed)->toDateString(),
+                    'amount' => $service->amount,
+                    'status' => $service->status,
+                    'reference_no' => $service->reference_no,
+                    'remarks' => $service->remarks,
+                    'recorded_by' => $service->recorded_by,
+                    'member' => $service->member ? [
+                        'id' => $service->member->id,
+                        'full_name' => $service->member->full_name,
+                    ] : null,
+                ];
+            });
+
+        $activitySearch = $request->input('activities_search');
+        $activityStatus = $request->input('activities_status');
+        $activityCategory = $request->input('activities_category');
+        $activityPerPage = (int) $request->input('activities_per_page', 15);
+        $activityPerPage = max(1, min($activityPerPage, 500));
+
+        $activitiesQuery = Activity::with(['cooperative', 'responsibleOfficer.member'])
+            ->where('coop_id', $coopId);
+
+        if ($activitySearch) {
+            $activitiesQuery->where(function ($q) use ($activitySearch) {
+                $q->where('title', 'like', "%{$activitySearch}%")
+                    ->orWhere('description', 'like', "%{$activitySearch}%")
+                    ->orWhere('funding_source', 'like', "%{$activitySearch}%")
+                    ->orWhere('implementing_partner', 'like', "%{$activitySearch}%");
+            });
+        }
+
+        if ($activityStatus === 'Archived') {
+            $activitiesQuery->onlyTrashed();
+        } elseif ($activityStatus) {
+            $activitiesQuery->where('status', $activityStatus);
+        }
+
+        if ($activityCategory) {
+            $activitiesQuery->where('category', $activityCategory);
+        }
+
+        $activities = $activitiesQuery->latest()->paginate($activityPerPage)->withQueryString();
+
+        $trainingSearch = $request->input('trainings_search');
+        $trainingStatus = $request->input('trainings_status');
+        $trainingTargetGroup = $request->input('trainings_target_group');
+        $trainingPerPage = (int) $request->input('trainings_per_page', 15);
+        $trainingPerPage = max(1, min($trainingPerPage, 500));
+
+        $trainingsQuery = Training::with('cooperative')
+            ->where('coop_id', $coopId);
+
+        if ($trainingSearch) {
+            $trainingsQuery->where(function ($q) use ($trainingSearch) {
+                $q->where('title', 'like', "%{$trainingSearch}%")
+                    ->orWhere('facilitator', 'like', "%{$trainingSearch}%")
+                    ->orWhere('venue', 'like', "%{$trainingSearch}%");
+            });
+        }
+
+        if ($trainingStatus) {
+            $trainingsQuery->where('status', $trainingStatus);
+        }
+
+        if ($trainingTargetGroup) {
+            $trainingsQuery->where('target_group', $trainingTargetGroup);
+        }
+
+        $trainings = $trainingsQuery->latest()->paginate($trainingPerPage)->withQueryString();
+
+        $cooperatives = Cooperative::select('id', 'name')
+            ->where('id', $coopId)
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Members/Management', [
+            'members' => $members,
+            'memberFilters' => [
+                'search' => $memberSearch,
+                'membership_status' => $memberStatus,
+                'per_page' => $request->input('members_per_page'),
+            ],
+            'services' => $services,
+            'activities' => $activities,
+            'activityFilters' => [
+                'search' => $activitySearch,
+                'status' => $activityStatus,
+                'category' => $activityCategory,
+                'coop_id' => (string) $coopId,
+                'per_page' => $request->input('activities_per_page'),
+            ],
+            'trainings' => $trainings,
+            'trainingFilters' => [
+                'search' => $trainingSearch,
+                'status' => $trainingStatus,
+                'target_group' => $trainingTargetGroup,
+                'coop_id' => (string) $coopId,
+                'per_page' => $request->input('trainings_per_page'),
+            ],
+            'cooperatives' => $cooperatives,
+        ]);
+    }
+
+    /**
+     * Show cooperative picker for members management.
+     */
+    public function managementSelect(): Response
+    {
+        if (!$this->canViewAllCooperatives()) {
+            abort(403);
+        }
+
+        return Inertia::render('Members/ManagementSelect', [
+            'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
      * Show the form for creating a new member
      */
     public function create(): Response
@@ -163,7 +365,7 @@ class MemberController extends Controller
 
         $userAccount = User::with('roles')->where('member_id', $member->id)->first();
 
-        $servicesAvailed = $member->servicesAvailed()
+        $services = $member->servicesAvailed()
             ->latest('date_availed')
             ->get()
             ->map(function ($service) {
@@ -180,28 +382,51 @@ class MemberController extends Controller
                 ];
             });
 
-        $participants = $member->activityParticipants()
+        $activities = $member->activityParticipants()
             ->with('activity')
             ->latest('date_joined')
             ->get()
             ->map(function ($participant) {
                 return [
                     'id' => $participant->id,
-                    'activity' => $participant->activity?->title,
+                    'title' => $participant->activity?->title,
+                    'category' => $participant->activity?->category,
+                    'date_started' => optional($participant->activity?->date_started)->toDateString(),
+                    'date_ended' => optional($participant->activity?->date_ended)->toDateString(),
                     'role' => $participant->role,
-                    'date_joined' => optional($participant->date_joined)->toDateString(),
                     'is_beneficiary' => (bool) $participant->is_beneficiary,
                 ];
             });
 
+        $trainings = $member->trainingParticipants()
+            ->with('training')
+            ->latest('certificate_date')
+            ->get()
+            ->map(function ($participant) {
+                return [
+                    'id' => $participant->id,
+                    'title' => $participant->training?->title,
+                    'category' => $participant->training?->target_group ?? $participant->training?->skills_targeted,
+                    'date_from' => optional($participant->training?->date_conducted)->toDateString(),
+                    'date_to' => optional($participant->training?->date_conducted)->toDateString(),
+                    'venue' => $participant->training?->venue,
+                    'status' => $participant->outcome,
+                ];
+            });
+
         return Inertia::render('Members/Show', [
-            'member' => $member->load('cooperative'),
+            'member' => $member->load('cooperative')->loadCount([
+                'officers as active_officers_count' => function ($q) {
+                    $q->where('status', 'Active');
+                },
+            ]),
             'userAccount' => $userAccount ? [
                 'email' => $userAccount->email,
                 'roles' => $userAccount->roles->pluck('name')->toArray(),
             ] : null,
-            'servicesAvailed' => $servicesAvailed,
-            'activityParticipants' => $participants,
+            'services' => $services,
+            'activities' => $activities,
+            'trainings' => $trainings,
         ]);
     }
 
@@ -223,9 +448,9 @@ class MemberController extends Controller
                 : ['required', 'exists:cooperatives,id'],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
-            'birth_date' => ['nullable', 'date'],
-            'gender' => ['nullable', 'in:Male,Female,Other'],
-            'address' => ['nullable', 'string'],
+            'birth_date' => ['required', 'date'],
+            'gender' => ['required', 'in:Male,Female,Other'],
+            'address' => ['required', 'string'],
             'region' => ['nullable', 'string', 'max:100'],
             'province' => ['nullable', 'string', 'max:100'],
             'city_municipality' => ['nullable', 'string', 'max:100'],
@@ -259,13 +484,10 @@ class MemberController extends Controller
         DB::transaction(function () use ($validated) {
             $member = Member::create($validated);
 
-            $accountType = 'Member';
-            if (!empty($validated['role_ids'])) {
-                $firstRole = Role::find($validated['role_ids'][0]);
-                if ($firstRole) {
-                    $accountType = $firstRole->name;
-                }
-            }
+            $firstRole = !empty($validated['role_ids'])
+                ? Role::find($validated['role_ids'][0])
+                : null;
+            $accountType = $this->resolveAccountType($firstRole);
 
             $user = User::create([
                 'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
@@ -591,13 +813,10 @@ class MemberController extends Controller
                 return;
             }
 
-            $accountType = 'Member';
-            if (!empty($validated['role_ids'])) {
-                $firstRole = Role::find($validated['role_ids'][0]);
-                if ($firstRole) {
-                    $accountType = $firstRole->name;
-                }
-            }
+            $firstRole = !empty($validated['role_ids'])
+                ? Role::find($validated['role_ids'][0])
+                : null;
+            $accountType = $this->resolveAccountType($firstRole);
 
             $accountUser = $userAccount;
             if (!$accountUser && $candidateUser && ($candidateUser->member_id === null || $candidateUser->member_id === $member->id)) {

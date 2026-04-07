@@ -12,9 +12,11 @@ use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int $id
+ * @mixin \Illuminate\Database\Eloquent\Model
+ * @property-read int $id
  * @property string $name
  * @property string $email
  * @property int|null $coop_id
@@ -23,13 +25,14 @@ use Illuminate\Support\Str;
  * @property string|null $account_type
  * @property string|null $account_status
  */
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 class User extends Authenticatable
 {
     use SoftDeletes;
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles, LogsActivity;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles, LogsActivity {
+        HasRoles::hasRole as traitHasRole;
+        HasRoles::hasAnyRole as traitHasAnyRole;
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -115,6 +118,32 @@ class User extends Authenticatable
     // - hasRole(), assignRole(), removeRole(), syncRoles(), getRoleNames()
     // - hasPermissionTo(), givePermissionTo(), revokePermissionTo()
     // - hasAnyRole(), hasAllRoles(), etc.
+
+    public function hasRole($roles, ?string $guard = null): bool
+    {
+        if ($roles === null || $roles === '' || $roles === []) {
+            return false;
+        }
+
+        if ($this->traitHasRole('Super Admin', $guard)) {
+            return true;
+        }
+
+        return $this->traitHasRole($roles, $guard);
+    }
+
+    public function hasAnyRole($roles, ?string $guard = null): bool
+    {
+        if ($roles === null || $roles === '' || $roles === []) {
+            return false;
+        }
+
+        if ($this->traitHasRole('Super Admin', $guard)) {
+            return true;
+        }
+
+        return $this->traitHasAnyRole($roles, $guard);
+    }
 
     /**
      * Get the cooperative this user belongs to

@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
 interface PdsSubmission {
@@ -223,77 +224,82 @@ const bulkDeleteSubmissions = async () => {
                     </div>
                 </div>
 
-                <div class="mt-5 border-t border-border/60 pt-5">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                    <div>
-                        <label for="pds-search" class="mb-2 block text-sm font-medium text-foreground">Search</label>
-                        <Input
-                            id="pds-search"
-                            v-model="search"
-                            @keyup.enter="applyFilters"
-                            placeholder="Name, coop, or submission ID"
-                        />
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
-                        <Select v-model="status">
-                            <SelectTrigger aria-label="Filter by PDS status">
-                                <SelectValue placeholder="All Statuses" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="final">Final</SelectItem>
-                                <SelectItem value="Archived">Archived</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div v-if="isProvincialAdmin">
-                        <label class="mb-2 block text-sm font-medium text-foreground">Cooperative</label>
-                        <Select v-model="coopId">
-                            <SelectTrigger aria-label="Filter by cooperative">
-                                <SelectValue placeholder="All Cooperatives" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
-                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                    {{ coop.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
-                        <div class="flex gap-2">
-                            <Select v-model="perPage">
-                                <SelectTrigger aria-label="Rows per page">
-                                    <SelectValue placeholder="Select size" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="5">5</SelectItem>
-                                    <SelectItem value="15">15</SelectItem>
-                                    <SelectItem value="30">30</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                </SelectContent>
-                            </Select>
+                <FilterPanel
+                    title="Filters"
+                    description="Show the PDS filters when ready to refine results."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                        <div>
+                            <label for="pds-search" class="mb-2 block text-sm font-medium text-foreground">Search</label>
                             <Input
-                                v-if="perPage === 'custom'"
-                                v-model="customPerPage"
-                                type="number"
-                                min="1"
-                                max="500"
-                                placeholder="Enter"
-                                class="w-28"
+                                id="pds-search"
+                                v-model="search"
+                                @keyup.enter="applyFilters"
+                                placeholder="Name, coop, or submission ID"
                             />
                         </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
+                            <Select v-model="status">
+                                <SelectTrigger aria-label="Filter by PDS status">
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="final">Final</SelectItem>
+                                    <SelectItem value="Archived">Archived</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div v-if="isProvincialAdmin">
+                            <label class="mb-2 block text-sm font-medium text-foreground">Cooperative</label>
+                            <Select v-model="coopId">
+                                <SelectTrigger aria-label="Filter by cooperative">
+                                    <SelectValue placeholder="All Cooperatives" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Cooperatives</SelectItem>
+                                    <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                        {{ coop.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
+                            <div class="flex gap-2">
+                                <Select v-model="perPage">
+                                    <SelectTrigger aria-label="Rows per page">
+                                        <SelectValue placeholder="Select size" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                        <SelectItem value="15">15</SelectItem>
+                                        <SelectItem value="30">30</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    v-if="perPage === 'custom'"
+                                    v-model="customPerPage"
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    placeholder="Enter"
+                                    class="w-28"
+                                />
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <Button @click="applyFilters">Apply Filters</Button>
-                    <Button variant="outline" @click="clearFilters">Clear</Button>
-                </div>
-                </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Button @click="applyFilters">Apply Filters</Button>
+                        <Button variant="outline" @click="clearFilters">Clear</Button>
+                    </div>
+                </FilterPanel>
             </section>
 
             <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

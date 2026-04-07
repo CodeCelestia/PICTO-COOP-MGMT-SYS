@@ -12,6 +12,7 @@ import {
     GraduationCap,
     Sparkles,
     FileSpreadsheet,
+    Shield,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -32,36 +33,32 @@ import type { NavItem } from '@/types';
 
 const page = usePage();
 const auth = computed(() => page.props.auth as {
-    user?: { account_type?: string };
     roles?: string[];
+    permissions?: string[];
     isCoopAdmin?: boolean;
 } | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const roles = computed<string[]>(() => auth.value?.roles || []);
-const accountType = computed(() => auth.value?.user?.account_type as string | undefined);
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
-const isOfficer = computed(() => roles.value.includes('Officer') || accountType.value === 'Officer');
-const isCommitteeMember = computed(() => roles.value.includes('Committee Member') || accountType.value === 'Committee Member');
-const isViewer = computed(() => roles.value.includes('Viewer') || accountType.value === 'Viewer');
-const isMember = computed(() => {
-    const accountType = auth.value?.user?.account_type;
-    return roles.value.includes('Member') || accountType === 'Member';
-});
-const isMemberOnly = computed(() => isMember.value && !isCoopAdmin.value && !isProvincialAdmin.value && roles.value.length === 1);
+const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin) || roles.value.includes('Coop Admin'));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const isSuperAdmin = computed(() => roles.value.includes('Super Admin'));
+const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin'));
+const isSuperOrProv = computed(() => isSuperAdmin.value || isProvincialAdmin.value);
+const isMember = computed(() => roles.value.includes('Member'));
+const isMemberOnly = computed(() => isMember.value && roles.value.length === 1);
 
-const canViewCoops = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewMembers = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewOfficers = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewActivities = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewActivityParticipants = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewActivityFundingSources = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewFinancialRecords = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewExternalSupports = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewTrainings = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewTrainingParticipants = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canViewSkillInventories = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value || isCommitteeMember.value || isViewer.value);
-const canManageUsers = computed(() => isProvincialAdmin.value);
-const canViewActivityLogs = computed(() => isProvincialAdmin.value);
+const can = (permission: string) => permissions.value.includes(permission);
+
+const canViewCoops = computed(() => can('read coop-master-profile') || can('view-all-cooperatives'));
+const canViewMembers = computed(() => can('read members-profile'));
+const canViewMembersManagement = computed(() => can('read members-management'));
+const canViewOfficers = computed(() => can('read officers-&-committees'));
+const canViewActivities = computed(() => can('read activities-&-projects'));
+const canViewFinance = computed(() => can('read financial-&-support'));
+const canViewTrainings = computed(() => can('read training-&-capacity'));
+const canViewSkillInventories = computed(() => can('read training-&-capacity'));
+const canManageUsers = computed(() => can('read user-accounts'));
+const canManagePermissions = computed(() => can('manage-permissions'));
+const canViewActivityLogs = computed(() => can('read audit-logs'));
 
 const mainNavItems = computed<NavItem[]>(() => {
     const baseItems: NavItem[] = [
@@ -77,7 +74,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         },
         {
             title: 'Cooperatives',
-            href: '/cooperatives',
+            href: isCoopAdmin.value ? '/cooperatives/my' : '/cooperatives',
             icon: Building2,
         },
         {
@@ -101,14 +98,9 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: FileText,
         },
         {
-            title: 'Funding Sources',
-            href: '/activity-funding-sources',
+            title: 'Finance',
+            href: '/finance',
             icon: DollarSign,
-        },
-        {
-            title: 'Activity Participants',
-            href: '/activity-participants',
-            icon: Users,
         },
         {
             title: 'Trainings',
@@ -116,24 +108,9 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: GraduationCap,
         },
         {
-            title: 'Training Participants',
-            href: '/training-participants',
-            icon: Users,
-        },
-        {
             title: 'Skills Inventory',
             href: '/skill-inventories',
             icon: Sparkles,
-        },
-        {
-            title: 'Financial Records',
-            href: '/financial-records',
-            icon: DollarSign,
-        },
-        {
-            title: 'External Supports',
-            href: '/external-supports',
-            icon: DollarSign,
         },
         {
             title: 'Loans',
@@ -180,11 +157,35 @@ const mainNavItems = computed<NavItem[]>(() => {
         });
     }
 
+    if (canManagePermissions.value) {
+        items.push({
+            title: 'Roles & Permissions',
+            href: '/roles-permissions',
+            icon: Shield,
+        });
+    }
+
     if (canViewCoops.value) {
         items.push(baseItems[2]);
     }
 
-    if (canViewMembers.value) {
+    if (canViewMembersManagement.value && isCoopAdmin.value) {
+        items.push({
+            title: 'Members Management',
+            href: '/members/management',
+            icon: Users,
+        });
+    }
+
+    if (canViewMembersManagement.value && !isCoopAdmin.value && canViewCoops.value) {
+        items.push({
+            title: 'Members Management',
+            href: '/members/management/select',
+            icon: Users,
+        });
+    }
+
+    if (canViewMembers.value && !isCoopAdmin.value) {
         items.push(baseItems[3]);
     }
 
@@ -192,44 +193,44 @@ const mainNavItems = computed<NavItem[]>(() => {
         items.push(baseItems[4]);
     }
 
-    if (canViewOfficers.value) {
-        items.push(baseItems[5]);
+    if (canViewOfficers.value && !isCoopAdmin.value) {
+        items.push({
+            title: 'Officers & Committees',
+            href: isSuperOrProv.value ? '/officers/select' : '/officers',
+            icon: Users,
+        });
     }
 
-    if (canViewActivities.value) {
-        items.push(baseItems[6]);
+    if (canViewActivities.value && !isCoopAdmin.value) {
+        items.push({
+            title: 'Activities & Projects',
+            href: isSuperOrProv.value ? '/activities/select' : '/activities',
+            icon: FileText,
+        });
     }
 
-    if (canViewActivityFundingSources.value) {
+    if (canViewFinance.value) {
         items.push(baseItems[7]);
     }
 
-    if (canViewActivityParticipants.value) {
-        items.push(baseItems[8]);
-    }
-
-    if (canViewTrainings.value) {
-        items.push(baseItems[9]);
-    }
-
-    if (canViewTrainingParticipants.value) {
-        items.push(baseItems[10]);
+    if (canViewTrainings.value && !isCoopAdmin.value) {
+        items.push({
+            title: 'Trainings',
+            href: isSuperOrProv.value ? '/trainings/select' : '/trainings',
+            icon: GraduationCap,
+        });
     }
 
     if (canViewSkillInventories.value) {
-        items.push(baseItems[11]);
+        items.push({
+            title: 'Skills Inventory',
+            href: isSuperOrProv.value ? '/skill-inventories/select' : '/skill-inventories',
+            icon: Sparkles,
+        });
     }
 
-    if (canViewFinancialRecords.value) {
-        items.push(baseItems[12]);
-    }
-
-    if (canViewExternalSupports.value) {
-        items.push(baseItems[13]);
-    }
-
-    if (isCoopAdmin.value || isProvincialAdmin.value) {
-        items.push(baseItems[14], baseItems[15], baseItems[16]);
+    if (can('read reports-&-dashboard')) {
+        items.push(baseItems[10], baseItems[11], baseItems[12]);
     }
 
     if (canViewActivityLogs.value) {

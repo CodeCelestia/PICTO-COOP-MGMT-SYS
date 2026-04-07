@@ -1,22 +1,17 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { useStorage } from '@vueuse/core';
 import {
-    BriefcaseBusiness,
-    ChevronDown,
     CircleHelp,
-    Coins,
-    GraduationCap,
     LayoutDashboard,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import {
     SidebarGroup,
+    SidebarGroupLabel,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    useSidebar,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
@@ -37,48 +32,18 @@ const props = defineProps<{
 }>();
 
 const { isCurrentUrl } = useCurrentUrl();
-const { state } = useSidebar();
-
-const sectionOpenState = useStorage<Record<string, boolean>>(
-    'sidebar_section_open_state',
-    {
-        platform: true,
-        member: true,
-        financial: true,
-        activities: true,
-        other: true,
-    },
-);
-
 const sectionDefinitions: SectionDefinition[] = [
     {
-        id: 'platform',
-        title: 'Platform Management',
-        icon: BriefcaseBusiness,
-    },
-    {
-        id: 'member',
-        title: 'Member Management',
+        id: 'management',
+        title: 'Management',
         icon: Users,
     },
     {
-        id: 'financial',
-        title: 'Financial Management',
-        icon: Coins,
-    },
-    {
-        id: 'activities',
-        title: 'Activities & Training',
-        icon: GraduationCap,
-    },
-    {
-        id: 'other',
-        title: 'Other Modules',
+        id: 'system',
+        title: 'System',
         icon: CircleHelp,
     },
 ];
-
-const isSidebarCollapsed = computed(() => state.value === 'collapsed');
 
 const dashboardItem = computed<NavItem | undefined>(() => {
     return props.items.find((item) => toUrl(item.href) === '/dashboard');
@@ -86,11 +51,8 @@ const dashboardItem = computed<NavItem | undefined>(() => {
 
 const sectionedItems = computed<SectionWithItems[]>(() => {
     const buckets: Record<string, NavItem[]> = {
-        platform: [],
-        member: [],
-        financial: [],
-        activities: [],
-        other: [],
+        management: [],
+        system: [],
     };
 
     props.items
@@ -99,55 +61,35 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
             const url = toUrl(item.href);
             const title = item.title.toLowerCase();
 
-            const isActivitySection =
-                url.startsWith('/activities') ||
-                url.startsWith('/activity-participants') ||
-                url.startsWith('/trainings') ||
-                url.startsWith('/training-participants') ||
-                url.startsWith('/skill-inventories') ||
-                url.startsWith('/member-portal/activities');
-
-            const isFinancialSection =
-                url.startsWith('/financial-records') ||
-                url.startsWith('/external-supports') ||
-                url.startsWith('/activity-funding-sources') ||
-                title === 'loans' ||
-                title === 'savings';
-
-            const isMemberSection =
+            const isManagementSection =
+                url.startsWith('/users') ||
+                url.startsWith('/cooperatives') ||
                 url.startsWith('/members') ||
                 url.startsWith('/officers') ||
                 url.startsWith('/pds') ||
+                url.startsWith('/activities') ||
+                url.startsWith('/trainings') ||
+                url.startsWith('/skill-inventories') ||
+                url.startsWith('/member-portal/activities') ||
+                url.startsWith('/finance') ||
                 url.startsWith('/member-portal/services') ||
                 url === '/member-portal';
 
-            const isPlatformSection =
-                url.startsWith('/users') ||
-                url.startsWith('/cooperatives') ||
-                url.startsWith('/activity-logs') ||
-                title === 'reports';
+            const isSystemSection =
+                url.startsWith('/roles-permissions') ||
+                url.startsWith('/activity-logs');
 
-            if (isActivitySection) {
-                buckets.activities.push(item);
+            if (isManagementSection) {
+                buckets.management.push(item);
                 return;
             }
 
-            if (isFinancialSection) {
-                buckets.financial.push(item);
+            if (isSystemSection) {
+                buckets.system.push(item);
                 return;
             }
 
-            if (isMemberSection) {
-                buckets.member.push(item);
-                return;
-            }
-
-            if (isPlatformSection) {
-                buckets.platform.push(item);
-                return;
-            }
-
-            buckets.other.push(item);
+            buckets.management.push(item);
         });
 
     return sectionDefinitions
@@ -166,21 +108,6 @@ function isPlaceholderHref(href: NavItem['href']) {
     const url = toUrl(href);
 
     return !url || url === '#';
-}
-
-function isSectionExpanded(sectionId: string) {
-    if (isSidebarCollapsed.value) return false;
-
-    return sectionOpenState.value[sectionId] ?? true;
-}
-
-function toggleSection(sectionId: string) {
-    if (isSidebarCollapsed.value) return;
-
-    sectionOpenState.value = {
-        ...sectionOpenState.value,
-        [sectionId]: !isSectionExpanded(sectionId),
-    };
 }
 </script>
 
@@ -217,64 +144,44 @@ function toggleSection(sectionId: string) {
                 :key="`section:${section.id}`"
                 class="section-item"
             >
-                <SidebarMenuButton
-                    type="button"
-                    :tooltip="section.title"
-                    class="section-trigger overflow-visible group-data-[collapsible=icon]:overflow-hidden font-semibold"
-                    :aria-expanded="isSidebarCollapsed ? undefined : isSectionExpanded(section.id)"
-                    :aria-controls="`sidebar-section-${section.id}`"
-                    @click="toggleSection(section.id)"
-                >
+                <SidebarGroupLabel class="section-label">
                     <component :is="section.icon" />
-                    <span class="section-title font-semibold">{{ section.title }}</span>
-                    <ChevronDown
-                        v-if="!isSidebarCollapsed"
-                        class="ml-auto shrink-0 transition-transform duration-200 group-data-[a11y-size=large]/sidebar-wrapper:size-5"
-                        :class="isSectionExpanded(section.id) ? 'rotate-180' : ''"
-                    />
-                </SidebarMenuButton>
+                    <span class="section-title">{{ section.title }}</span>
+                </SidebarGroupLabel>
 
-                <Transition name="section-collapse">
-                    <div
-                        v-if="isSectionExpanded(section.id)"
-                        :id="`sidebar-section-${section.id}`"
-                        class="overflow-hidden"
+                <SidebarMenu class="ml-0 pl-0">
+                    <SidebarMenuItem
+                        v-for="item in section.items"
+                        :key="`${section.id}:${item.title}:${getHrefKey(item.href)}`"
                     >
-                        <SidebarMenu class="ml-2 mt-1 border-l border-sidebar-border/70 pl-2">
-                            <SidebarMenuItem
-                                v-for="item in section.items"
-                                :key="`${section.id}:${item.title}:${getHrefKey(item.href)}`"
+                        <SidebarMenuButton
+                            v-if="!isPlaceholderHref(item.href)"
+                            as-child
+                            :tooltip="item.title"
+                            :is-active="isCurrentUrl(item.href)"
+                        >
+                            <Link
+                                :href="item.href"
+                                prefetch
+                                :preserve-state="false"
+                                :preserve-scroll="false"
                             >
-                                <SidebarMenuButton
-                                    v-if="!isPlaceholderHref(item.href)"
-                                    as-child
-                                    :tooltip="item.title"
-                                    :is-active="isCurrentUrl(item.href)"
-                                >
-                                    <Link
-                                        :href="item.href"
-                                        prefetch
-                                        :preserve-state="false"
-                                        :preserve-scroll="false"
-                                    >
-                                        <component :is="item.icon" />
-                                        <span>{{ item.title }}</span>
-                                    </Link>
-                                </SidebarMenuButton>
+                                <component :is="item.icon" />
+                                <span>{{ item.title }}</span>
+                            </Link>
+                        </SidebarMenuButton>
 
-                                <SidebarMenuButton
-                                    v-else
-                                    disabled
-                                    :tooltip="item.title"
-                                    class="cursor-not-allowed text-sidebar-foreground/50 hover:bg-transparent hover:text-sidebar-foreground/50"
-                                >
-                                    <component :is="item.icon" />
-                                    <span>{{ item.title }}</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </div>
-                </Transition>
+                        <SidebarMenuButton
+                            v-else
+                            disabled
+                            :tooltip="item.title"
+                            class="cursor-not-allowed text-sidebar-foreground/50 hover:bg-transparent hover:text-sidebar-foreground/50"
+                        >
+                            <component :is="item.icon" />
+                            <span>{{ item.title }}</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarGroup>
@@ -313,89 +220,40 @@ function toggleSection(sectionId: string) {
 </template>
 
 <style scoped>
-.section-collapse-enter-active,
-.section-collapse-leave-active {
-    transition: max-height 0.24s ease, opacity 0.2s ease, transform 0.2s ease;
-}
-
-.section-collapse-enter-from,
-.section-collapse-leave-to {
-    max-height: 0;
-    opacity: 0;
-    transform: translateY(-4px);
-}
-
-.section-collapse-enter-to,
-.section-collapse-leave-from {
-    max-height: 640px;
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.section-trigger {
-    height: auto;
-    min-height: var(--sidebar-menu-item-height);
-    padding-top: 0.55rem;
-    padding-bottom: 0.55rem;
-    transition: padding 0.28s ease, min-height 0.28s ease;
-}
-
 .section-title {
     display: block;
     white-space: normal;
-    line-height: 1.42;
-    padding-bottom: 0.08em;
-    transition: line-height 0.28s ease, padding-bottom 0.28s ease;
+    line-height: 1.3;
+    letter-spacing: 0.02em;
+}
+
+.section-label {
+    gap: 0.55rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgb(100 116 139 / 0.8);
 }
 
 .section-group {
     padding-top: 1rem;
-    transition: padding-top 0.28s ease;
 }
 
 .section-list {
-    gap: 2rem;
-    transition: gap 0.28s ease;
+    gap: 1.5rem;
 }
 
 .section-item {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-    transition: gap 0.28s ease;
+    gap: 0.75rem;
 }
 
-:deep(.group[data-collapsible='icon']) .section-group {
-    padding-top: 0.5rem;
-}
-
-:deep(.group[data-collapsible='icon']) .section-list {
-    gap: 0.65rem;
-}
-
-:deep(.group[data-collapsible='icon']) .section-item {
-    gap: 0.35rem;
-}
-
-:deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-trigger {
-    padding-top: 0.72rem;
-    padding-bottom: 0.72rem;
-}
-
-:deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-group {
-    padding-top: 1.15rem;
-}
-
-:deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-list {
-    gap: 1.2rem;
+:deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-label {
+    font-size: 0.78rem;
 }
 
 :deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-item {
-    gap: 0.8rem;
-}
-
-:deep(.group\/sidebar-wrapper[data-a11y-size='large']) .section-title {
-    line-height: 1.5;
-    padding-bottom: 0.1em;
+    gap: 0.9rem;
 }
 </style>

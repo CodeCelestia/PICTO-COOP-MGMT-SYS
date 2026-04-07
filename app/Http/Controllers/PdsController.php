@@ -24,18 +24,14 @@ class PdsController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function canManageAny(): bool
@@ -104,7 +100,7 @@ class PdsController extends Controller
     {
         $user = auth()->user();
 
-        if ($user && ($user->hasRole('Member') || $user->account_type === 'Member')) {
+        if ($user && $user->hasRole('Member')) {
             return redirect()->route('pds.my');
         }
 

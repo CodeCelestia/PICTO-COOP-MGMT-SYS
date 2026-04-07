@@ -18,6 +18,7 @@ export type User = {
 export type Auth = {
     user: User;
     roles?: string[];
+    permissions?: string[];
     isCoopAdmin?: boolean;
     isMember?: boolean;
 };

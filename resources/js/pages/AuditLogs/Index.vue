@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import type { BreadcrumbItem } from '@/types';
 
 interface Causer {
@@ -139,70 +140,66 @@ const getSubjectIcon = (subjectType: string) => {
             </div>
 
             <!-- Filters -->
-            <Card>
-                <CardHeader>
-                    <CardTitle class="flex items-center gap-2">
-                        <Filter class="h-5 w-5" />
-                        Filters
-                    </CardTitle>
-                    <CardDescription>Search and filter audit logs</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid gap-4 md:grid-cols-4">
-                        <!-- Search -->
-                        <div class="relative md:col-span-2">
-                            <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                v-model="search"
-                                placeholder="Search by description or user..."
-                                class="pl-8"
-                                @keyup.enter="applyFilters"
-                            />
-                        </div>
-
-                        <!-- Event Filter -->
-                        <Select v-model="selectedEvent">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Events" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">All Events</SelectItem>
-                                    <SelectItem v-for="event in eventTypes" :key="event" :value="event">
-                                        {{ event.charAt(0).toUpperCase() + event.slice(1) }}
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-
-                        <!-- Subject Type Filter -->
-                        <Select v-model="selectedSubjectType">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectItem value="all">All Types</SelectItem>
-                                    <SelectItem v-for="type in subjectTypes" :key="type" :value="type">
-                                        {{ type }}
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+            <FilterPanel
+                title="Filters"
+                description="Show audit log filters to refine system activity records."
+                showLabel="Show filters"
+                hideLabel="Hide filters"
+            >
+                <div class="grid gap-4 md:grid-cols-4">
+                    <!-- Search -->
+                    <div class="relative md:col-span-2">
+                        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            v-model="search"
+                            placeholder="Search by description or user..."
+                            class="pl-8"
+                            @keyup.enter="applyFilters"
+                        />
                     </div>
 
-                    <!-- Filter Actions -->
-                    <div class="mt-4 flex gap-2">
-                        <Button @click="applyFilters" size="sm">
-                            <Filter class="mr-2 h-4 w-4" />
-                            Apply Filters
-                        </Button>
-                        <Button @click="clearFilters" variant="outline" size="sm">
-                            Clear
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    <!-- Event Filter -->
+                    <Select v-model="selectedEvent">
+                        <SelectTrigger>
+                            <SelectValue placeholder="All Events" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="all">All Events</SelectItem>
+                                <SelectItem v-for="event in eventTypes" :key="event" :value="event">
+                                    {{ event.charAt(0).toUpperCase() + event.slice(1) }}
+                                </SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+
+                    <!-- Subject Type Filter -->
+                    <Select v-model="selectedSubjectType">
+                        <SelectTrigger>
+                            <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="all">All Types</SelectItem>
+                                <SelectItem v-for="type in subjectTypes" :key="type" :value="type">
+                                    {{ type }}
+                                </SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="mt-4 flex gap-2">
+                    <Button @click="applyFilters" size="sm">
+                        <Filter class="mr-2 h-4 w-4" />
+                        Apply Filters
+                    </Button>
+                    <Button @click="clearFilters" variant="outline" size="sm">
+                        Clear
+                    </Button>
+                </div>
+            </FilterPanel>
 
             <!-- Activity Table -->
             <Card>

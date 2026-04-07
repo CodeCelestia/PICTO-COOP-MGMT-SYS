@@ -19,15 +19,20 @@ class DashboardController extends Controller
     public function index(): Response
     {
         $authUser = auth()->user();
+        $isSuperAdmin = $authUser ? $authUser->hasRole('Super Admin') : false;
+        $isProvincialAdmin = $authUser ? $authUser->hasRole('Provincial Admin') : false;
+        $isMemberRole = $authUser ? $authUser->hasRole('Member') : false;
+        $canViewReports = $authUser ? $authUser->can('read reports-&-dashboard') : false;
         $isCoopAdmin = $authUser
-            ? ($authUser->hasRole('Coop Admin') || $authUser->account_type === 'Coop Admin')
+            ? (!$isSuperAdmin && !$isProvincialAdmin && $authUser->coop_id && $canViewReports && !$isMemberRole)
             : false;
         $isMember = $authUser
-            ? (!$isCoopAdmin && ($authUser->hasRole('Member') || $authUser->account_type === 'Member'))
+            ? ($isMemberRole && $authUser->member_id)
             : false;
         $coopId = $authUser?->coop_id;
 
         $systemStats = $this->getSystemStats();
+        $superAdminStats = $isSuperAdmin ? $this->getSuperAdminStats() : null;
 
         $coopStats = null;
         $coopMembers = [];
@@ -58,6 +63,8 @@ class DashboardController extends Controller
             'recentUsers' => $systemStats['recentUsers'],
             'systemTrends' => $systemStats['systemTrends'],
             'sectorDistribution' => $systemStats['sectorDistribution'],
+            'isSuperAdmin' => $isSuperAdmin,
+            'superAdminStats' => $superAdminStats,
             'isCoopAdmin' => $isCoopAdmin,
             'isMember' => $isMember,
             'coopInfo' => $coopInfo,
@@ -419,5 +426,116 @@ class DashboardController extends Controller
             default:
                 return $date->format('Y-m-d');
         }
+    }
+
+    private function getSuperAdminStats(): array
+    {
+        $totalUsers = User::count();
+        $totalCooperatives = Cooperative::count();
+        $totalMembers = Member::count();
+        $totalActivities = Activity::count();
+        $totalTrainings = Training::count();
+        $totalRoles = Role::count();
+        $totalPermissions = DB::table('permissions')->count();
+
+        // Users by role
+        $usersByRole = DB::table('model_has_roles')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->select('roles.name', DB::raw('count(*) as count'))
+            ->groupBy('roles.name', 'roles.id')
+            ->orderBy('count', 'desc')
+            ->get();
+
+        // Recent users
+        $recentUsers = User::with('roles')
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'roles' => $user->roles->pluck('name')->toArray(),
+                    'created_at' => $user->created_at->diffForHumans(),
+                    'account_status' => $user->account_status,
+                ];
+            });
+
+        // Recent activities
+        $recentActivities = Activity::with('cooperative')
+            ->latest()
+            ->take(8)
+            ->get()
+            ->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'name' => $activity->name,
+                    'status' => $activity->status,
+                    'cooperative' => $activity->cooperative?->name,
+                    'date_started' => optional($activity->date_started)->format('M d, Y'),
+                    'category' => $activity->category,
+                ];
+            });
+
+        // Cooperatives by province
+        $coopsByProvince = Cooperative::select('province', DB::raw('count(*) as count'))
+            ->groupBy('province')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        // Members by status
+        $membersByStatus = Member::select('membership_status', DB::raw('count(*) as count'))
+            ->groupBy('membership_status')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [$item->membership_status ?? 'Unspecified' => $item->count];
+            });
+
+        // User growth trend
+        $trendStart = Carbon::now()->startOfMonth()->subMonths(11);
+        $trendEnd = Carbon::now()->endOfMonth();
+        $trendLabels = [];
+        $trendKeys = [];
+
+        foreach (CarbonPeriod::create($trendStart, '1 month', $trendEnd) as $point) {
+            $trendLabels[] = $point->format('M Y');
+            $trendKeys[] = $point->format('Y-m');
+        }
+
+        $trendBuckets = [];
+        User::query()
+            ->whereBetween('created_at', [$trendStart, $trendEnd])
+            ->pluck('created_at')
+            ->each(function ($createdAt) use (&$trendBuckets): void {
+                $key = Carbon::parse($createdAt)->startOfMonth()->format('Y-m');
+                $trendBuckets[$key] = ($trendBuckets[$key] ?? 0) + 1;
+            });
+
+        $trendValues = array_map(function ($key) use ($trendBuckets) {
+            return $trendBuckets[$key] ?? 0;
+        }, $trendKeys);
+
+        return [
+            'stats' => [
+                'totalUsers' => $totalUsers,
+                'totalCooperatives' => $totalCooperatives,
+                'totalMembers' => $totalMembers,
+                'totalActivities' => $totalActivities,
+                'totalTrainings' => $totalTrainings,
+                'totalRoles' => $totalRoles,
+                'totalPermissions' => $totalPermissions,
+            ],
+            'usersByRole' => $usersByRole,
+            'recentUsers' => $recentUsers,
+            'recentActivities' => $recentActivities,
+            'coopsByProvince' => $coopsByProvince,
+            'membersByStatus' => $membersByStatus,
+            'userGrowthTrend' => [
+                'labels' => $trendLabels,
+                'values' => $trendValues,
+            ],
+        ];
     }
 }

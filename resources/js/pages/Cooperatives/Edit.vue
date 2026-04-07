@@ -1,5 +1,5 @@
 <script setup lang='ts'>
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { Building2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import CooperativeForm from '@/components/Cooperatives/CooperativeForm.vue';
@@ -46,6 +46,10 @@ const props = defineProps<{
     statusHistory: CooperativeStatusHistory[];
 }>();
 
+const page = usePage();
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canUpdateCoop = computed(() => permissions.value.includes('update coop-master-profile'));
+
 const cancel = () => {
     router.get('/cooperatives');
 };
@@ -76,6 +80,7 @@ const actionUrl = computed(() => `/cooperatives/${props.cooperative.id}`);
                 :action='actionUrl'
                 method='put'
                 :onCancel='cancel'
+                :canSubmit="canUpdateCoop"
             />
 
             <Card class='border-border/80 bg-card shadow-sm'>

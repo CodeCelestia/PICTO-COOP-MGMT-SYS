@@ -14,6 +14,13 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             [
+                'name' => 'Super Admin',
+                'guard_name' => 'web',
+                'description' => 'Complete system access — manage everything across all provinces and cooperatives',
+                'level' => 0,
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Provincial Admin',
                 'guard_name' => 'web',
                 'description' => 'Full system access — manage all coops, users, reports, settings',
@@ -64,7 +71,8 @@ class RoleSeeder extends Seeder
             );
         }
 
-        $this->command->info('✓ Created 6 predefined roles:');
+        $this->command->info('✓ Created 7 predefined roles:');
+        $this->command->info('  0. Super Admin (Level 0)');
         $this->command->info('  1. Provincial Admin (Level 1)');
         $this->command->info('  2. Coop Admin (Level 2)');
         $this->command->info('  3. Officer (Level 3)');

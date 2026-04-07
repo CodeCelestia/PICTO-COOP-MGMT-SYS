@@ -33,6 +33,7 @@ const props = defineProps<{
   action: string;
   method: 'post' | 'put';
   onCancel: () => void;
+  canSubmit?: boolean;
 }>();
 
 const { regions, provinces, cities, barangays, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
@@ -222,6 +223,9 @@ watch(selectedCityCode, async (newCity) => {
 });
 
 const submit = () => {
+  if (props.canSubmit === false) {
+    return;
+  }
   if (!form.coop_type) {
     form.setError('coop_type', 'Please select a cooperative type.');
     return;
@@ -370,7 +374,7 @@ const submit = () => {
 
       <div class="flex flex-wrap justify-end gap-3 border-t border-border pt-6">
         <Button type="button" variant="outline" @click="props.onCancel" class="gap-2"><X class="h-4 w-4" />Cancel</Button>
-        <Button type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
+        <Button v-if="props.canSubmit !== false" type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
       </div>
     </form>
 

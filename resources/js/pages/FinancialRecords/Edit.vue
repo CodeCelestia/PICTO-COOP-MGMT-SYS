@@ -46,8 +46,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdateRecord = computed(() => permissions.value.includes('update financial-&-support'));
 
 const form = useForm({
     coop_id: props.record.coop_id.toString(),
@@ -70,6 +72,7 @@ const typeOptions = ['Income', 'Expense', 'Grant', 'Loan', 'Support', 'Capital']
 const assistanceTypes = ['Grant', 'Loan', 'Training', 'Equipment', 'Technical Assistance', 'Other'];
 
 const submit = () => {
+    if (!canUpdateRecord.value) return;
     form.put(`/financial-records/${props.record.id}`, {
         preserveScroll: true,
     });
@@ -242,7 +245,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdateRecord" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Record
                         </Button>

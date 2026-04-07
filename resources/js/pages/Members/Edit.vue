@@ -100,15 +100,11 @@ const props = defineProps<Props>();
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { roles?: string[]; isCoopAdmin?: boolean; user?: { account_type?: string } } | undefined);
-const roles = computed<string[]>(() => auth.value?.roles || []);
-const accountType = computed(() => auth.value?.user?.account_type as string | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
-const isOfficer = computed(() => roles.value.includes('Officer') || accountType.value === 'Officer');
-const canCreateService = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
-const canEditService = computed(() => isProvincialAdmin.value || isCoopAdmin.value || isOfficer.value);
-const canDeleteService = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canUpdateMember = computed(() => permissions.value.includes('update members-profile'));
+const canCreateService = computed(() => permissions.value.includes('create members-profile'));
+const canEditService = computed(() => permissions.value.includes('update members-profile'));
+const canDeleteService = computed(() => permissions.value.includes('delete members-profile'));
 const showServiceActions = computed(() => canEditService.value || canDeleteService.value);
 
 const selectedRegionCode = ref('');
@@ -172,6 +168,8 @@ const startEditService = (service: MemberServiceAvailed) => {
 };
 
 const submitService = () => {
+    if (editingServiceId.value && !canEditService.value) return;
+    if (!editingServiceId.value && !canCreateService.value) return;
     if (editingServiceId.value) {
         serviceForm.put(`/members/${props.member.id}/services-availed/${editingServiceId.value}`, {
             preserveScroll: true,
@@ -187,6 +185,7 @@ const submitService = () => {
 };
 
 const deleteService = async (service: MemberServiceAvailed) => {
+    if (!canDeleteService.value) return;
     const confirmed = await confirmAction({
         title: 'Delete service availment?',
         text: 'This action cannot be undone.',
@@ -293,6 +292,7 @@ watch(() => form.email, (newEmail) => {
 });
 
 const submit = () => {
+    if (!canUpdateMember.value) return;
     form.put(`/members/${props.member.id}`, {
         preserveScroll: true,
     });
@@ -679,7 +679,7 @@ const toggleRole = (roleId: number) => {
                         </p>
 
                         <form
-                            v-if="canEditService"
+                            v-if="canCreateService || canEditService"
                             @submit.prevent="submitService"
                             class="rounded-lg border border-border bg-muted/40 p-4"
                         >
@@ -927,7 +927,7 @@ const toggleRole = (roleId: number) => {
                     </div>
 
                     <!-- Account Access -->
-                    <div>
+                    <div v-if="canUpdateMember">
                         <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <UserPlus class="h-5 w-5" />
                             Account Access
@@ -1026,7 +1026,7 @@ const toggleRole = (roleId: number) => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdateMember" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             {{ form.processing ? 'Updating...' : 'Update Member' }}
                         </Button>

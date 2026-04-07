@@ -5,8 +5,6 @@ import {
     TrendingUp, 
     FileText,
     Activity,
-    ArrowUpRight,
-    ArrowDownRight,
     Shield,
     UserCog
 } from 'lucide-vue-next';
@@ -118,20 +116,57 @@ interface MemberCoop {
     status: string | null;
 }
 
+interface SuperAdminStats {
+    stats: {
+        totalUsers: number;
+        totalCooperatives: number;
+        totalMembers: number;
+        totalActivities: number;
+        totalTrainings: number;
+        totalRoles: number;
+        totalPermissions: number;
+    };
+    usersByRole: Array<{ name: string; count: number }>;
+    recentUsers: Array<{
+        id: number;
+        name: string;
+        email: string;
+        roles: string[];
+        created_at: string;
+        account_status: string;
+    }>;
+    recentActivities: Array<{
+        id: number;
+        name: string;
+        status: string;
+        cooperative: string | null;
+        date_started: string;
+        category: string;
+    }>;
+    coopsByProvince: Array<{ province: string; count: number }>;
+    membersByStatus: Record<string, number>;
+    userGrowthTrend: {
+        labels: string[];
+        values: number[];
+    };
+}
+
 const props = defineProps<{
-    stats: Stats;
-    usersByRole: UserByRole[];
-    recentUsers: RecentUser[];
-    systemTrends: SystemTrends;
-    sectorDistribution: SectorDistribution;
-    isCoopAdmin: boolean;
-    isMember: boolean;
-    coopInfo: CoopInfo | null;
-    coopStats: CoopStats | null;
-    coopMembers: CoopMember[];
-    coopTrends: CoopTrends | null;
-    memberProfile: MemberProfile | null;
-    memberCoop: MemberCoop | null;
+    stats?: Stats;
+    usersByRole?: UserByRole[];
+    recentUsers?: RecentUser[];
+    systemTrends?: SystemTrends;
+    sectorDistribution?: SectorDistribution;
+    isSuperAdmin?: boolean;
+    isCoopAdmin?: boolean;
+    isMember?: boolean;
+    coopInfo?: CoopInfo | null;
+    coopStats?: CoopStats | null;
+    coopMembers?: CoopMember[];
+    coopTrends?: CoopTrends | null;
+    memberProfile?: MemberProfile | null;
+    memberCoop?: MemberCoop | null;
+    superAdminStats?: SuperAdminStats;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -141,44 +176,159 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const dashboardStats = computed(() => [
-    {
-        title: 'Total Users',
-        value: props.stats.totalUsers.toString(),
-        change: `+${props.stats.usersGrowth}%`,
-        trend: 'up',
-        icon: Users,
-        color: 'text-blue-700 dark:text-blue-300',
-        bgColor: 'bg-blue-100 dark:bg-blue-500/20',
-    },
-    {
-        title: 'Users with Roles',
-        value: props.stats.usersWithRoles.toString(),
-        change: `${((props.stats.usersWithRoles / props.stats.totalUsers) * 100).toFixed(1)}%`,
-        trend: 'up',
-        icon: UserCog,
-        color: 'text-emerald-700 dark:text-emerald-300',
-        bgColor: 'bg-emerald-100 dark:bg-emerald-500/20',
-    },
-    {
-        title: 'Total Roles',
-        value: props.stats.totalRoles.toString(),
-        change: 'Active',
-        trend: 'up',
-        icon: Shield,
-        color: 'text-emerald-700 dark:text-emerald-300',
-        bgColor: 'bg-emerald-100 dark:bg-emerald-500/20',
-    },
-    {
-        title: 'Weekly Growth',
-        value: `${props.stats.usersGrowth}%`,
-        change: props.stats.usersGrowth > 0 ? `+${props.stats.usersGrowth}%` : `${props.stats.usersGrowth}%`,
-        trend: props.stats.usersGrowth >= 0 ? 'up' : 'down',
-        icon: TrendingUp,
-        color: 'text-violet-700 dark:text-violet-300',
-        bgColor: 'bg-violet-100 dark:bg-violet-500/20',
-    },
-]);
+type SummaryCard = {
+    title: string;
+    value: string;
+    helper?: string;
+    icon: typeof Users;
+    accent: {
+        bg: string;
+        text: string;
+        ring: string;
+    };
+};
+
+const formatNumber = (value: number | null | undefined) =>
+    new Intl.NumberFormat('en-US').format(value ?? 0);
+
+const summaryCards = computed<SummaryCard[]>(() => {
+    if (props.isSuperAdmin && props.superAdminStats) {
+        return [
+            {
+                title: 'Total Users',
+                value: formatNumber(props.superAdminStats.stats.totalUsers),
+                helper: 'All registered accounts',
+                icon: Users,
+                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+            },
+            {
+                title: 'Cooperatives',
+                value: formatNumber(props.superAdminStats.stats.totalCooperatives),
+                helper: 'Active cooperatives',
+                icon: FileText,
+                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+            },
+            {
+                title: 'Members',
+                value: formatNumber(props.superAdminStats.stats.totalMembers),
+                helper: 'Total membership',
+                icon: UserCog,
+                accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
+            },
+            {
+                title: 'Activities',
+                value: formatNumber(props.superAdminStats.stats.totalActivities),
+                helper: 'System-wide projects',
+                icon: Activity,
+                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+            },
+        ];
+    }
+
+    if (props.isCoopAdmin && props.coopStats) {
+        return [
+            {
+                title: 'Total Members',
+                value: formatNumber(props.coopStats.totalMembers),
+                helper: 'All registered members',
+                icon: Users,
+                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+            },
+            {
+                title: 'Active Members',
+                value: formatNumber(props.coopStats.activeMembers),
+                helper: 'Currently active',
+                icon: UserCog,
+                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+            },
+            {
+                title: 'Activities',
+                value: formatNumber(props.coopStats.totalActivities),
+                helper: 'Planned and ongoing',
+                icon: FileText,
+                accent: { bg: 'bg-indigo-100/70', text: 'text-indigo-700', ring: 'ring-indigo-200/60' },
+            },
+            {
+                title: 'Trainings',
+                value: formatNumber(props.coopStats.totalTrainings),
+                helper: 'Capacity building',
+                icon: Activity,
+                accent: { bg: 'bg-pink-100/70', text: 'text-pink-700', ring: 'ring-pink-200/60' },
+            },
+        ];
+    }
+
+    if (props.isMember && props.memberProfile) {
+        return [
+            {
+                title: 'Membership Status',
+                value: props.memberProfile.membership_status || 'N/A',
+                helper: 'Current standing',
+                icon: Shield,
+                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+            },
+            {
+                title: 'Membership Type',
+                value: props.memberProfile.membership_type || 'N/A',
+                helper: 'Enrollment category',
+                icon: UserCog,
+                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+            },
+            {
+                title: 'Sector',
+                value: props.memberProfile.sector || 'N/A',
+                helper: 'Assigned sector',
+                icon: Activity,
+                accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
+            },
+            {
+                title: 'Joined',
+                value: props.memberProfile.date_joined || 'N/A',
+                helper: 'Date joined',
+                icon: FileText,
+                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+            },
+        ];
+    }
+
+    if (props.stats) {
+        return [
+            {
+                title: 'Total Users',
+                value: formatNumber(props.stats.totalUsers),
+                helper: 'All registered accounts',
+                icon: Users,
+                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+            },
+            {
+                title: 'Users with Roles',
+                value: formatNumber(props.stats.usersWithRoles),
+                helper: 'Assigned roles',
+                icon: UserCog,
+                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+            },
+            {
+                title: 'Total Roles',
+                value: formatNumber(props.stats.totalRoles),
+                helper: 'Active roles',
+                icon: Shield,
+                accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
+            },
+            {
+                title: 'Weekly Growth',
+                value: `${props.stats.usersGrowth}%`,
+                helper: 'Weekly user growth',
+                icon: TrendingUp,
+                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+            },
+        ];
+    }
+
+    return [];
+});
+
+const recentUsersComputed = computed(() => props.recentUsers || []);
+const usersByRoleComputed = computed(() => props.usersByRole || []);
 
 const trendPeriods = [
     { value: 'day', label: 'Daily' },
@@ -226,10 +376,70 @@ const buildTrendQuery = (overrides: Partial<typeof trendFilters.value> = {}) => 
     return query;
 };
 
+const analyticsRangeOptions = [
+    { value: '7d', label: 'Last 7 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: '90d', label: 'Last 90 days' },
+    { value: 'ytd', label: 'Year to date' },
+];
+
+const analyticsCategoryOptions = [
+    { value: 'all', label: 'All metrics' },
+    { value: 'members', label: 'Members' },
+    { value: 'activities', label: 'Activities' },
+    { value: 'trainings', label: 'Trainings' },
+    { value: 'finance', label: 'Finance' },
+];
+
+const analyticsFilters = ref({
+    range: '30d',
+    category: 'all',
+});
+
+const buildAnalyticsQuery = () => {
+    const query: Record<string, string> = {};
+
+    if (analyticsFilters.value.range) {
+        query.range = analyticsFilters.value.range;
+    }
+
+    if (analyticsFilters.value.category && analyticsFilters.value.category !== 'all') {
+        query.category = analyticsFilters.value.category;
+    }
+
+    return query;
+};
+
 const applyTrendQuery = (query: Record<string, string>) => {
+    const mergedQuery = {
+        ...buildAnalyticsQuery(),
+        ...query,
+    };
+
     router.get(
         dashboard({
-            query,
+            query: mergedQuery,
+        }),
+        {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+const updateAnalyticsFilters = (overrides: Partial<typeof analyticsFilters.value> = {}) => {
+    analyticsFilters.value = { ...analyticsFilters.value, ...overrides };
+
+    if (props.isCoopAdmin) {
+        applyTrendQuery(buildTrendQuery());
+        return;
+    }
+
+    router.get(
+        dashboard({
+            query: buildAnalyticsQuery(),
         }),
         {},
         {
@@ -372,8 +582,21 @@ const systemChartHeight = 220;
 const systemChartPaddingX = 24;
 const systemChartPaddingY = 20;
 
-const systemTrendLabels = computed(() => props.systemTrends?.labels ?? []);
-const systemTrendValues = computed(() => props.systemTrends?.registrations ?? []);
+const systemTrendLabels = computed(() => {
+    if (props.isSuperAdmin && props.superAdminStats?.userGrowthTrend) {
+        return props.superAdminStats.userGrowthTrend.labels;
+    }
+
+    return props.systemTrends?.labels ?? [];
+});
+
+const systemTrendValues = computed(() => {
+    if (props.isSuperAdmin && props.superAdminStats?.userGrowthTrend) {
+        return props.superAdminStats.userGrowthTrend.values;
+    }
+
+    return props.systemTrends?.registrations ?? [];
+});
 
 const systemTrendMax = computed(() => Math.max(1, ...systemTrendValues.value));
 
@@ -521,142 +744,242 @@ const getMembershipBadgeColor = (status: string | null) => {
             <div class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(14,64,120,0.08),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.03),rgba(15,23,42,0))]" />
 
             <!-- Header -->
-            <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_6px_24px_rgba(15,23,42,0.08)] backdrop-blur">
-                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <Card class="gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.1)] backdrop-blur">
+                <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">
-                        <h1 class="text-xl font-semibold tracking-tight text-slate-900 md:text-2xl">
-                            {{ props.isMember
-                                ? 'Member Dashboard'
-                                : props.isCoopAdmin
-                                    ? (props.coopInfo?.name || 'Assigned Cooperative')
-                                    : 'System Dashboard' }}
+                        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+                            {{ props.isSuperAdmin
+                                ? 'Super Admin Analytics'
+                                : props.isMember
+                                    ? 'Member Analytics'
+                                    : props.isCoopAdmin
+                                        ? (props.coopInfo?.name || 'Cooperative Analytics')
+                                        : 'System Analytics' }}
                         </h1>
                         <p class="text-sm text-slate-600">
-                            {{ props.isMember
-                                ? 'Your membership profile and cooperative information.'
-                                : props.isCoopAdmin
-                                    ? 'Your cooperative overview and latest member updates.'
-                                    : 'Real-time cooperative oversight and operational monitoring.' }}
+                            {{ props.isSuperAdmin
+                                ? 'Unified insights across users, coops, and operations.'
+                                : props.isMember
+                                    ? 'Your membership overview and cooperative summary.'
+                                    : props.isCoopAdmin
+                                        ? 'Performance, participation, and training insights.'
+                                        : 'System-wide operational monitoring and trends.' }}
                         </p>
                     </div>
-                    <Card class="flex-row items-center gap-3 rounded-lg border border-border bg-muted/70 px-3 py-2 shadow-none">
-                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Activity class="h-4 w-4" />
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="min-w-40">
+                            <Select
+                                :model-value="analyticsFilters.range"
+                                @update:model-value="(value) => updateAnalyticsFilters({ range: String(value ?? '30d') })"
+                            >
+                                <SelectTrigger class="h-9 rounded-full border-slate-200/70 bg-white/80 text-xs font-semibold uppercase tracking-widest">
+                                    <SelectValue placeholder="Date range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="option in analyticsRangeOptions" :key="option.value" :value="option.value">
+                                        {{ option.label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div>
-                            <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Status</div>
-                            <div class="text-sm font-semibold text-foreground">Operational</div>
+                        <div class="min-w-40">
+                            <Select
+                                :model-value="analyticsFilters.category"
+                                @update:model-value="(value) => updateAnalyticsFilters({ category: String(value ?? 'all') })"
+                            >
+                                <SelectTrigger class="h-9 rounded-full border-slate-200/70 bg-white/80 text-xs font-semibold uppercase tracking-widest">
+                                    <SelectValue placeholder="Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="option in analyticsCategoryOptions" :key="option.value" :value="option.value">
+                                        {{ option.label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    </Card>
-                </div>
-
-                <div v-if="!props.isCoopAdmin && !props.isMember" class="mt-6 border-t border-slate-200/70 pt-6">
-                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <Card
-                            v-for="stat in dashboardStats"
-                            :key="stat.title"
-                            class="group h-full gap-0 rounded-xl border border-slate-200/80 bg-slate-50/70 p-5 shadow-none"
-                        >
-                            <div class="flex items-center justify-between">
-                                <div :class="[stat.bgColor, 'rounded-lg p-3 transition-colors group-hover:bg-slate-900/10']">
-                                    <component
-                                        :is="stat.icon"
-                                        :class="[stat.color, 'h-6 w-6']"
-                                    />
-                                </div>
-                                <div
-                                    v-if="stat.change !== 'Active'"
-                                    :class="[
-                                        'flex items-center gap-1 text-sm font-medium',
-                                        stat.trend === 'up' ? 'text-green-600 dark:text-green-300' : 'text-red-600 dark:text-red-300'
-                                    ]"
-                                >
-                                    <component
-                                        :is="stat.trend === 'up' ? ArrowUpRight : ArrowDownRight"
-                                        class="h-4 w-4"
-                                    />
-                                    {{ stat.change }}
-                                </div>
-                                <Badge v-else class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-500/20 dark:text-green-200">
-                                    {{ stat.change }}
-                                </Badge>
+                        <Card class="flex-row items-center gap-3 rounded-full border border-border bg-muted/70 px-3 py-2 shadow-none">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Activity class="h-4 w-4" />
                             </div>
-                            <div class="mt-4">
-                                <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                                    {{ stat.title }}
-                                </h3>
-                                <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                                    {{ stat.value }}
-                                </p>
+                            <div>
+                                <div class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Status</div>
+                                <div class="text-sm font-semibold text-foreground">Operational</div>
                             </div>
                         </Card>
                     </div>
                 </div>
             </Card>
 
-            <!-- Coop Admin Stat Boxes -->
-            <div v-if="props.isCoopAdmin" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <!-- Summary Cards -->
+            <div v-if="summaryCards.length" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Card
-                    v-if="props.coopStats"
-                    class="group gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
+                    v-for="card in summaryCards"
+                    :key="card.title"
+                    class="group gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5"
                 >
                     <div class="flex items-center justify-between">
-                        <div class="rounded-lg bg-slate-50 p-3 transition-colors group-hover:bg-slate-900/10 dark:bg-slate-800 dark:group-hover:bg-slate-700">
-                            <Users class="h-6 w-6 text-slate-700" />
+                        <div :class="[card.accent.bg, card.accent.ring, 'rounded-xl p-3 ring-1 transition-colors group-hover:bg-slate-900/10']">
+                            <component :is="card.icon" :class="[card.accent.text, 'h-5 w-5']" />
                         </div>
+                        <Badge v-if="card.helper" class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                            {{ card.helper }}
+                        </Badge>
                     </div>
                     <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">Total Members</h3>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ props.coopStats.totalMembers }}</p>
+                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                            {{ card.title }}
+                        </h3>
+                        <p class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                            {{ card.value }}
+                        </p>
                     </div>
                 </Card>
-                <Card
-                    v-if="props.coopStats"
-                    class="group gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
-                >
-                    <div class="flex items-center justify-between">
-                        <div class="rounded-lg bg-emerald-50 p-3 transition-colors group-hover:bg-slate-900/10 dark:bg-emerald-500/20 dark:group-hover:bg-emerald-500/30">
-                            <UserCog class="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Active Members</h3>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-emerald-700 dark:text-emerald-300">{{ props.coopStats.activeMembers }}</p>
-                    </div>
-                </Card>
-                <Card
-                    v-if="props.coopStats"
-                    class="group gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
-                >
-                    <div class="flex items-center justify-between">
-                        <div class="rounded-lg bg-blue-50 p-3 transition-colors group-hover:bg-slate-900/10 dark:bg-blue-500/20 dark:group-hover:bg-blue-500/30">
-                            <FileText class="h-6 w-6 text-blue-600 dark:text-blue-300" />
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-widest text-blue-700 dark:text-blue-300">Activities</h3>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-blue-700 dark:text-blue-300">{{ props.coopStats.totalActivities }}</p>
-                    </div>
-                </Card>
-                <Card
-                    v-if="props.coopStats"
-                    class="group gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)]"
-                >
-                    <div class="flex items-center justify-between">
-                        <div class="rounded-lg bg-violet-50 p-3 transition-colors group-hover:bg-slate-900/10 dark:bg-violet-500/20 dark:group-hover:bg-violet-500/30">
-                            <Activity class="h-6 w-6 text-violet-600 dark:text-violet-300" />
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-widest text-violet-700 dark:text-violet-300">Trainings</h3>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-violet-700 dark:text-violet-300">{{ props.coopStats.totalTrainings }}</p>
-                    </div>
-                </Card>
-                <div v-if="!props.coopStats" class="text-sm text-slate-500">No stats available.</div>
             </div>
 
             <!-- Main Content Area -->
             <div class="grid gap-4 md:grid-cols-2">
+                <!-- Super Admin Dashboard -->
+                <div v-if="props.isSuperAdmin && props.superAdminStats" class="md:col-span-2 grid gap-4">
+                    <!-- Users by Role -->
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                        <CardHeader class="px-6 pt-6 pb-4">
+                            <CardTitle class="text-lg font-semibold text-slate-900">Users by Role</CardTitle>
+                            <p class="text-sm text-slate-500 mt-1">Distribution of roles across all users</p>
+                        </CardHeader>
+                        <CardContent class="px-6 pb-6">
+                            <div class="space-y-3">
+                                <div v-for="role in props.superAdminStats.usersByRole" :key="role.name" class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-slate-600">{{ role.name }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <div class="h-2 w-32 rounded-full bg-slate-100">
+                                            <div
+                                                :style="{ width: (role.count / Math.max(...props.superAdminStats.usersByRole.map((r: any) => r.count))) * 100 + '%' }"
+                                                class="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                            />
+                                        </div>
+                                        <span class="text-sm font-semibold text-slate-900 min-w-12 text-right">{{ role.count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Recent Users -->
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                        <CardHeader class="px-6 pt-6 pb-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <CardTitle class="text-lg font-semibold text-slate-900">Recent Users</CardTitle>
+                                    <p class="text-sm text-slate-500 mt-1">Latest user registrations</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent class="px-6 pb-6">
+                            <div class="space-y-3">
+                                <div v-for="user in props.superAdminStats.recentUsers" :key="user.id" class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-slate-900">{{ user.name }}</p>
+                                        <p class="text-xs text-slate-500">{{ user.email }}</p>
+                                        <div v-if="user.roles.length > 0" class="mt-1 flex flex-wrap gap-1">
+                                            <Badge
+                                                v-for="role in user.roles"
+                                                :key="role"
+                                                :class="[getRoleBadgeColor(role), 'rounded-md px-2 py-0.5 text-xs font-medium']"
+                                            >
+                                                {{ role }}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <Badge :class="user.account_status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200'">
+                                            {{ user.account_status }}
+                                        </Badge>
+                                        <p class="text-xs text-slate-500 mt-2">{{ user.created_at }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Recent Activities -->
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                        <CardHeader class="px-6 pt-6 pb-4">
+                            <CardTitle class="text-lg font-semibold text-slate-900">Recent Activities</CardTitle>
+                            <p class="text-sm text-slate-500 mt-1">Latest cooperative activities</p>
+                        </CardHeader>
+                        <CardContent class="px-6 pb-6">
+                            <div class="space-y-3">
+                                <div v-for="activity in props.superAdminStats.recentActivities" :key="activity.id" class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-slate-900">{{ activity.name }}</p>
+                                        <p class="text-xs text-slate-500">{{ activity.cooperative || 'N/A' }} • {{ activity.category }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <Badge 
+                                            :class="activity.status === 'Completed' 
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200'
+                                                : activity.status === 'In Progress'
+                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200'
+                                                    : 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200'"
+                                        >
+                                            {{ activity.status }}
+                                        </Badge>
+                                        <p class="text-xs text-slate-500 mt-2">{{ activity.date_started }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Cooperatives by Province -->
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                        <CardHeader class="px-6 pt-6 pb-4">
+                            <CardTitle class="text-lg font-semibold text-slate-900">Cooperatives by Province</CardTitle>
+                            <p class="text-sm text-slate-500 mt-1">Geographic distribution</p>
+                        </CardHeader>
+                        <CardContent class="px-6 pb-6">
+                            <div class="space-y-3">
+                                <div v-for="prov in props.superAdminStats.coopsByProvince" :key="prov.province" class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-slate-600">{{ prov.province || 'Unassigned' }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <div class="h-2 w-32 rounded-full bg-slate-100">
+                                            <div
+                                                :style="{ width: (prov.count / Math.max(...props.superAdminStats.coopsByProvince.map((p: any) => p.count))) * 100 + '%' }"
+                                                class="h-full rounded-full bg-teal-500 transition-all duration-500"
+                                            />
+                                        </div>
+                                        <span class="text-sm font-semibold text-slate-900 min-w-12 text-right">{{ prov.count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Members by Status -->
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                        <CardHeader class="px-6 pt-6 pb-4">
+                            <CardTitle class="text-lg font-semibold text-slate-900">Members by Status</CardTitle>
+                            <p class="text-sm text-slate-500 mt-1">Membership status breakdown</p>
+                        </CardHeader>
+                        <CardContent class="px-6 pb-6">
+                            <div class="space-y-3">
+                                <div v-for="(count, status) in props.superAdminStats.membersByStatus" :key="status" class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-slate-600">{{ status }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <div class="h-2 w-32 rounded-full bg-slate-100">
+                                            <div
+                                                :style="{ width: (count / Math.max(...Object.values(props.superAdminStats.membersByStatus) as number[])) * 100 + '%' }"
+                                                class="h-full rounded-full bg-violet-500 transition-all duration-500"
+                                            />
+                                        </div>
+                                        <span class="text-sm font-semibold text-slate-900 min-w-12 text-right">{{ count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <!-- Member Dashboard -->
                 <div v-if="props.isMember" class="md:col-span-2 grid gap-4">
                     <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
@@ -961,7 +1284,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             <p class="text-sm text-slate-500">Latest member updates for your cooperative.</p>
                         </div>
                         <div class="p-6">
-                            <div v-if="props.coopMembers.length" class="space-y-3">
+                            <div v-if="props.coopMembers?.length" class="space-y-3">
                                 <Card
                                     v-for="member in props.coopMembers"
                                     :key="member.id"
@@ -1161,7 +1484,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                             </div>
                                             <div class="h-2.5 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800/70">
                                                 <div
-                                                    class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500"
+                                                    class="h-full rounded-full bg-linear-to-r from-indigo-500 via-blue-500 to-cyan-500"
                                                     :style="{ width: `${bar.percent}%` }"
                                                 />
                                             </div>
@@ -1232,9 +1555,9 @@ const getMembershipBadgeColor = (status: string | null) => {
                         <p class="text-sm text-slate-500">Latest users added to the system</p>
                     </div>
                     <div class="p-6">
-                        <div v-if="recentUsers.length > 0" class="space-y-4">
+                        <div v-if="recentUsersComputed.length > 0" class="space-y-4">
                             <Card
-                                v-for="user in recentUsers"
+                                v-for="user in recentUsersComputed"
                                 :key="user.id"
                                 class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-none"
                             >
@@ -1273,9 +1596,9 @@ const getMembershipBadgeColor = (status: string | null) => {
                         <p class="text-sm text-slate-500">Distribution of users across roles</p>
                     </div>
                     <div class="p-6">
-                        <div v-if="usersByRole.length > 0" class="space-y-4">
+                        <div v-if="usersByRoleComputed.length > 0" class="space-y-4">
                             <Card
-                                v-for="roleData in usersByRole"
+                                v-for="roleData in usersByRoleComputed"
                                 :key="roleData.name"
                                 class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-none"
                             >
@@ -1287,7 +1610,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                         <div>
                                             <p class="font-semibold text-slate-900">{{ roleData.name }}</p>
                                             <p class="text-sm text-slate-500">
-                                                {{ ((roleData.count / stats.totalUsers) * 100).toFixed(1) }}% of total
+                                                {{ ((roleData.count / (props.stats?.totalUsers || 1)) * 100).toFixed(1) }}% of total
                                             </p>
                                         </div>
                                     </div>
@@ -1308,6 +1631,14 @@ const getMembershipBadgeColor = (status: string | null) => {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
+.dashboard-theme {
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+</style>
 
 <style scoped>
 .dashboard-theme :deep(.bg-white\/90) {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MemberServiceAvailed extends Model
 {
     use SoftDeletes;
+    use CoopScoped;
     use LogsActivity;
 
     protected $table = 'member_services_availed';

@@ -34,8 +34,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
 
 const form = useForm<{
     activity_id: string;
@@ -72,6 +74,7 @@ const selectedCooperative = computed(() => {
 });
 
 const submit = () => {
+    if (!canCreate.value) return;
     form.transform((data) => ({
         ...data,
         coop_id: selectedActivity.value?.coop_id?.toString() || '',
@@ -211,7 +214,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canCreate" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Save Funding Source
                         </Button>

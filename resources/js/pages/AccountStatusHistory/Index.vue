@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import FilterPanel from '@/components/FilterPanel.vue';
 import {
     Select,
     SelectContent,
@@ -124,7 +125,12 @@ const hasActiveFilters = computed(() => {
             </div>
 
             <!-- Filters -->
-            <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <FilterPanel
+                title="Filters"
+                description="Show account status history filters when ready."
+                showLabel="Show filters"
+                hideLabel="Hide filters"
+            >
                 <div class="grid gap-4 md:grid-cols-4">
                     <!-- Search -->
                     <div class="relative">
@@ -190,7 +196,7 @@ const hasActiveFilters = computed(() => {
                         Clear Filters
                     </Button>
                 </div>
-            </div>
+            </FilterPanel>
 
             <!-- History Table -->
             <div class="rounded-lg border border-gray-200 bg-white shadow-sm">

@@ -53,8 +53,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdate = computed(() => permissions.value.includes('update activities-&-projects'));
 
 const form = useForm({
     activity_id: props.participant.activity_id.toString(),
@@ -73,6 +75,7 @@ const filteredMembers = computed(() => {
 });
 
 const submit = () => {
+    if (!canUpdate.value) return;
     form.put(`/activity-participants/${props.participant.id}`, {
         preserveScroll: true,
     });
@@ -174,7 +177,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdate" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Participant
                         </Button>

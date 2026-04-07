@@ -20,6 +20,7 @@ class PermissionSeeder extends Seeder
         $modules = [
             'Coop Master Profile',
             'Members Profile',
+            'Members Management',
             'Officers & Committees',
             'Activities & Projects',
             'Financial & Support',
@@ -57,6 +58,7 @@ class PermissionSeeder extends Seeder
     private function assignPermissionsToRoles(): void
     {
         // Get all roles
+        $superAdmin = Role::where('name', 'Super Admin')->first();
         $provincialAdmin = Role::where('name', 'Provincial Admin')->first();
         $coopAdmin = Role::where('name', 'Coop Admin')->first();
         $officer = Role::where('name', 'Officer')->first();
@@ -64,13 +66,16 @@ class PermissionSeeder extends Seeder
         $member = Role::where('name', 'Member')->first();
         $viewer = Role::where('name', 'Viewer')->first();
 
-        if (!$provincialAdmin || !$coopAdmin || !$officer || !$committeeMember || !$member || !$viewer) {
+        if (!$superAdmin || !$provincialAdmin || !$coopAdmin || !$officer || !$committeeMember || !$member || !$viewer) {
             $this->command->error('❌ Roles not found! Please run RoleSeeder first.');
             return;
         }
 
+        // ===== SUPER ADMIN (Full system access) =====
+        $superAdmin->syncPermissions(Permission::all());
+
         // ===== PROVINCIAL ADMIN (Full system access) =====
-        $provincialAdmin->givePermissionTo(Permission::all()); // All permissions
+        $provincialAdmin->syncPermissions(Permission::all());
 
         // ===== COOP ADMIN (Full access within their coop) =====
         $coopAdmin->givePermissionTo([
@@ -84,6 +89,9 @@ class PermissionSeeder extends Seeder
             'update members-profile',
             'delete members-profile',
             'export members-profile',
+
+            // Members Management - Read
+            'read members-management',
 
             // Officers & Committees - CRUD
             'create officers-&-committees',

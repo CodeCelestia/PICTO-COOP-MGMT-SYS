@@ -16,27 +16,21 @@ class FinancialRecordController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
     }
 
     private function enforceCoopScope(int $coopId): void
@@ -89,6 +83,16 @@ class FinancialRecordController extends Controller
             'records' => $records,
             'cooperatives' => $cooperativesQuery->get(),
             'filters' => $request->only(['search', 'type', 'coop_id', 'per_page']),
+        ]);
+    }
+
+    public function select(): Response
+    {
+        return Inertia::render('Cooperatives/Select', [
+            'title' => 'Financial Records',
+            'description' => 'Select a cooperative to view financial records.',
+            'targetUrl' => '/financial-records',
+            'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 

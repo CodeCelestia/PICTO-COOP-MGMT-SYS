@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ActivityFundingSource extends Model
 {
     use SoftDeletes;
+    use CoopScoped;
     protected $fillable = [
         'activity_id',
         'coop_id',

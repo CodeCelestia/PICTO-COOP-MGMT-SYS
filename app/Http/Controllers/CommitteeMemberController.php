@@ -17,27 +17,21 @@ class CommitteeMemberController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
     }
 
     private function enforceCoopScope(int $coopId): void
@@ -100,7 +94,9 @@ class CommitteeMemberController extends Controller
 
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
+        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
+            ->whereHas('officers')
+            ->orderBy('last_name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);
@@ -174,7 +170,9 @@ class CommitteeMemberController extends Controller
         $this->enforceCoopScope($committeeMember->coop_id);
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
+        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
+            ->whereHas('officers')
+            ->orderBy('last_name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);

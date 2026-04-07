@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useForm, router, usePage } from '@inertiajs/vue3';
-import { Users, Save, X } from 'lucide-vue-next';
+import { useForm, router, usePage, Link } from '@inertiajs/vue3';
+import { Users, Save, X, ArrowLeft } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,8 +45,11 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdateMember = computed(() => permissions.value.includes('update officers-&-committees'));
+const backToListHref = computed(() => (isCoopAdmin.value ? '/cooperatives/my?tab=committees' : '/committee-members'));
 
 const form = useForm({
     coop_id: props.committeeMember.coop_id.toString(),
@@ -64,22 +67,31 @@ const filteredMembers = computed(() => {
 });
 
 const submit = () => {
+    if (!canUpdateMember.value) return;
     form.put(`/committee-members/${props.committeeMember.id}`, {
         preserveScroll: true,
     });
 };
 
 const cancel = () => {
-    router.get('/committee-members');
+    router.get(backToListHref.value);
 };
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="space-y-1">
-                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Committee Member</h1>
-                <p class="text-sm text-muted-foreground">Update committee assignment.</p>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Committee Member</h1>
+                    <p class="text-sm text-muted-foreground">Update committee assignment.</p>
+                </div>
+                <Link :href="backToListHref">
+                    <Button variant="outline" size="sm" class="gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back to list
+                    </Button>
+                </Link>
             </div>
 
             <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -179,7 +191,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdateMember" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Committee Member
                         </Button>

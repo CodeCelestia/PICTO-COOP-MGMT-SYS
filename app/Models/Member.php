@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int $id
+ * @mixin \Illuminate\Database\Eloquent\Model
+ * @property-read int $id
  * @property int $coop_id
  * @property string $first_name
  * @property string $last_name
@@ -30,13 +33,13 @@ use Spatie\Activitylog\LogOptions;
  * @property string|null $educational_attainment
  * @property string|null $primary_livelihood
  * @property string|null $sector
+ * @property-read string $full_name
  */
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 class Member extends Model
 {
     use SoftDeletes;
     use LogsActivity;
+    use CoopScoped;
 
     protected $appends = [
         'full_name',
@@ -132,6 +135,14 @@ class Member extends Model
     public function trainingParticipants(): HasMany
     {
         return $this->hasMany(TrainingParticipant::class);
+    }
+
+    /**
+     * Get officer assignments for this member.
+     */
+    public function officers(): HasMany
+    {
+        return $this->hasMany(Officer::class);
     }
 
     /**

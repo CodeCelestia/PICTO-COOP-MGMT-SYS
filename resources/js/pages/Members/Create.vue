@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { Users, Save, X, MapPin, Building2, Lock, UserPlus } from 'lucide-vue-next';
-import { onMounted, watch, ref } from 'vue';
+import { computed, onMounted, watch, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const page = usePage();
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
 
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
@@ -103,6 +107,7 @@ watch(selectedCityCode, (newCity) => {
 });
 
 const submit = () => {
+    if (!canCreateMember.value) return;
     form.post('/members', {
         preserveScroll: true,
     });
@@ -198,11 +203,12 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="birth_date">Birth Date</Label>
+                                <Label for="birth_date">Birth Date <span class="text-red-500">*</span></Label>
                                 <Input
                                     id="birth_date"
                                     v-model="form.birth_date"
                                     type="date"
+                                    required
                                     :class="{ 'border-red-500': form.errors.birth_date }"
                                 />
                                 <p v-if="form.errors.birth_date" class="mt-1 text-sm text-red-500">
@@ -211,8 +217,8 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="gender">Gender</Label>
-                                <Select v-model="form.gender">
+                                <Label for="gender">Gender <span class="text-red-500">*</span></Label>
+                                <Select v-model="form.gender" required>
                                     <SelectTrigger :class="{ 'border-red-500': form.errors.gender }">
                                         <SelectValue placeholder="Select gender" />
                                     </SelectTrigger>
@@ -269,11 +275,12 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div class="md:col-span-2">
-                                <Label for="address">Street Address / Building</Label>
+                                <Label for="address">Street Address / Building <span class="text-red-500">*</span></Label>
                                 <Textarea
                                     id="address"
                                     v-model="form.address"
                                     placeholder="Street, building, house number..."
+                                    required
                                     :class="{ 'border-red-500': form.errors.address }"
                                     rows="2"
                                 />
@@ -559,7 +566,7 @@ const toggleRole = (roleId: number) => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canCreateMember" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             {{ form.processing ? 'Saving...' : 'Register Member' }}
                         </Button>

@@ -57,8 +57,10 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean } | undefined);
+const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canUpdateActivity = computed(() => permissions.value.includes('update activities-&-projects'));
 
 const form = useForm({
     coop_id: props.activity.coop_id.toString(),
@@ -90,6 +92,7 @@ const filteredOfficers = computed(() => {
 });
 
 const submit = () => {
+    if (!canUpdateActivity.value) return;
     form.transform((data) => ({
         ...data,
         responsible_officer_id: data.responsible_officer_id === 'none' ? '' : data.responsible_officer_id,
@@ -311,7 +314,7 @@ const cancel = () => {
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
-                        <Button type="submit" :disabled="form.processing" class="gap-2">
+                        <Button v-if="canUpdateActivity" type="submit" :disabled="form.processing" class="gap-2">
                             <Save class="h-4 w-4" />
                             Update Activity
                         </Button>

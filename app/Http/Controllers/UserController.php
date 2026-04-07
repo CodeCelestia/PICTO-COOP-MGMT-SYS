@@ -13,13 +13,23 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    private function resolveAccountType(?Role $role): string
+    {
+        return $role?->name ?? 'Member';
+    }
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        if (!$user) {
+            return false;
+        }
+
+            if ($user->hasRole('Super Admin')) {
+            return false;
+        }
+
+            return $user->hasRole('Coop Admin');
     }
 
     public function index()
@@ -73,7 +83,7 @@ class UserController extends Controller
 
         $coopAdminRoleId = Role::where('name', 'Coop Admin')->value('id');
         $roleIds = $request->input('role_ids', []);
-        $requiresCoop = $coopAdminRoleId && in_array($coopAdminRoleId, $roleIds, true);
+            $requiresCoop = $coopAdminRoleId && in_array($coopAdminRoleId, $roleIds, true); // This line remains unchanged
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -84,14 +94,10 @@ class UserController extends Controller
             'role_ids.*' => 'exists:roles,id',
         ]);
 
-        // Determine account_type from first role selected
-        $accountType = 'Member'; // default
-        if (!empty($validated['role_ids'])) {
-            $firstRole = Role::find($validated['role_ids'][0]);
-            if ($firstRole) {
-                $accountType = $firstRole->name;
-            }
-        }
+        $firstRole = !empty($validated['role_ids'])
+            ? Role::find($validated['role_ids'][0])
+            : null;
+        $accountType = $this->resolveAccountType($firstRole);
 
         $user = User::create([
             'name' => $validated['name'],
@@ -135,12 +141,15 @@ class UserController extends Controller
         // Spatie's assignRole only needs the role
         $user->assignRole($role);
 
+        $updates = [
+            'account_type' => $role->name,
+        ];
+
         if ($role->name === 'Coop Admin') {
-            $user->update([
-                'coop_id' => $request->input('coop_id'),
-                'account_type' => 'Coop Admin',
-            ]);
+            $updates['coop_id'] = $request->input('coop_id');
         }
+
+        $user->update($updates);
 
         return redirect()->back()->with('success', "Role '{$role->name}' assigned successfully!");
     }
@@ -151,7 +160,7 @@ class UserController extends Controller
             abort(403);
         }
 
-        $requiresCoop = $user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin';
+            $requiresCoop = $user->hasRole('Coop Admin');
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],

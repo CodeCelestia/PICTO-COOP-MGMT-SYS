@@ -17,27 +17,21 @@ class ActivityController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Coop Admin') || $user->account_type === 'Coop Admin')
-            : false;
+        return $user ? $user->hasRole('Coop Admin') : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Provincial Admin') || $user->account_type === 'Provincial Admin')
-            : false;
+        return $user ? $user->hasRole('Provincial Admin') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->hasRole('Officer') || $user->account_type === 'Officer')
-            : false;
+        return $user ? $user->hasRole('Officer') : false;
     }
 
     private function enforceCoopScope(int $coopId): void
@@ -94,6 +88,16 @@ class ActivityController extends Controller
             'activities' => $activities,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
             'filters' => $request->only(['search', 'status', 'category', 'coop_id', 'per_page']),
+        ]);
+    }
+
+    public function select(): Response
+    {
+        return Inertia::render('Cooperatives/Select', [
+            'title' => 'Activities & Projects',
+            'description' => 'Select a cooperative to view activities and projects.',
+            'targetUrl' => '/activities',
+            'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 

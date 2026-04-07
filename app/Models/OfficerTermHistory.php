@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class OfficerTermHistory extends Model
 {
     use SoftDeletes;
+    use CoopScoped;
     public $timestamps = false;
 
     protected $table = 'officer_term_history';

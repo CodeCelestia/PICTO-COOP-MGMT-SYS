@@ -41,11 +41,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'roles' => $request->user() ? $request->user()->getRoleNames() : [],
+                'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name') : [],
                 'isCoopAdmin' => $request->user()
-                    ? ($request->user()->hasRole('Coop Admin') || $request->user()->account_type === 'Coop Admin')
+                    ? $request->user()->hasRole('Coop Admin')
                     : false,
                 'isMember' => $request->user()
-                    ? ($request->user()->hasRole('Member') || $request->user()->account_type === 'Member')
+                    ? $request->user()->hasRole('Member')
                     : false,
             ],
             'flash' => [

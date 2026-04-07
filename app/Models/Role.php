@@ -5,17 +5,18 @@ namespace App\Models;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int $id
+ * @mixin \Illuminate\Database\Eloquent\Model
+ * @property-read int $id
  * @property string $name
  * @property string $guard_name
  * @property string|null $description
  * @property int|null $level
  * @property bool $is_active
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Permission> $permissions
  */
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 class Role extends SpatieRole
 {
     use SoftDeletes;

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import type { BreadcrumbItem } from '@/types';
 
 interface Causer {
@@ -289,61 +290,70 @@ const tabBaseClass =
 const showAudit = computed(() => activeTab.value === 'audit');
 const showSessions = computed(() => activeTab.value === 'sessions');
 const showAccounts = computed(() => activeTab.value === 'accounts');
+const activeTotal = computed(() => {
+    if (showAudit.value) return props.audit?.total ?? 0;
+    if (showSessions.value) return props.sessions?.total ?? 0;
+    return props.accounts?.total ?? 0;
+});
 </script>
 
 <template>
     <Head title="Activity Logs" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
-            <div class="flex flex-col gap-4 rounded-xl border border-border/80 bg-card/95 p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 class="text-2xl font-semibold text-foreground">Activity Logs</h1>
-                    <p class="text-sm text-muted-foreground">Audit trails, session activity, and account status tracking.</p>
+        <div class="space-y-6 p-4 md:p-6">
+            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Activity Logs</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">Audit trails, session activity, and account status tracking.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <Badge variant="outline" class="hidden sm:inline-flex">
+                            {{ activeTotal }} total
+                        </Badge>
+                        <div class="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary-foreground">
+                            <Activity class="h-4 w-4" />
+                            Provincial Admin
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary-foreground">
-                    <Activity class="h-4 w-4" />
-                    Provincial Admin
+
+                <div class="mt-4 flex flex-wrap gap-4 border-b border-border" role="tablist" aria-label="Activity logs views">
+                    <button
+                        role="tab"
+                        :aria-selected="showAudit"
+                        :class="[tabBaseClass, tabClasses('audit')]"
+                        @click="setTab('audit')"
+                    >
+                        Audit Logs
+                    </button>
+                    <button
+                        role="tab"
+                        :aria-selected="showSessions"
+                        :class="[tabBaseClass, tabClasses('sessions')]"
+                        @click="setTab('sessions')"
+                    >
+                        Session History
+                    </button>
+                    <button
+                        role="tab"
+                        :aria-selected="showAccounts"
+                        :class="[tabBaseClass, tabClasses('accounts')]"
+                        @click="setTab('accounts')"
+                    >
+                        Account History
+                    </button>
                 </div>
-            </div>
 
-            <div class="flex flex-wrap gap-4 border-b border-border" role="tablist" aria-label="Activity logs views">
-                <button
-                    role="tab"
-                    :aria-selected="showAudit"
-                    :class="[tabBaseClass, tabClasses('audit')]"
-                    @click="setTab('audit')"
-                >
-                    Audit Logs
-                </button>
-                <button
-                    role="tab"
-                    :aria-selected="showSessions"
-                    :class="[tabBaseClass, tabClasses('sessions')]"
-                    @click="setTab('sessions')"
-                >
-                    Session History
-                </button>
-                <button
-                    role="tab"
-                    :aria-selected="showAccounts"
-                    :class="[tabBaseClass, tabClasses('accounts')]"
-                    @click="setTab('accounts')"
-                >
-                    Account History
-                </button>
-            </div>
-
-            <div v-if="showAudit" class="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <Filter class="h-5 w-5" />
-                            Filters
-                        </CardTitle>
-                        <CardDescription>Search and filter audit logs</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                <div class="mt-4">
+                    <FilterPanel
+                        v-if="showAudit"
+                        title="Audit Filters"
+                        description="Show audit filters to refine the event log."
+                        showLabel="Show filters"
+                        hideLabel="Hide filters"
+                    >
                         <div class="grid gap-4 md:grid-cols-4">
                             <div class="relative md:col-span-2">
                                 <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -393,9 +403,117 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
                                 Clear
                             </Button>
                         </div>
-                    </CardContent>
-                </Card>
+                    </FilterPanel>
 
+                    <FilterPanel
+                        v-else-if="showSessions"
+                        title="Session Filters"
+                        description="Show session filters to refine login activity."
+                        showLabel="Show filters"
+                        hideLabel="Hide filters"
+                    >
+                        <div class="grid gap-4 md:grid-cols-4">
+                            <div class="relative">
+                                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    v-model="sessionSearch"
+                                    placeholder="Search users, IP..."
+                                    class="pl-10"
+                                    @keyup.enter="applySessionFilters"
+                                />
+                            </div>
+
+                            <Select v-model="sessionStatus">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="Success">Success</SelectItem>
+                                    <SelectItem value="Failed">Failed</SelectItem>
+                                    <SelectItem value="Locked Out">Locked Out</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <div class="relative">
+                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input v-model="sessionDateFrom" type="date" class="pl-10" />
+                            </div>
+
+                            <div class="relative">
+                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input v-model="sessionDateTo" type="date" class="pl-10" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <Button @click="applySessionFilters" size="sm">
+                                <Filter class="mr-2 h-4 w-4" />
+                                Apply Filters
+                            </Button>
+                            <Button v-if="sessionSearch || sessionStatus !== 'all' || sessionDateFrom || sessionDateTo" @click="clearSessionFilters" variant="outline" size="sm">
+                                Clear Filters
+                            </Button>
+                        </div>
+                    </FilterPanel>
+
+                    <FilterPanel
+                        v-else
+                        title="Account History Filters"
+                        description="Show account history filters to refine status records."
+                        showLabel="Show filters"
+                        hideLabel="Hide filters"
+                    >
+                        <div class="grid gap-4 md:grid-cols-4">
+                            <div class="relative">
+                                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    v-model="accountSearch"
+                                    placeholder="Search users, changed by..."
+                                    class="pl-10"
+                                    @keyup.enter="applyAccountFilters"
+                                />
+                            </div>
+
+                            <Select v-model="accountStatus">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="Active">Active</SelectItem>
+                                    <SelectItem value="Inactive">Inactive</SelectItem>
+                                    <SelectItem value="Suspended">Suspended</SelectItem>
+                                    <SelectItem value="Locked">Locked</SelectItem>
+                                    <SelectItem value="Pending Approval">Pending Approval</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <div class="relative">
+                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input v-model="accountDateFrom" type="date" class="pl-10" />
+                            </div>
+
+                            <div class="relative">
+                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input v-model="accountDateTo" type="date" class="pl-10" />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <Button @click="applyAccountFilters" size="sm">
+                                <Filter class="mr-2 h-4 w-4" />
+                                Apply Filters
+                            </Button>
+                            <Button v-if="accountSearch || accountStatus !== 'all' || accountDateFrom || accountDateTo" @click="clearAccountFilters" variant="outline" size="sm">
+                                Clear Filters
+                            </Button>
+                        </div>
+                    </FilterPanel>
+                </div>
+            </section>
+
+            <div v-if="showAudit" class="space-y-6">
                 <Card>
                     <CardContent class="p-0">
                         <Table>
@@ -506,61 +624,6 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
             </div>
 
             <div v-if="showSessions" class="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <Filter class="h-5 w-5" />
-                            Session Filters
-                        </CardTitle>
-                        <CardDescription>Search and filter session history records.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="grid gap-4 md:grid-cols-4">
-                            <div class="relative">
-                                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    v-model="sessionSearch"
-                                    placeholder="Search users, IP..."
-                                    class="pl-10"
-                                    @keyup.enter="applySessionFilters"
-                                />
-                            </div>
-
-                            <Select v-model="sessionStatus">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="Success">Success</SelectItem>
-                                    <SelectItem value="Failed">Failed</SelectItem>
-                                    <SelectItem value="Locked Out">Locked Out</SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            <div class="relative">
-                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input v-model="sessionDateFrom" type="date" class="pl-10" />
-                            </div>
-
-                            <div class="relative">
-                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input v-model="sessionDateTo" type="date" class="pl-10" />
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <Button @click="applySessionFilters" size="sm">
-                                <Filter class="mr-2 h-4 w-4" />
-                                Apply Filters
-                            </Button>
-                            <Button v-if="sessionSearch || sessionStatus !== 'all' || sessionDateFrom || sessionDateTo" @click="clearSessionFilters" variant="outline" size="sm">
-                                Clear Filters
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 <Card>
                     <CardContent class="p-0">
                         <Table>
@@ -685,63 +748,6 @@ const showAccounts = computed(() => activeTab.value === 'accounts');
             </div>
 
             <div v-if="showAccounts" class="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <Filter class="h-5 w-5" />
-                            Account History Filters
-                        </CardTitle>
-                        <CardDescription>Search and filter account status history records.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="grid gap-4 md:grid-cols-4">
-                            <div class="relative">
-                                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    v-model="accountSearch"
-                                    placeholder="Search users, changed by..."
-                                    class="pl-10"
-                                    @keyup.enter="applyAccountFilters"
-                                />
-                            </div>
-
-                            <Select v-model="accountStatus">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="Active">Active</SelectItem>
-                                    <SelectItem value="Inactive">Inactive</SelectItem>
-                                    <SelectItem value="Suspended">Suspended</SelectItem>
-                                    <SelectItem value="Locked">Locked</SelectItem>
-                                    <SelectItem value="Pending Approval">Pending Approval</SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            <div class="relative">
-                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input v-model="accountDateFrom" type="date" class="pl-10" />
-                            </div>
-
-                            <div class="relative">
-                                <Calendar class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input v-model="accountDateTo" type="date" class="pl-10" />
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <Button @click="applyAccountFilters" size="sm">
-                                <Filter class="mr-2 h-4 w-4" />
-                                Apply Filters
-                            </Button>
-                            <Button v-if="accountSearch || accountStatus !== 'all' || accountDateFrom || accountDateTo" @click="clearAccountFilters" variant="outline" size="sm">
-                                Clear Filters
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 <Card>
                     <CardContent class="p-0">
                         <Table>
