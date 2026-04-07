@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Users } from 'lucide-vue-next';
-import { usePage } from '@inertiajs/vue3';
+import { Building2, FolderKanban, GraduationCap, Handshake, Users } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import MemberListPanel from '@/components/panels/MemberListPanel.vue';
@@ -10,6 +11,7 @@ import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
 import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import ServiceAvailedListPanel from '@/components/panels/ServiceAvailedListPanel.vue';
 import type { Member } from '@/types/models';
+import type { BreadcrumbItem } from '@/types';
 
 interface CooperativeSummary {
     id: number;
@@ -109,13 +111,16 @@ const props = defineProps<{
 }>();
 
 const tabs: LiftedTab[] = [
-    { id: 'members', label: 'Members' },
-    { id: 'services', label: 'Services' },
-    { id: 'activities', label: 'Activities and Projects' },
-    { id: 'trainings', label: 'Trainings' },
+    { id: 'members', label: 'Members', icon: Users },
+    { id: 'services', label: 'Services', icon: Handshake },
+    { id: 'activities', label: 'Activities and Projects', icon: FolderKanban },
+    { id: 'trainings', label: 'Trainings', icon: GraduationCap },
 ];
 
 const page = usePage();
+const roles = computed<string[]>(() => (page.props.auth?.roles as string[]) || []);
+const accountType = computed(() => page.props.auth?.user?.account_type as string | undefined);
+const isCoopAdmin = computed(() => roles.value.includes('Coop Admin') || accountType.value === 'Coop Admin');
 const activeTab = ref('members');
 
 const resolveTab = (url: string) => {
@@ -130,6 +135,19 @@ const managementBasePath = computed(() => {
     return path || '/members/management';
 });
 
+const cooperativeName = computed(() => props.cooperatives[0]?.name || 'Selected Cooperative');
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    {
+        title: 'Members Management',
+        href: '/members/management',
+    },
+    {
+        title: cooperativeName.value,
+        href: managementBasePath.value,
+    },
+]);
+
 watch(
     () => page.url,
     (url) => {
@@ -142,20 +160,40 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <Card class="border-border bg-card">
+            <Card class="border-border bg-gradient-to-br from-card via-card to-muted/25">
                 <CardHeader class="space-y-2">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground">
-                            <Users class="h-5 w-5" />
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="space-y-3">
+                            <div class="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                                <Building2 class="h-3.5 w-3.5" />
+                                Step 2 of 2
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground">
+                                    <Users class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <CardTitle class="text-xl font-semibold text-foreground">
+                                        Members Management
+                                    </CardTitle>
+                                    <p class="text-sm text-muted-foreground">Manage records for the selected cooperative</p>
+                                </div>
+                            </div>
+                            <Badge variant="outline" class="w-fit text-xs">
+                                Cooperative: {{ cooperativeName }}
+                            </Badge>
                         </div>
-                        <div>
-                            <CardTitle class="text-xl font-semibold text-foreground">
-                                Members Management
-                            </CardTitle>
-                            <p class="text-sm text-muted-foreground">Manage cooperative members and related programs</p>
+                        <div v-if="!isCoopAdmin" class="flex items-center">
+                            <Link href="/members/management/select" class="inline-flex items-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted">
+                                Choose Another Cooperative
+                            </Link>
                         </div>
+                    </div>
+                    <div class="rounded-lg border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                        You are viewing cooperative-wide members, services, activities, and trainings for
+                        <span class="font-semibold text-foreground">{{ cooperativeName }}</span>.
                     </div>
                 </CardHeader>
                 <CardContent class="space-y-6">
@@ -174,7 +212,7 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                         <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
                             <div class="space-y-1">
                                 <h2 class="text-xl font-semibold tracking-tight text-foreground">Services Availed</h2>
-                                <p class="text-sm text-muted-foreground">Cooperative-wide services availed records</p>
+                                <p class="text-sm text-muted-foreground">Cooperative-wide services availed records for {{ cooperativeName }}</p>
                             </div>
                         </div>
                         <ServiceAvailedListPanel :services="services" show-member />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Building2, Pencil } from 'lucide-vue-next';
+import { Building2, Pencil, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import type {
     Member,
     Officer,
 } from '@/types/models';
+import type { BreadcrumbItem } from '@/types';
 
 interface Cooperative {
     id: number;
@@ -80,16 +81,27 @@ const props = defineProps<{
 }>();
 
 const tabs: LiftedTab[] = [
-    { id: 'profile', label: 'Cooperative Profile' },
-    { id: 'members', label: 'Members' },
-    { id: 'officers', label: 'Officers' },
-    { id: 'committees', label: 'Committees' },
+    { id: 'profile', label: 'Cooperative Profile', icon: Building2 },
+    { id: 'members', label: 'Members', icon: Users },
+    { id: 'officers', label: 'Officers', icon: ShieldCheck },
+    { id: 'committees', label: 'Committees', icon: UsersRound },
 ];
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
 const activeTab = ref('profile');
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    {
+        title: 'Cooperative Management',
+        href: '/cooperatives',
+    },
+    {
+        title: props.cooperative.name,
+        href: `/cooperatives/${props.cooperative.id}`,
+    },
+]);
 
 const resolveTab = (url: string) => {
     const queryString = url.includes('?') ? url.split('?')[1] : '';
@@ -145,9 +157,9 @@ const statusBadgeClass = computed(() => {
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <Card class="border-border bg-card">
+            <Card class="border-border bg-gradient-to-br from-card via-card to-muted/25">
                 <CardHeader class="space-y-2">
                     <div class="flex items-center gap-3">
                         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground">
@@ -155,13 +167,17 @@ const statusBadgeClass = computed(() => {
                         </div>
                         <div>
                             <CardTitle class="text-xl font-semibold text-foreground">
-                                {{ cooperative.name }}
+                                Cooperative Management
                             </CardTitle>
-                            <p class="text-sm text-muted-foreground">Cooperative overview and management</p>
+                            <p class="text-sm text-muted-foreground">Review and manage profile, members, officers, and committees</p>
                         </div>
                         <Badge class="ml-auto border" :class="statusBadgeClass">
                             {{ cooperative.status }}
                         </Badge>
+                    </div>
+                    <div class="rounded-lg border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
+                        Selected cooperative:
+                        <span class="font-semibold text-foreground">{{ cooperative.name }}</span>
                     </div>
                 </CardHeader>
                 <CardContent class="space-y-6">

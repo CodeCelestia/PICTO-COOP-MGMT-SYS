@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { Building2, Filter } from 'lucide-vue-next';
+import { ArrowRight, Building2, Filter, Search, Sparkles } from 'lucide-vue-next';
 import { onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
+import type { BreadcrumbItem } from '@/types';
 
 interface Cooperative {
     id: number;
@@ -60,6 +61,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Members Management',
+        href: '/members/management',
+    },
+    {
+        title: 'Choose Cooperative',
+        href: '/members/management',
+    },
+];
 
 const coopTypes = [
     'Credit', 'Consumers', 'Producers', 'Marketing', 'Service', 'Multipurpose',
@@ -195,19 +207,28 @@ const formatDate = (date: string | null) => {
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <section class="rounded-2xl border border-border/70 bg-gradient-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
+                        <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                            <Sparkles class="h-3.5 w-3.5" />
+                            Step 1 of 2
+                        </div>
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Members Management</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            Select a cooperative to manage members, services, activities, and trainings.
+                        <p class="mt-1 text-sm text-muted-foreground md:text-base">
+                            Choose a cooperative to view and manage its members.
+                        </p>
+                        <p class="mt-2 max-w-3xl text-sm text-muted-foreground">
+                            Use the search and filters below to narrow down cooperatives, then open one to manage members, services, activities, and trainings in one place.
                         </p>
                     </div>
-                    <Badge variant="outline" class="hidden sm:inline-flex">
-                        {{ cooperatives.total }} total
-                    </Badge>
+                    <div class="flex items-center gap-3">
+                        <Badge variant="outline" class="hidden sm:inline-flex">
+                            {{ cooperatives.total }} total cooperatives
+                        </Badge>
+                    </div>
                 </div>
 
                 <FilterPanel
@@ -220,11 +241,12 @@ const formatDate = (date: string | null) => {
                         <div>
                             <label class="mb-2 block text-sm font-medium text-foreground">Search</label>
                             <div class="relative">
+                                <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     v-model="search"
                                     @keyup.enter="applyFilters"
                                     placeholder="Name, Reg #, Province..."
-                                    class="pl-3"
+                                    class="pl-9"
                                 />
                             </div>
                         </div>
@@ -332,7 +354,8 @@ const formatDate = (date: string | null) => {
                             <Filter class="h-4 w-4" />
                             Apply Filters
                         </Button>
-                        <Button @click="resetFilters" variant="outline">
+                        <Button @click="resetFilters" variant="outline" class="gap-2">
+                            <Search class="h-4 w-4" />
                             Reset
                         </Button>
                     </div>
@@ -341,8 +364,8 @@ const formatDate = (date: string | null) => {
 
             <Card class="overflow-hidden border-border/80 bg-card shadow-sm">
                 <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">Cooperatives</CardTitle>
-                    <CardDescription>Select a cooperative to open member management tabs.</CardDescription>
+                    <CardTitle class="text-base font-semibold text-foreground">Available Cooperatives</CardTitle>
+                    <CardDescription>Select one cooperative to continue to Step 2: member management.</CardDescription>
                 </CardHeader>
 
                 <CardContent class="p-0">
@@ -362,7 +385,12 @@ const formatDate = (date: string | null) => {
                             <TableBody>
                                 <TableRow v-if="cooperatives.data.length === 0">
                                     <TableCell colspan="7" class="py-10 text-center text-muted-foreground">
-                                        No cooperatives found
+                                        <div class="mx-auto max-w-md space-y-2">
+                                            <p class="font-medium text-foreground">No cooperatives matched your filters.</p>
+                                            <p class="text-sm text-muted-foreground">
+                                                Try clearing filters or searching with a broader keyword like a province name.
+                                            </p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 <TableRow
@@ -408,8 +436,9 @@ const formatDate = (date: string | null) => {
                                         {{ formatDate(coop.date_established) }}
                                     </TableCell>
                                     <TableCell class="text-center">
-                                        <Button size="sm" variant="outline" @click.stop="goToManagement(coop.id)">
-                                            Open
+                                        <Button size="sm" variant="outline" class="gap-1.5" @click.stop="goToManagement(coop.id)">
+                                            Open Members
+                                            <ArrowRight class="h-4 w-4" />
                                         </Button>
                                     </TableCell>
                                 </TableRow>

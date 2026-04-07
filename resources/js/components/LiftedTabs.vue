@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { LucideIcon } from 'lucide-vue-next';
 
 export type LiftedTab = {
     id: string;
     label: string;
+    icon?: LucideIcon;
 };
 
 const props = defineProps<{
@@ -39,7 +41,10 @@ const setActive = (id: string) => {
             role="tab"
             @click="setActive(tab.id)"
         >
-            {{ tab.label }}
+            <span class="inline-flex items-center gap-1.5">
+                <component :is="tab.icon" v-if="tab.icon" class="h-4 w-4" />
+                <span>{{ tab.label }}</span>
+            </span>
         </button>
     </div>
 </template>
