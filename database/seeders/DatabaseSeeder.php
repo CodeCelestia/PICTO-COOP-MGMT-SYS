@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
         $chairpersonRole = Role::where('name', 'Chairperson')->first();
         $generalManagerRole = Role::where('name', 'General Manager')->first();
         $memberRole = Role::where('name', 'Member')->first();
+        $superAdminRole = Role::where('name', 'Super Admin')->first();
 
         $seedCoop = Cooperative::where('registration_number', 'CDA-REG-5-2020-001')->first()
             ?? Cooperative::first();

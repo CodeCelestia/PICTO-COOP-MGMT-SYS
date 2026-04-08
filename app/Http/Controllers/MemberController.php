@@ -23,6 +23,50 @@ use Illuminate\Http\RedirectResponse;
 
 class MemberController extends Controller
 {
+    private function cooperativeSelectionData(Request $request): array
+    {
+        $query = Cooperative::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('registration_number', 'like', "%{$search}%")
+                    ->orWhere('province', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->input('status') === 'Archived') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('coop_type')) {
+            $query->where('coop_type', $request->coop_type);
+        }
+
+        if ($request->filled('region')) {
+            $query->where('region', $request->region);
+        }
+
+        if ($request->filled('province')) {
+            $query->where('province', $request->province);
+        }
+
+        if ($request->filled('municipality')) {
+            $query->where('city_municipality', $request->municipality);
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        $perPage = max(1, min($perPage, 500));
+
+        return [
+            'cooperatives' => $query->with('types')->orderBy('name')->paginate($perPage)->withQueryString(),
+            'filters' => $request->only(['search', 'status', 'coop_type', 'region', 'province', 'municipality', 'per_page']),
+        ];
+    }
+
     private function canViewAllCooperatives(): bool
     {
         $user = auth()->user();
@@ -157,7 +201,7 @@ class MemberController extends Controller
             }
 
             if (!$cooperative) {
-                return redirect()->route('members.management.select');
+                return Inertia::render('Members/ManagementSelect', $this->cooperativeSelectionData($request));
             }
 
             $coopId = $cooperative->id;
@@ -307,15 +351,13 @@ class MemberController extends Controller
     /**
      * Show cooperative picker for members management.
      */
-    public function managementSelect(): Response
+    public function managementSelect(): RedirectResponse
     {
         if (!$this->canViewAllCooperatives()) {
             abort(403);
         }
 
-        return Inertia::render('Members/ManagementSelect', [
-            'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
-        ]);
+        return redirect()->route('members.management');
     }
 
     /**
@@ -323,7 +365,7 @@ class MemberController extends Controller
      */
     public function create(): Response
     {
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 
@@ -431,7 +473,7 @@ class MemberController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 
@@ -519,7 +561,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
@@ -600,7 +642,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
@@ -643,7 +685,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
@@ -690,7 +732,7 @@ class MemberController extends Controller
         $user = auth()->user();
         $coopId = $user?->coop_id;
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
@@ -870,7 +912,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 
@@ -888,7 +930,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 

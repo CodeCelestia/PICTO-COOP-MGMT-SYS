@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Plus, Pencil, Trash2, Search, Filter, RotateCcw } from 'lucide-vue-next';
+import { Building2, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
+import type { BreadcrumbItem } from '@/types';
 
 interface Cooperative {
     id: number;
@@ -75,6 +76,13 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Cooperative Management',
+        href: '/cooperatives',
+    },
+];
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
@@ -291,19 +299,26 @@ const formatFullAddress = (coop: Cooperative) => {
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-xl border border-border bg-card/95 p-5 shadow-sm">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <section class="rounded-2xl border border-border/70 bg-gradient-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
+                        <div v-if="!isCoopAdminOnly" class="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                            <Sparkles class="h-3.5 w-3.5" />
+                            Step 1 of 2
+                        </div>
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Cooperative Management</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">
+                        <p class="mt-1 text-sm text-muted-foreground md:text-base">
                             Manage cooperative master profiles
+                        </p>
+                        <p v-if="!isCoopAdminOnly" class="mt-2 max-w-3xl text-sm text-muted-foreground">
+                            Select a cooperative to manage its members, officers, and committees.
                         </p>
                     </div>
                     <div class="flex items-center gap-3">
                         <Badge variant="outline" class="hidden sm:inline-flex">
-                            {{ cooperatives.total }} total
+                            {{ cooperatives.total }} total cooperatives
                         </Badge>
                         <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
                             <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
@@ -460,7 +475,8 @@ const formatFullAddress = (coop: Cooperative) => {
                         <Filter class="h-4 w-4" />
                         Apply Filters
                     </Button>
-                    <Button @click="resetFilters" variant="outline">
+                    <Button @click="resetFilters" variant="outline" class="gap-2">
+                        <Search class="h-4 w-4" />
                         Reset
                     </Button>
                 </div>
@@ -535,8 +551,8 @@ const formatFullAddress = (coop: Cooperative) => {
 
             <Card v-else class="overflow-hidden border-border/80 bg-card shadow-sm">
                 <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">Cooperatives</CardTitle>
-                    <CardDescription>Browse cooperative profiles, statuses, and accreditation details.</CardDescription>
+                    <CardTitle class="text-base font-semibold text-foreground">Available Cooperatives</CardTitle>
+                    <CardDescription>Open a cooperative profile to continue to members, officers, and committees management.</CardDescription>
                 </CardHeader>
 
                 <CardContent class="p-0">
@@ -564,7 +580,10 @@ const formatFullAddress = (coop: Cooperative) => {
                             <TableBody>
                                 <TableRow v-if="cooperatives.data.length === 0">
                                     <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
-                                        No cooperatives found
+                                        <div class="mx-auto max-w-md space-y-2">
+                                            <p class="font-medium text-foreground">No cooperatives matched your current filters.</p>
+                                            <p class="text-sm text-muted-foreground">Try clearing filters or searching by province or registration number.</p>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 <TableRow

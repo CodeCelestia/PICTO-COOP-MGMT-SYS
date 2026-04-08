@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, Pencil, CheckCircle2 } from 'lucide-vue-next';
+import { ArrowLeft, Briefcase, CheckCircle2, FolderKanban, GraduationCap, IdCard, Pencil } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import type { Member } from '@/types/models';
+import type { BreadcrumbItem } from '@/types';
 
 type MemberProps = Member;
 
@@ -61,10 +62,10 @@ const backToListHref = computed(() => (isCoopScoped.value ? '/cooperatives/my?ta
 const { isAppBackgroundVisible } = useAppBackgroundPreference();
 
 const tabs: LiftedTab[] = [
-    { id: 'profile', label: 'Member Profile' },
-    { id: 'services', label: 'Services' },
-    { id: 'activities', label: 'Activities and Projects' },
-    { id: 'trainings', label: 'Trainings' },
+    { id: 'profile', label: 'Member Profile', icon: IdCard },
+    { id: 'services', label: 'Services', icon: Briefcase },
+    { id: 'activities', label: 'Activities and Projects', icon: FolderKanban },
+    { id: 'trainings', label: 'Trainings', icon: GraduationCap },
 ];
 
 const activeTab = ref('profile');
@@ -98,6 +99,17 @@ const isOfficerMember = computed(() => (props.member.active_officers_count || 0)
 
 const fullName = `${props.member.first_name} ${props.member.last_name}`;
 
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    {
+        title: 'Members Management',
+        href: backToListHref.value,
+    },
+    {
+        title: fullName,
+        href: `/members/${props.member.id}`,
+    },
+]);
+
 const fullAddress = computed(() => {
     return (
         [
@@ -126,12 +138,13 @@ const memberInfoPanelClass = computed(() =>
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :breadcrumbs="breadcrumbs">
         <div class="sticky top-0 z-40 px-4 pb-4 pt-4 backdrop-blur-sm md:px-6 md:pt-6" :class="isAppBackgroundVisible ? 'bg-background/45' : 'bg-background/95'">
             <section class="rounded-2xl border p-5 md:p-6" :class="detailsCardClass">
                 <div class="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between" :class="isAppBackgroundVisible ? 'border-border/40' : 'border-border'">
                     <div class="min-w-0">
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground">Member Details</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">Profile, services, activities, and training history in one view.</p>
                     </div>
                     <div class="flex shrink-0 flex-wrap items-center gap-2">
                         <Link :href="backToListHref">
