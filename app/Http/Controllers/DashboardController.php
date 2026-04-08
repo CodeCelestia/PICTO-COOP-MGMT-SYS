@@ -19,20 +19,15 @@ class DashboardController extends Controller
     public function index(): Response
     {
         $authUser = auth()->user();
-        $isSuperAdmin = $authUser ? $authUser->hasRole('Super Admin') : false;
-        $isProvincialAdmin = $authUser ? $authUser->hasRole('Provincial Admin') : false;
-        $isMemberRole = $authUser ? $authUser->hasRole('Member') : false;
+        $canViewAllCoops = $authUser ? $authUser->can('view-all-cooperatives') : false;
         $canViewReports = $authUser ? $authUser->can('read reports-&-dashboard') : false;
-        $isCoopAdmin = $authUser
-            ? (!$isSuperAdmin && !$isProvincialAdmin && $authUser->coop_id && $canViewReports && !$isMemberRole)
-            : false;
-        $isMember = $authUser
-            ? ($isMemberRole && $authUser->member_id)
-            : false;
+        $isCoopScoped = $authUser ? ($authUser->coop_id && ! $canViewAllCoops) : false;
+        $isCoopAdmin = $authUser ? ($isCoopScoped && $canViewReports) : false;
+        $isMember = $authUser ? ($authUser->member_id && $authUser->can('read members-profile')) : false;
         $coopId = $authUser?->coop_id;
 
         $systemStats = $this->getSystemStats();
-        $superAdminStats = $isSuperAdmin ? $this->getSuperAdminStats() : null;
+        $superAdminStats = $canViewAllCoops ? $this->getSuperAdminStats() : null;
 
         $coopStats = null;
         $coopMembers = [];
@@ -63,7 +58,7 @@ class DashboardController extends Controller
             'recentUsers' => $systemStats['recentUsers'],
             'systemTrends' => $systemStats['systemTrends'],
             'sectorDistribution' => $systemStats['sectorDistribution'],
-            'isSuperAdmin' => $isSuperAdmin,
+            'isSuperAdmin' => $canViewAllCoops,
             'superAdminStats' => $superAdminStats,
             'isCoopAdmin' => $isCoopAdmin,
             'isMember' => $isMember,

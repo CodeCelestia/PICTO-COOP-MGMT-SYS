@@ -20,36 +20,31 @@ class PdsController extends Controller
     {
     }
 
-    private function isCoopAdmin(): bool
+    private function canViewAllCooperatives(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Coop Admin') : false;
+        return $user ? $user->can('view-all-cooperatives') : false;
     }
 
-    private function isProvincialAdmin(): bool
+    private function isCoopScopedUser(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Provincial Admin') : false;
+        return $user ? ($user->coop_id && ! $this->canViewAllCooperatives()) : false;
     }
 
     private function canManageAny(): bool
     {
-        return $this->isProvincialAdmin() || $this->isCoopAdmin();
+        return $this->canViewAllCooperatives() || $this->isCoopScopedUser();
     }
 
     private function currentUserRole(): string
     {
-        if ($this->isProvincialAdmin()) {
-            return 'Provincial Admin';
-        }
+        $user = auth()->user();
+        $role = $user?->getRoleNames()->first();
 
-        if ($this->isCoopAdmin()) {
-            return 'Coop Admin';
-        }
-
-        return 'User';
+        return $role ?: 'User';
     }
 
     private function resolvedCooperativeId(User $user): ?int
@@ -83,11 +78,11 @@ class PdsController extends Controller
             return false;
         }
 
-        if ($this->isProvincialAdmin()) {
+        if ($this->canViewAllCooperatives()) {
             return true;
         }
 
-        if ($this->isCoopAdmin()) {
+        if ($this->isCoopScopedUser()) {
             $coopId = $this->resolvedCooperativeId($user);
 
             return $coopId && $pds->cooperative_id === $coopId;
@@ -100,7 +95,7 @@ class PdsController extends Controller
     {
         $user = auth()->user();
 
-        if ($user && $user->hasRole('Member')) {
+        if ($user && $user->can('read members-profile') && ! $user->can('read members-management')) {
             return redirect()->route('pds.my');
         }
 
@@ -114,11 +109,11 @@ class PdsController extends Controller
                 'cooperative:id,name',
             ]);
 
-        if ($this->isProvincialAdmin()) {
+        if ($this->canViewAllCooperatives()) {
             if ($filterCoopId) {
                 $query->where('cooperative_id', $filterCoopId);
             }
-        } elseif ($this->isCoopAdmin()) {
+        } elseif ($this->isCoopScopedUser()) {
             $coopId = $this->resolvedCooperativeId($user);
             $query->where('cooperative_id', $coopId ?: 0);
         } else {
@@ -175,7 +170,7 @@ class PdsController extends Controller
         $cooperatives = Cooperative::query()
             ->select('id', 'name')
             ->orderBy('name')
-            ->when($this->isCoopAdmin(), function (Builder $q) use ($user) {
+            ->when($this->isCoopScopedUser(), function (Builder $q) use ($user) {
                 $coopId = $this->resolvedCooperativeId($user);
                 $q->where('id', $coopId ?: 0);
             })
@@ -221,12 +216,16 @@ class PdsController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$user->hasRole('Officer') && !$user->hasRole('Committee Member') && !$user->hasRole('Viewer')) {
+        if (!$user?->can('read members-profile')) {
             abort(403);
         }
 
-        if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
-            abort(403);
+        if ($this->isCoopScopedUser()) {
+            $coopId = $this->resolvedCooperativeId($user);
+
+            if ($coopId && $member->coop_id !== $coopId) {
+                abort(403);
+            }
         }
 
         $memberUser = $member->user;

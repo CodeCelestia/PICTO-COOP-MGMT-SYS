@@ -12,24 +12,9 @@ use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    private function isCoopAdmin(): bool
-    {
-        $user = auth()->user();
-
-        if (!$user) {
-            return false;
-        }
-
-            if ($user->hasRole('Super Admin')) {
-            return false;
-        }
-
-            return $user->hasRole('Coop Admin');
-    }
-
     public function index(): Response
     {
-        if ($this->isCoopAdmin()) {
+        if (!auth()->user()?->can('manage-permissions')) {
             abort(403);
         }
 
@@ -64,7 +49,7 @@ class RoleController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('manage-permissions')) {
             abort(403);
         }
 
@@ -95,7 +80,7 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('manage-permissions')) {
             abort(403);
         }
 
@@ -125,7 +110,7 @@ class RoleController extends Controller
 
     public function destroy(Role $role): RedirectResponse
     {
-        if ($this->isCoopAdmin()) {
+        if (!auth()->user()?->can('manage-permissions')) {
             abort(403);
         }
 

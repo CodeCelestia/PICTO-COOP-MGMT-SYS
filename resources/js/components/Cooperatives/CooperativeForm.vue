@@ -44,6 +44,7 @@ const selectedCityCode = ref('all');
 const isHydrating = ref(true);
 const isCoopTypeDialogOpen = ref(false);
 const coopTypeSearch = ref('');
+const defaultProvinceName = 'Surigao del Norte';
 
 const normalizeDateInput = (value?: string | null): string => {
   if (!value) return '';
@@ -130,7 +131,26 @@ onMounted(async () => {
   try {
     await fetchRegions();
 
-    if (!props.cooperative) return;
+    if (!props.cooperative) {
+      const caragaRegion = regions.value.find((region) => {
+        const normalized = normalizeLocationKey(region.name || region.regionName);
+        return normalized.includes('caraga') || normalized.includes('region xiii');
+      });
+
+      if (caragaRegion) {
+        selectedRegionCode.value = caragaRegion.code;
+        form.region = caragaRegion.name;
+        await fetchProvinces(caragaRegion.code);
+
+        const province = findByNameOrCode(provinces.value, defaultProvinceName);
+        if (province) {
+          selectedProvinceCode.value = province.code;
+          form.province = province.name;
+        }
+      }
+
+      return;
+    }
 
     const region = findByNameOrCode(regions.value, props.cooperative.region);
     if (region) {

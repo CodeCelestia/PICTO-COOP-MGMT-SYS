@@ -21,11 +21,11 @@ class RoleOrSuperAdmin
             throw new HttpException(403);
         }
 
-        if ($user->hasRole('Super Admin')) {
+        if ($user->can('view-all-cooperatives')) {
             return $next($request);
         }
 
-        if ($user->hasAnyRole($roles)) {
+        if ($user->hasAnyPermission($roles)) {
             return $next($request);
         }
 

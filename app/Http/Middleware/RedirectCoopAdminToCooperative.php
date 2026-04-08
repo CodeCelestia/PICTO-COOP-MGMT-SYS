@@ -17,7 +17,7 @@ class RedirectCoopAdminToCooperative
     {
         $user = $request->user();
 
-        if ($user && $user->hasRole('Coop Admin')) {
+        if ($user && ! $user->can('view-all-cooperatives')) {
             return redirect()->to('/cooperatives/my');
         }
 

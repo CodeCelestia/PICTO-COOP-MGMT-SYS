@@ -33,32 +33,27 @@ import type { NavItem } from '@/types';
 
 const page = usePage();
 const auth = computed(() => page.props.auth as {
-    roles?: string[];
+    user?: { member_id?: number | null };
     permissions?: string[];
     isCoopAdmin?: boolean;
 } | undefined);
-const roles = computed<string[]>(() => auth.value?.roles || []);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin) || roles.value.includes('Coop Admin'));
+const authUser = computed(() => auth.value?.user);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
-const isSuperAdmin = computed(() => roles.value.includes('Super Admin'));
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin'));
-const isSuperOrProv = computed(() => isSuperAdmin.value || isProvincialAdmin.value);
-const isMember = computed(() => roles.value.includes('Member'));
-const isMemberOnly = computed(() => isMember.value && roles.value.length === 1);
+const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const isMember = computed(() => Boolean(authUser.value?.member_id));
 
 const can = (permission: string) => permissions.value.includes(permission);
 
+const canViewAllCoops = computed(() => can('view-all-cooperatives'));
 const canViewCoops = computed(() => can('read coop-master-profile') || can('view-all-cooperatives'));
 const canViewMembers = computed(() => can('read members-profile'));
 const canViewMembersManagement = computed(() => can('read members-management'));
-const canViewOfficers = computed(() => can('read officers-&-committees'));
-const canViewActivities = computed(() => can('read activities-&-projects'));
 const canViewFinance = computed(() => can('read financial-&-support'));
-const canViewTrainings = computed(() => can('read training-&-capacity'));
 const canViewSkillInventories = computed(() => can('read training-&-capacity'));
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
+const isMemberOnly = computed(() => isMember.value && !canViewMembersManagement.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
 
 const mainNavItems = computed<NavItem[]>(() => {
     const baseItems: NavItem[] = [
@@ -185,46 +180,19 @@ const mainNavItems = computed<NavItem[]>(() => {
         });
     }
 
-    if (canViewMembers.value && !isCoopAdmin.value) {
-        items.push(baseItems[3]);
-    }
-
     if (canViewMembers.value || isMember.value) {
         items.push(baseItems[4]);
-    }
-
-    if (canViewOfficers.value && !isCoopAdmin.value) {
-        items.push({
-            title: 'Officers & Committees',
-            href: isSuperOrProv.value ? '/officers/select' : '/officers',
-            icon: Users,
-        });
-    }
-
-    if (canViewActivities.value && !isCoopAdmin.value) {
-        items.push({
-            title: 'Activities & Projects',
-            href: isSuperOrProv.value ? '/activities/select' : '/activities',
-            icon: FileText,
-        });
     }
 
     if (canViewFinance.value) {
         items.push(baseItems[7]);
     }
 
-    if (canViewTrainings.value && !isCoopAdmin.value) {
-        items.push({
-            title: 'Trainings',
-            href: isSuperOrProv.value ? '/trainings/select' : '/trainings',
-            icon: GraduationCap,
-        });
-    }
 
     if (canViewSkillInventories.value) {
         items.push({
             title: 'Skills Inventory',
-            href: isSuperOrProv.value ? '/skill-inventories/select' : '/skill-inventories',
+            href: canViewAllCoops.value ? '/skill-inventories/select' : '/skill-inventories',
             icon: Sparkles,
         });
     }

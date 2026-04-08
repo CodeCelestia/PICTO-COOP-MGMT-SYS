@@ -17,9 +17,9 @@ class MemberSeeder extends Seeder
         // Get cooperatives
         $picto = Cooperative::where('name', 'Picto Multi-Purpose Cooperative')->first();
         $angeles = Cooperative::where('name', 'Angeles City Credit Cooperative')->first();
-        $tarlac = Cooperative::where('name', 'Tarlac Farmers Multi-Purpose Cooperative')->first();
-        $nuevaEcija = Cooperative::where('name', 'Nueva Ecija Transport Service Cooperative')->first();
-        $bulacan = Cooperative::where('name', 'Bulacan Fishermen Cooperative')->first();
+        $tarlac = Cooperative::where('name', 'Tarlac Farmers Producers Cooperative')->first();
+        $nuevaEcija = Cooperative::where('name', 'Nueva Ecija Marketing Cooperative')->first();
+        $bulacan = Cooperative::where('name', 'Bulacan Transport Service Cooperative')->first();
 
         // Sample members data
         $members = [
@@ -278,9 +278,27 @@ class MemberSeeder extends Seeder
         ];
 
         foreach ($members as $member) {
-            if ($member['coop_id']) {
-                Member::create($member);
+            if (! $member['coop_id']) {
+                continue;
             }
+
+            if (! empty($member['email'])) {
+                Member::updateOrCreate(
+                    ['email' => $member['email']],
+                    $member
+                );
+                continue;
+            }
+
+            Member::updateOrCreate(
+                [
+                    'coop_id' => $member['coop_id'],
+                    'first_name' => $member['first_name'],
+                    'last_name' => $member['last_name'],
+                    'birth_date' => $member['birth_date'],
+                ],
+                $member
+            );
         }
     }
 }

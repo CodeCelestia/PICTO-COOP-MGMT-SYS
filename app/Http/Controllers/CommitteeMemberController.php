@@ -17,21 +17,25 @@ class CommitteeMemberController extends Controller
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Coop Admin') : false;
+        return $user
+            ? ($user->coop_id && ! $user->can('view-all-cooperatives'))
+            : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Provincial Admin') : false;
+        return $user ? $user->can('view-all-cooperatives') : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Officer') : false;
+        return $user
+            ? (! $user->can('view-all-cooperatives') && $user->can('read officers-&-committees'))
+            : false;
     }
 
     private function enforceCoopScope(int $coopId): void

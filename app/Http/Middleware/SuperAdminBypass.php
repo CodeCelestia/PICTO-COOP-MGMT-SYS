@@ -16,8 +16,8 @@ class SuperAdminBypass
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // If user is Super Admin, allow all access
-        if ($request->user()?->hasRole('Super Admin')) {
+        // If user can view all cooperatives, allow access
+        if ($request->user()?->can('view-all-cooperatives')) {
             return $next($request);
         }
 

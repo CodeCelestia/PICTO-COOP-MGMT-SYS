@@ -27,36 +27,32 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        return $user
-            ? ($user->can('view-all-cooperatives') || $this->isSuperAdmin() || $this->isProvincialAdmin())
-            : false;
+        return $user ? $user->can('view-all-cooperatives') : false;
     }
 
-    private function isSuperAdmin(): bool
-    {
-        $user = auth()->user();
-
-        return $user ? $user->hasRole('Super Admin') : false;
-    }
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Coop Admin') : false;
+        return $user
+            ? ($user->coop_id && ! $this->canViewAllCooperatives())
+            : false;
     }
 
     private function isProvincialAdmin(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Provincial Admin') : false;
+        return $user ? $this->canViewAllCooperatives() : false;
     }
 
     private function isOfficer(): bool
     {
         $user = auth()->user();
 
-        return $user ? $user->hasRole('Officer') : false;
+        return $user
+            ? (! $this->canViewAllCooperatives() && $user->can('read officers-&-committees'))
+            : false;
     }
 
     private function resolveAccountType(?Role $role): string
@@ -144,7 +140,7 @@ class MemberController extends Controller
     /**
      * Display the cooperative members management view.
      */
-    public function management(Request $request, ?Cooperative $cooperative = null): Response
+    public function management(Request $request, ?Cooperative $cooperative = null): Response|RedirectResponse
     {
         $user = auth()->user();
         $canViewAll = $this->canViewAllCooperatives();
@@ -351,7 +347,7 @@ class MemberController extends Controller
     {
         $user = auth()->user();
 
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer() && !$user->hasRole('Committee Member') && !$user->hasRole('Viewer')) {
+        if (!$user?->can('read members-profile')) {
             abort(403);
         }
 

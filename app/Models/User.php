@@ -29,10 +29,7 @@ class User extends Authenticatable
 {
     use SoftDeletes;
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles, LogsActivity {
-        HasRoles::hasRole as traitHasRole;
-        HasRoles::hasAnyRole as traitHasAnyRole;
-    }
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, HasRoles, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -118,32 +115,6 @@ class User extends Authenticatable
     // - hasRole(), assignRole(), removeRole(), syncRoles(), getRoleNames()
     // - hasPermissionTo(), givePermissionTo(), revokePermissionTo()
     // - hasAnyRole(), hasAllRoles(), etc.
-
-    public function hasRole($roles, ?string $guard = null): bool
-    {
-        if ($roles === null || $roles === '' || $roles === []) {
-            return false;
-        }
-
-        if ($this->traitHasRole('Super Admin', $guard)) {
-            return true;
-        }
-
-        return $this->traitHasRole($roles, $guard);
-    }
-
-    public function hasAnyRole($roles, ?string $guard = null): bool
-    {
-        if ($roles === null || $roles === '' || $roles === []) {
-            return false;
-        }
-
-        if ($this->traitHasRole('Super Admin', $guard)) {
-            return true;
-        }
-
-        return $this->traitHasAnyRole($roles, $guard);
-    }
 
     /**
      * Get the cooperative this user belongs to

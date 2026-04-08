@@ -17,24 +17,9 @@ class UserController extends Controller
     {
         return $role?->name ?? 'Member';
     }
-    private function isCoopAdmin(): bool
-    {
-        $user = auth()->user();
-
-        if (!$user) {
-            return false;
-        }
-
-            if ($user->hasRole('Super Admin')) {
-            return false;
-        }
-
-            return $user->hasRole('Coop Admin');
-    }
-
     public function index()
     {
-        if ($this->isCoopAdmin()) {
+        if (!auth()->user()?->can('read user-accounts')) {
             abort(403);
         }
 
@@ -77,13 +62,15 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('create user-accounts')) {
             abort(403);
         }
 
-        $coopAdminRoleId = Role::where('name', 'Coop Admin')->value('id');
         $roleIds = $request->input('role_ids', []);
-            $requiresCoop = $coopAdminRoleId && in_array($coopAdminRoleId, $roleIds, true); // This line remains unchanged
+        $roles = Role::whereIn('id', $roleIds)->get();
+        $requiresCoop = $roles->isNotEmpty()
+            ? ! $roles->contains(fn (Role $role) => $role->hasPermissionTo('view-all-cooperatives'))
+            : false;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -126,16 +113,18 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user)
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('update user-accounts')) {
             abort(403);
         }
 
         $roleId = $request->input('role_id');
         $role = Role::findOrFail($roleId);
 
+        $requiresCoop = ! $role->hasPermissionTo('view-all-cooperatives');
+
         $request->validate([
             'role_id' => 'required|exists:roles,id',
-            'coop_id' => [Rule::requiredIf($role->name === 'Coop Admin'), 'nullable', 'exists:cooperatives,id'],
+            'coop_id' => [Rule::requiredIf($requiresCoop), 'nullable', 'exists:cooperatives,id'],
         ]);
         
         // Spatie's assignRole only needs the role
@@ -145,7 +134,7 @@ class UserController extends Controller
             'account_type' => $role->name,
         ];
 
-        if ($role->name === 'Coop Admin') {
+        if ($requiresCoop) {
             $updates['coop_id'] = $request->input('coop_id');
         }
 
@@ -156,11 +145,11 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('update user-accounts')) {
             abort(403);
         }
 
-            $requiresCoop = $user->hasRole('Coop Admin');
+        $requiresCoop = ! $user->can('view-all-cooperatives');
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -181,7 +170,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if ($this->isCoopAdmin()) {
+        if (!auth()->user()?->can('delete user-accounts')) {
             abort(403);
         }
 
@@ -196,7 +185,7 @@ class UserController extends Controller
 
     public function removeRole(Request $request, User $user)
     {
-        if ($this->isCoopAdmin()) {
+        if (!$request->user()?->can('update user-accounts')) {
             abort(403);
         }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { Pencil, Download, Trash2, RotateCcw } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +58,6 @@ interface Props {
         per_page: number;
         total: number;
     };
-    userRole: 'Provincial Admin' | 'Coop Admin' | 'User';
     filters: {
         search?: string;
         status?: string;
@@ -69,6 +68,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
+const isCoopAdmin = computed(() => Boolean(page.props.auth?.isCoopAdmin));
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
@@ -89,9 +92,7 @@ const resolvedPerPage = () => {
     return String(Math.min(parsed, 500));
 };
 
-const isProvincialAdmin = computed(() => props.userRole === 'Provincial Admin');
-const isCoopAdmin = computed(() => props.userRole === 'Coop Admin');
-const showAdminColumns = computed(() => isProvincialAdmin.value || isCoopAdmin.value);
+const showAdminColumns = computed(() => canViewAllCoops.value || isCoopAdmin.value);
 
 const formatDate = (value: string | null) => {
     if (!value) return 'N/A';

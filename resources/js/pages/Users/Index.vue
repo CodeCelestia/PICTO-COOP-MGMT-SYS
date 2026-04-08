@@ -85,6 +85,7 @@ const canCreateUsers = computed(() => permissions.value.includes('create user-ac
 const canUpdateUsers = computed(() => permissions.value.includes('update user-accounts'));
 const canDeleteUsers = computed(() => permissions.value.includes('delete user-accounts'));
 const canManagePermissions = computed(() => permissions.value.includes('manage-permissions'));
+const showCoopSelector = computed(() => props.cooperatives.length > 0);
 
 const isAssignDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
@@ -94,13 +95,6 @@ const selectedRoleId = ref<number | null>(null);
 const expiresAt = ref('');
 const remarks = ref('');
 const selectedCoopId = ref<number | null>(null);
-
-const coopAdminRoleId = props.availableRoles.find(role => role.name === 'Coop Admin')?.id ?? null;
-
-const isCoopAdminRole = (roleId: number | null) => {
-    if (!roleId || !coopAdminRoleId) return false;
-    return roleId === coopAdminRoleId;
-};
 
 const isRoleDialogOpen = ref(false);
 const isEditingRole = ref(false);
@@ -143,10 +137,6 @@ const editForm = useForm({
     account_status: 'Active',
     coop_id: '',
 });
-
-const isCoopAdminAccount = (user: User | null) => {
-    return (user?.roles || []).some((role) => role.name === 'Coop Admin');
-};
 
 
 const openEditDialog = (user: User) => {
@@ -194,8 +184,6 @@ const getCoopName = (coopId: number | null | undefined) => {
 const assignRole = () => {
     if (!canUpdateUsers.value) return;
     if (!selectedUser.value || !selectedRoleId.value) return;
-
-    if (isCoopAdminRole(selectedRoleId.value) && !selectedCoopId.value) return;
 
     router.post(`/users/${selectedUser.value.id}/assign-role`, {
         role_id: selectedRoleId.value,
@@ -376,13 +364,6 @@ const toggleRole = (roleId: number) => {
         createForm.role_ids.push(roleId);
     }
 
-    if (!requiresCoop()) {
-        createForm.coop_id = '';
-    }
-};
-
-const requiresCoop = () => {
-    return coopAdminRoleId ? createForm.role_ids.includes(coopAdminRoleId) : false;
 };
 </script>
 
@@ -700,7 +681,7 @@ const requiresCoop = () => {
                             </p>
                         </div>
 
-                        <div v-if="isCoopAdminAccount(selectedUser)" class="grid gap-2">
+                        <div v-if="showCoopSelector" class="grid gap-2">
                             <Label for="edit_coop_id">Cooperative</Label>
                             <Select v-model="editForm.coop_id">
                                 <SelectTrigger id="edit_coop_id" :class="{ 'border-red-500 focus-visible:ring-red-500': editForm.errors.coop_id }">
@@ -770,7 +751,7 @@ const requiresCoop = () => {
                             </Select>
                         </div>
 
-                        <div v-if="isCoopAdminRole(selectedRoleId)" class="grid gap-2">
+                        <div v-if="showCoopSelector" class="grid gap-2">
                             <Label for="coop_id">Cooperative</Label>
                             <Select v-model="selectedCoopId">
                                 <SelectTrigger id="coop_id">
@@ -823,7 +804,7 @@ const requiresCoop = () => {
                         </Button>
                         <Button
                             @click="assignRole"
-                            :disabled="!selectedRoleId || (isCoopAdminRole(selectedRoleId) && !selectedCoopId)"
+                            :disabled="!selectedRoleId"
                         >
                             Assign Role
                         </Button>
@@ -932,7 +913,7 @@ const requiresCoop = () => {
                             </p>
                         </div>
 
-                        <div v-if="requiresCoop()" class="grid gap-2">
+                        <div v-if="showCoopSelector" class="grid gap-2">
                             <Label for="create_coop_id">Cooperative</Label>
                             <Select v-model="createForm.coop_id">
                                 <SelectTrigger id="create_coop_id" :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.coop_id }">

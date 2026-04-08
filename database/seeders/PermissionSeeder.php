@@ -61,12 +61,14 @@ class PermissionSeeder extends Seeder
         $superAdmin = Role::where('name', 'Super Admin')->first();
         $provincialAdmin = Role::where('name', 'Provincial Admin')->first();
         $coopAdmin = Role::where('name', 'Coop Admin')->first();
+        $chairperson = Role::where('name', 'Chairperson')->first();
+        $generalManager = Role::where('name', 'General Manager')->first();
         $officer = Role::where('name', 'Officer')->first();
         $committeeMember = Role::where('name', 'Committee Member')->first();
         $member = Role::where('name', 'Member')->first();
         $viewer = Role::where('name', 'Viewer')->first();
 
-        if (!$superAdmin || !$provincialAdmin || !$coopAdmin || !$officer || !$committeeMember || !$member || !$viewer) {
+        if (!$superAdmin || !$provincialAdmin || !$coopAdmin || !$chairperson || !$generalManager || !$officer || !$committeeMember || !$member || !$viewer) {
             $this->command->error('❌ Roles not found! Please run RoleSeeder first.');
             return;
         }
@@ -129,6 +131,10 @@ class PermissionSeeder extends Seeder
             'read reports-&-dashboard',
             'export reports-&-dashboard',
         ]);
+
+        // ===== CHAIRPERSON & GENERAL MANAGER (Same as Coop Admin) =====
+        $chairperson->syncPermissions($coopAdmin->permissions);
+        $generalManager->syncPermissions($coopAdmin->permissions);
 
         // ===== OFFICER (Can view/edit activities, members, finances) =====
         $officer->givePermissionTo([
@@ -214,6 +220,6 @@ class PermissionSeeder extends Seeder
             'read reports-&-dashboard',
         ]);
 
-        $this->command->info('✓ Assigned permissions to all 6 roles based on specification matrix');
+        $this->command->info('✓ Assigned permissions to all 9 roles based on specification matrix');
     }
 }

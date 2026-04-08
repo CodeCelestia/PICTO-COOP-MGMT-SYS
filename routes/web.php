@@ -97,10 +97,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:update coop-master-profile')
         ->name('cooperatives.restore');
     Route::get('cooperatives/my', [CooperativeController::class, 'show'])
-        ->middleware(['role:Coop Admin|Super Admin|Provincial Admin', 'permission:read coop-master-profile'])
+        ->middleware('permission:read coop-master-profile')
         ->name('cooperatives.show');
     Route::get('cooperatives/{cooperative}', [CooperativeController::class, 'show'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read coop-master-profile'])
+        ->middleware('permission:read coop-master-profile')
         ->name('cooperatives.show-specific');
 
     // Cooperative Type Management
@@ -122,13 +122,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(['permission:read members-profile', 'deny_coop_admin'])
         ->name('members.index');
     Route::get('members/management', [MemberController::class, 'management'])
-        ->middleware(['role:Coop Admin|Super Admin|Provincial Admin', 'permission:read members-management'])
+        ->middleware('permission:read members-management')
         ->name('members.management');
     Route::get('members/management/select', [MemberController::class, 'managementSelect'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read members-management'])
+        ->middleware('permission:read members-management')
         ->name('members.management.select');
     Route::get('members/management/{cooperative}', [MemberController::class, 'management'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read members-management'])
+        ->middleware('permission:read members-management')
         ->name('members.management.cooperative');
     Route::get('members/create', [MemberController::class, 'create'])
         ->middleware('permission:create members-profile')
@@ -206,7 +206,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Officers & Committees
     Route::get('officers/select', [OfficerController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read officers-&-committees'])
+        ->middleware('permission:read officers-&-committees')
         ->name('officers.select');
     Route::get('officers', [OfficerController::class, 'index'])
         ->middleware(['permission:read officers-&-committees', 'deny_coop_admin'])
@@ -251,7 +251,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Activities & Projects
     Route::get('activities/select', [ActivityController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read activities-&-projects'])
+        ->middleware('permission:read activities-&-projects')
         ->name('activities.select');
     Route::get('activities', [ActivityController::class, 'index'])
         ->middleware('permission:read activities-&-projects')
@@ -277,7 +277,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Activity Funding Sources
     Route::get('activity-funding-sources/select', [ActivityFundingSourceController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read financial-&-support'])
+        ->middleware('permission:read financial-&-support')
         ->name('activity-funding-sources.select');
     Route::get('activity-funding-sources', [ActivityFundingSourceController::class, 'index'])
         ->middleware('permission:read financial-&-support')
@@ -319,7 +319,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Trainings
     Route::get('trainings/select', [TrainingController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read training-&-capacity'])
+        ->middleware('permission:read training-&-capacity')
         ->name('trainings.select');
     Route::get('trainings', [TrainingController::class, 'index'])
         ->middleware('permission:read training-&-capacity')
@@ -362,7 +362,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Skills Inventory
     Route::get('skill-inventories/select', [SkillInventoryController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read training-&-capacity'])
+        ->middleware('permission:read training-&-capacity')
         ->name('skill-inventories.select');
     Route::get('skill-inventories', [SkillInventoryController::class, 'index'])
         ->middleware('permission:read training-&-capacity')
@@ -385,7 +385,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Financial Records
     Route::get('financial-records/select', [FinancialRecordController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read financial-&-support'])
+        ->middleware('permission:read financial-&-support')
         ->name('financial-records.select');
     Route::get('financial-records', [FinancialRecordController::class, 'index'])
         ->middleware('permission:read financial-&-support')
@@ -415,7 +415,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // External Supports
     Route::get('external-supports/select', [ExternalSupportController::class, 'select'])
-        ->middleware(['role:Super Admin|Provincial Admin', 'permission:read financial-&-support'])
+        ->middleware('permission:read financial-&-support')
         ->name('external-supports.select');
     Route::get('external-supports', [ExternalSupportController::class, 'index'])
         ->middleware('permission:read financial-&-support')

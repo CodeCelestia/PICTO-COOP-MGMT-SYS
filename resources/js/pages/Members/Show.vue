@@ -53,12 +53,11 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const roles = computed<string[]>(() => (page.props.auth?.roles as string[]) || []);
-const accountType = computed(() => page.props.auth?.user?.account_type as string | undefined);
-const isProvincialAdmin = computed(() => roles.value.includes('Provincial Admin') || accountType.value === 'Provincial Admin');
-const isCoopAdmin = computed(() => roles.value.includes('Coop Admin') || accountType.value === 'Coop Admin');
-const canEditMember = computed(() => isProvincialAdmin.value || isCoopAdmin.value || roles.value.includes('Officer'));
-const backToListHref = computed(() => (isCoopAdmin.value ? '/cooperatives/my?tab=members' : '/members'));
+const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
+const isCoopScoped = computed(() => Boolean(page.props.auth?.user?.coop_id) && !canViewAllCoops.value);
+const canEditMember = computed(() => permissions.value.includes('update members-profile'));
+const backToListHref = computed(() => (isCoopScoped.value ? '/cooperatives/my?tab=members' : '/members'));
 const { isAppBackgroundVisible } = useAppBackgroundPreference();
 
 const tabs: LiftedTab[] = [
