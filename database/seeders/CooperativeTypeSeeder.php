@@ -4,85 +4,52 @@ namespace Database\Seeders;
 
 use App\Models\CooperativeType;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class CooperativeTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info('Seeding cooperative hierarchy types...');
+        $this->command->info('Seeding CDA cooperative types...');
 
-        $structure = [
-            'region i' => [
-                'name' => 'Region I (Ilocos Region)',
-                'provinces' => [
-                    'ilocos norte' => [
-                        'name' => 'Ilocos Norte',
-                        'municipalities' => [
-                            'luna' => 'Luna',
-                            'batac' => 'Batac',
-                        ],
-                    ],
-                    'ilocos sur' => [
-                        'name' => 'Ilocos Sur',
-                        'municipalities' => [
-                            'vigan' => 'Vigan',
-                            'cabugao' => 'Cabugao',
-                        ],
-                    ],
-                ],
-            ],
-            'region iii' => [
-                'name' => 'Region III (Central Luzon)',
-                'provinces' => [
-                    'pampanga' => [
-                        'name' => 'Pampanga',
-                        'municipalities' => [
-                            'san fernando' => 'San Fernando',
-                            'angeles city' => 'Angeles City',
-                        ],
-                    ],
-                    'tarlac' => [
-                        'name' => 'Tarlac',
-                        'municipalities' => [
-                            'tarlac city' => 'Tarlac City',
-                            'paniqui' => 'Paniqui',
-                        ],
-                    ],
-                ],
-            ],
+        $types = [
+            'Credit',
+            'Consumers',
+            'Producers',
+            'Marketing',
+            'Service',
+            'Multipurpose',
+            'Advocacy',
+            'Transport',
+            'Water',
+            'Electric',
+            'Housing',
+            'Health Services',
+            'Laboratory',
+            'Worker',
         ];
 
-        foreach ($structure as $regionSlug => $regionData) {
-            $region = CooperativeType::updateOrCreate(
-                ['slug' => $regionSlug],
-                ['name' => $regionData['name'], 'level' => 'region', 'sort_order' => 0]
+        $typeSlugs = array_map(fn ($name) => Str::slug($name), $types);
+
+        CooperativeType::whereNotIn('slug', $typeSlugs)->delete();
+
+        foreach ($types as $index => $typeName) {
+            $record = CooperativeType::withTrashed()->updateOrCreate(
+                ['slug' => Str::slug($typeName)],
+                [
+                    'name' => $typeName,
+                    'description' => null,
+                    'level' => 'region',
+                    'parent_id' => null,
+                    'sort_order' => $index + 1,
+                ]
             );
 
-            foreach ($regionData['provinces'] as $provinceSlug => $provinceData) {
-                $province = CooperativeType::updateOrCreate(
-                    ['slug' => $provinceSlug],
-                    [
-                        'name' => $provinceData['name'],
-                        'level' => 'province',
-                        'parent_id' => $region->id,
-                        'sort_order' => 0,
-                    ]
-                );
-
-                foreach ($provinceData['municipalities'] as $municipalitySlug => $municipalityName) {
-                    CooperativeType::updateOrCreate(
-                        ['slug' => $municipalitySlug],
-                        [
-                            'name' => $municipalityName,
-                            'level' => 'municipality',
-                            'parent_id' => $province->id,
-                            'sort_order' => 0,
-                        ]
-                    );
-                }
+            if ($record->trashed()) {
+                $record->restore();
             }
         }
 
-        $this->command->info('Cooperative type hierarchy seeding complete.');
+        $this->command->info('CDA cooperative types seeding complete.');
     }
 }

@@ -25,6 +25,7 @@ interface Cooperative {
 
 interface Props {
     cooperatives: Cooperative[];
+    canCreateUserAccounts: boolean;
     availableRoles: {
         id: number;
         name: string;
@@ -37,6 +38,7 @@ const props = defineProps<Props>();
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
+const canCreateUserAccounts = computed(() => props.canCreateUserAccounts);
 
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
@@ -531,7 +533,7 @@ const toggleRole = (roleId: number) => {
                             </div>
                         </div>
 
-                        <div class="mt-4">
+                        <div v-if="canCreateUserAccounts" class="mt-4">
                             <Label>Assign Roles</Label>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <Badge

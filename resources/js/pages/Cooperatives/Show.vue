@@ -22,7 +22,8 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    coop_type: string;
+    classification: string | null;
+    types?: Array<{ id: number; name: string }>;
     date_established: string;
     address: string;
     province: string;
@@ -202,7 +203,17 @@ const statusBadgeClass = computed(() => {
                                 <div class="mt-2 space-y-1 text-sm text-foreground">
                                     <div><strong>Name:</strong> {{ cooperative.name }}</div>
                                     <div><strong>Registration #:</strong> {{ cooperative.registration_number }}</div>
-                                    <div><strong>Type:</strong> {{ cooperative.coop_type }}</div>
+                                    <div class="space-y-1">
+                                        <strong>Type:</strong>
+                                        <div class="flex flex-wrap gap-1">
+                                            <Badge v-for="type in cooperative.types || []" :key="type.id" variant="outline">{{ type.name }}</Badge>
+                                            <span v-if="!cooperative.types?.length" class="text-muted-foreground">N/A</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong>Classification:</strong>
+                                        <Badge variant="outline" class="ml-2">{{ cooperative.classification || 'N/A' }}</Badge>
+                                    </div>
                                     <div><strong>Date Established:</strong> {{ formatDate(cooperative.date_established) }}</div>
                                 </div>
                             </div>

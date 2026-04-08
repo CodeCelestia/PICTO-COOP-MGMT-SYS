@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
+use App\Models\ActivityFundingSource;
 use App\Models\Cooperative;
 use App\Models\Officer;
 use Illuminate\Http\RedirectResponse;
@@ -170,6 +171,14 @@ class ActivityController extends Controller
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
             'remarks' => ['nullable', 'string'],
+            'funding_sources' => ['nullable', 'array'],
+            'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
+            'funding_sources.*.funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
+            'funding_sources.*.amount_allocated' => ['nullable', 'numeric', 'min:0'],
+            'funding_sources.*.amount_released' => ['nullable', 'numeric', 'min:0'],
+            'funding_sources.*.date_released' => ['nullable', 'date'],
+            'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
+            'funding_sources.*.remarks' => ['nullable', 'string'],
         ]);
 
         if ($this->isCoopAdmin() && $coopId) {
@@ -185,7 +194,23 @@ class ActivityController extends Controller
             }
         }
 
-        Activity::create($validated);
+        $fundingSources = $validated['funding_sources'] ?? [];
+        unset($validated['funding_sources']);
+
+        $activity = Activity::create($validated);
+
+        foreach ($fundingSources as $source) {
+            $activity->fundingSources()->create([
+                'coop_id' => $activity->coop_id,
+                'funder_name' => $source['funder_name'],
+                'funder_type' => $source['funder_type'],
+                'amount_allocated' => $source['amount_allocated'] ?? null,
+                'amount_released' => $source['amount_released'] ?? null,
+                'date_released' => $source['date_released'] ?? null,
+                'status' => $source['status'],
+                'remarks' => $source['remarks'] ?? null,
+            ]);
+        }
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity created successfully.');
@@ -215,7 +240,7 @@ class ActivityController extends Controller
         }
 
         return Inertia::render('Activities/Edit', [
-            'activity' => $activity->load(['cooperative', 'responsibleOfficer.member']),
+            'activity' => $activity->load(['cooperative', 'responsibleOfficer.member', 'fundingSources']),
             'cooperatives' => $cooperativesQuery->get(),
             'officers' => $officersQuery->get()->map(function ($officer) {
                 return [
@@ -262,6 +287,15 @@ class ActivityController extends Controller
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
             'remarks' => ['nullable', 'string'],
+            'funding_sources' => ['nullable', 'array'],
+            'funding_sources.*.id' => ['nullable', 'integer'],
+            'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
+            'funding_sources.*.funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
+            'funding_sources.*.amount_allocated' => ['nullable', 'numeric', 'min:0'],
+            'funding_sources.*.amount_released' => ['nullable', 'numeric', 'min:0'],
+            'funding_sources.*.date_released' => ['nullable', 'date'],
+            'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
+            'funding_sources.*.remarks' => ['nullable', 'string'],
         ]);
 
         if ($this->isCoopAdmin() && $coopId) {
@@ -277,7 +311,41 @@ class ActivityController extends Controller
             }
         }
 
+        $fundingSources = $validated['funding_sources'] ?? [];
+        unset($validated['funding_sources']);
+
         $activity->update($validated);
+
+        $incomingIds = collect($fundingSources)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        ActivityFundingSource::where('activity_id', $activity->id)
+            ->whereNotIn('id', $incomingIds)
+            ->delete();
+
+        foreach ($fundingSources as $source) {
+            $payload = [
+                'coop_id' => $activity->coop_id,
+                'funder_name' => $source['funder_name'],
+                'funder_type' => $source['funder_type'],
+                'amount_allocated' => $source['amount_allocated'] ?? null,
+                'amount_released' => $source['amount_released'] ?? null,
+                'date_released' => $source['date_released'] ?? null,
+                'status' => $source['status'],
+                'remarks' => $source['remarks'] ?? null,
+            ];
+
+            if (!empty($source['id'])) {
+                ActivityFundingSource::where('id', (int) $source['id'])
+                    ->where('activity_id', $activity->id)
+                    ->update($payload);
+            } else {
+                $activity->fundingSources()->create($payload);
+            }
+        }
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity updated successfully.');

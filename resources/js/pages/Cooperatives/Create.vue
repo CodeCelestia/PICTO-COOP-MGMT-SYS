@@ -7,6 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+interface CooperativeTypeOption {
+    id: number;
+    name: string;
+}
+
+defineProps<{
+    cooperativeTypes: CooperativeTypeOption[];
+}>();
+
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
@@ -37,6 +46,7 @@ const cancel = () => {
             <CooperativeForm
                 action="/cooperatives"
                 method="post"
+                :cooperativeTypes="cooperativeTypes"
                 :onCancel="cancel"
                 :canSubmit="canCreateCoop"
             />

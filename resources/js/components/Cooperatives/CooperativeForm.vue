@@ -14,7 +14,8 @@ interface CooperativeData {
   id?: number;
   name?: string;
   registration_number?: string;
-  coop_type?: string;
+  classification?: 'Primary' | 'Secondary' | 'Tertiary' | null;
+  types?: Array<{ id: number; name: string }>;
   date_established?: string;
   address?: string;
   region?: string | null;
@@ -30,6 +31,7 @@ interface CooperativeData {
 
 const props = defineProps<{
   cooperative?: CooperativeData;
+  cooperativeTypes: Array<{ id: number; name: string }>;
   action: string;
   method: 'post' | 'put';
   onCancel: () => void;
@@ -89,7 +91,8 @@ const findByNameOrCode = <T extends { code: string; name: string }>(
 const form = useForm({
   name: props.cooperative?.name || '',
   registration_number: props.cooperative?.registration_number || '',
-  coop_type: props.cooperative?.coop_type || '',
+  type_ids: (props.cooperative?.types || []).map((type) => type.id.toString()),
+  classification: props.cooperative?.classification || '',
   date_established: normalizeDateInput(props.cooperative?.date_established),
   address: props.cooperative?.address || '',
   region: props.cooperative?.region || '',
@@ -103,28 +106,33 @@ const form = useForm({
   accreditation_date: normalizeDateInput(props.cooperative?.accreditation_date),
 });
 
-const coopTypes = [
-  'Credit', 'Consumers', 'Producers', 'Marketing', 'Service', 'Multipurpose',
-  'Advocacy', 'Agrarian Reform', 'Dairy', 'Education', 'Electric', 'Fishermen',
-  'Health Services', 'Housing', 'Insurance', 'Laboratory', 'Transport', 'Water Service', 'Workers',
-];
+const selectedTypeLabels = computed(() => {
+  const selected = props.cooperativeTypes
+    .filter((type) => form.type_ids.includes(type.id.toString()))
+    .map((type) => type.name);
+
+  return selected.join(', ');
+});
 
 const filteredCoopTypes = computed(() => {
   const query = coopTypeSearch.value.trim().toLowerCase();
 
-  if (!query) return coopTypes;
+  if (!query) return props.cooperativeTypes;
 
-  return coopTypes.filter((type) => type.toLowerCase().includes(query));
+  return props.cooperativeTypes.filter((type) => type.name.toLowerCase().includes(query));
 });
 
-const selectCoopType = (type: string) => {
-  form.coop_type = type;
-  form.clearErrors('coop_type');
-  isCoopTypeDialogOpen.value = false;
+const toggleCoopType = (typeId: string) => {
+  if (form.type_ids.includes(typeId)) {
+    form.type_ids = form.type_ids.filter((id) => id !== typeId);
+  } else {
+    form.type_ids.push(typeId);
+  }
+  form.clearErrors('type_ids');
 };
 
 const clearCoopType = () => {
-  form.coop_type = '';
+  form.type_ids = [];
 };
 
 onMounted(async () => {
@@ -246,8 +254,13 @@ const submit = () => {
   if (props.canSubmit === false) {
     return;
   }
-  if (!form.coop_type) {
-    form.setError('coop_type', 'Please select a cooperative type.');
+  if (!form.type_ids.length) {
+    form.setError('type_ids', 'Please select at least one cooperative type.');
+    return;
+  }
+
+  if (!form.classification) {
+    form.setError('classification', 'Please select cooperative classification.');
     return;
   }
 
@@ -285,14 +298,28 @@ const submit = () => {
               type="button"
               variant="outline"
               class="w-full justify-between font-normal"
-              :class="{'border-red-500 focus-visible:ring-red-500': form.errors.coop_type, 'text-muted-foreground': !form.coop_type}"
+              :class="{'border-red-500 focus-visible:ring-red-500': form.errors.type_ids, 'text-muted-foreground': form.type_ids.length === 0}"
               @click="isCoopTypeDialogOpen = true"
             >
-              <span class="truncate">{{ form.coop_type || 'Select cooperative type' }}</span>
+              <span class="truncate">{{ selectedTypeLabels || 'Select cooperative type(s)' }}</span>
               <span class="text-xs text-muted-foreground">Choose</span>
             </Button>
             <p class="mt-1 text-xs text-muted-foreground">Use the picker to search and select a cooperative type.</p>
-            <p v-if="form.errors.coop_type" class="mt-1 text-sm text-red-500">{{ form.errors.coop_type }}</p>
+            <p v-if="form.errors.type_ids" class="mt-1 text-sm text-red-500">{{ form.errors.type_ids }}</p>
+          </div>
+          <div>
+            <Label for="classification">Cooperative Classification <span class="text-red-500">*</span></Label>
+            <Select v-model="form.classification">
+              <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
+                <SelectValue placeholder="Select classification" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Primary">Primary</SelectItem>
+                <SelectItem value="Secondary">Secondary</SelectItem>
+                <SelectItem value="Tertiary">Tertiary</SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
           </div>
           <div>
             <Label for="date_established">Date Established <span class="text-red-500">*</span></Label>
@@ -421,18 +448,17 @@ const submit = () => {
           <div class="max-h-80 overflow-y-auto rounded-lg border border-border">
             <label
               v-for="type in filteredCoopTypes"
-              :key="type"
+              :key="type.id"
               class="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-muted/30"
             >
               <input
-                type="radio"
-                name="coop-type-picker"
-                :value="type"
-                :checked="form.coop_type === type"
+                type="checkbox"
+                :value="type.id.toString()"
+                :checked="form.type_ids.includes(type.id.toString())"
                 class="h-4 w-4 accent-primary"
-                @change="selectCoopType(type)"
+                @change="toggleCoopType(type.id.toString())"
               />
-              <span class="font-medium text-foreground">{{ type }}</span>
+              <span class="font-medium text-foreground">{{ type.name }}</span>
             </label>
 
             <div v-if="filteredCoopTypes.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground">

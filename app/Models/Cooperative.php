@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read int $id
  * @property string $name
  * @property string|null $registration_number
- * @property string|null $coop_type
+ * @property string|null $classification
  * @property \Illuminate\Support\Carbon|null $date_established
  * @property string|null $address
  * @property string|null $province
@@ -39,7 +39,7 @@ class Cooperative extends Model
     protected $fillable = [
         'name',
         'registration_number',
-        'coop_type',
+        'classification',
         'date_established',
         'address',
         'province',
@@ -67,7 +67,7 @@ class Cooperative extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'registration_number', 'status', 'province', 'coop_type'])
+            ->logOnly(['name', 'registration_number', 'status', 'province', 'classification'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Cooperative has been {$eventName}");

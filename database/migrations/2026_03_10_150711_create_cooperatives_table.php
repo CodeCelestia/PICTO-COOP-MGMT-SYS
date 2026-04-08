@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('registration_number')->unique();
-            $table->string('coop_type'); // Credit, Marketing, Multi-purpose, etc.
+            $table->string('classification')->nullable()->default(null);
             $table->date('date_established');
             $table->text('address');
             $table->string('province');
@@ -33,7 +33,6 @@ return new class extends Migration
             // Indexes for performance
             $table->index('status');
             $table->index('province');
-            $table->index('coop_type');
             $table->index('region');
             $table->index('city_municipality');
         });

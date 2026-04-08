@@ -54,7 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete user-accounts')
         ->name('users.destroy');
     Route::post('users/{user}/assign-role', [UserController::class, 'assignRole'])
-        ->middleware('permission:update user-accounts')
+        ->middleware('permission:create user-accounts')
         ->name('users.assign-role');
     Route::post('users/{user}/remove-role', [UserController::class, 'removeRole'])
         ->middleware('permission:update user-accounts')

@@ -39,7 +39,7 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    coop_type: string;
+    classification: string | null;
     date_established: string;
     address: string;
     province: string;
@@ -56,6 +56,11 @@ interface Cooperative {
     types?: Array<{ id: number; name: string }>;
 }
 
+interface CooperativeTypeOption {
+    id: number;
+    name: string;
+}
+
 interface Props {
     cooperatives: {
         data: Cooperative[];
@@ -64,6 +69,7 @@ interface Props {
         per_page: number;
         total: number;
     };
+    cooperativeTypes: CooperativeTypeOption[];
     filters: {
         search: string;
         status: string;
@@ -96,11 +102,7 @@ const isCoopAdminOnly = computed(() => !canViewAllCoops.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
 const isArchivedView = computed(() => status.value === 'Archived');
 
-const coopTypes = [
-    'Credit', 'Consumers', 'Producers', 'Marketing', 'Service', 'Multipurpose',
-    'Advocacy', 'Agrarian Reform', 'Dairy', 'Education', 'Electric', 'Fishermen',
-    'Health Services', 'Housing', 'Insurance', 'Laboratory', 'Transport', 'Water Service', 'Workers'
-];
+const coopTypes = computed(() => props.cooperativeTypes.map((type) => type.name));
 
 const { regions, provinces, cities, fetchRegions, fetchProvinces, fetchCities } = usePsgc();
 
@@ -267,6 +269,19 @@ const formatFullAddress = (coop: Cooperative) => {
     ].filter(Boolean);
     
     return parts.join(', ') || 'N/A';
+};
+
+const getTypePreview = (coop: Cooperative) => {
+    const names = coop.types?.map((type) => type.name) || [];
+
+    if (!names.length) {
+        return { first: 'N/A', extra: 0 };
+    }
+
+    return {
+        first: names[0],
+        extra: Math.max(names.length - 1, 0),
+    };
 };
 
     const visibleCooperatives = computed(() => props.cooperatives.data);
@@ -514,7 +529,11 @@ const formatFullAddress = (coop: Cooperative) => {
                             <div class="mt-2 space-y-1 text-sm text-foreground">
                                 <div><strong>Name:</strong> {{ coopProfile.name }}</div>
                                 <div><strong>Registration #:</strong> {{ coopProfile.registration_number }}</div>
-                                <div><strong>Type:</strong> {{ coopProfile.coop_type }}</div>
+                                <div>
+                                    <strong>Type:</strong>
+                                    {{ coopProfile.types?.length ? coopProfile.types.map((t) => t.name).join(', ') : 'N/A' }}
+                                </div>
+                                <div><strong>Classification:</strong> {{ coopProfile.classification || 'N/A' }}</div>
                                 <div><strong>Date Established:</strong> {{ formatDate(coopProfile.date_established) }}</div>
                             </div>
                         </div>
@@ -611,9 +630,14 @@ const formatFullAddress = (coop: Cooperative) => {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">
-                                            {{ coop.types?.length ? coop.types.map(t => t.name).join(', ') : coop.coop_type }}
-                                        </Badge>
+                                        <div class="flex items-center gap-2">
+                                            <Badge variant="outline">
+                                                {{ getTypePreview(coop).first }}
+                                            </Badge>
+                                            <Badge v-if="getTypePreview(coop).extra > 0" variant="secondary">
+                                                +{{ getTypePreview(coop).extra }}
+                                            </Badge>
+                                        </div>
                                     </TableCell>
                                     <TableCell class="text-muted-foreground">
                                         <div class="text-sm">

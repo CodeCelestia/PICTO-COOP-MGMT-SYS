@@ -17,7 +17,8 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    coop_type: string;
+    classification: string | null;
+    types?: Array<{ id: number; name: string }>;
     date_established: string;
     address: string;
     province: string;
@@ -41,8 +42,14 @@ interface CooperativeStatusHistory {
     remarks: string | null;
 }
 
+interface CooperativeTypeOption {
+    id: number;
+    name: string;
+}
+
 const props = defineProps<{
     cooperative: Cooperative;
+    cooperativeTypes: CooperativeTypeOption[];
     statusHistory: CooperativeStatusHistory[];
 }>();
 
@@ -79,6 +86,7 @@ const actionUrl = computed(() => `/cooperatives/${props.cooperative.id}`);
                 :cooperative='props.cooperative'
                 :action='actionUrl'
                 method='put'
+                :cooperativeTypes='props.cooperativeTypes'
                 :onCancel='cancel'
                 :canSubmit="canUpdateCoop"
             />

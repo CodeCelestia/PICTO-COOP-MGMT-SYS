@@ -63,7 +63,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         if (!$request->user()?->can('create user-accounts')) {
-            abort(403);
+            abort(403, 'You do not have permission to create accounts or assign roles.');
         }
 
         $roleIds = $request->input('role_ids', []);
@@ -113,8 +113,8 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user)
     {
-        if (!$request->user()?->can('update user-accounts')) {
-            abort(403);
+        if (!$request->user()?->can('create user-accounts')) {
+            abort(403, 'You do not have permission to create accounts or assign roles.');
         }
 
         $roleId = $request->input('role_id');
@@ -185,8 +185,8 @@ class UserController extends Controller
 
     public function removeRole(Request $request, User $user)
     {
-        if (!$request->user()?->can('update user-accounts')) {
-            abort(403);
+        if (!$request->user()?->can('revoke roles')) {
+            abort(403, 'You do not have permission to revoke roles.');
         }
 
         $request->validate([

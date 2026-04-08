@@ -90,6 +90,13 @@ class MemberController extends Controller
         return $user ? $this->canViewAllCooperatives() : false;
     }
 
+    private function isSuperAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user ? $user->hasRole('Super Admin') : false;
+    }
+
     private function isOfficer(): bool
     {
         $user = auth()->user();
@@ -102,6 +109,37 @@ class MemberController extends Controller
     private function resolveAccountType(?Role $role): string
     {
         return $role?->name ?? 'Member';
+    }
+
+    /**
+     * Roles reserved for higher-level system users and not assignable in member account flow.
+     *
+     * @return array<int, string>
+     */
+    private function reservedSystemRoleNames(): array
+    {
+        return ['Super Admin', 'Provincial Admin', 'Coop Admin'];
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Role>
+     */
+    private function assignableMemberRoles()
+    {
+        return Role::whereNotIn('name', $this->reservedSystemRoleNames())
+            ->orderBy('level')
+            ->get();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function assignableMemberRoleIds(): array
+    {
+        return Role::whereNotIn('name', $this->reservedSystemRoleNames())
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /**
@@ -378,7 +416,8 @@ class MemberController extends Controller
 
         return Inertia::render('Members/Create', [
             'cooperatives' => $cooperativesQuery->get(),
-            'availableRoles' => Role::orderBy('level')->get(),
+            'availableRoles' => $this->assignableMemberRoles(),
+            'canCreateUserAccounts' => (bool) auth()->user()?->can('create user-accounts'),
         ]);
     }
 
@@ -504,7 +543,7 @@ class MemberController extends Controller
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'role_ids' => ['nullable', 'array'],
-            'role_ids.*' => ['exists:roles,id'],
+            'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ]);
 
         if (!isset($validated['share_capital']) || $validated['share_capital'] === '') {
@@ -618,7 +657,7 @@ class MemberController extends Controller
         return Inertia::render('Members/Edit', [
             'member' => $member->load('cooperative'),
             'cooperatives' => $cooperativesQuery->get(),
-            'availableRoles' => Role::orderBy('level')->get(),
+            'availableRoles' => $this->assignableMemberRoles(),
             'userAccount' => $userAccount ? [
                 'id' => $userAccount->id,
                 'email' => $userAccount->email,
@@ -787,7 +826,7 @@ class MemberController extends Controller
 
             $rules['account_email'] = ['required', 'email', 'max:100', $emailRule];
             $rules['role_ids'] = ['nullable', 'array'];
-            $rules['role_ids.*'] = ['exists:roles,id'];
+            $rules['role_ids.*'] = ['integer', Rule::in($this->assignableMemberRoleIds())];
             $rules['account_password'] = $userAccount
                 ? ['nullable', 'confirmed', Password::defaults()]
                 : ['required', 'confirmed', Password::defaults()];

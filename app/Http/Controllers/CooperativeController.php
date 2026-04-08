@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cooperative;
+use App\Models\CooperativeType;
 use App\Models\CooperativeStatusHistory;
 use App\Models\Member;
 use App\Models\Officer;
@@ -48,7 +49,9 @@ class CooperativeController extends Controller
 
         // Coop Type filter
         if ($request->filled('coop_type')) {
-            $query->where('coop_type', $request->coop_type);
+            $query->whereHas('types', function ($typeQuery) use ($request) {
+                $typeQuery->where('name', $request->coop_type);
+            });
         }
 
         // Geographical filters (Region -> Province -> Municipality)
@@ -71,13 +74,16 @@ class CooperativeController extends Controller
 
         return Inertia::render('Cooperatives/Index', [
             'cooperatives' => $cooperatives,
+            'cooperativeTypes' => CooperativeType::orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'filters' => $request->only(['search', 'status', 'coop_type', 'region', 'province', 'municipality', 'per_page']),
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Cooperatives/Create');
+        return Inertia::render('Cooperatives/Create', [
+            'cooperativeTypes' => CooperativeType::orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(Request $request)
@@ -85,7 +91,9 @@ class CooperativeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'registration_number' => 'required|string|max:255|unique:cooperatives',
-            'coop_type' => 'required|string|max:255',
+            'type_ids' => 'required|array|min:1',
+            'type_ids.*' => 'integer|exists:cooperative_types,id',
+            'classification' => 'required|in:Primary,Secondary,Tertiary',
             'date_established' => 'required|date',
             'address' => 'required|string',
             'province' => 'required|string|max:255',
@@ -99,7 +107,11 @@ class CooperativeController extends Controller
             'accreditation_date' => 'nullable|date',
         ]);
 
+        $typeIds = $validated['type_ids'];
+        unset($validated['type_ids']);
+
         $cooperative = Cooperative::create($validated);
+        $cooperative->types()->sync($typeIds);
 
         CooperativeStatusHistory::create([
             'coop_id' => $cooperative->id,
@@ -124,7 +136,8 @@ class CooperativeController extends Controller
         }
 
         return Inertia::render('Cooperatives/Edit', [
-            'cooperative' => $cooperative,
+            'cooperative' => $cooperative->load('types'),
+            'cooperativeTypes' => CooperativeType::orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'statusHistory' => $cooperative->statusHistory()
                 ->latest('changed_at')
                 ->get()
@@ -153,7 +166,9 @@ class CooperativeController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'registration_number' => 'required|string|max:255|unique:cooperatives,registration_number,' . $cooperative->id,
-            'coop_type' => 'required|string|max:255',
+            'type_ids' => 'required|array|min:1',
+            'type_ids.*' => 'integer|exists:cooperative_types,id',
+            'classification' => 'required|in:Primary,Secondary,Tertiary',
             'date_established' => 'required|date',
             'address' => 'required|string',
             'province' => 'required|string|max:255',
@@ -175,6 +190,9 @@ class CooperativeController extends Controller
 
         $validated = $validator->validate();
 
+        $typeIds = $validated['type_ids'];
+        unset($validated['type_ids']);
+
         $previousStatus = $cooperative->status;
         $newStatus = $validated['status'];
         $changeReason = $validated['change_reason'] ?? null;
@@ -182,6 +200,7 @@ class CooperativeController extends Controller
         unset($validated['change_reason'], $validated['status_remarks']);
 
         $cooperative->update($validated);
+        $cooperative->types()->sync($typeIds);
 
         if ($previousStatus !== $newStatus) {
             CooperativeStatusHistory::create([

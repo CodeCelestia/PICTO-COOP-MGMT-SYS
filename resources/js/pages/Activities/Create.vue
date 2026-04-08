@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Save, X } from 'lucide-vue-next';
+import { ClipboardList, Plus, Save, Trash2, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,17 @@ interface Props {
     officers: OfficerOption[];
 }
 
+interface FundingSourceFormRow {
+    id?: number;
+    funder_name: string;
+    funder_type: string;
+    amount_allocated: string;
+    amount_released: string;
+    date_released: string;
+    status: string;
+    remarks: string;
+}
+
 const props = defineProps<Props>();
 
 const page = usePage();
@@ -58,21 +69,48 @@ const form = useForm({
     implementing_partner: '',
     outcomes: '',
     remarks: '',
+    funding_sources: [] as FundingSourceFormRow[],
 });
 
 const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'];
 const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
+const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
+const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
 
 const filteredOfficers = computed(() => {
     if (!form.coop_id) return props.officers;
     return props.officers.filter(officer => officer.coop_id.toString() === form.coop_id);
 });
 
+const addFundingSource = () => {
+    form.funding_sources.push({
+        funder_name: '',
+        funder_type: 'Government',
+        amount_allocated: '',
+        amount_released: '',
+        date_released: '',
+        status: 'Pending',
+        remarks: '',
+    });
+};
+
+const removeFundingSource = (index: number) => {
+    form.funding_sources.splice(index, 1);
+};
+
 const submit = () => {
     if (!canCreateActivity.value) return;
     form.transform((data) => ({
         ...data,
         responsible_officer_id: data.responsible_officer_id === 'none' ? '' : data.responsible_officer_id,
+        funding_source: data.funding_source || data.funding_sources[0]?.funder_name || '',
+        funding_sources: data.funding_sources.map((source) => ({
+            ...source,
+            amount_allocated: source.amount_allocated || null,
+            amount_released: source.amount_released || null,
+            date_released: source.date_released || null,
+            remarks: source.remarks || null,
+        })),
     })).post('/activities', {
         preserveScroll: true,
     });
@@ -196,11 +234,81 @@ const cancel = () => {
                                 </p>
                             </div>
 
-                            <div>
-                                <Label for="funding_source">Funding Source</Label>
-                                <Input id="funding_source" v-model="form.funding_source" placeholder="LGU, DA, Coop Fund" />
-                                <p v-if="form.errors.funding_source" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.funding_source }}
+                            <div class="md:col-span-2">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <Label>Funding Sources</Label>
+                                    <Button type="button" variant="outline" class="gap-2" @click="addFundingSource">
+                                        <Plus class="h-4 w-4" />
+                                        Add Funding Source
+                                    </Button>
+                                </div>
+                                <div class="overflow-x-auto rounded-md border border-border">
+                                    <table class="w-full min-w-[920px] text-sm">
+                                        <thead class="bg-muted/50 text-left">
+                                            <tr>
+                                                <th class="px-3 py-2 font-medium">Funding Source Name</th>
+                                                <th class="px-3 py-2 font-medium">Type</th>
+                                                <th class="px-3 py-2 font-medium">Amount Allocated</th>
+                                                <th class="px-3 py-2 font-medium">Amount Released</th>
+                                                <th class="px-3 py-2 font-medium">Status</th>
+                                                <th class="px-3 py-2 font-medium">Notes</th>
+                                                <th class="px-3 py-2 font-medium">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-if="form.funding_sources.length === 0">
+                                                <td colspan="7" class="px-3 py-4 text-center text-muted-foreground">
+                                                    No funding sources yet.
+                                                </td>
+                                            </tr>
+                                            <tr v-for="(source, index) in form.funding_sources" :key="index" class="border-t border-border">
+                                                <td class="px-2 py-2 align-top">
+                                                    <Input v-model="source.funder_name" placeholder="e.g., DA Region V" />
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Select v-model="source.funder_type">
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Type" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem v-for="option in funderTypeOptions" :key="option" :value="option">
+                                                                {{ option }}
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Input v-model="source.amount_allocated" type="number" min="0" step="0.01" />
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Input v-model="source.amount_released" type="number" min="0" step="0.01" />
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Select v-model="source.status">
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem v-for="option in fundingStatusOptions" :key="option" :value="option">
+                                                                {{ option }}
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Input v-model="source.remarks" placeholder="Optional notes" />
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <Button type="button" variant="outline" @click="removeFundingSource(index)">
+                                                        <Trash2 class="h-4 w-4" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p v-if="form.errors.funding_sources" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.funding_sources }}
                                 </p>
                             </div>
 

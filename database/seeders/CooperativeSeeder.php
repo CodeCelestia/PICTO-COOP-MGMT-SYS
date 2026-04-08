@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Cooperative;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\CooperativeType;
 use Illuminate\Database\Seeder;
 
 class CooperativeSeeder extends Seeder
@@ -17,7 +17,8 @@ class CooperativeSeeder extends Seeder
             [
                 'name' => 'Picto Multi-Purpose Cooperative',
                 'registration_number' => 'CDA-REG-5-2020-001',
-                'coop_type' => 'Multipurpose',
+                'classification' => 'Primary',
+                'type_names' => ['Multipurpose'],
                 'date_established' => '2020-01-15',
                 'address' => 'McArthur Highway, Barangay San Jose',
                 'region' => 'Region III (Central Luzon)',
@@ -33,7 +34,8 @@ class CooperativeSeeder extends Seeder
             [
                 'name' => 'Angeles City Credit Cooperative',
                 'registration_number' => 'CDA-REG-3-2018-045',
-                'coop_type' => 'Credit',
+                'classification' => 'Primary',
+                'type_names' => ['Credit'],
                 'date_established' => '2018-03-20',
                 'address' => 'MacArthur Highway, Nepo Mart Complex',
                 'region' => 'Region III (Central Luzon)',
@@ -49,7 +51,8 @@ class CooperativeSeeder extends Seeder
             [
                 'name' => 'Tarlac Farmers Producers Cooperative',
                 'registration_number' => 'CDA-REG-3-2019-112',
-                'coop_type' => 'Producers',
+                'classification' => 'Primary',
+                'type_names' => ['Producers'],
                 'date_established' => '2019-05-10',
                 'address' => 'Romulo Highway',
                 'region' => 'Region III (Central Luzon)',
@@ -65,7 +68,8 @@ class CooperativeSeeder extends Seeder
             [
                 'name' => 'Nueva Ecija Marketing Cooperative',
                 'registration_number' => 'CDA-REG-3-2021-089',
-                'coop_type' => 'Marketing',
+                'classification' => 'Primary',
+                'type_names' => ['Marketing'],
                 'date_established' => '2021-07-25',
                 'address' => 'Maharlika Highway, City Market Area',
                 'region' => 'Region III (Central Luzon)',
@@ -81,7 +85,8 @@ class CooperativeSeeder extends Seeder
             [
                 'name' => 'Bulacan Transport Service Cooperative',
                 'registration_number' => 'CDA-REG-3-2017-234',
-                'coop_type' => 'Transport',
+                'classification' => 'Primary',
+                'type_names' => ['Transport'],
                 'date_established' => '2017-11-05',
                 'address' => 'MacArthur Highway',
                 'region' => 'Region III (Central Luzon)',
@@ -97,10 +102,16 @@ class CooperativeSeeder extends Seeder
         ];
 
         foreach ($cooperatives as $cooperative) {
-            Cooperative::updateOrCreate(
+            $typeNames = $cooperative['type_names'] ?? [];
+            unset($cooperative['type_names']);
+
+            $record = Cooperative::updateOrCreate(
                 ['registration_number' => $cooperative['registration_number']],
                 $cooperative
             );
+
+            $typeIds = CooperativeType::whereIn('name', $typeNames)->pluck('id')->all();
+            $record->types()->sync($typeIds);
         }
     }
 }

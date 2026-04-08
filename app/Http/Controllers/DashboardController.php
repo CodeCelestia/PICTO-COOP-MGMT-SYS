@@ -100,7 +100,7 @@ class DashboardController extends Controller
             return $trendBuckets[$key] ?? 0;
         }, $trendKeys);
 
-        $sectorGroupExpression = "COALESCE(NULLIF(TRIM(coop_type), ''), 'Unspecified')";
+        $sectorGroupExpression = "COALESCE(NULLIF(TRIM(classification), ''), 'Unspecified')";
 
         $sectorRows = Cooperative::query()
             ->selectRaw("{$sectorGroupExpression} as label, COUNT(*) as count")
