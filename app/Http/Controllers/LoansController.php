@@ -1,0 +1,310 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\FinancialRecord;
+use App\Models\LoanPayment;
+use App\Models\Member;
+use App\Models\MemberLoan;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class LoansController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $user = $request->user();
+        $query = MemberLoan::query()->with(['member:id,first_name,last_name', 'cooperative:id,name']);
+
+        if ($this->isMemberOnly($user) && $user?->member_id) {
+            $query->where('member_id', $user->member_id);
+        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $query->where('coop_id', $user->coop_id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('member_id') && ! $this->isMemberOnly($user)) {
+            $query->where('member_id', (int) $request->input('member_id'));
+        }
+
+        $loans = $query
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return Inertia::render('Finance/Loans/Index', [
+            'loans' => $loans,
+            'statuses' => ['Pending', 'Approved', 'Active', 'Completed', 'Defaulted', 'Rejected'],
+            'filters' => $request->only(['status', 'member_id']),
+            'permissions' => [
+                'can_create' => ($user?->can('create finance-member-loans') ?? false) || ($user?->can('apply-own finance-member-loans') ?? false),
+                'can_approve' => ($user?->can('approve finance-member-loans') ?? false) || ($user?->can('approve-major finance-member-loans') ?? false),
+                'can_disburse' => $user?->can('disburse finance-member-loans') ?? false,
+                'can_edit' => $user?->can('update finance-member-loans') ?? false,
+                'can_delete' => $user?->can('delete finance-member-loans') ?? false,
+                'can_record_payment' => $user?->can('record-payment finance-member-loans') ?? false,
+            ],
+        ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        $user = $request->user();
+
+        if ($this->isMemberOnly($user) && ! $user?->member_id) {
+            abort(403);
+        }
+
+        $membersQuery = Member::query()
+            ->select(['id', 'first_name', 'last_name'])
+            ->where('membership_status', 'Active')
+            ->orderBy('last_name');
+
+        if ($this->isMemberOnly($user) && $user?->member_id) {
+            $membersQuery->where('id', $user->member_id);
+        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $membersQuery->where('coop_id', $user->coop_id);
+        }
+
+        return Inertia::render('Finance/Loans/Create', [
+            'members' => $membersQuery->get(),
+            'interestRates' => [12, 15, 18],
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'member_id' => ['nullable', 'exists:members,id'],
+            'principal' => ['required', 'numeric', 'min:100'],
+            'interest_rate' => ['required', 'numeric', 'min:0', 'max:50'],
+            'term_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'purpose' => ['nullable', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        if ($this->isMemberOnly($user)) {
+            $validated['member_id'] = $user?->member_id;
+        }
+
+        if (! $validated['member_id']) {
+            return back()->withErrors(['member_id' => 'Member is required.']);
+        }
+
+        $memberQuery = Member::query()->where('id', $validated['member_id']);
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $memberQuery->where('coop_id', $user->coop_id);
+        }
+        $member = $memberQuery->firstOrFail();
+
+        $loan = DB::transaction(function () use ($validated, $member, $user) {
+            $loan = MemberLoan::create([
+                'coop_id' => $member->coop_id,
+                'member_id' => $member->id,
+                'principal' => $validated['principal'],
+                'interest_rate' => $validated['interest_rate'],
+                'term_months' => $validated['term_months'],
+                'status' => 'Pending',
+                'purpose' => $validated['purpose'] ?? null,
+                'created_by' => $user?->id,
+            ]);
+
+            $this->generateRepaymentSchedule($loan);
+
+            return $loan;
+        });
+
+        return redirect()
+            ->route('finance.loans.show', $loan)
+            ->with('success', 'Loan application created successfully.');
+    }
+
+    public function show(MemberLoan $loan, Request $request): Response
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        $loan->load(['member:id,first_name,last_name', 'cooperative:id,name', 'payments']);
+
+        return Inertia::render('Finance/Loans/Show', [
+            'loan' => $loan,
+            'repaymentSchedule' => $loan->getRepaymentSchedule(),
+            'remainingBalance' => $loan->getRemainingBalance(),
+            'nextPaymentDue' => $loan->getNextPaymentDue(),
+            'permissions' => [
+                'can_approve' => ($request->user()?->can('approve finance-member-loans') ?? false) || ($request->user()?->can('approve-major finance-member-loans') ?? false),
+                'can_disburse' => $request->user()?->can('disburse finance-member-loans') ?? false,
+                'can_edit' => $request->user()?->can('update finance-member-loans') ?? false,
+                'can_delete' => $request->user()?->can('delete finance-member-loans') ?? false,
+                'can_record_payment' => $request->user()?->can('record-payment finance-member-loans') ?? false,
+            ],
+        ]);
+    }
+
+    public function edit(MemberLoan $loan, Request $request): Response
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        return Inertia::render('Finance/Loans/Edit', [
+            'loan' => $loan->load(['member:id,first_name,last_name']),
+        ]);
+    }
+
+    public function update(Request $request, MemberLoan $loan): RedirectResponse
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        $validated = $request->validate([
+            'interest_rate' => ['required', 'numeric', 'min:0', 'max:50'],
+            'term_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'purpose' => ['nullable', 'string'],
+            'status' => ['required', 'in:Pending,Approved,Active,Completed,Defaulted,Rejected'],
+        ]);
+
+        $loan->update($validated);
+
+        return redirect()->route('finance.loans.show', $loan)
+            ->with('success', 'Loan updated successfully.');
+    }
+
+    public function destroy(MemberLoan $loan, Request $request): RedirectResponse
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        $loan->delete();
+
+        return redirect()->route('finance.loans.index')
+            ->with('success', 'Loan deleted successfully.');
+    }
+
+    public function approve(Request $request, MemberLoan $loan): RedirectResponse
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        if (! in_array($loan->status, ['Pending', 'Rejected'], true)) {
+            return back()->withErrors(['error' => 'Only pending or rejected loans can be approved.']);
+        }
+
+        $loan->update([
+            'status' => 'Approved',
+            'approved_by' => $request->user()?->id,
+            'approved_at' => now(),
+            'remarks' => $request->input('remarks'),
+        ]);
+
+        return back()->with('success', 'Loan approved successfully.');
+    }
+
+    public function disburse(Request $request, MemberLoan $loan): RedirectResponse
+    {
+        $this->enforceLoanAccess($loan, $request->user());
+
+        if (! in_array($loan->status, ['Approved', 'Active'], true)) {
+            return back()->withErrors(['error' => 'Only approved loans can be disbursed.']);
+        }
+
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'disbursement_method' => ['required', 'in:check,cash,bank_transfer'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        DB::transaction(function () use ($loan, $validated, $request) {
+            $loan->update([
+                'status' => 'Active',
+                'disbursement_date' => now(),
+                'amount_disbursed' => $validated['amount'],
+                'disbursement_method' => $validated['disbursement_method'],
+                'disburse_remarks' => $validated['remarks'] ?? null,
+            ]);
+
+            FinancialRecord::create([
+                'coop_id' => $loan->coop_id,
+                'period' => now()->format('Y-m'),
+                'type' => 'Loan',
+                'amount' => $validated['amount'],
+                'source' => 'Member Loan Disbursement',
+                'purpose' => 'Loan release for member #' . $loan->member_id,
+                'date_recorded' => now()->toDateString(),
+                'recorded_by' => $request->user()?->name,
+            ]);
+        });
+
+        return back()->with('success', 'Loan disbursed successfully.');
+    }
+
+    private function generateRepaymentSchedule(MemberLoan $loan): void
+    {
+        $monthlyPayment = $this->calculateMonthlyPayment(
+            (float) $loan->principal,
+            (float) $loan->interest_rate,
+            (int) $loan->term_months
+        );
+
+        $remainingBalance = (float) $loan->principal;
+        $dueDate = now()->addMonth();
+
+        for ($i = 1; $i <= (int) $loan->term_months; $i++) {
+            $interest = ($remainingBalance * (float) $loan->interest_rate / 100) / 12;
+            $principalDue = max(0, $monthlyPayment - $interest);
+            $remainingBalance -= $principalDue;
+
+            LoanPayment::create([
+                'loan_id' => $loan->id,
+                'coop_id' => $loan->coop_id,
+                'payment_number' => $i,
+                'principal_due' => $principalDue,
+                'interest_due' => $interest,
+                'total_due' => $monthlyPayment,
+                'due_date' => $dueDate->toDateString(),
+                'balance_after' => max(0, $remainingBalance),
+                'status' => 'Pending',
+            ]);
+
+            $dueDate = $dueDate->copy()->addMonth();
+        }
+    }
+
+    private function calculateMonthlyPayment(float $principal, float $annualRate, int $months): float
+    {
+        if ($months <= 0) {
+            return 0;
+        }
+
+        $monthlyRate = $annualRate / 100 / 12;
+
+        if ($monthlyRate == 0.0) {
+            return $principal / $months;
+        }
+
+        return $principal * ($monthlyRate * (1 + $monthlyRate) ** $months)
+            / ((1 + $monthlyRate) ** $months - 1);
+    }
+
+    private function enforceLoanAccess(MemberLoan $loan, $user): void
+    {
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $loan->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        if ($this->isMemberOnly($user) && $user?->member_id && $loan->member_id !== $user->member_id) {
+            abort(403);
+        }
+    }
+
+    private function isMemberOnly($user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->can('apply-own finance-member-loans')
+            && ! $user->can('create finance-member-loans');
+    }
+}

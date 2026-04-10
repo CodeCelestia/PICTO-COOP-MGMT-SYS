@@ -19,7 +19,14 @@ use App\Http\Controllers\CommitteeMemberController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ActivityFundingSourceController;
 use App\Http\Controllers\ActivityParticipantController;
+use App\Http\Controllers\FinanceReportsController;
 use App\Http\Controllers\FinancialRecordController;
+use App\Http\Controllers\FinancialRecordsController;
+use App\Http\Controllers\FundingSourcesController;
+use App\Http\Controllers\LoanPaymentsController;
+use App\Http\Controllers\LoansController;
+use App\Http\Controllers\SavingsController;
+use App\Http\Controllers\SavingsTransactionsController;
 use App\Http\Controllers\ExternalSupportController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingParticipantController;
@@ -408,10 +415,197 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Finance Hub
     Route::get('finance', function () {
-        return Inertia::render('Finance/Index');
+        return redirect()->route('finance.funding-sources.index');
     })
-        ->middleware('permission:read financial-&-support')
+        ->middleware('permission:read financial-&-support|read finance-funding-sources|read finance-member-loans|read finance-savings-accounts|read finance-reports|read finance-ledger-entries')
         ->name('finance.index');
+
+    // Finance: Funding Sources
+    Route::prefix('finance/funding-sources')->name('finance.funding-sources.')->group(function () {
+        Route::get('/', [FundingSourcesController::class, 'index'])
+            ->middleware('permission:read finance-funding-sources')
+            ->name('index');
+
+        Route::get('create', [ActivityFundingSourceController::class, 'create'])
+            ->middleware('permission:create finance-funding-sources')
+            ->name('create');
+
+        Route::post('/', [ActivityFundingSourceController::class, 'store'])
+            ->middleware('permission:create finance-funding-sources')
+            ->name('store');
+
+        Route::get('{fundingSource}', [FundingSourcesController::class, 'show'])
+            ->middleware('permission:read finance-funding-sources')
+            ->name('show');
+
+        Route::get('{activityFundingSource}/edit', [ActivityFundingSourceController::class, 'edit'])
+            ->middleware('permission:update finance-funding-sources')
+            ->name('edit');
+
+        Route::put('{activityFundingSource}', [ActivityFundingSourceController::class, 'update'])
+            ->middleware('permission:update finance-funding-sources')
+            ->name('update');
+
+        Route::delete('{activityFundingSource}', [ActivityFundingSourceController::class, 'destroy'])
+            ->middleware('permission:delete finance-funding-sources')
+            ->name('destroy');
+    });
+
+    // Finance: Financial Records (Ledger)
+    Route::prefix('finance/financial-records')->name('finance.financial-records.')->group(function () {
+        Route::get('/', [FinancialRecordsController::class, 'index'])
+            ->middleware('permission:read finance-ledger-entries')
+            ->name('index');
+
+        Route::get('create', [FinancialRecordController::class, 'create'])
+            ->middleware('permission:create finance-ledger-entries')
+            ->name('create');
+
+        Route::post('/', [FinancialRecordController::class, 'store'])
+            ->middleware('permission:create finance-ledger-entries')
+            ->name('store');
+
+        Route::get('{financialRecord}', [FinancialRecordsController::class, 'show'])
+            ->middleware('permission:read finance-ledger-entries')
+            ->name('show');
+
+        Route::get('{financialRecord}/edit', [FinancialRecordController::class, 'edit'])
+            ->middleware('permission:update finance-ledger-entries')
+            ->name('edit');
+
+        Route::put('{financialRecord}', [FinancialRecordController::class, 'update'])
+            ->middleware('permission:update finance-ledger-entries')
+            ->name('update');
+
+        Route::delete('{financialRecord}', [FinancialRecordController::class, 'destroy'])
+            ->middleware('permission:delete finance-ledger-entries')
+            ->name('destroy');
+    });
+
+    // Finance: Loans
+    Route::prefix('finance/loans')->name('finance.loans.')->group(function () {
+        Route::get('/', [LoansController::class, 'index'])
+            ->middleware('permission:read finance-member-loans')
+            ->name('index');
+
+        Route::get('create', [LoansController::class, 'create'])
+            ->middleware('permission:create finance-member-loans|apply-own finance-member-loans')
+            ->name('create');
+
+        Route::post('/', [LoansController::class, 'store'])
+            ->middleware('permission:create finance-member-loans|apply-own finance-member-loans')
+            ->name('store');
+
+        Route::get('{loan}', [LoansController::class, 'show'])
+            ->middleware('permission:read finance-member-loans')
+            ->name('show');
+
+        Route::get('{loan}/edit', [LoansController::class, 'edit'])
+            ->middleware('permission:update finance-member-loans')
+            ->name('edit');
+
+        Route::put('{loan}', [LoansController::class, 'update'])
+            ->middleware('permission:update finance-member-loans')
+            ->name('update');
+
+        Route::delete('{loan}', [LoansController::class, 'destroy'])
+            ->middleware('permission:delete finance-member-loans')
+            ->name('destroy');
+
+        Route::post('{loan}/approve', [LoansController::class, 'approve'])
+            ->middleware('permission:approve finance-member-loans|approve-major finance-member-loans')
+            ->name('approve');
+
+        Route::post('{loan}/disburse', [LoansController::class, 'disburse'])
+            ->middleware('permission:disburse finance-member-loans')
+            ->name('disburse');
+
+        Route::post('{loan}/payments', [LoanPaymentsController::class, 'store'])
+            ->middleware('permission:record-payment finance-member-loans')
+            ->name('payments.store');
+    });
+
+    // Finance: Savings
+    Route::prefix('finance/savings')->name('finance.savings.')->group(function () {
+        Route::get('/', [SavingsController::class, 'index'])
+            ->middleware('permission:read finance-savings-accounts')
+            ->name('index');
+
+        Route::get('create', [SavingsController::class, 'create'])
+            ->middleware('permission:open finance-savings-accounts')
+            ->name('create');
+
+        Route::post('/', [SavingsController::class, 'store'])
+            ->middleware('permission:open finance-savings-accounts')
+            ->name('store');
+
+        Route::get('{savings}', [SavingsController::class, 'show'])
+            ->middleware('permission:read finance-savings-accounts')
+            ->name('show');
+
+        Route::get('{savings}/edit', [SavingsController::class, 'edit'])
+            ->middleware('permission:update finance-savings-accounts')
+            ->name('edit');
+
+        Route::put('{savings}', [SavingsController::class, 'update'])
+            ->middleware('permission:update finance-savings-accounts')
+            ->name('update');
+
+        Route::delete('{savings}', [SavingsController::class, 'destroy'])
+            ->middleware('permission:close finance-savings-accounts')
+            ->name('destroy');
+
+        Route::post('{savings}/transactions', [SavingsTransactionsController::class, 'store'])
+            ->middleware('permission:record-deposit finance-savings-accounts|record-withdrawal finance-savings-accounts')
+            ->name('transactions.store');
+
+        Route::post('{savings}/calculate-interest', [SavingsController::class, 'calculateInterest'])
+            ->middleware('permission:calculate-interest finance-savings-accounts|override finance-auto-jobs')
+            ->name('calculate-interest');
+    });
+
+    // Finance: Reports
+    Route::prefix('finance/reports')->name('finance.reports.')->group(function () {
+        Route::get('statements', [FinanceReportsController::class, 'statements'])
+            ->middleware('permission:read finance-reports')
+            ->name('statements');
+
+        Route::get('statements/export', [FinanceReportsController::class, 'exportStatements'])
+            ->middleware('permission:export finance-reports')
+            ->name('statements.export');
+
+        Route::get('loan-portfolio', [FinanceReportsController::class, 'loanPortfolio'])
+            ->middleware('permission:read finance-reports')
+            ->name('loan-portfolio');
+
+        Route::get('loan-portfolio/export', [FinanceReportsController::class, 'exportLoanPortfolio'])
+            ->middleware('permission:export finance-reports')
+            ->name('loan-portfolio.export');
+
+        Route::get('savings-summary', [FinanceReportsController::class, 'savingsSummary'])
+            ->middleware('permission:read finance-reports')
+            ->name('savings-summary');
+
+        Route::get('savings-summary/export', [FinanceReportsController::class, 'exportSavingsSummary'])
+            ->middleware('permission:export finance-reports')
+            ->name('savings-summary.export');
+
+        Route::get('funder-accountability', [FinanceReportsController::class, 'funderAccountability'])
+            ->middleware('permission:read finance-reports')
+            ->name('funder-accountability');
+
+        Route::get('funder-accountability/export', [FinanceReportsController::class, 'exportFunderAccountability'])
+            ->middleware('permission:export finance-reports')
+            ->name('funder-accountability.export');
+
+        Route::get('trends', [FinanceReportsController::class, 'trends'])
+            ->middleware('permission:read finance-reports')
+            ->name('trends');
+
+        Route::get('trends/export', [FinanceReportsController::class, 'exportTrends'])
+            ->middleware('permission:export finance-reports')
+            ->name('trends.export');
+    });
 
     // External Supports
     Route::get('external-supports/select', [ExternalSupportController::class, 'select'])

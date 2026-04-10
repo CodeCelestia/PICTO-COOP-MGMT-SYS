@@ -47,6 +47,28 @@ class ActivityFundingSourceController extends Controller
         }
     }
 
+    private function resolveIndexRoute(Request $request): string
+    {
+        return $request->routeIs('finance.funding-sources.*')
+            ? 'finance.funding-sources.index'
+            : 'activity-funding-sources.index';
+    }
+
+    private function syncActivityFundingSourceSummary(?int $activityId): void
+    {
+        if (!$activityId) {
+            return;
+        }
+
+        $firstFunder = ActivityFundingSource::where('activity_id', $activityId)
+            ->orderBy('id')
+            ->value('funder_name');
+
+        Activity::where('id', $activityId)->update([
+            'funding_source' => $firstFunder,
+        ]);
+    }
+
     /**
      * Display a listing of funding sources.
      */
@@ -150,7 +172,7 @@ class ActivityFundingSourceController extends Controller
         }
 
         $validated = $request->validate([
-            'activity_id' => ['required', 'exists:activities,id'],
+            'activity_id' => ['nullable', 'exists:activities,id'],
             'coop_id' => ['required', 'exists:cooperatives,id'],
             'funder_name' => ['required', 'string', 'max:255'],
             'funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
@@ -161,20 +183,24 @@ class ActivityFundingSourceController extends Controller
             'remarks' => ['nullable', 'string'],
         ]);
 
-        $activity = Activity::find($validated['activity_id']);
-        if (!$activity) {
-            return back()->withErrors(['activity_id' => 'Selected activity not found.']);
-        }
+        $activity = null;
+        if (!empty($validated['activity_id'])) {
+            $activity = Activity::find($validated['activity_id']);
+            if (!$activity) {
+                return back()->withErrors(['activity_id' => 'Selected activity not found.']);
+            }
 
-        $this->enforceCoopScope($activity->coop_id);
+            $this->enforceCoopScope($activity->coop_id);
 
-        if ((int) $validated['coop_id'] !== (int) $activity->coop_id) {
-            return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
+            if ((int) $validated['coop_id'] !== (int) $activity->coop_id) {
+                return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
+            }
         }
 
         ActivityFundingSource::create($validated);
+        $this->syncActivityFundingSourceSummary($activity?->id);
 
-        return redirect()->route('activity-funding-sources.index')
+        return redirect()->route($this->resolveIndexRoute($request))
             ->with('success', 'Funding source added successfully.');
     }
 
@@ -218,7 +244,7 @@ class ActivityFundingSourceController extends Controller
         }
 
         $validated = $request->validate([
-            'activity_id' => ['required', 'exists:activities,id'],
+            'activity_id' => ['nullable', 'exists:activities,id'],
             'coop_id' => ['required', 'exists:cooperatives,id'],
             'funder_name' => ['required', 'string', 'max:255'],
             'funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
@@ -229,27 +255,38 @@ class ActivityFundingSourceController extends Controller
             'remarks' => ['nullable', 'string'],
         ]);
 
-        $activity = Activity::find($validated['activity_id']);
-        if (!$activity) {
-            return back()->withErrors(['activity_id' => 'Selected activity not found.']);
+        $activity = null;
+        if (!empty($validated['activity_id'])) {
+            $activity = Activity::find($validated['activity_id']);
+            if (!$activity) {
+                return back()->withErrors(['activity_id' => 'Selected activity not found.']);
+            }
+
+            $this->enforceCoopScope($activity->coop_id);
+
+            if ((int) $validated['coop_id'] !== (int) $activity->coop_id) {
+                return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
+            }
         }
 
-        $this->enforceCoopScope($activity->coop_id);
-
-        if ((int) $validated['coop_id'] !== (int) $activity->coop_id) {
-            return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
-        }
+        $previousActivityId = $activityFundingSource->activity_id ? (int) $activityFundingSource->activity_id : null;
 
         $activityFundingSource->update($validated);
 
-        return redirect()->route('activity-funding-sources.index')
+        $newActivityId = !empty($validated['activity_id']) ? (int) $validated['activity_id'] : null;
+        $this->syncActivityFundingSourceSummary($previousActivityId);
+        if ($newActivityId !== $previousActivityId) {
+            $this->syncActivityFundingSourceSummary($newActivityId);
+        }
+
+        return redirect()->route($this->resolveIndexRoute($request))
             ->with('success', 'Funding source updated successfully.');
     }
 
     /**
      * Remove a funding source.
      */
-    public function destroy(ActivityFundingSource $activityFundingSource): RedirectResponse
+    public function destroy(Request $request, ActivityFundingSource $activityFundingSource): RedirectResponse
     {
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
@@ -257,9 +294,12 @@ class ActivityFundingSourceController extends Controller
 
         $this->enforceCoopScope($activityFundingSource->coop_id);
 
-        $activityFundingSource->delete();
+        $activityId = $activityFundingSource->activity_id ? (int) $activityFundingSource->activity_id : null;
 
-        return redirect()->route('activity-funding-sources.index')
+        $activityFundingSource->delete();
+        $this->syncActivityFundingSourceSummary($activityId);
+
+        return redirect()->route($this->resolveIndexRoute($request))
             ->with('success', 'Funding source deleted successfully.');
     }
 }

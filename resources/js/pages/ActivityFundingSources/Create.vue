@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { HandCoins, Save, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,12 +32,55 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const NO_ACTIVITY_VALUE = '__none__';
 
 const page = usePage();
-const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
+const auth = computed(() => page.props.auth as {
+    isCoopAdmin?: boolean;
+    permissions?: string[];
+    user?: { coop_id?: number | null };
+} | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
-const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
+const canCreate = computed(() =>
+    permissions.value.includes('create finance-funding-sources')
+    || permissions.value.includes('create activities-&-projects')
+);
+const canViewAllCooperatives = computed(() => permissions.value.includes('view-all-cooperatives'));
+const userCoopId = computed(() => auth.value?.user?.coop_id ? Number(auth.value.user.coop_id) : null);
+const isCoopScopedUser = computed(() => Boolean(userCoopId.value && !canViewAllCooperatives.value));
+const isFinanceContext = computed(() => page.url.startsWith('/finance/funding-sources'));
+
+const urlParams = new URLSearchParams(
+    typeof window !== 'undefined' ? window.location.search : '',
+);
+const prefilledActivityId = urlParams.get('activity_id');
+
+const defaultCoopId = isCoopScopedUser.value
+    ? (userCoopId.value?.toString() || '')
+    : (props.cooperatives[0]?.id?.toString() || '');
+
+const initialActivityId = (() => {
+    if (prefilledActivityId) {
+        return prefilledActivityId;
+    }
+
+    if (isFinanceContext.value) {
+        return NO_ACTIVITY_VALUE;
+    }
+
+    if (!props.activities.length) {
+        return NO_ACTIVITY_VALUE;
+    }
+
+    if (defaultCoopId) {
+        const coopMatch = props.activities.find((activity) => activity.coop_id === Number(defaultCoopId));
+        if (coopMatch) {
+            return coopMatch.id.toString();
+        }
+    }
+
+    return props.activities[0].id.toString();
+})();
 
 const form = useForm<{
     activity_id: string;
@@ -50,8 +93,8 @@ const form = useForm<{
     status: string;
     remarks: string;
 }>({
-    activity_id: props.activities[0]?.id?.toString() || '',
-    coop_id: '',
+    activity_id: initialActivityId,
+    coop_id: defaultCoopId,
     funder_name: '',
     funder_type: 'Government',
     amount_allocated: '',
@@ -64,27 +107,72 @@ const form = useForm<{
 const funderTypes = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const statusOptions = ['Released', 'Pending', 'Partially Released'];
 
+const filteredActivities = computed(() => {
+    if (!form.coop_id) {
+        return props.activities;
+    }
+
+    const coopId = Number(form.coop_id);
+    return props.activities.filter((activity) => activity.coop_id === coopId);
+});
+
 const selectedActivity = computed(() => {
-    return props.activities.find(activity => activity.id.toString() === form.activity_id) || null;
+    return filteredActivities.value.find((activity) => activity.id.toString() === form.activity_id) || null;
 });
 
 const selectedCooperative = computed(() => {
-    if (!selectedActivity.value) return null;
-    return props.cooperatives.find(coop => coop.id === selectedActivity.value?.coop_id) || null;
+    if (form.coop_id) {
+        return props.cooperatives.find((coop) => coop.id.toString() === form.coop_id) || null;
+    }
+
+    if (selectedActivity.value) {
+        return props.cooperatives.find((coop) => coop.id === selectedActivity.value.coop_id) || null;
+    }
+
+    return null;
 });
+
+const fundingSourceBasePath = computed(() =>
+    page.url.startsWith('/finance/funding-sources')
+        ? '/finance/funding-sources'
+        : '/activity-funding-sources'
+);
+
+watch(filteredActivities, (activities) => {
+    if (isFinanceContext.value && !prefilledActivityId) {
+        if (
+            form.activity_id
+            && form.activity_id !== NO_ACTIVITY_VALUE
+            && !activities.some((activity) => activity.id.toString() === form.activity_id)
+        ) {
+            form.activity_id = NO_ACTIVITY_VALUE;
+        }
+        return;
+    }
+
+    if (!activities.length) {
+        form.activity_id = NO_ACTIVITY_VALUE;
+        return;
+    }
+
+    const hasSelection = activities.some((activity) => activity.id.toString() === form.activity_id);
+    if (!hasSelection) {
+        form.activity_id = activities[0].id.toString();
+    }
+}, { immediate: true });
 
 const submit = () => {
     if (!canCreate.value) return;
     form.transform((data) => ({
         ...data,
-        coop_id: selectedActivity.value?.coop_id?.toString() || '',
-    })).post('/activity-funding-sources', {
+        activity_id: data.activity_id === NO_ACTIVITY_VALUE ? '' : data.activity_id,
+    })).post(fundingSourceBasePath.value, {
         preserveScroll: true,
     });
 };
 
 const cancel = () => {
-    router.get('/activity-funding-sources');
+    router.get(fundingSourceBasePath.value);
 };
 </script>
 
@@ -93,7 +181,7 @@ const cancel = () => {
         <div class="space-y-6 p-4 sm:p-6">
             <div class="space-y-1">
                 <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Funding Source</h1>
-                <p class="text-sm text-muted-foreground">Record funding source details for an activity.</p>
+                <p class="text-sm text-muted-foreground">Record funding source details for a cooperative or activity.</p>
             </div>
 
             <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -106,28 +194,46 @@ const cancel = () => {
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="activity_id">Activity</Label>
-                                <Select v-model="form.activity_id" :disabled="isCoopAdmin && activities.length === 1">
+                                <Select v-model="form.activity_id" :disabled="isCoopScopedUser && filteredActivities.length === 1">
                                     <SelectTrigger id="activity_id" :class="{ 'border-red-500': form.errors.activity_id }">
-                                        <SelectValue placeholder="Select activity" />
+                                        <SelectValue placeholder="Select activity (optional)" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem v-for="activity in activities" :key="activity.id" :value="activity.id.toString()">
+                                        <SelectItem :value="NO_ACTIVITY_VALUE">No specific activity</SelectItem>
+                                        <SelectItem v-for="activity in filteredActivities" :key="activity.id" :value="activity.id.toString()">
                                             {{ activity.title }}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p class="mt-1 text-sm text-muted-foreground">
+                                    Leave empty if this funding source is not tied to a specific activity.
+                                </p>
                                 <p v-if="form.errors.activity_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.activity_id }}
+                                </p>
+                                <p v-else-if="filteredActivities.length === 0" class="mt-1 text-sm text-muted-foreground">
+                                    No activities found for the selected cooperative.
                                 </p>
                             </div>
 
                             <div>
                                 <Label for="cooperative_name">Cooperative</Label>
                                 <Input
+                                    v-if="isCoopScopedUser"
                                     id="cooperative_name"
-                                    :value="selectedCooperative?.name || 'Select an activity'"
+                                    :value="selectedCooperative?.name || 'No cooperative assigned'"
                                     disabled
                                 />
+                                <Select v-else v-model="form.coop_id">
+                                    <SelectTrigger id="coop_id" :class="{ 'border-red-500': form.errors.coop_id }">
+                                        <SelectValue placeholder="Select cooperative" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                            {{ coop.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <p v-if="form.errors.coop_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.coop_id }}
                                 </p>

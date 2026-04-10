@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('activity_funding_sources', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('activity_id')->constrained('activities')->cascadeOnDelete();
+            $table->foreignId('activity_id')->nullable()->constrained('activities')->nullOnDelete();
             $table->foreignId('coop_id')->constrained('cooperatives')->cascadeOnDelete();
             $table->string('funder_name');
             $table->enum('funder_type', ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor']);

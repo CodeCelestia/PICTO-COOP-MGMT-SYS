@@ -154,6 +154,22 @@ class Member extends Model
     }
 
     /**
+     * Get member loan records.
+     */
+    public function memberLoans(): HasMany
+    {
+        return $this->hasMany(MemberLoan::class, 'member_id');
+    }
+
+    /**
+     * Get member savings account.
+     */
+    public function savingsAccount(): HasOne
+    {
+        return $this->hasOne(MemberSavings::class, 'member_id');
+    }
+
+    /**
      * Get the linked user account for this member
      */
     public function user(): HasOne

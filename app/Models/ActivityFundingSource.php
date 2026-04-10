@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property int $activity_id
+ * @property int|null $activity_id
  * @property int $coop_id
  * @property string $funder_name
  * @property string $funder_type
@@ -47,7 +47,7 @@ class ActivityFundingSource extends Model
 
     public function activity(): BelongsTo
     {
-        return $this->belongsTo(Activity::class);
+        return $this->belongsTo(Activity::class, 'activity_id');
     }
 
     public function cooperative(): BelongsTo

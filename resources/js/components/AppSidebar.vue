@@ -5,7 +5,6 @@ import {
     Users,
     FileText,
     DollarSign,
-    BarChart3,
     UserCog,
     History,
     Building2,
@@ -48,7 +47,16 @@ const canViewAllCoops = computed(() => can('view-all-cooperatives'));
 const canViewCoops = computed(() => can('read coop-master-profile') || can('view-all-cooperatives'));
 const canViewMembers = computed(() => can('read members-profile'));
 const canViewMembersManagement = computed(() => can('read members-management'));
-const canViewFinance = computed(() => can('read financial-&-support'));
+const canViewActivitiesProjects = computed(() => Boolean(auth.value?.permissions?.includes('read activities-&-projects')));
+const canViewTrainings = computed(() => Boolean(auth.value?.permissions?.includes('read training-&-capacity')));
+const canViewFinance = computed(() =>
+    can('read financial-&-support')
+    || can('read finance-funding-sources')
+    || can('read finance-ledger-entries')
+    || can('read finance-member-loans')
+    || can('read finance-savings-accounts')
+    || can('read finance-reports')
+);
 const canViewSkillInventories = computed(() => can('read training-&-capacity'));
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
@@ -106,21 +114,6 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Skills Inventory',
             href: '/skill-inventories',
             icon: Sparkles,
-        },
-        {
-            title: 'Loans',
-            href: '#',
-            icon: FileText,
-        },
-        {
-            title: 'Savings',
-            href: '#',
-            icon: DollarSign,
-        },
-        {
-            title: 'Reports',
-            href: '#',
-            icon: BarChart3,
         },
     ];
 
@@ -184,8 +177,16 @@ const mainNavItems = computed<NavItem[]>(() => {
         items.push(baseItems[4]);
     }
 
+    if (canViewActivitiesProjects.value) {
+        items.push(baseItems[6]);
+    }
+
     if (canViewFinance.value) {
         items.push(baseItems[7]);
+    }
+
+    if (canViewTrainings.value) {
+        items.push(baseItems[8]);
     }
 
 
@@ -195,10 +196,6 @@ const mainNavItems = computed<NavItem[]>(() => {
             href: canViewAllCoops.value ? '/skill-inventories/select' : '/skill-inventories',
             icon: Sparkles,
         });
-    }
-
-    if (can('read reports-&-dashboard')) {
-        items.push(baseItems[10], baseItems[11], baseItems[12]);
     }
 
     if (canViewActivityLogs.value) {

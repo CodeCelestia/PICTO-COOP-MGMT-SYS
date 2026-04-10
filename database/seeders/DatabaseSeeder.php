@@ -78,6 +78,7 @@ class DatabaseSeeder extends Seeder
                 'account_status' => 'Active',
                 'created_by' => 'System',
                 'password_changed_at' => now(),
+                'coop_id' => $seedCoop?->id,
             ]
         );
         $test->assignRole($coopAdminRole);

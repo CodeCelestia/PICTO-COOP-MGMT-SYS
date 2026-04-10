@@ -53,7 +53,12 @@ class PermissionSeeder extends Seeder
             Permission::findOrCreate($permission, 'web');
         }
 
-        $this->command->info('✓ Created permissions for all modules');
+        // Add granular finance permissions
+        foreach ($this->financePermissions() as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
+
+        $this->command->info('✓ Created permissions for all modules including finance actions');
 
         // Now assign permissions to roles according to the specification matrix
         $this->assignPermissionsToRoles();
@@ -64,6 +69,8 @@ class PermissionSeeder extends Seeder
      */
     private function assignPermissionsToRoles(): void
     {
+        $financePermissionsByRole = $this->financePermissionsByRole();
+
         // Get all roles
         $superAdmin = Role::where('name', 'Super Admin')->first();
         $provincialAdmin = Role::where('name', 'Provincial Admin')->first();
@@ -83,11 +90,13 @@ class PermissionSeeder extends Seeder
         // ===== SUPER ADMIN (Full system access) =====
         $superAdmin->syncPermissions(Permission::all());
 
-        // ===== PROVINCIAL ADMIN (Full system access) =====
-        $provincialAdmin->syncPermissions(Permission::all());
+        // ===== PROVINCIAL ADMIN (All except global policy/permission controls) =====
+        $provincialAdmin->syncPermissions(
+            Permission::whereNotIn('name', ['manage-system-settings', 'manage-permissions'])->get()
+        );
 
         // ===== COOP ADMIN (Full access within their coop) =====
-        $coopAdmin->givePermissionTo([
+        $coopAdminBasePermissions = [
             // Coop Master Profile - Read & Update only
             'read coop-master-profile',
             'update coop-master-profile',
@@ -137,14 +146,27 @@ class PermissionSeeder extends Seeder
             // Reports & Dashboard - Full access to coop data
             'read reports-&-dashboard',
             'export reports-&-dashboard',
-        ]);
+        ];
 
-        // ===== CHAIRPERSON & GENERAL MANAGER (Same as Coop Admin) =====
-        $chairperson->syncPermissions($coopAdmin->permissions);
-        $generalManager->syncPermissions($coopAdmin->permissions);
+        $coopAdmin->syncPermissions(array_values(array_unique(array_merge(
+            $coopAdminBasePermissions,
+            $financePermissionsByRole['coop_admin']
+        ))));
+
+        // ===== CHAIRPERSON (Same base coop access, finance oversight) =====
+        $chairperson->syncPermissions(array_values(array_unique(array_merge(
+            $coopAdminBasePermissions,
+            $financePermissionsByRole['chairperson']
+        ))));
+
+        // ===== GENERAL MANAGER (Same base coop access, operations-focused finance) =====
+        $generalManager->syncPermissions(array_values(array_unique(array_merge(
+            $coopAdminBasePermissions,
+            $financePermissionsByRole['general_manager']
+        ))));
 
         // ===== OFFICER (Can view/edit activities, members, finances) =====
-        $officer->givePermissionTo([
+        $officerBasePermissions = [
             // Coop Master Profile - Read only
             'read coop-master-profile',
 
@@ -173,10 +195,15 @@ class PermissionSeeder extends Seeder
 
             // Reports & Dashboard - Read coop data
             'read reports-&-dashboard',
-        ]);
+        ];
+
+        $officer->syncPermissions(array_values(array_unique(array_merge(
+            $officerBasePermissions,
+            $financePermissionsByRole['officer']
+        ))));
 
         // ===== COMMITTEE MEMBER (View and submit reports for their committee) =====
-        $committeeMember->givePermissionTo([
+        $committeeMemberBasePermissions = [
             // Coop Master Profile - Read only
             'read coop-master-profile',
 
@@ -196,10 +223,15 @@ class PermissionSeeder extends Seeder
 
             // Reports & Dashboard - Committee-specific
             'read reports-&-dashboard',
-        ]);
+        ];
+
+        $committeeMember->syncPermissions(array_values(array_unique(array_merge(
+            $committeeMemberBasePermissions,
+            $financePermissionsByRole['committee_member']
+        ))));
 
         // ===== MEMBER (View their own profile and records) =====
-        $member->givePermissionTo([
+        $memberBasePermissions = [
             // Members Profile - Read own profile
             'read members-profile',
 
@@ -214,10 +246,15 @@ class PermissionSeeder extends Seeder
 
             // Reports & Dashboard - Own records
             'read reports-&-dashboard',
-        ]);
+        ];
+
+        $member->syncPermissions(array_values(array_unique(array_merge(
+            $memberBasePermissions,
+            $financePermissionsByRole['member']
+        ))));
 
         // ===== VIEWER (Read-only access) =====
-        $viewer->givePermissionTo([
+        $viewerBasePermissions = [
             'read coop-master-profile',
             'read members-profile',
             'read officers-&-committees',
@@ -225,8 +262,263 @@ class PermissionSeeder extends Seeder
             'read financial-&-support',
             'read training-&-capacity',
             'read reports-&-dashboard',
-        ]);
+        ];
 
-        $this->command->info('✓ Assigned permissions to all 9 roles based on specification matrix');
+        $viewer->syncPermissions(array_values(array_unique(array_merge(
+            $viewerBasePermissions,
+            $financePermissionsByRole['viewer']
+        ))));
+
+        $this->command->info('✓ Assigned role permissions including finance matrix to all 9 roles');
+    }
+
+    /**
+     * Finance permissions for the Finance module.
+     *
+     * @return array<int, string>
+     */
+    private function financePermissions(): array
+    {
+        return [
+            // Funding Sources
+            'create finance-funding-sources',
+            'read finance-funding-sources',
+            'update finance-funding-sources',
+            'delete finance-funding-sources',
+            'approve finance-funding-sources',
+            'export finance-funding-sources',
+
+            // Member Loans
+            'apply-own finance-member-loans',
+            'create finance-member-loans',
+            'read finance-member-loans',
+            'update finance-member-loans',
+            'delete finance-member-loans',
+            'approve finance-member-loans',
+            'approve-major finance-member-loans',
+            'disburse finance-member-loans',
+            'record-payment finance-member-loans',
+            'export finance-member-loans',
+
+            // Coop Loans
+            'create finance-coop-loans',
+            'read finance-coop-loans',
+            'update finance-coop-loans',
+            'delete finance-coop-loans',
+            'approve finance-coop-loans',
+            'disburse finance-coop-loans',
+            'record-repayment finance-coop-loans',
+            'export finance-coop-loans',
+
+            // Savings
+            'open finance-savings-accounts',
+            'read finance-savings-accounts',
+            'update finance-savings-accounts',
+            'close finance-savings-accounts',
+            'record-deposit finance-savings-accounts',
+            'record-withdrawal finance-savings-accounts',
+            'calculate-interest finance-savings-accounts',
+            'export finance-savings-accounts',
+
+            // Financial Records and Metrics
+            'create finance-ledger-entries',
+            'read finance-ledger-entries',
+            'update finance-ledger-entries',
+            'delete finance-ledger-entries',
+            'approve finance-ledger-entries',
+            'export finance-ledger-entries',
+            'read finance-health-metrics',
+
+            // Reports
+            'generate finance-reports',
+            'read finance-reports',
+            'export finance-reports',
+            'approve finance-reports',
+
+            // Controls and Governance
+            'manage finance-policies',
+            'override finance-auto-jobs',
+            'view finance-audit-trail',
+            'reconcile finance-transactions',
+        ];
+    }
+
+    /**
+     * Finance permissions mapped per role.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function financePermissionsByRole(): array
+    {
+        return [
+            'coop_admin' => [
+                'create finance-funding-sources',
+                'read finance-funding-sources',
+                'update finance-funding-sources',
+                'approve finance-funding-sources',
+                'export finance-funding-sources',
+
+                'create finance-member-loans',
+                'read finance-member-loans',
+                'update finance-member-loans',
+                'delete finance-member-loans',
+                'approve finance-member-loans',
+                'disburse finance-member-loans',
+                'record-payment finance-member-loans',
+                'export finance-member-loans',
+
+                'create finance-coop-loans',
+                'read finance-coop-loans',
+                'update finance-coop-loans',
+                'delete finance-coop-loans',
+                'disburse finance-coop-loans',
+                'record-repayment finance-coop-loans',
+                'export finance-coop-loans',
+
+                'open finance-savings-accounts',
+                'read finance-savings-accounts',
+                'update finance-savings-accounts',
+                'close finance-savings-accounts',
+                'record-deposit finance-savings-accounts',
+                'record-withdrawal finance-savings-accounts',
+                'calculate-interest finance-savings-accounts',
+                'export finance-savings-accounts',
+
+                'create finance-ledger-entries',
+                'read finance-ledger-entries',
+                'update finance-ledger-entries',
+                'delete finance-ledger-entries',
+                'approve finance-ledger-entries',
+                'export finance-ledger-entries',
+                'read finance-health-metrics',
+
+                'generate finance-reports',
+                'read finance-reports',
+                'export finance-reports',
+
+                'view finance-audit-trail',
+                'reconcile finance-transactions',
+            ],
+
+            'chairperson' => [
+                'read finance-funding-sources',
+                'approve finance-funding-sources',
+
+                'read finance-member-loans',
+                'approve-major finance-member-loans',
+
+                'read finance-coop-loans',
+
+                'read finance-savings-accounts',
+
+                'read finance-ledger-entries',
+                'read finance-health-metrics',
+
+                'read finance-reports',
+                'approve finance-reports',
+
+                'view finance-audit-trail',
+            ],
+
+            'general_manager' => [
+                'create finance-funding-sources',
+                'read finance-funding-sources',
+                'update finance-funding-sources',
+                'export finance-funding-sources',
+
+                'create finance-member-loans',
+                'read finance-member-loans',
+                'update finance-member-loans',
+                'approve finance-member-loans',
+                'disburse finance-member-loans',
+                'record-payment finance-member-loans',
+                'export finance-member-loans',
+
+                'create finance-coop-loans',
+                'read finance-coop-loans',
+                'update finance-coop-loans',
+                'disburse finance-coop-loans',
+                'record-repayment finance-coop-loans',
+                'export finance-coop-loans',
+
+                'open finance-savings-accounts',
+                'read finance-savings-accounts',
+                'update finance-savings-accounts',
+                'close finance-savings-accounts',
+                'record-deposit finance-savings-accounts',
+                'record-withdrawal finance-savings-accounts',
+                'calculate-interest finance-savings-accounts',
+                'export finance-savings-accounts',
+
+                'create finance-ledger-entries',
+                'read finance-ledger-entries',
+                'update finance-ledger-entries',
+                'approve finance-ledger-entries',
+                'export finance-ledger-entries',
+                'read finance-health-metrics',
+
+                'generate finance-reports',
+                'read finance-reports',
+                'export finance-reports',
+
+                'override finance-auto-jobs',
+                'view finance-audit-trail',
+                'reconcile finance-transactions',
+            ],
+
+            'officer' => [
+                'create finance-funding-sources',
+                'read finance-funding-sources',
+
+                'apply-own finance-member-loans',
+                'create finance-member-loans',
+                'read finance-member-loans',
+                'update finance-member-loans',
+                'record-payment finance-member-loans',
+
+                'read finance-coop-loans',
+                'record-repayment finance-coop-loans',
+
+                'read finance-savings-accounts',
+                'record-deposit finance-savings-accounts',
+                'record-withdrawal finance-savings-accounts',
+
+                'create finance-ledger-entries',
+                'read finance-ledger-entries',
+                'read finance-health-metrics',
+
+                'generate finance-reports',
+                'read finance-reports',
+            ],
+
+            'committee_member' => [
+                'read finance-funding-sources',
+                'read finance-member-loans',
+                'read finance-coop-loans',
+                'read finance-savings-accounts',
+                'read finance-ledger-entries',
+                'read finance-health-metrics',
+                'read finance-reports',
+                'view finance-audit-trail',
+            ],
+
+            'member' => [
+                'apply-own finance-member-loans',
+                'read finance-member-loans',
+                'read finance-savings-accounts',
+                'record-deposit finance-savings-accounts',
+                'record-withdrawal finance-savings-accounts',
+            ],
+
+            'viewer' => [
+                'read finance-funding-sources',
+                'read finance-member-loans',
+                'read finance-coop-loans',
+                'read finance-savings-accounts',
+                'read finance-ledger-entries',
+                'read finance-health-metrics',
+                'read finance-reports',
+            ],
+        ];
     }
 }

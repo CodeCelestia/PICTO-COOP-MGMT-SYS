@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Building2, FolderKanban, GraduationCap, Handshake, Users } from 'lucide-vue-next';
+import { Building2, Handshake, Users } from 'lucide-vue-next';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import MemberListPanel from '@/components/panels/MemberListPanel.vue';
-import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
-import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import ServiceAvailedListPanel from '@/components/panels/ServiceAvailedListPanel.vue';
 import type { Member } from '@/types/models';
 import type { BreadcrumbItem } from '@/types';
@@ -16,37 +14,6 @@ import type { BreadcrumbItem } from '@/types';
 interface CooperativeSummary {
     id: number;
     name: string;
-}
-
-interface Activity {
-    id: number;
-    coop_id: number;
-    title: string;
-    description: string | null;
-    category: string;
-    date_started: string | null;
-    date_ended: string | null;
-    status: string;
-    responsible_officer_id: number | null;
-    funding_source: string | null;
-    cooperative: CooperativeSummary;
-    responsible_officer?: {
-        id: number;
-        member: {
-            full_name: string;
-        };
-    } | null;
-}
-
-interface Training {
-    id: number;
-    coop_id: number;
-    title: string;
-    date_conducted: string | null;
-    facilitator: string | null;
-    target_group: string;
-    status: string;
-    cooperative: CooperativeSummary;
 }
 
 interface ServiceAvailed {
@@ -79,42 +46,12 @@ const props = defineProps<{
         per_page?: string;
     };
     services: ServiceAvailed[];
-    activities: {
-        data: Activity[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
-    activityFilters: {
-        search?: string;
-        status?: string;
-        category?: string;
-        coop_id?: string;
-        per_page?: string;
-    };
-    trainings: {
-        data: Training[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
-    trainingFilters: {
-        search?: string;
-        status?: string;
-        target_group?: string;
-        coop_id?: string;
-        per_page?: string;
-    };
     cooperatives: CooperativeSummary[];
 }>();
 
 const tabs: LiftedTab[] = [
     { id: 'members', label: 'Members', icon: Users },
     { id: 'services', label: 'Services', icon: Handshake },
-    { id: 'activities', label: 'Activities and Projects', icon: FolderKanban },
-    { id: 'trainings', label: 'Trainings', icon: GraduationCap },
 ];
 
 const page = usePage();
@@ -156,7 +93,6 @@ watch(
     { immediate: true },
 );
 
-const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
 </script>
 
 <template>
@@ -192,7 +128,7 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                         </div>
                     </div>
                     <div class="rounded-lg border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
-                        You are viewing cooperative-wide members, services, activities, and trainings for
+                        You are viewing cooperative-wide members and services for
                         <span class="font-semibold text-foreground">{{ cooperativeName }}</span>.
                     </div>
                 </CardHeader>
@@ -216,28 +152,6 @@ const coopId = computed(() => props.cooperatives[0]?.id?.toString() || '');
                             </div>
                         </div>
                         <ServiceAvailedListPanel :services="services" show-member />
-                    </div>
-
-                    <div v-show="activeTab === 'activities'" class="space-y-4">
-                        <ActivityListPanel
-                            :activities="activities"
-                            :cooperatives="cooperatives"
-                            :filters="activityFilters"
-                            :base-url="`${managementBasePath}?tab=activities`"
-                            query-prefix="activities_"
-                            :lock-coop-id="coopId"
-                        />
-                    </div>
-
-                    <div v-show="activeTab === 'trainings'" class="space-y-4">
-                        <TrainingListPanel
-                            :trainings="trainings"
-                            :cooperatives="cooperatives"
-                            :filters="trainingFilters"
-                            :base-url="`${managementBasePath}?tab=trainings`"
-                            query-prefix="trainings_"
-                            :lock-coop-id="coopId"
-                        />
                     </div>
                 </CardContent>
             </Card>
