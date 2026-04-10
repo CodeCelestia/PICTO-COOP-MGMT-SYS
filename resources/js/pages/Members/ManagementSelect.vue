@@ -231,6 +231,7 @@ const formatDate = (date: string | null) => {
                     </div>
                 </div>
 
+                <div class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
                     title="Filters"
                     description="Show filter fields to refine cooperative results."
@@ -360,6 +361,7 @@ const formatDate = (date: string | null) => {
                         </Button>
                     </div>
                 </FilterPanel>
+                </div>
             </section>
 
             <Card class="overflow-hidden border-border/80 bg-card shadow-sm">

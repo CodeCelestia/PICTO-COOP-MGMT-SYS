@@ -11,7 +11,7 @@ const props = defineProps<{
     <tr
         data-slot="table-row"
         :class="cn(
-            'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
+            'app-table-row border-b transition-colors duration-150 hover:bg-muted/80 dark:hover:bg-muted/45 data-[state=selected]:bg-muted',
             props.class
         )"
     >

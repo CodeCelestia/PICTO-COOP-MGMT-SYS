@@ -20,6 +20,8 @@ withDefaults(
 const { isLargeMode, toggleLargeMode } = useSidebar();
 const { resolvedAppearance, updateAppearance } = useAppearance();
 const {
+    isBackgroundAutoManaged,
+    isBackgroundButtonLocked,
     prefersReducedMotion,
     isAppBackgroundVisible,
     toggleAppBackground,
@@ -48,22 +50,34 @@ function toggleAppearance() {
                 variant="ghost"
                 size="sm"
                 :aria-pressed="isAppBackgroundVisible"
-                :aria-label="isAppBackgroundVisible ? 'Hide animated background' : 'Show animated background'"
+                                :aria-label="
+                                        isBackgroundAutoManaged
+                                                ? 'Animated background is set to Auto mode'
+                                                : isBackgroundButtonLocked
+                                                    ? 'Animated background is locked off'
+                                                    : isAppBackgroundVisible
+                                                        ? 'Hide animated background'
+                                                        : 'Show animated background'
+                                "
                 :title="
                     prefersReducedMotion
                         ? 'Animated background follows reduced-motion preference and is disabled'
-                        : isAppBackgroundVisible
-                          ? 'Hide animated background'
-                          : 'Show animated background'
+                                                : isBackgroundAutoManaged
+                                                    ? 'Animated background follows color mode automatically (On in dark mode, Off in light mode)'
+                                                    : isBackgroundButtonLocked
+                                                        ? 'Animated background is locked Off. Change behavior in Appearance settings.'
+                                                        : isAppBackgroundVisible
+                                                            ? 'Hide animated background'
+                                                            : 'Show animated background'
                 "
-                :disabled="prefersReducedMotion"
+                                :disabled="prefersReducedMotion || isBackgroundButtonLocked"
                 class="h-8 gap-1.5 px-2 text-xs"
                 :class="isAppBackgroundVisible ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''"
                 @click="toggleAppBackground"
             >
                 <Eye v-if="isAppBackgroundVisible" class="size-4" />
                 <EyeOff v-else class="size-4" />
-                <span class="hidden sm:inline">{{ isAppBackgroundVisible ? 'Bg On' : 'Bg Off' }}</span>
+                                <span class="hidden sm:inline">{{ isBackgroundAutoManaged ? 'Auto' : isAppBackgroundVisible ? 'Bg On' : 'Bg Off' }}</span>
             </Button>
 
             <Button

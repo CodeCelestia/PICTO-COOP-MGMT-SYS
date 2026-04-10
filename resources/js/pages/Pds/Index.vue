@@ -225,6 +225,7 @@ const bulkDeleteSubmissions = async () => {
                     </div>
                 </div>
 
+                <div class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
                     title="Filters"
                     description="Show the PDS filters when ready to refine results."
@@ -301,6 +302,7 @@ const bulkDeleteSubmissions = async () => {
                         <Button variant="outline" @click="clearFilters">Clear</Button>
                     </div>
                 </FilterPanel>
+                </div>
             </section>
 
             <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

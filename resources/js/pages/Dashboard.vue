@@ -797,7 +797,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Card class="flex-row items-center gap-3 rounded-full border border-border bg-muted/70 px-3 py-2 shadow-none">
+                        <Card class="flex-row items-center gap-3 rounded-full border border-border bg-muted/70 px-3 py-2 shadow-sm">
                             <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
                                 <Activity class="h-4 w-4" />
                             </div>
@@ -994,7 +994,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </div>
 
                         <div v-if="props.memberProfile" class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-none">
+                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
                                 <CardHeader class="px-4 pt-4 pb-2">
                                     <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Member</CardTitle>
                                 </CardHeader>
@@ -1007,7 +1007,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-none">
+                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
                                 <CardHeader class="px-4 pt-4 pb-2">
                                     <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Membership</CardTitle>
                                 </CardHeader>
@@ -1036,7 +1036,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </div>
 
                         <div v-if="props.memberCoop" class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-none">
+                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
                                 <CardHeader class="px-4 pt-4 pb-2">
                                     <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Cooperative</CardTitle>
                                 </CardHeader>
@@ -1052,7 +1052,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-none">
+                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
                                 <CardHeader class="px-4 pt-4 pb-2">
                                     <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Actions</CardTitle>
                                 </CardHeader>
@@ -1062,7 +1062,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             </Card>
                         </div>
 
-                        <Card v-else class="mt-6 gap-0 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-0 shadow-none">
+                        <Card v-else class="mt-6 gap-0 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-0 shadow-sm">
                             <CardContent class="px-4 py-3 text-sm text-slate-600">
                                 No cooperative is assigned to your account yet. Please contact your cooperative admin.
                             </CardContent>
@@ -1221,7 +1221,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </div>
 
                         <div v-if="props.coopTrends" class="mt-6 space-y-4">
-                            <Card class="mx-auto w-full gap-0 rounded-lg border border-slate-200/70 bg-slate-50/70 py-0 shadow-none lg:w-1/2">
+                            <Card class="mx-auto w-full gap-0 rounded-lg border border-slate-200/70 bg-slate-50/70 py-0 shadow-sm lg:w-1/2">
                                 <CardContent class="p-4">
                                     <div v-if="!hasVisibleSeries" class="flex h-44 items-center justify-center text-sm text-slate-500">
                                         Select at least one series to display the chart.
@@ -1288,7 +1288,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 <Card
                                     v-for="member in props.coopMembers"
                                     :key="member.id"
-                                    class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-none"
+                                    class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-sm"
                                 >
                                     <CardContent class="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
@@ -1559,7 +1559,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             <Card
                                 v-for="user in recentUsersComputed"
                                 :key="user.id"
-                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-none"
+                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-sm"
                             >
                                 <CardContent class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                                     <div class="rounded-full bg-slate-900 p-2 dark:bg-slate-100">
@@ -1600,7 +1600,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             <Card
                                 v-for="roleData in usersByRoleComputed"
                                 :key="roleData.name"
-                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-none"
+                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-sm"
                             >
                                 <CardContent class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div class="flex items-center gap-3">

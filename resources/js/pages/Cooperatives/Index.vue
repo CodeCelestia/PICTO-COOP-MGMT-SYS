@@ -354,8 +354,8 @@ const getTypePreview = (coop: Cooperative) => {
                     </div>
                 </div>
 
+                <div v-if="!isCoopAdminOnly" class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
-                    v-if="!isCoopAdminOnly"
                     title="Filters"
                     description="Show filter fields to refine cooperative results."
                     showLabel="Show filters"
@@ -496,6 +496,7 @@ const getTypePreview = (coop: Cooperative) => {
                     </Button>
                 </div>
                 </FilterPanel>
+                </div>
             </section>
 
             <Card v-if="isCoopAdminOnly" class="border-border/80 bg-card shadow-sm">

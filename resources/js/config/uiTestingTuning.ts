@@ -13,12 +13,12 @@ export const UI_TESTING_TUNING = {
         // Master kill switch for app Three.js background (independent from header toggle)
         masterVisible: true,
         // Overall Three.js background strength
-        strength: 0.75,
+        strength: 0.88,
         // Grid overlay strength inside the Three.js layer
-        gridStrength: 0.2,
+        gridStrength: 0.28,
         // Content readability veil over the animated background
-        contentOverlayLight: 0.74,
-        contentOverlayDark: 0.58,
+        contentOverlayLight: 0.64,
+        contentOverlayDark: 0.46,
     },
     header: {
         light: 0.58,
@@ -33,8 +33,8 @@ export const UI_TESTING_TUNING = {
         panelDark: 0.62,
     },
     card: {
-        light: 0.72,
-        dark: 0.62,
+        light: 0.94,
+        dark: 0.82,
         popoverLight: 0.78,
         popoverDark: 0.68,
         mutedLight: 0.72,

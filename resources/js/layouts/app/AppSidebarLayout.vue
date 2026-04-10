@@ -56,7 +56,7 @@ watch(
             <div
                 v-if="isAppBackgroundVisible"
                 aria-hidden="true"
-                class="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+                class="pointer-events-none fixed inset-0 z-0 overflow-hidden"
             >
                 <AppThreeBackground />
                 <div class="app-bg-content-overlay absolute inset-0" />
