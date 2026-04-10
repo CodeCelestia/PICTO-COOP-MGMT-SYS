@@ -38,6 +38,7 @@ const selectedRoleId = ref<number | null>(null);
 const roleSearch = ref('');
 const permissionSearch = ref('');
 const expandedModules = ref<Record<string, boolean>>({});
+const ACCOUNT_CREATION_PERMISSION = 'account-creation-access';
 const form = useForm({
     name: '',
     description: '',
@@ -61,9 +62,17 @@ const filteredRoles = computed(() => {
     });
 });
 
+const accountCreationPermission = computed(() =>
+    props.permissions.find((permission) => permission.name === ACCOUNT_CREATION_PERMISSION) ?? null
+);
+
 const permissionGroups = computed(() => {
     const groups: Record<string, Permission[]> = {};
     props.permissions.forEach((permission) => {
+        if (permission.name === ACCOUNT_CREATION_PERMISSION) {
+            return;
+        }
+
         const parts = permission.name.split(' ');
         const moduleKey = parts.slice(1).join(' ') || 'general';
         if (!groups[moduleKey]) {
@@ -107,6 +116,11 @@ const filteredModuleLabels = computed(() =>
 
 const filteredPermissionsCount = computed(() =>
     Object.values(filteredPermissionGroups.value).reduce((sum, group) => sum + group.length, 0)
+    + (accountCreationPermission.value ? 1 : 0)
+);
+
+const hasVisiblePermissions = computed(() =>
+    Boolean(accountCreationPermission.value) || filteredModuleLabels.value.length > 0
 );
 
 const formatModuleLabel = (moduleKey: string) => {
@@ -359,7 +373,34 @@ const deleteRole = (role: Role) => {
                             </div>
 
                             <div class="mt-4 space-y-3">
-                                <div v-if="!filteredModuleLabels.length" class="rounded-lg border border-dashed border-border/70 bg-background/70 p-6 text-center text-sm text-muted-foreground">
+                                <div class="rounded-xl border border-sky-300/70 bg-sky-50/70 p-4">
+                                    <div class="mb-3">
+                                        <h4 class="text-sm font-semibold text-sky-900">Account Access</h4>
+                                        <p class="text-xs text-sky-800/80">
+                                            Critical permission for member account provisioning.
+                                        </p>
+                                    </div>
+
+                                    <div v-if="accountCreationPermission" class="rounded-md border border-sky-200 bg-white/80 px-3 py-3">
+                                        <label class="flex items-start gap-3 text-sm">
+                                            <Checkbox
+                                                :model-value="form.permission_ids.includes(accountCreationPermission.id)"
+                                                @update:model-value="(value) => togglePermission(accountCreationPermission!.id, Boolean(value))"
+                                            />
+                                            <span class="space-y-1">
+                                                <span class="block font-medium text-foreground">Account Creation Access</span>
+                                                <span class="block text-xs text-muted-foreground">
+                                                    Allows this role to create member accounts and assign roles during member registration.
+                                                </span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div v-else class="rounded-md border border-dashed border-sky-300 bg-white/60 px-3 py-3 text-xs text-sky-900">
+                                        account-creation-access permission is not available in the permissions list.
+                                    </div>
+                                </div>
+
+                                <div v-if="!hasVisiblePermissions" class="rounded-lg border border-dashed border-border/70 bg-background/70 p-6 text-center text-sm text-muted-foreground">
                                     No permissions match your search.
                                 </div>
 

@@ -33,18 +33,19 @@ interface Props {
     }[];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
-const canCreateUserAccounts = computed(() => props.canCreateUserAccounts);
+const canCreateUserAccounts = computed(() => permissions.value.includes('account-creation-access'));
 
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
 const selectedRegionCode = ref('');
 const selectedProvinceCode = ref('');
 const selectedCityCode = ref('');
+const createAccount = ref(false);
 
 const form = useForm({
     coop_id: '',
@@ -105,6 +106,15 @@ watch(selectedCityCode, (newCity) => {
         form.city_municipality = city?.name || '';
         fetchBarangays(newCity);
         form.barangay = '';
+    }
+});
+
+watch(createAccount, (enabled) => {
+    if (!enabled) {
+        form.email = '';
+        form.password = '';
+        form.password_confirmation = '';
+        form.role_ids = [];
     }
 });
 
@@ -483,12 +493,22 @@ const toggleRole = (roleId: number) => {
                     </div>
 
                     <!-- Account Access -->
-                    <div>
+                    <div v-if="canCreateUserAccounts">
                         <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                             <UserPlus class="h-5 w-5" />
                             Account Access
                         </h2>
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="mb-4 flex items-center gap-3">
+                            <input
+                                id="create_account"
+                                v-model="createAccount"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <Label for="create_account">Create a system account for this member</Label>
+                        </div>
+
+                        <div v-if="createAccount" class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="account_email">Account Email</Label>
                                 <Input
@@ -510,7 +530,7 @@ const toggleRole = (roleId: number) => {
                                     v-model="form.password"
                                     type="password"
                                     placeholder="Set a password"
-                                    required
+                                    :required="createAccount"
                                     :class="{ 'border-red-500': form.errors.password }"
                                 />
                                 <p v-if="form.errors.password" class="mt-1 text-sm text-red-500">
@@ -528,12 +548,12 @@ const toggleRole = (roleId: number) => {
                                     v-model="form.password_confirmation"
                                     type="password"
                                     placeholder="Confirm password"
-                                    required
+                                    :required="createAccount"
                                 />
                             </div>
                         </div>
 
-                        <div v-if="canCreateUserAccounts" class="mt-4">
+                        <div v-if="canCreateUserAccounts && createAccount" class="mt-4">
                             <Label>Assign Roles</Label>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <Badge

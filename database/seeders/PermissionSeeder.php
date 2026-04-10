@@ -42,9 +42,16 @@ class PermissionSeeder extends Seeder
         }
 
         // Add some special permissions
-        Permission::findOrCreate('manage-system-settings', 'web');
-        Permission::findOrCreate('view-all-cooperatives', 'web');
-        Permission::findOrCreate('manage-permissions', 'web');
+        $specialPermissions = [
+            'manage-system-settings',
+            'view-all-cooperatives',
+            'manage-permissions',
+            'account-creation-access',
+        ];
+
+        foreach ($specialPermissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
 
         $this->command->info('✓ Created permissions for all modules');
 

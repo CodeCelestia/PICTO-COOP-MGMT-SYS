@@ -533,7 +533,7 @@ class MemberController extends Controller
             'city_municipality' => ['nullable', 'string', 'max:100'],
             'barangay' => ['nullable', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['required', 'email', 'max:100', 'unique:users,email', 'unique:members,email'],
+            'email' => ['nullable', 'email', 'max:100', 'unique:users,email', 'unique:members,email'],
             'date_joined' => ['nullable', 'date'],
             'membership_type' => ['nullable', 'in:Regular,Associate,Honorary'],
             'membership_status' => ['nullable', 'in:Active,Suspended,Resigned,Deceased'],
@@ -541,7 +541,7 @@ class MemberController extends Controller
             'educational_attainment' => ['nullable', 'in:Elementary,High School,Vocational,College,Post-Graduate,None'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ]);
@@ -558,39 +558,45 @@ class MemberController extends Controller
             $validated['coop_id'] = $coopId;
         }
 
-        DB::transaction(function () use ($validated) {
+        $shouldCreateAccount = !empty($validated['email']) && !empty($validated['password']);
+
+        DB::transaction(function () use ($validated, $shouldCreateAccount) {
             $member = Member::create($validated);
 
-            $firstRole = !empty($validated['role_ids'])
-                ? Role::find($validated['role_ids'][0])
-                : null;
-            $accountType = $this->resolveAccountType($firstRole);
+            if ($shouldCreateAccount) {
+                $firstRole = !empty($validated['role_ids'])
+                    ? Role::find($validated['role_ids'][0])
+                    : null;
+                $accountType = $this->resolveAccountType($firstRole);
 
-            $user = User::create([
-                'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'coop_id' => $validated['coop_id'],
-                'member_id' => $member->id,
-                'account_type' => $accountType,
-                'account_status' => 'Active',
-                'created_by' => auth()->user()->name,
-                'password_changed_at' => now(),
-            ]);
+                $user = User::create([
+                    'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                    'coop_id' => $validated['coop_id'],
+                    'member_id' => $member->id,
+                    'account_type' => $accountType,
+                    'account_status' => 'Active',
+                    'created_by' => auth()->user()->name,
+                    'password_changed_at' => now(),
+                ]);
 
-            if (!empty($validated['role_ids'])) {
-                $roles = Role::whereIn('id', $validated['role_ids'])->get();
-                $user->assignRole($roles);
-            } else {
-                $memberRole = Role::where('name', 'Member')->first();
-                if ($memberRole) {
-                    $user->assignRole($memberRole);
+                if (!empty($validated['role_ids'])) {
+                    $roles = Role::whereIn('id', $validated['role_ids'])->get();
+                    $user->assignRole($roles);
+                } else {
+                    $memberRole = Role::where('name', 'Member')->first();
+                    if ($memberRole) {
+                        $user->assignRole($memberRole);
+                    }
                 }
             }
         });
 
         return redirect()->route('members.index')
-            ->with('success', 'Member and user account created successfully.');
+            ->with('success', $shouldCreateAccount
+                ? 'Member and user account created successfully.'
+                : 'Member created successfully.');
     }
 
     /**
