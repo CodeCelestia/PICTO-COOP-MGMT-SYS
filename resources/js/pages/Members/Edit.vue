@@ -856,6 +856,7 @@ const toggleRole = (roleId: number) => {
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
+                                                    class="table-action-btn table-action-edit"
                                                     @click="startEditService(service)"
                                                 >
                                                     Edit
@@ -865,7 +866,7 @@ const toggleRole = (roleId: number) => {
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    class="text-red-600 hover:text-red-700"
+                                                    class="table-action-btn table-action-delete text-red-600 hover:text-red-700"
                                                     @click="deleteService(service)"
                                                 >
                                                     Delete

@@ -353,18 +353,18 @@ const bulkDeleteSubmissions = async () => {
                                 <TableCell class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         <Link v-if="!isArchivedView" :href="`/pds/${pds.id}/edit`">
-                                            <Button variant="outline" size="sm" class="gap-1.5">
+                                            <Button variant="outline" size="sm" class="table-action-btn table-action-edit gap-1.5">
                                                 <Pencil class="h-4 w-4" />
                                                 Edit
                                             </Button>
                                         </Link>
                                         <a :href="`/pds/${pds.id}/download`" target="_blank" rel="noopener noreferrer">
-                                            <Button variant="outline" size="sm" class="gap-1.5">
+                                            <Button variant="outline" size="sm" class="table-action-btn table-action-other gap-1.5">
                                                 <Download class="h-4 w-4" />
                                                 Download
                                             </Button>
                                         </a>
-                                        <Button v-if="!isArchivedView" variant="destructive" size="sm" class="gap-1.5" @click="deleteSubmission(pds.id)">
+                                        <Button v-if="!isArchivedView" variant="destructive" size="sm" class="table-action-btn table-action-delete gap-1.5" @click="deleteSubmission(pds.id)">
                                             <Trash2 class="h-4 w-4" />
                                             Delete
                                         </Button>
@@ -372,7 +372,7 @@ const bulkDeleteSubmissions = async () => {
                                             v-if="isArchivedView"
                                             variant="outline"
                                             size="sm"
-                                            class="gap-1.5 text-emerald-700 hover:text-emerald-800"
+                                            class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"
                                             @click="restoreSubmission(pds)"
                                         >
                                             <RotateCcw class="h-4 w-4" />

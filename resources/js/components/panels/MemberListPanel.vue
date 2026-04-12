@@ -215,13 +215,14 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                 </div>
             </div>
 
-            <FilterPanel
-                title="Filters"
-                description="Show filter inputs to narrow member records."
-                showLabel="Show filters"
-                hideLabel="Hide filters"
-            >
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+            <div class="mt-6 border-t border-border/60 pt-6">
+                <FilterPanel
+                    title="Filters"
+                    description="Show filter inputs to narrow member records."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <div>
                         <label for="member-search" class="mb-2 block text-sm font-medium text-foreground">Search</label>
                         <div class="relative">
@@ -280,16 +281,17 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                     </div>
                 </div>
 
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <Button @click="applyFilters" class="gap-2">
-                        <Search class="h-4 w-4" />
-                        Apply Filters
-                    </Button>
-                    <Button @click="resetFilters" variant="outline">
-                        Clear Filters
-                    </Button>
-                </div>
-            </FilterPanel>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Button @click="applyFilters" class="gap-2">
+                            <Search class="h-4 w-4" />
+                            Apply Filters
+                        </Button>
+                        <Button @click="resetFilters" variant="outline">
+                            Clear Filters
+                        </Button>
+                    </div>
+                </FilterPanel>
+            </div>
         </section>
 
         <section class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -355,13 +357,13 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link :href="`/members/${member.id}`">
-                                        <Button variant="ghost" size="sm" class="gap-1.5" title="View member">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1.5" title="View member">
                                             <Eye class="h-4 w-4" />
                                             View
                                         </Button>
                                     </Link>
                                     <Link v-if="!isArchivedView && canEditMember" :href="`/members/${member.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-1.5" title="Edit member">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1.5" title="Edit member">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
@@ -371,7 +373,7 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-1.5 text-red-600 hover:text-red-700"
+                                        class="table-action-btn table-action-delete gap-1.5 text-red-600 hover:text-red-700"
                                         title="Delete member"
                                     >
                                         <Trash2 class="h-4 w-4" />
@@ -382,7 +384,7 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                                         @click="restoreMember(member)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-1.5 text-emerald-700 hover:text-emerald-800"
+                                        class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"
                                         title="Restore member"
                                     >
                                         <RotateCcw class="h-4 w-4" />

@@ -281,7 +281,7 @@ const levelBadgeClass = (level: string) => {
                                     <TableCell>{{ row.sort_order ?? 0 }}</TableCell>
                                     <TableCell class="text-right">
                                         <div class="flex justify-end gap-2">
-                                            <Button size="sm" variant="outline" class="gap-1" @click="startEdit(row)">
+                                            <Button size="sm" variant="outline" class="table-action-btn table-action-edit gap-1" @click="startEdit(row)">
                                                 <Pencil class="h-3.5 w-3.5" />
                                                 Edit
                                             </Button>
@@ -289,13 +289,13 @@ const levelBadgeClass = (level: string) => {
                                                 v-if="row.level !== 'municipality'"
                                                 size="sm"
                                                 variant="outline"
-                                                class="gap-1"
+                                                class="table-action-btn table-action-other gap-1"
                                                 @click="startCreate(row.level === 'region' ? 'province' : 'municipality', row.id)"
                                             >
                                                 <Plus class="h-3.5 w-3.5" />
                                                 Child
                                             </Button>
-                                            <Button size="sm" variant="destructive" class="gap-1" @click="removeType(row)">
+                                            <Button size="sm" variant="destructive" class="table-action-btn table-action-delete gap-1" @click="removeType(row)">
                                                 <Trash2 class="h-3.5 w-3.5" />
                                                 Delete
                                             </Button>

@@ -166,6 +166,13 @@ html[data-a11y-size='large'] {
     --app-sidebar-panel-light: 0.74;
     --app-sidebar-panel-dark: 0.62;
 
+    --app-shell-divider-light: hsl(214 28% 73% / 0.9);
+    --app-shell-divider-dark: hsl(214 20% 30% / 0.88);
+    --app-shell-header-shadow-light: 0 14px 26px -24px rgba(15, 23, 42, 0.7), 0 1px 0 rgba(255, 255, 255, 0.44);
+    --app-shell-header-shadow-dark: 0 16px 30px -24px rgba(0, 0, 0, 0.86), 0 1px 0 rgba(255, 255, 255, 0.05);
+    --app-shell-sidebar-shadow-light: 10px 0 28px -24px rgba(15, 23, 42, 0.75), 1px 0 0 rgba(255, 255, 255, 0.34);
+    --app-shell-sidebar-shadow-dark: 12px 0 30px -24px rgba(0, 0, 0, 0.88), 1px 0 0 rgba(255, 255, 255, 0.04);
+
     --app-card-opacity-light: 0.94;
     --app-card-opacity-dark: 0.82;
     --app-popover-opacity-light: 0.78;
@@ -245,34 +252,50 @@ html[data-a11y-size='large'] {
 
     .app-header-surface {
         background-color: hsl(0 0% 100% / var(--app-header-opacity-light, 0.58));
+        box-shadow: var(--app-shell-header-shadow-light, 0 14px 26px -24px rgba(15, 23, 42, 0.7));
     }
 
     .dark .app-header-surface {
         background-color: hsl(0 0% 4% / var(--app-header-opacity-dark, 0.5));
+        box-shadow: var(--app-shell-header-shadow-dark, 0 16px 30px -24px rgba(0, 0, 0, 0.86));
     }
 
     .app-sidebar-surface-static {
         background-color: hsl(0 0% 100% / var(--app-sidebar-static-light, 0.78));
+        box-shadow: var(--app-shell-sidebar-shadow-light, 10px 0 28px -24px rgba(15, 23, 42, 0.75));
     }
 
     .dark .app-sidebar-surface-static {
         background-color: hsl(0 0% 4% / var(--app-sidebar-static-dark, 0.64));
+        box-shadow: var(--app-shell-sidebar-shadow-dark, 12px 0 30px -24px rgba(0, 0, 0, 0.88));
     }
 
     .app-sidebar-surface-mobile {
         background-color: hsl(0 0% 100% / var(--app-sidebar-mobile-light, 0.84));
+        box-shadow: var(--app-shell-sidebar-shadow-light, 10px 0 28px -24px rgba(15, 23, 42, 0.75));
     }
 
     .dark .app-sidebar-surface-mobile {
         background-color: hsl(0 0% 4% / var(--app-sidebar-mobile-dark, 0.72));
+        box-shadow: var(--app-shell-sidebar-shadow-dark, 12px 0 30px -24px rgba(0, 0, 0, 0.88));
     }
 
     .app-sidebar-surface-panel {
         background-color: hsl(0 0% 100% / var(--app-sidebar-panel-light, 0.74));
+        box-shadow: var(--app-shell-sidebar-shadow-light, 10px 0 28px -24px rgba(15, 23, 42, 0.75));
     }
 
     .dark .app-sidebar-surface-panel {
         background-color: hsl(0 0% 4% / var(--app-sidebar-panel-dark, 0.62));
+        box-shadow: var(--app-shell-sidebar-shadow-dark, 12px 0 30px -24px rgba(0, 0, 0, 0.88));
+    }
+
+    .app-shell-divider {
+        border-color: var(--app-shell-divider-light, hsl(214 28% 73% / 0.9));
+    }
+
+    .dark .app-shell-divider {
+        border-color: var(--app-shell-divider-dark, hsl(214 20% 30% / 0.88));
     }
 
     .app-glass-theme {
@@ -374,13 +397,209 @@ html[data-a11y-size='large'] {
         box-shadow: var(--app-surface-shadow-dark, 0 22px 44px -24px rgba(0, 0, 0, 0.82));
     }
 
+    table {
+        border-collapse: collapse;
+    }
+
+    table tbody tr,
+    table tbody [data-slot='table-row'] {
+        transition-property: background-color, color;
+        transition-duration: 200ms !important;
+        transition-timing-function: ease-in-out;
+    }
+
+    table thead tr {
+        background-color: #e5e7eb;
+    }
+
+    table thead th,
+    table thead [data-slot='table-head'] {
+        font-weight: 700 !important;
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+        color: #1f2937 !important;
+    }
+
+    table tbody tr:nth-child(odd) {
+        background-color: #ffffff;
+    }
+
+    table tbody tr:nth-child(even) {
+        background-color: #f3f4f6;
+    }
+
+    table tbody tr:hover,
+    table tbody [data-slot='table-row']:hover {
+        background-color: #dbeafe !important;
+        color: #111827 !important;
+    }
+
+    table [data-slot='checkbox'],
+    table [role='checkbox'] {
+        border-color: #9ca3af !important;
+        transition-property: border-color, box-shadow, background-color, color;
+        transition-duration: 300ms;
+        transition-timing-function: ease-in-out;
+    }
+
+    table thead [data-slot='checkbox'],
+    table thead [role='checkbox'] {
+        border-color: #6b7280 !important;
+    }
+
+    table tbody tr:hover [data-slot='checkbox'],
+    table tbody tr:hover [role='checkbox'] {
+        border-color: #4b5563 !important;
+        box-shadow: 0 0 0 2px rgba(75, 85, 99, 0.22);
+    }
+
+    .dark table thead tr {
+        background-color: #3f3f46;
+    }
+
+    .dark table thead th,
+    .dark table thead [data-slot='table-head'] {
+        color: #f3f4f6 !important;
+    }
+
+    .dark table tbody tr:nth-child(odd) {
+        background-color: #18181b;
+    }
+
+    .dark table tbody tr:nth-child(even) {
+        background-color: #27272a;
+    }
+
+    .dark table tbody tr:hover,
+    .dark table tbody [data-slot='table-row']:hover {
+        background-color: #1e3a8a !important;
+        color: #fafafa !important;
+    }
+
+    .dark table [data-slot='checkbox'],
+    .dark table [role='checkbox'] {
+        border-color: #a1a1aa !important;
+    }
+
+    .dark table thead [data-slot='checkbox'],
+    .dark table thead [role='checkbox'] {
+        border-color: #d4d4d8 !important;
+    }
+
+    .dark table tbody tr:hover [data-slot='checkbox'],
+    .dark table tbody tr:hover [role='checkbox'] {
+        border-color: #e4e4e7 !important;
+        box-shadow: 0 0 0 2px rgba(161, 161, 170, 0.32);
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-btn {
+        border-color: #9ca3af !important;
+        background-color: #f3f4f6 !important;
+        color: #374151 !important;
+        transition: all 150ms ease-in-out !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-btn:hover {
+        border-color: #6b7280 !important;
+        background-color: #e5e7eb !important;
+        color: #111827 !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-btn {
+        border-color: #52525b !important;
+        background-color: #27272a !important;
+        color: #e5e7eb !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-btn:hover {
+        border-color: #71717a !important;
+        background-color: #3f3f46 !important;
+        color: #ffffff !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-view {
+        border-color: #93c5fd !important;
+        background-color: #eff6ff !important;
+        color: #2563eb !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-view:hover {
+        border-color: #60a5fa !important;
+        background-color: #dbeafe !important;
+        color: #1d4ed8 !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-view {
+        border-color: #1d4ed8 !important;
+        background-color: rgb(23 37 84 / 0.45) !important;
+        color: #60a5fa !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-view:hover {
+        border-color: #3b82f6 !important;
+        background-color: #1e3a8a !important;
+        color: #93c5fd !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-edit {
+        border-color: #fcd34d !important;
+        background-color: #fffbeb !important;
+        color: #d97706 !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-edit:hover {
+        border-color: #f59e0b !important;
+        background-color: #fef3c7 !important;
+        color: #b45309 !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-edit {
+        border-color: #b45309 !important;
+        background-color: rgb(69 26 3 / 0.45) !important;
+        color: #fbbf24 !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-edit:hover {
+        border-color: #f59e0b !important;
+        background-color: #78350f !important;
+        color: #fcd34d !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-delete {
+        border-color: #fca5a5 !important;
+        background-color: #fef2f2 !important;
+        color: #dc2626 !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-delete:hover {
+        border-color: #f87171 !important;
+        background-color: #fee2e2 !important;
+        color: #b91c1c !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-delete {
+        border-color: #991b1b !important;
+        background-color: rgb(69 10 10 / 0.45) !important;
+        color: #f87171 !important;
+    }
+
+    .dark table :is([data-slot='table-cell'], td) .table-action-delete:hover {
+        border-color: #dc2626 !important;
+        background-color: #7f1d1d !important;
+        color: #fca5a5 !important;
+    }
+
+    table :is([data-slot='table-cell'], td) .table-action-btn svg {
+        color: currentColor !important;
+    }
+
     .app-glass-theme [data-slot='table'] tbody .app-table-row:hover {
-        background-color: hsl(207 75% 92% / 0.92);
-        box-shadow: inset 0 1px 0 hsl(210 44% 78% / 0.58), inset 0 -1px 0 hsl(210 44% 78% / 0.52);
+        background-color: #dbeafe !important;
+        color: #111827 !important;
     }
 
     .dark .app-glass-theme [data-slot='table'] tbody .app-table-row:hover {
-        background-color: hsl(215 24% 23% / 0.82);
-        box-shadow: inset 0 1px 0 hsl(215 26% 38% / 0.52), inset 0 -1px 0 hsl(215 26% 38% / 0.48);
+        background-color: #1e3a8a !important;
+        color: #fafafa !important;
     }
 }

@@ -93,6 +93,13 @@ const permissions = computed<string[]>(() => (page.props.auth?.permissions as st
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
 const activeTab = ref('profile');
 
+const cooperativeBasePath = computed(() => {
+    const [path] = page.url.split('?');
+    return path || `/cooperatives/${props.cooperative.id}`;
+});
+
+const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) => type.name) || []);
+
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     {
         title: 'Cooperative Management',
@@ -143,15 +150,15 @@ const formatFullAddress = (coop: Cooperative) => {
 const statusBadgeClass = computed(() => {
     switch (props.cooperative.status) {
         case 'Active':
-            return 'bg-muted text-foreground border-border';
+            return 'border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200';
         case 'Inactive':
-            return 'bg-muted text-foreground border-border';
+            return 'border border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-400/40 dark:bg-slate-500/20 dark:text-slate-200';
         case 'Dissolved':
-            return 'bg-muted text-foreground border-border';
+            return 'border border-red-300 bg-red-100 text-red-800 dark:border-red-400/40 dark:bg-red-500/20 dark:text-red-200';
         case 'Suspended':
-            return 'bg-muted text-foreground border-border';
+            return 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/20 dark:text-amber-200';
         default:
-            return 'bg-muted text-foreground border-border';
+            return 'border border-border bg-muted text-foreground';
     }
 });
 
@@ -160,35 +167,36 @@ const statusBadgeClass = computed(() => {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <Card class="border-border bg-gradient-to-br from-card via-card to-muted/25">
-                <CardHeader class="space-y-2">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground">
-                            <Building2 class="h-5 w-5" />
+            <Card class="border-border/80 bg-card/95 shadow-sm">
+                <CardHeader class="space-y-4">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+                                <Building2 class="h-6 w-6" />
+                            </div>
+                            <div class="space-y-1">
+                                <CardTitle class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+                                    Cooperative Management  |  {{ cooperative.name }}
+                                </CardTitle>
+                                <p class="text-base text-muted-foreground">Review and manage profile, members, officers, and committees</p>
+                            </div>
                         </div>
-                        <div>
-                            <CardTitle class="text-xl font-semibold text-foreground">
-                                Cooperative Management
-                            </CardTitle>
-                            <p class="text-sm text-muted-foreground">Review and manage profile, members, officers, and committees</p>
-                        </div>
-                        <Badge class="ml-auto border" :class="statusBadgeClass">
+                        <Badge class="w-fit text-sm font-semibold" :class="statusBadgeClass">
                             {{ cooperative.status }}
                         </Badge>
                     </div>
-                    <div class="rounded-lg border border-border/70 bg-background/70 p-3 text-sm text-muted-foreground">
-                        Selected cooperative:
-                        <span class="font-semibold text-foreground">{{ cooperative.name }}</span>
-                    </div>
+
                 </CardHeader>
                 <CardContent class="space-y-6">
-                    <LiftedTabs v-model="activeTab" :tabs="tabs" />
+                    <div class="coop-detail-tabs">
+                        <LiftedTabs v-model="activeTab" :tabs="tabs" />
+                    </div>
 
                     <div v-show="activeTab === 'profile'" class="space-y-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-foreground">Cooperative Profile</h2>
-                                <p class="text-sm text-muted-foreground">Key registration and accreditation details.</p>
+                                <h2 class="text-xl font-semibold text-foreground">Cooperative Profile</h2>
+                                <p class="text-base text-muted-foreground">Key registration and accreditation details for quick review.</p>
                             </div>
                             <Link v-if="canEditCoop" :href="`/cooperatives/${cooperative.id}/edit`">
                                 <Button variant="outline" class="gap-2">
@@ -197,49 +205,87 @@ const statusBadgeClass = computed(() => {
                                 </Button>
                             </Link>
                         </div>
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Registration</div>
-                                <div class="mt-2 space-y-1 text-sm text-foreground">
-                                    <div><strong>Name:</strong> {{ cooperative.name }}</div>
-                                    <div><strong>Registration #:</strong> {{ cooperative.registration_number }}</div>
-                                    <div class="space-y-1">
-                                        <strong>Type:</strong>
-                                        <div class="flex flex-wrap gap-1">
-                                            <Badge v-for="type in cooperative.types || []" :key="type.id" variant="outline">{{ type.name }}</Badge>
-                                            <span v-if="!cooperative.types?.length" class="text-muted-foreground">N/A</span>
-                                        </div>
+                        <div class="grid gap-4 xl:grid-cols-2">
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Registration</h3>
+                                <dl class="mt-4 space-y-3 text-base text-foreground">
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Name</dt>
+                                        <dd class="font-semibold">{{ cooperative.name }}</dd>
                                     </div>
-                                    <div>
-                                        <strong>Classification:</strong>
-                                        <Badge variant="outline" class="ml-2">{{ cooperative.classification || 'N/A' }}</Badge>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Registration #</dt>
+                                        <dd class="font-semibold">{{ cooperative.registration_number || 'N/A' }}</dd>
                                     </div>
-                                    <div><strong>Date Established:</strong> {{ formatDate(cooperative.date_established) }}</div>
-                                </div>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Contact</div>
-                                <div class="mt-2 space-y-1 text-sm text-foreground">
-                                    <div><strong>Email:</strong> {{ cooperative.email || 'N/A' }}</div>
-                                    <div><strong>Phone:</strong> {{ cooperative.phone || 'N/A' }}</div>
-                                    <div><strong>Address:</strong> {{ formatFullAddress(cooperative) }}</div>
-                                </div>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Accreditation</div>
-                                <div class="mt-2 space-y-1 text-sm text-foreground">
-                                    <div><strong>Status:</strong> {{ cooperative.accreditation_status || 'N/A' }}</div>
-                                    <div><strong>Date:</strong> {{ formatDate(cooperative.accreditation_date) }}</div>
-                                </div>
-                            </div>
-                            <div class="rounded-lg border border-border bg-muted/40 p-4">
-                                <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Jurisdiction</div>
-                                <div class="mt-2 space-y-1 text-sm text-foreground">
-                                    <div><strong>Province:</strong> {{ cooperative.province }}</div>
-                                    <div><strong>City/Municipality:</strong> {{ cooperative.city_municipality || 'N/A' }}</div>
-                                    <div><strong>Barangay:</strong> {{ cooperative.barangay || 'N/A' }}</div>
-                                </div>
-                            </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Type</dt>
+                                        <dd class="flex flex-wrap gap-2">
+                                            <Badge v-for="typeName in cooperativeTypeNames" :key="`${typeName}-profile`" variant="outline" class="font-medium">{{ typeName }}</Badge>
+                                            <span v-if="!cooperativeTypeNames.length" class="text-muted-foreground">N/A</span>
+                                        </dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Classification</dt>
+                                        <dd>
+                                            <Badge variant="outline" class="font-medium">{{ cooperative.classification || 'N/A' }}</Badge>
+                                        </dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Date Established</dt>
+                                        <dd class="font-semibold">{{ formatDate(cooperative.date_established) }}</dd>
+                                    </div>
+                                </dl>
+                            </section>
+
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contact</h3>
+                                <dl class="mt-4 space-y-3 text-base text-foreground">
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Email</dt>
+                                        <dd class="font-semibold">{{ cooperative.email || 'N/A' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Phone</dt>
+                                        <dd class="font-semibold">{{ cooperative.phone || 'N/A' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Address</dt>
+                                        <dd class="font-semibold">{{ formatFullAddress(cooperative) }}</dd>
+                                    </div>
+                                </dl>
+                            </section>
+
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Accreditation</h3>
+                                <dl class="mt-4 space-y-3 text-base text-foreground">
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Status</dt>
+                                        <dd class="font-semibold">{{ cooperative.accreditation_status || 'N/A' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Date</dt>
+                                        <dd class="font-semibold">{{ formatDate(cooperative.accreditation_date) }}</dd>
+                                    </div>
+                                </dl>
+                            </section>
+
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Jurisdiction</h3>
+                                <dl class="mt-4 space-y-3 text-base text-foreground">
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Province</dt>
+                                        <dd class="font-semibold">{{ cooperative.province || 'N/A' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">City/Municipality</dt>
+                                        <dd class="font-semibold">{{ cooperative.city_municipality || 'N/A' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Barangay</dt>
+                                        <dd class="font-semibold">{{ cooperative.barangay || 'N/A' }}</dd>
+                                    </div>
+                                </dl>
+                            </section>
                         </div>
                     </div>
 
@@ -247,7 +293,7 @@ const statusBadgeClass = computed(() => {
                         <MemberListPanel
                             :members="members"
                             :filters="memberFilters"
-                            base-url="/cooperatives/my?tab=members"
+                            :base-url="`${cooperativeBasePath}?tab=members`"
                             query-prefix="members_"
                         />
                     </div>
@@ -257,7 +303,7 @@ const statusBadgeClass = computed(() => {
                             :officers="officers"
                             :cooperatives="cooperatives"
                             :filters="officerFilters"
-                            base-url="/cooperatives/my?tab=officers"
+                            :base-url="`${cooperativeBasePath}?tab=officers`"
                             query-prefix="officers_"
                             :lock-coop-id="String(cooperative.id)"
                         />
@@ -268,7 +314,7 @@ const statusBadgeClass = computed(() => {
                             :committee-members="committeeMembers"
                             :cooperatives="cooperatives"
                             :filters="committeeFilters"
-                            base-url="/cooperatives/my?tab=committees"
+                            :base-url="`${cooperativeBasePath}?tab=committees`"
                             query-prefix="committees_"
                             :lock-coop-id="String(cooperative.id)"
                         />
@@ -278,3 +324,16 @@ const statusBadgeClass = computed(() => {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.coop-detail-tabs :deep(button[role='tab']) {
+    min-height: 44px;
+    padding: 0.75rem 1.1rem;
+    font-size: 0.98rem;
+    line-height: 1.35;
+}
+
+.coop-detail-tabs :deep(button[role='tab'][aria-selected='true']) {
+    font-weight: 700;
+}
+</style>

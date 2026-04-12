@@ -227,102 +227,104 @@ const bulkDeleteSkills = async () => {
                 </div>
                 </div>
 
-                <FilterPanel
-                    title="Filters"
-                    description="Show skills inventory filters to refine results."
-                    showLabel="Show filters"
-                    hideLabel="Hide filters"
-                >
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
-                        <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                v-model="search"
-                                @keyup.enter="applyFilters"
-                                placeholder="Skill or member..."
-                                class="pl-9"
-                            />
+                <div class="mt-6 border-t border-border/60 pt-6">
+                    <FilterPanel
+                        title="Filters"
+                        description="Show skills inventory filters to refine results."
+                        showLabel="Show filters"
+                        hideLabel="Hide filters"
+                    >
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
+                                <div class="relative">
+                                    <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        v-model="search"
+                                        @keyup.enter="applyFilters"
+                                        placeholder="Skill or member..."
+                                        class="pl-9"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
+                                <Select v-model="coopId">
+                                    <SelectTrigger id="coop_filter">
+                                        <SelectValue placeholder="All Cooperatives" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Cooperatives</SelectItem>
+                                        <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                            {{ coop.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Training</label>
+                                <Select v-model="trainingId">
+                                    <SelectTrigger id="training_filter">
+                                        <SelectValue placeholder="All Trainings" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Trainings</SelectItem>
+                                        <SelectItem v-for="training in trainings" :key="training.id" :value="training.id.toString()">
+                                            {{ training.title }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Proficiency</label>
+                                <Select v-model="proficiencyLevel">
+                                    <SelectTrigger id="proficiency_filter">
+                                        <SelectValue placeholder="All Levels" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Levels</SelectItem>
+                                        <SelectItem v-for="option in proficiencyOptions" :key="option" :value="option">
+                                            {{ option }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
+                                <div class="flex gap-2">
+                                    <Select v-model="perPage">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select size" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5</SelectItem>
+                                            <SelectItem value="15">15</SelectItem>
+                                            <SelectItem value="30">30</SelectItem>
+                                            <SelectItem value="custom">Custom</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Input
+                                        v-if="perPage === 'custom'"
+                                        v-model="customPerPage"
+                                        type="number"
+                                        min="1"
+                                        max="500"
+                                        placeholder="Enter"
+                                        class="w-28"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
-                        <Select v-model="coopId">
-                            <SelectTrigger id="coop_filter">
-                                <SelectValue placeholder="All Cooperatives" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
-                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                    {{ coop.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Training</label>
-                        <Select v-model="trainingId">
-                            <SelectTrigger id="training_filter">
-                                <SelectValue placeholder="All Trainings" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Trainings</SelectItem>
-                                <SelectItem v-for="training in trainings" :key="training.id" :value="training.id.toString()">
-                                    {{ training.title }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Proficiency</label>
-                        <Select v-model="proficiencyLevel">
-                            <SelectTrigger id="proficiency_filter">
-                                <SelectValue placeholder="All Levels" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Levels</SelectItem>
-                                <SelectItem v-for="option in proficiencyOptions" :key="option" :value="option">
-                                    {{ option }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
-                        <div class="flex gap-2">
-                            <Select v-model="perPage">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select size" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="5">5</SelectItem>
-                                    <SelectItem value="15">15</SelectItem>
-                                    <SelectItem value="30">30</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                v-if="perPage === 'custom'"
-                                v-model="customPerPage"
-                                type="number"
-                                min="1"
-                                max="500"
-                                placeholder="Enter"
-                                class="w-28"
-                            />
-                        </div>
-                    </div>
-                </div>
 
-                <div class="mt-5 flex flex-wrap gap-2">
-                    <Button @click="applyFilters" class="gap-2">
-                        <Search class="h-4 w-4" />
-                        Apply Filters
-                    </Button>
-                    <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                        <div class="mt-5 flex flex-wrap gap-2">
+                            <Button @click="applyFilters" class="gap-2">
+                                <Search class="h-4 w-4" />
+                                Apply Filters
+                            </Button>
+                            <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                        </div>
+                    </FilterPanel>
                 </div>
-            </FilterPanel>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -378,7 +380,7 @@ const bulkDeleteSkills = async () => {
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="canEdit" :href="`/skill-inventories/${skill.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
@@ -388,7 +390,7 @@ const bulkDeleteSkills = async () => {
                                         @click="deleteSkill(skill)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-destructive hover:text-destructive"
+                                        class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete

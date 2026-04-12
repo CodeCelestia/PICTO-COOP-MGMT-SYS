@@ -438,7 +438,7 @@ const formatDate = (date: string | null) => {
                                         {{ formatDate(coop.date_established) }}
                                     </TableCell>
                                     <TableCell class="text-center">
-                                        <Button size="sm" variant="outline" class="gap-1.5" @click.stop="goToManagement(coop.id)">
+                                        <Button size="sm" variant="outline" class="table-action-btn table-action-other gap-1.5" @click.stop="goToManagement(coop.id)">
                                             Open Members
                                             <ArrowRight class="h-4 w-4" />
                                         </Button>

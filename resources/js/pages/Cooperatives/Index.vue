@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
+import { Building2, Eye, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -316,7 +316,7 @@ const getTypePreview = (coop: Cooperative) => {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-2xl border border-border/70 bg-gradient-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
+            <section class="rounded-2xl border border-border/70 bg-linear-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <div v-if="!isCoopAdminOnly" class="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
@@ -663,8 +663,14 @@ const getTypePreview = (coop: Cooperative) => {
                                     </TableCell>
                                     <TableCell v-if="showActions" class="text-center">
                                         <div class="flex flex-wrap justify-center gap-2">
+                                            <Link :href="`/cooperatives/${coop.id}`" @click.stop>
+                                                <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1">
+                                                    <Eye class="h-3 w-3" />
+                                                    View
+                                                </Button>
+                                            </Link>
                                             <Link v-if="canEditCoop" :href="`/cooperatives/${coop.id}/edit`" @click.stop>
-                                                <Button variant="ghost" size="sm" class="gap-1">
+                                                <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1">
                                                     <Pencil class="h-3 w-3" />
                                                     Edit
                                                 </Button>
@@ -675,7 +681,7 @@ const getTypePreview = (coop: Cooperative) => {
                                                 @click.stop
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1 text-red-600 hover:text-red-700"
+                                                class="table-action-btn table-action-delete gap-1 text-red-600 hover:text-red-700"
                                             >
                                                 <Trash2 class="h-3 w-3" />
                                                 Delete
@@ -686,7 +692,7 @@ const getTypePreview = (coop: Cooperative) => {
                                                 @click.stop
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1 text-emerald-600 hover:text-emerald-700"
+                                                class="table-action-btn table-action-other gap-1 text-emerald-600 hover:text-emerald-700"
                                             >
                                                 <RotateCcw class="h-3 w-3" />
                                                 Restore

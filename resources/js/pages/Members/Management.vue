@@ -98,7 +98,7 @@ watch(
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <Card class="border-border bg-gradient-to-br from-card via-card to-muted/25">
+            <Card class="border-border bg-linear-to-br from-card via-card to-muted/25">
                 <CardHeader class="space-y-2">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div class="space-y-3">
@@ -151,7 +151,7 @@ watch(
                                 <p class="text-sm text-muted-foreground">Cooperative-wide services availed records for {{ cooperativeName }}</p>
                             </div>
                         </div>
-                        <ServiceAvailedListPanel :services="services" show-member />
+                        <ServiceAvailedListPanel :services="services" show-member enable-bulk-delete />
                     </div>
                 </CardContent>
             </Card>

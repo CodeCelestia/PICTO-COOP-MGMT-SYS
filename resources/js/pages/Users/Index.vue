@@ -295,32 +295,27 @@ const cancelEditRole = () => {
 
 const saveRole = () => {
     if (!canManagePermissions.value) return;
-    // Temporarily convert is_active to boolean
-    const tempValue = roleForm.is_active;
-    roleForm.is_active = roleForm.is_active === 'true';
     
     if (isEditingRole.value && editingRoleId.value) {
-        roleForm.put(`/roles/${editingRoleId.value}`, {
+        roleForm.transform((data) => ({
+            ...data,
+            is_active: data.is_active === 'true',
+        })).put(`/roles/${editingRoleId.value}`, {
             preserveScroll: true,
             onSuccess: () => {
                 cancelEditRole();
-            },
-            onError: () => {
-                // Restore string value on error for re-editing
-                roleForm.is_active = tempValue;
             },
         });
         return;
     }
 
-    roleForm.post('/roles', {
+    roleForm.transform((data) => ({
+        ...data,
+        is_active: data.is_active === 'true',
+    })).post('/roles', {
         preserveScroll: true,
         onSuccess: () => {
             roleForm.reset();
-        },
-        onError: () => {
-            // Restore string value on error for re-editing
-            roleForm.is_active = tempValue;
         },
     });
 };
@@ -459,7 +454,7 @@ const toggleRole = (roleId: number) => {
                                                     </button>
                                                 </Badge>
                                                 <div
-                                                    class="absolute bottom-full left-0 z-10 mb-2 hidden w-64 rounded-md border border-border bg-popover p-2 text-xs text-popover-foreground shadow-lg group-hover:block group-focus-within:block"
+                                                    class="absolute bottom-full left-0 z-10 mb-2 hidden w-64 rounded-md border border-border/80 bg-card/95 p-2 text-xs text-card-foreground shadow-[0_14px_30px_-18px_rgba(2,8,20,0.55)] backdrop-blur-sm group-hover:block group-focus-within:block"
                                                 >
                                                     <div class="space-y-1">
                                                         <div><strong>Assigned By:</strong> {{ role.assigned_by }}</div>
@@ -489,7 +484,7 @@ const toggleRole = (roleId: number) => {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1.5"
+                                                class="table-action-btn table-action-view gap-1.5"
                                                 @click="openViewDialog(user)"
                                                 title="View details"
                                             >
@@ -500,7 +495,7 @@ const toggleRole = (roleId: number) => {
                                                 v-if="canUpdateUsers"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1.5"
+                                                class="table-action-btn table-action-edit gap-1.5"
                                                 @click="openEditDialog(user)"
                                                 title="Edit user"
                                             >
@@ -511,7 +506,7 @@ const toggleRole = (roleId: number) => {
                                                 v-if="canDeleteUsers"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1.5 text-red-600 hover:text-red-700"
+                                                class="table-action-btn table-action-delete gap-1.5 text-red-600 hover:text-red-700"
                                                 @click="deleteUser(user)"
                                                 title="Delete user"
                                             >
@@ -522,7 +517,7 @@ const toggleRole = (roleId: number) => {
                                                 v-if="canUpdateUsers"
                                                 variant="ghost"
                                                 size="sm"
-                                                class="gap-1.5"
+                                                class="table-action-btn table-action-other gap-1.5"
                                                 @click="openAssignDialog(user)"
                                             >
                                                 <UserPlus class="h-4 w-4" />
@@ -1064,13 +1059,13 @@ const toggleRole = (roleId: number) => {
                                         >
                                             {{ role.is_active ? 'Active' : 'Inactive' }}
                                         </Badge>
-                                        <Button variant="ghost" size="sm" @click="startEditRole(role)">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit" @click="startEditRole(role)">
                                             <Pencil class="h-4 w-4" />
                                         </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            class="text-red-600 hover:text-red-700"
+                                            class="table-action-btn table-action-delete text-red-600 hover:text-red-700"
                                             @click="deleteRole(role)"
                                         >
                                             <Trash2 class="h-4 w-4" />

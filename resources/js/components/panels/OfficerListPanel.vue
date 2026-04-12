@@ -197,13 +197,14 @@ const bulkDeleteOfficers = async () => {
                 </div>
             </div>
 
-            <FilterPanel
-                title="Filters"
-                description="Show officer filters when ready to refine results."
-                showLabel="Show filters"
-                hideLabel="Hide filters"
-            >
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+            <div class="mt-6 border-t border-border/60 pt-6">
+                <FilterPanel
+                    title="Filters"
+                    description="Show officer filters when ready to refine results."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
                     <div>
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
                         <div class="relative">
@@ -273,14 +274,15 @@ const bulkDeleteOfficers = async () => {
                     </div>
                 </div>
 
-                <div class="mt-5 flex flex-wrap gap-2">
-                    <Button @click="applyFilters" class="gap-2">
-                        <Search class="h-4 w-4" />
-                        Apply Filters
-                    </Button>
-                    <Button @click="resetFilters" variant="outline">Clear Filters</Button>
-                </div>
-            </FilterPanel>
+                    <div class="mt-5 flex flex-wrap gap-2">
+                        <Button @click="applyFilters" class="gap-2">
+                            <Search class="h-4 w-4" />
+                            Apply Filters
+                        </Button>
+                        <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                    </div>
+                </FilterPanel>
+            </div>
         </div>
 
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -335,7 +337,7 @@ const bulkDeleteOfficers = async () => {
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link v-if="!isArchivedView && canEditOfficer" :href="`/officers/${officer.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
@@ -345,7 +347,7 @@ const bulkDeleteOfficers = async () => {
                                         @click="deleteOfficer(officer)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-destructive hover:text-destructive"
+                                        class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
@@ -355,7 +357,7 @@ const bulkDeleteOfficers = async () => {
                                         @click="restoreOfficer(officer)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-emerald-700 hover:text-emerald-800"
+                                        class="table-action-btn table-action-other gap-2 text-emerald-700 hover:text-emerald-800"
                                     >
                                         <RotateCcw class="h-4 w-4" />
                                         Restore

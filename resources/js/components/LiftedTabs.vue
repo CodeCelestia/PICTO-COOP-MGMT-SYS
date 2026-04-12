@@ -26,16 +26,16 @@ const setActive = (id: string) => {
 </script>
 
 <template>
-    <div class="flex border-b border-border">
+    <div class="flex flex-wrap items-center gap-1 rounded-xl border border-border/70 bg-muted/35 p-1">
         <button
             v-for="tab in tabs"
             :key="tab.id"
             type="button"
             :class="[
-                'px-6 py-2.5 text-sm transition-colors',
+                'inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                 tab.id === activeId
-                    ? 'bg-background border border-border border-b-background rounded-t-md font-medium text-foreground -mb-px'
-                    : 'bg-transparent text-muted-foreground hover:text-foreground font-normal',
+                    ? 'bg-primary/15 text-primary shadow-[0_10px_20px_-14px_rgba(15,23,42,0.55)] ring-1 ring-primary/40 dark:bg-background dark:text-foreground dark:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.8)] dark:ring-white/10'
+                    : 'text-muted-foreground hover:bg-background/75 hover:text-foreground',
             ]"
             :aria-selected="tab.id === activeId"
             role="tab"

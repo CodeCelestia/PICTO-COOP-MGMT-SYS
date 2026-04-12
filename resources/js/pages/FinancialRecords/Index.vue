@@ -340,7 +340,7 @@ const bulkDeleteRecords = async () => {
                                 <TableCell v-if="showActions" class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         <Link v-if="canEdit" :href="`/financial-records/${record.id}/edit`">
-                                            <Button variant="ghost" size="sm" class="gap-2">
+                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                 <Pencil class="h-4 w-4" />
                                                 Edit
                                             </Button>
@@ -350,7 +350,7 @@ const bulkDeleteRecords = async () => {
                                             @click="deleteRecord(record)"
                                             variant="ghost"
                                             size="sm"
-                                            class="gap-2 text-destructive hover:text-destructive"
+                                            class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
                                         >
                                             <Trash2 class="h-4 w-4" />
                                             Delete

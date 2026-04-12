@@ -258,103 +258,105 @@ const bulkDeleteActivities = async () => {
                 </div>
             </div>
 
-            <FilterPanel
-                title="Filters"
-                description="Show filter fields to refine activities and projects."
-                showLabel="Show filters"
-                hideLabel="Hide filters"
-            >
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
-                        <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                v-model="search"
-                                @keyup.enter="applyFilters"
-                                placeholder="Title, funding, partner..."
-                                class="pl-9"
-                            />
+            <div class="mt-6 border-t border-border/60 pt-6">
+                <FilterPanel
+                    title="Filters"
+                    description="Show filter fields to refine activities and projects."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
+                            <div class="relative">
+                                <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    v-model="search"
+                                    @keyup.enter="applyFilters"
+                                    placeholder="Title, funding, partner..."
+                                    class="pl-9"
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div v-if="showCoopFilter">
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
-                        <Select v-model="coopId">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Cooperatives" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
-                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                    {{ coop.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Category</label>
-                        <Select v-model="category">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Categories" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Categories</SelectItem>
-                                <SelectItem v-for="option in categoryOptions" :key="option" :value="option">
-                                    {{ option }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
-                        <Select v-model="status">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Statuses" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem v-for="option in statusOptions" :key="option" :value="option">
-                                    {{ option }}
-                                </SelectItem>
-                                <SelectItem value="Archived">Archived</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
-                        <div class="flex gap-2">
-                            <Select v-model="perPage">
+                        <div v-if="showCoopFilter">
+                            <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
+                            <Select v-model="coopId">
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select size" />
+                                    <SelectValue placeholder="All Cooperatives" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="5">5</SelectItem>
-                                    <SelectItem value="15">15</SelectItem>
-                                    <SelectItem value="30">30</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
+                                    <SelectItem value="all">All Cooperatives</SelectItem>
+                                    <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                        {{ coop.name }}
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Input
-                                v-if="perPage === 'custom'"
-                                v-model="customPerPage"
-                                type="number"
-                                min="1"
-                                max="500"
-                                placeholder="Enter"
-                                class="w-28"
-                            />
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground/80">Category</label>
+                            <Select v-model="category">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Categories" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Categories</SelectItem>
+                                    <SelectItem v-for="option in categoryOptions" :key="option" :value="option">
+                                        {{ option }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
+                            <Select v-model="status">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem v-for="option in statusOptions" :key="option" :value="option">
+                                        {{ option }}
+                                    </SelectItem>
+                                    <SelectItem value="Archived">Archived</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
+                            <div class="flex gap-2">
+                                <Select v-model="perPage">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select size" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">5</SelectItem>
+                                        <SelectItem value="15">15</SelectItem>
+                                        <SelectItem value="30">30</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    v-if="perPage === 'custom'"
+                                    v-model="customPerPage"
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    placeholder="Enter"
+                                    class="w-28"
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="mt-5 flex flex-wrap gap-2">
-                    <Button @click="applyFilters" class="gap-2">
-                        <Search class="h-4 w-4" />
-                        Apply Filters
-                    </Button>
-                    <Button @click="resetFilters" variant="outline">Clear Filters</Button>
-                </div>
-            </FilterPanel>
+                    <div class="mt-5 flex flex-wrap gap-2">
+                        <Button @click="applyFilters" class="gap-2">
+                            <Search class="h-4 w-4" />
+                            Apply Filters
+                        </Button>
+                        <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                    </div>
+                </FilterPanel>
+            </div>
         </div>
 
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -414,13 +416,13 @@ const bulkDeleteActivities = async () => {
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
                                     <Link :href="`/activity-funding-sources?activity_id=${activity.id}`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-other gap-2">
                                             <HandCoins class="h-4 w-4" />
                                             Funding
                                         </Button>
                                     </Link>
                                     <Link v-if="!isArchivedView && canEdit" :href="`/activities/${activity.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="gap-2">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
@@ -430,7 +432,7 @@ const bulkDeleteActivities = async () => {
                                         @click="deleteActivity(activity)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-destructive hover:text-destructive"
+                                        class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
@@ -440,7 +442,7 @@ const bulkDeleteActivities = async () => {
                                         @click="restoreActivity(activity)"
                                         variant="ghost"
                                         size="sm"
-                                        class="gap-2 text-emerald-700 hover:text-emerald-800"
+                                        class="table-action-btn table-action-other gap-2 text-emerald-700 hover:text-emerald-800"
                                     >
                                         <RotateCcw class="h-4 w-4" />
                                         Restore
