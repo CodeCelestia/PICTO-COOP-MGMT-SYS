@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
-import { Users, Save, X, MapPin, Building2, Lock, UserPlus } from 'lucide-vue-next';
+import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -131,10 +131,6 @@ const form = useForm({
     educational_attainment: props.member.educational_attainment || '',
     primary_livelihood: props.member.primary_livelihood || '',
     sector: props.member.sector || '',
-    update_account: false,
-    account_email: props.userAccount?.email || props.member.email || '',
-    account_password: '',
-    account_password_confirmation: '',
     role_ids: props.userAccount?.roles?.map(role => role.id) || [],
 });
 
@@ -282,12 +278,6 @@ watch(selectedCityCode, (newCity) => {
             fetchBarangays(newCity);
             form.barangay = '';
         }
-    }
-});
-
-watch(() => form.email, (newEmail) => {
-    if (!form.update_account) {
-        form.account_email = newEmail || '';
     }
 });
 
@@ -927,98 +917,31 @@ const toggleRole = (roleId: number) => {
                         </div>
                     </div>
 
-                    <!-- Account Access -->
-                    <div v-if="canUpdateMember">
-                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                            <UserPlus class="h-5 w-5" />
-                            Account Access
-                        </h2>
-
-                        <div class="flex items-center justify-between rounded-md border border-border bg-muted/40 p-3">
-                            <div>
-                                <div class="text-sm font-medium text-foreground">
-                                    {{ props.userAccount ? 'Linked account found' : 'No linked account yet' }}
-                                </div>
-                                <div class="text-xs text-muted-foreground">
-                                    Toggle to update account credentials and roles.
-                                </div>
-                            </div>
-                            <label class="inline-flex items-center gap-2 text-sm text-foreground">
-                                <input
-                                    type="checkbox"
-                                    v-model="form.update_account"
-                                    class="h-4 w-4 rounded border-gray-300"
-                                />
-                                Enable edits
-                            </label>
+                    <!-- Role Assignment -->
+                    <div v-if="(page.props.auth?.permissions || []).includes('assign roles')">
+                        <h2 class="mb-4 text-lg font-semibold text-foreground">Role Assignment</h2>
+                        <Label>Assign Roles</Label>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <Badge
+                                v-for="role in availableRoles"
+                                :key="role.id"
+                                @click="toggleRole(role.id)"
+                                :class="[
+                                    'cursor-pointer border-2 transition-all',
+                                    form.role_ids.includes(role.id)
+                                        ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700'
+                                        : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
+                                ]"
+                            >
+                                <span class="flex items-center gap-1">
+                                    {{ role.name }}
+                                    <span v-if="form.role_ids.includes(role.id)" class="ml-1">✓</span>
+                                </span>
+                            </Badge>
                         </div>
-
-                        <div v-if="form.update_account" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <Label for="account_email">Account Email</Label>
-                                <Input
-                                    id="account_email"
-                                    v-model="form.account_email"
-                                    type="email"
-                                    :class="{ 'border-red-500': form.errors.account_email }"
-                                />
-                                <p v-if="form.errors.account_email" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.account_email }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label for="account_password">New Password</Label>
-                                <Input
-                                    id="account_password"
-                                    v-model="form.account_password"
-                                    type="password"
-                                    placeholder="Leave blank to keep current"
-                                    :class="{ 'border-red-500': form.errors.account_password }"
-                                />
-                                <p v-if="form.errors.account_password" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.account_password }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label for="account_password_confirmation" class="flex items-center gap-2">
-                                    <Lock class="h-4 w-4" />
-                                    Confirm New Password
-                                </Label>
-                                <Input
-                                    id="account_password_confirmation"
-                                    v-model="form.account_password_confirmation"
-                                    type="password"
-                                    placeholder="Confirm new password"
-                                />
-                            </div>
-                        </div>
-
-                        <div v-if="form.update_account" class="mt-4">
-                            <Label>Assign Roles</Label>
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                <Badge
-                                    v-for="role in availableRoles"
-                                    :key="role.id"
-                                    @click="toggleRole(role.id)"
-                                    :class="[
-                                        'cursor-pointer border-2 transition-all',
-                                        form.role_ids.includes(role.id)
-                                            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700'
-                                            : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-                                    ]"
-                                >
-                                    <span class="flex items-center gap-1">
-                                        {{ role.name }}
-                                        <span v-if="form.role_ids.includes(role.id)" class="ml-1">✓</span>
-                                    </span>
-                                </Badge>
-                            </div>
-                            <p class="mt-1 text-xs text-gray-500">
-                                Select one or more roles. If none selected, the Member role will be applied.
-                            </p>
-                        </div>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Select one or more roles. If none selected, the Member role will be applied.
+                        </p>
                     </div>
 
                     <!-- Form Actions -->

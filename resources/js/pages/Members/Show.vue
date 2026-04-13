@@ -13,8 +13,15 @@ import type { BreadcrumbItem } from '@/types';
 
 type MemberProps = Member;
 
+interface MemberRole {
+    id: number;
+    name: string;
+}
+
 interface Props {
-    member: MemberProps;
+    member: MemberProps & {
+        roles?: MemberRole[];
+    };
     userAccount: {
         email: string;
         roles: string[];
@@ -254,7 +261,7 @@ const memberInfoPanelClass = computed(() =>
                     </div>
                     <div class="mt-4 text-sm text-foreground/90">
                         <div><strong>Accounts:</strong> {{ props.userAccount?.email || 'No linked account' }}</div>
-                        <div><strong>Roles:</strong> {{ props.userAccount?.roles.length ? props.userAccount.roles.join(', ') : 'N/A' }}</div>
+                        <div><strong>Roles:</strong> {{ props.member.roles?.length ? props.member.roles.map(role => role.name).join(', ') : 'No roles assigned' }}</div>
                     </div>
                 </section>
             </div>

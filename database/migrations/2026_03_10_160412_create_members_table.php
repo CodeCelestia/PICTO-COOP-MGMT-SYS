@@ -67,6 +67,16 @@ return new class extends Migration
             $table->index('sector');
             $table->index(['first_name', 'last_name']);
         });
+
+        Schema::create('member_roles', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('member_id')->constrained('members')->cascadeOnDelete();
+            $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->unique(['member_id', 'role_id']);
+        });
     }
 
     /**
@@ -74,6 +84,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('member_roles');
         Schema::dropIfExists('members');
     }
 };

@@ -61,10 +61,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete user-accounts')
         ->name('users.destroy');
     Route::post('users/{user}/assign-role', [UserController::class, 'assignRole'])
-        ->middleware('permission:create user-accounts')
+        ->middleware('permission:assign roles')
         ->name('users.assign-role');
     Route::post('users/{user}/remove-role', [UserController::class, 'removeRole'])
-        ->middleware('permission:update user-accounts')
+        ->middleware('permission:assign roles')
         ->name('users.remove-role');
 
     // Role Management (Provincial Admin & Super Admin)
@@ -149,6 +149,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('members/{member}', [MemberController::class, 'update'])
         ->middleware('permission:update members-profile')
         ->name('members.update');
+    Route::post('members/{member}/create-account', [MemberController::class, 'createAccount'])
+        ->middleware('permission:create user-accounts')
+        ->name('members.create-account');
     Route::delete('members/{member}', [MemberController::class, 'destroy'])
         ->middleware('permission:delete members-profile')
         ->name('members.destroy');

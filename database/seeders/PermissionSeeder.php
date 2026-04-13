@@ -46,7 +46,8 @@ class PermissionSeeder extends Seeder
             'manage-system-settings',
             'view-all-cooperatives',
             'manage-permissions',
-            'account-creation-access',
+            'create user-accounts',
+            'assign roles',
         ];
 
         foreach ($specialPermissions as $permission) {

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { router, Link, usePage } from '@inertiajs/vue3';
-import { Plus, Pencil, Trash2, Search, Eye, RotateCcw } from 'lucide-vue-next';
+import { router, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Plus, Pencil, Trash2, Search, Eye, Wallet } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -21,6 +23,14 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { runBulkDelete, useBulkSelection, type CheckedState } from '@/composables/useBulkSelection';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
@@ -55,8 +65,10 @@ const canViewMember = computed(() => permissions.value.includes('read members-pr
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
 const canDeleteMember = computed(() => permissions.value.includes('delete members-profile'));
+const canCreateUserAccounts = computed(() => permissions.value.includes('create user-accounts'));
+const canReadMemberLoans = computed(() => permissions.value.includes('read finance-member-loans'));
 const canBulkDelete = computed(() => canDeleteMember.value && !isArchivedView.value);
-const showActions = computed(() => canViewMember.value || canEditMember.value || canDeleteMember.value);
+const showActions = computed(() => canViewMember.value || canEditMember.value || canReadMemberLoans.value || canCreateUserAccounts.value || canDeleteMember.value);
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
@@ -179,6 +191,63 @@ const onToggleAllMembers = (checked: CheckedState) => {
 
 const onToggleMember = (memberId: number, checked: CheckedState) => {
     toggleOne(memberId, checked);
+};
+
+const isCreateAccountDialogOpen = ref(false);
+const selectedMemberId = ref<number | null>(null);
+const createAccountForm = useForm({
+    email: '',
+    password: '',
+    password_confirmation: '',
+});
+
+const selectedMember = computed(() => {
+    if (!selectedMemberId.value) return null;
+    return props.members.data.find((member) => member.id === selectedMemberId.value) || null;
+});
+
+const hasLinkedAccount = (member: Member) => {
+    return Boolean(member.user?.id);
+};
+
+const primaryRoleName = (member: Member) => {
+    return member.roles?.[0]?.name || 'Member';
+};
+
+const additionalRolesCount = (member: Member) => {
+    const total = member.roles?.length || 0;
+    return total > 1 ? total - 1 : 0;
+};
+
+const openCreateAccountModal = (member: Member) => {
+    if (!canCreateUserAccounts.value || hasLinkedAccount(member)) return;
+    selectedMemberId.value = member.id;
+    createAccountForm.reset();
+    createAccountForm.clearErrors();
+    isCreateAccountDialogOpen.value = true;
+};
+
+const closeCreateAccountModal = () => {
+    isCreateAccountDialogOpen.value = false;
+    selectedMemberId.value = null;
+    createAccountForm.reset();
+    createAccountForm.clearErrors();
+};
+
+const submitCreateAccount = () => {
+    if (!selectedMemberId.value) return;
+
+    createAccountForm.post(`/members/${selectedMemberId.value}/create-account`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeCreateAccountModal();
+            router.reload({
+                only: ['members'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        },
+    });
 };
 </script>
 
@@ -333,7 +402,10 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="font-medium text-foreground">{{ member.full_name }}</span>
                                     <Badge variant="outline" class="text-[11px]">
-                                        {{ member.active_officers_count && member.active_officers_count > 0 ? 'Officer' : 'Member' }}
+                                        {{ primaryRoleName(member) }}
+                                        <span v-if="additionalRolesCount(member) > 0" class="ml-1">
+                                            +{{ additionalRolesCount(member) }}
+                                        </span>
                                     </Badge>
                                 </div>
                             </TableCell>
@@ -356,20 +428,43 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                             </TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link :href="`/members/${member.id}`">
+                                    <Link v-if="canViewMember" :href="`/members/${member.id}`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1.5" title="View member">
                                             <Eye class="h-4 w-4" />
                                             View
                                         </Button>
                                     </Link>
-                                    <Link v-if="!isArchivedView && canEditMember" :href="`/members/${member.id}/edit`">
+                                    <Link v-if="canEditMember" :href="`/members/${member.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1.5" title="Edit member">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
+                                    <Link v-if="canReadMemberLoans" :href="`/finance/loans?member_id=${member.id}`">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-other gap-1.5" title="View member loans">
+                                            <Wallet class="h-4 w-4" />
+                                            Loans
+                                        </Button>
+                                    </Link>
+                                    <Badge
+                                        v-if="canCreateUserAccounts && hasLinkedAccount(member)"
+                                        variant="secondary"
+                                        class="h-8 px-2.5"
+                                    >
+                                        Has Account
+                                    </Badge>
                                     <Button
-                                        v-if="!isArchivedView && canDeleteMember"
+                                        v-else-if="canCreateUserAccounts"
+                                        @click="openCreateAccountModal(member)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="table-action-btn table-action-other gap-1.5"
+                                        title="Create linked account"
+                                    >
+                                        Create Account
+                                    </Button>
+                                    <Button
+                                        v-if="canDeleteMember"
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
@@ -378,17 +473,6 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
-                                    </Button>
-                                    <Button
-                                        v-if="isArchivedView && canDeleteMember"
-                                        @click="restoreMember(member)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"
-                                        title="Restore member"
-                                    >
-                                        <RotateCcw class="h-4 w-4" />
-                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>
@@ -424,5 +508,57 @@ const onToggleMember = (memberId: number, checked: CheckedState) => {
                 </div>
             </div>
         </section>
+
+        <Dialog v-model:open="isCreateAccountDialogOpen">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Create Account</DialogTitle>
+                    <DialogDescription>
+                        Create a linked user account for {{ selectedMember?.full_name || 'this member' }}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form class="space-y-4" @submit.prevent="submitCreateAccount">
+                    <div class="space-y-2">
+                        <Label for="account_email">Account Email</Label>
+                        <Input
+                            id="account_email"
+                            v-model="createAccountForm.email"
+                            type="email"
+                            autocomplete="email"
+                            placeholder="member@email.com"
+                        />
+                        <InputError :message="createAccountForm.errors.email" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="account_password">Password</Label>
+                        <Input
+                            id="account_password"
+                            v-model="createAccountForm.password"
+                            type="password"
+                            autocomplete="new-password"
+                        />
+                        <InputError :message="createAccountForm.errors.password" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="account_password_confirmation">Confirm Password</Label>
+                        <Input
+                            id="account_password_confirmation"
+                            v-model="createAccountForm.password_confirmation"
+                            type="password"
+                            autocomplete="new-password"
+                        />
+                        <InputError :message="createAccountForm.errors.password_confirmation" />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="closeCreateAccountModal">Cancel</Button>
+                        <Button type="submit" :disabled="createAccountForm.processing">Create Account</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

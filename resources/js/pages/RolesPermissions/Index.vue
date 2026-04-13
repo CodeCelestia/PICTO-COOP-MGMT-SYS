@@ -53,8 +53,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 const selectedRoleId = ref<number | null>(null);
 const roleSearch = ref('');
 const permissionSearch = ref('');
-const ACCOUNT_CREATION_PERMISSION = 'account-creation-access';
 const ACCOUNT_ACCESS_MODULE_KEY = '__account_access__';
+const ACCOUNT_ACCESS_PERMISSIONS = ['create user-accounts', 'assign roles'];
 const isPermissionExplorerOpen = ref(false);
 const isCreateRoleDialogOpen = ref(false);
 const isModuleDialogOpen = ref(false);
@@ -82,29 +82,12 @@ const filteredRoles = computed(() => {
     });
 });
 
-const accountCreationPermission = computed(() =>
-    props.permissions.find((permission) => permission.name === ACCOUNT_CREATION_PERMISSION) ?? null
-);
-
-const showAccountAccessCard = computed(() => {
-    if (!accountCreationPermission.value) return false;
-    if (!normalizedPermissionSearch.value) return true;
-
-    return (
-        accountCreationPermission.value.name.toLowerCase().includes(normalizedPermissionSearch.value)
-        || 'account creation access'.includes(normalizedPermissionSearch.value)
-    );
-});
-
 const permissionGroups = computed(() => {
     const groups: Record<string, Permission[]> = {};
     props.permissions.forEach((permission) => {
-        if (permission.name === ACCOUNT_CREATION_PERMISSION) {
-            return;
-        }
-
-        const parts = permission.name.split(' ');
-        const moduleKey = parts.slice(1).join(' ') || 'general';
+        const moduleKey = ACCOUNT_ACCESS_PERMISSIONS.includes(permission.name)
+            ? ACCOUNT_ACCESS_MODULE_KEY
+            : (permission.name.split(' ').slice(1).join(' ') || 'general');
         if (!groups[moduleKey]) {
             groups[moduleKey] = [];
         }
@@ -142,11 +125,10 @@ const filteredModuleLabels = computed(() =>
 
 const filteredPermissionsCount = computed(() =>
     Object.values(filteredPermissionGroups.value).reduce((sum, group) => sum + group.length, 0)
-    + (showAccountAccessCard.value ? 1 : 0)
 );
 
 const hasVisiblePermissions = computed(() =>
-    showAccountAccessCard.value || filteredModuleLabels.value.length > 0
+    filteredModuleLabels.value.length > 0
 );
 
 const activeRole = computed(() =>
@@ -161,11 +143,6 @@ const activeModuleTitle = computed(() => {
 
 const activeModulePermissions = computed(() => {
     if (!selectedModuleKey.value) return [];
-
-    if (selectedModuleKey.value === ACCOUNT_ACCESS_MODULE_KEY) {
-        return accountCreationPermission.value ? [accountCreationPermission.value] : [];
-    }
-
     return permissionGroups.value[selectedModuleKey.value] ?? [];
 });
 
@@ -176,6 +153,10 @@ const activeModuleSelectedCount = computed(() =>
 const activeModuleTotalCount = computed(() => activeModulePermissions.value.length);
 
 const formatModuleLabel = (moduleKey: string) => {
+    if (moduleKey === ACCOUNT_ACCESS_MODULE_KEY) {
+        return 'Account Access';
+    }
+
     return moduleKey
         .split('-')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -514,52 +495,6 @@ const deleteRole = (role: Role) => {
                             </div>
 
                             <div v-else class="rp-dialog-grid mt-4 grid gap-3 lg:grid-cols-2">
-                                <div
-                                    v-if="showAccountAccessCard"
-                                    class="cursor-pointer rounded-xl border border-sky-300/75 bg-sky-50/90 p-4 shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-px hover:bg-sky-100/90 hover:shadow-md dark:border-sky-500/45 dark:bg-sky-500/12 dark:shadow-[0_10px_24px_-16px_rgba(0,0,0,0.8)] dark:hover:bg-sky-500/18 dark:hover:shadow-[0_14px_28px_-16px_rgba(0,0,0,0.9)]"
-                                    :class="accountCreationPermission && form.permission_ids.includes(accountCreationPermission.id) ? 'ring-1 ring-sky-400/50 dark:ring-sky-300/35' : ''"
-                                    role="button"
-                                    tabindex="0"
-                                    @click="openModuleDetails(ACCOUNT_ACCESS_MODULE_KEY)"
-                                    @keydown.space.prevent="openModuleDetails(ACCOUNT_ACCESS_MODULE_KEY)"
-                                    @keydown.enter.prevent="openModuleDetails(ACCOUNT_ACCESS_MODULE_KEY)"
-                                >
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <h3 class="text-sm font-semibold text-sky-900 dark:text-sky-200">Account Access</h3>
-                                            <p class="mt-1 text-xs text-sky-800/80 dark:text-sky-100/80">
-                                                {{ form.permission_ids.includes(accountCreationPermission!.id) ? '1' : '0' }} / 1 selected
-                                            </p>
-                                        </div>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                class="h-7 px-2 text-xs"
-                                                @click.stop="openModuleDetails(ACCOUNT_ACCESS_MODULE_KEY)"
-                                            >
-                                                Select module
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="ghost"
-                                                class="h-7 px-2 text-xs"
-                                                @click.stop="accountCreationPermission && togglePermission(accountCreationPermission.id, false)"
-                                            >
-                                                Clear
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-200/70 dark:bg-sky-500/20">
-                                        <div
-                                            class="h-full rounded-full bg-sky-500 transition-all duration-300 ease-in-out"
-                                            :style="{ width: form.permission_ids.includes(accountCreationPermission!.id) ? '100%' : '0%' }"
-                                        />
-                                    </div>
-                                </div>
-
                                 <div
                                     v-for="moduleKey in filteredModuleLabels"
                                     :key="moduleKey"

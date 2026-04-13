@@ -15,8 +15,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
@@ -191,7 +191,7 @@ class MemberController extends Controller
         $perPage = (int) $request->input('per_page', 15);
         $perPage = max(1, min($perPage, 500));
 
-        $members = $query->with(['cooperative', 'user'])->latest()->paginate($perPage)->withQueryString();
+        $members = $query->with(['cooperative', 'user', 'roles'])->latest()->paginate($perPage)->withQueryString();
 
         $userIds = $members->pluck('user.id')->filter()->all();
         $latestPdsByUserId = PdsSubmission::whereIn('user_id', $userIds)
@@ -250,7 +250,7 @@ class MemberController extends Controller
         $memberPerPage = (int) $request->input('members_per_page', 15);
         $memberPerPage = max(1, min($memberPerPage, 500));
 
-        $membersQuery = Member::with('cooperative')
+        $membersQuery = Member::with(['cooperative', 'user', 'roles'])
             ->withCount([
                 'officers as active_officers_count' => function ($q) {
                     $q->where('status', 'Active');
@@ -492,7 +492,7 @@ class MemberController extends Controller
             });
 
         return Inertia::render('Members/Show', [
-            'member' => $member->load('cooperative')->loadCount([
+            'member' => $member->load(['cooperative', 'roles'])->loadCount([
                 'officers as active_officers_count' => function ($q) {
                     $q->where('status', 'Active');
                 },
@@ -533,7 +533,7 @@ class MemberController extends Controller
             'city_municipality' => ['nullable', 'string', 'max:100'],
             'barangay' => ['nullable', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:100', 'unique:users,email', 'unique:members,email'],
+            'email' => ['nullable', 'email', 'max:100', 'unique:members,email'],
             'date_joined' => ['nullable', 'date'],
             'membership_type' => ['nullable', 'in:Regular,Associate,Honorary'],
             'membership_status' => ['nullable', 'in:Active,Suspended,Resigned,Deceased'],
@@ -541,10 +541,13 @@ class MemberController extends Controller
             'educational_attainment' => ['nullable', 'in:Elementary,High School,Vocational,College,Post-Graduate,None'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
-            'password' => ['nullable', 'confirmed', Password::defaults()],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ]);
+
+        if (!empty($validated['role_ids']) && !$request->user()?->can('assign roles')) {
+            abort(403, 'You do not have permission to assign roles.');
+        }
 
         if (!isset($validated['share_capital']) || $validated['share_capital'] === '') {
             $validated['share_capital'] = 0;
@@ -558,45 +561,11 @@ class MemberController extends Controller
             $validated['coop_id'] = $coopId;
         }
 
-        $shouldCreateAccount = !empty($validated['email']) && !empty($validated['password']);
-
-        DB::transaction(function () use ($validated, $shouldCreateAccount) {
-            $member = Member::create($validated);
-
-            if ($shouldCreateAccount) {
-                $firstRole = !empty($validated['role_ids'])
-                    ? Role::find($validated['role_ids'][0])
-                    : null;
-                $accountType = $this->resolveAccountType($firstRole);
-
-                $user = User::create([
-                    'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                    'coop_id' => $validated['coop_id'],
-                    'member_id' => $member->id,
-                    'account_type' => $accountType,
-                    'account_status' => 'Active',
-                    'created_by' => auth()->user()->name,
-                    'password_changed_at' => now(),
-                ]);
-
-                if (!empty($validated['role_ids'])) {
-                    $roles = Role::whereIn('id', $validated['role_ids'])->get();
-                    $user->assignRole($roles);
-                } else {
-                    $memberRole = Role::where('name', 'Member')->first();
-                    if ($memberRole) {
-                        $user->assignRole($memberRole);
-                    }
-                }
-            }
-        });
+        $member = Member::create($validated);
+        $member->roles()->sync($validated['role_ids'] ?? []);
 
         return redirect()->route('members.index')
-            ->with('success', $shouldCreateAccount
-                ? 'Member and user account created successfully.'
-                : 'Member created successfully.');
+            ->with('success', 'Member created successfully.');
     }
 
     /**
@@ -789,15 +758,6 @@ class MemberController extends Controller
             abort(403);
         }
 
-        $userAccount = User::where('member_id', $member->id)->first();
-        $updateAccount = $request->boolean('update_account');
-
-        $candidateAccountEmail = $request->input('account_email');
-        $candidateUser = null;
-        if ($updateAccount && $candidateAccountEmail) {
-            $candidateUser = User::where('email', $candidateAccountEmail)->first();
-        }
-
         $rules = [
             'coop_id' => $this->isCoopAdmin() && $coopId
                 ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
@@ -820,25 +780,15 @@ class MemberController extends Controller
             'educational_attainment' => ['nullable', 'in:Elementary,High School,Vocational,College,Post-Graduate,None'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
+            'role_ids' => ['nullable', 'array'],
+            'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ];
 
-        if ($updateAccount) {
-            $emailRule = Rule::unique('users', 'email');
-            if ($userAccount) {
-                $emailRule = $emailRule->ignore($userAccount->id);
-            } elseif ($candidateUser && ($candidateUser->member_id === null || $candidateUser->member_id === $member->id)) {
-                $emailRule = $emailRule->ignore($candidateUser->id);
-            }
-
-            $rules['account_email'] = ['required', 'email', 'max:100', $emailRule];
-            $rules['role_ids'] = ['nullable', 'array'];
-            $rules['role_ids.*'] = ['integer', Rule::in($this->assignableMemberRoleIds())];
-            $rules['account_password'] = $userAccount
-                ? ['nullable', 'confirmed', Password::defaults()]
-                : ['required', 'confirmed', Password::defaults()];
-        }
-
         $validated = $request->validate($rules);
+
+        if (!empty($validated['role_ids']) && !$request->user()?->can('assign roles')) {
+            abort(403, 'You do not have permission to assign roles.');
+        }
 
         if (!isset($validated['share_capital']) || $validated['share_capital'] === '') {
             $validated['share_capital'] = 0;
@@ -877,8 +827,9 @@ class MemberController extends Controller
         $sectorChanged = $newSector !== $previousSector;
         $livelihoodChanged = $newLivelihood !== $previousLivelihood;
 
-        DB::transaction(function () use ($member, $memberData, $validated, $updateAccount, $userAccount, $candidateUser, $sectorChanged, $livelihoodChanged, $previousSector, $previousLivelihood, $newSector, $newLivelihood) {
+        DB::transaction(function () use ($member, $memberData, $validated, $sectorChanged, $livelihoodChanged, $previousSector, $previousLivelihood, $newSector, $newLivelihood) {
             $member->update($memberData);
+            $member->roles()->sync($validated['role_ids'] ?? []);
 
             if ($sectorChanged || $livelihoodChanged) {
                 MemberSectorHistory::create([
@@ -890,59 +841,6 @@ class MemberController extends Controller
                     'changed_by' => auth()->user()?->name,
                     'changed_at' => now(),
                 ]);
-            }
-
-            if (!$updateAccount) {
-                return;
-            }
-
-            $firstRole = !empty($validated['role_ids'])
-                ? Role::find($validated['role_ids'][0])
-                : null;
-            $accountType = $this->resolveAccountType($firstRole);
-
-            $accountUser = $userAccount;
-            if (!$accountUser && $candidateUser && ($candidateUser->member_id === null || $candidateUser->member_id === $member->id)) {
-                $accountUser = $candidateUser;
-            }
-
-            $user = $accountUser ?: User::create([
-                'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
-                'email' => $validated['account_email'],
-                'password' => Hash::make($validated['account_password']),
-                'coop_id' => $member->coop_id,
-                'member_id' => $member->id,
-                'account_type' => $accountType,
-                'account_status' => 'Active',
-                'created_by' => auth()->user()->name,
-                'password_changed_at' => now(),
-            ]);
-
-            if ($accountUser) {
-                $user->update([
-                    'name' => trim("{$validated['first_name']} {$validated['last_name']}"),
-                    'email' => $validated['account_email'],
-                    'coop_id' => $member->coop_id,
-                    'member_id' => $member->id,
-                    'account_type' => $accountType,
-                ]);
-
-                if (!empty($validated['account_password'])) {
-                    $user->update([
-                        'password' => Hash::make($validated['account_password']),
-                        'password_changed_at' => now(),
-                    ]);
-                }
-            }
-
-            if (!empty($validated['role_ids'])) {
-                $roles = Role::whereIn('id', $validated['role_ids'])->get();
-                $user->syncRoles($roles);
-            } else {
-                $memberRole = Role::where('name', 'Member')->first();
-                if ($memberRole) {
-                    $user->syncRoles([$memberRole]);
-                }
             }
         });
 
@@ -969,6 +867,47 @@ class MemberController extends Controller
 
         return redirect()->route('members.index')
             ->with('success', 'Member deleted successfully.');
+    }
+
+    /**
+     * Create and link a user account for a member.
+     */
+    public function createAccount(Request $request, Member $member): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (!$user?->can('create user-accounts')) {
+            abort(403, 'You do not have permission to create accounts.');
+        }
+
+        if ($this->isCoopAdmin() && $user->coop_id && $member->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        if (User::where('member_id', $member->id)->exists()) {
+            return redirect()->back()->withErrors([
+                'email' => 'This member already has a linked account.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        User::create([
+            'name' => $member->full_name,
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'coop_id' => $member->coop_id,
+            'member_id' => $member->id,
+            'account_type' => 'Member',
+            'account_status' => 'Active',
+            'created_by' => $user->name,
+            'password_changed_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Member account created successfully.');
     }
 
     public function restore(int $id): RedirectResponse

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\CommitteeMember;
 use App\Models\Cooperative;
 use App\Models\Member;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -100,7 +99,7 @@ class CommitteeMemberController extends Controller
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
-            ->whereHas('user.roles', function ($query) {
+            ->whereHas('roles', function ($query) {
                 $query->where('name', 'Committee Member');
             })
             ->orderBy('last_name');
@@ -157,11 +156,9 @@ class CommitteeMemberController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
         }
 
-        $hasCommitteeRole = User::where('member_id', $validated['member_id'])
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'Committee Member');
-            })
-            ->exists();
+        $hasCommitteeRole = $member?->roles()
+            ->where('name', 'Committee Member')
+            ->exists() ?? false;
 
         if (!$hasCommitteeRole) {
             return back()->withErrors(['member_id' => 'Selected member does not have the Committee Member role.']);
@@ -188,10 +185,8 @@ class CommitteeMemberController extends Controller
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
-            ->where(function ($query) use ($committeeMember) {
-                $query->whereHas('user.roles', function ($roleQuery) {
-                    $roleQuery->where('name', 'Committee Member');
-                })->orWhere('id', $committeeMember->member_id);
+            ->whereHas('roles', function ($roleQuery) {
+                $roleQuery->where('name', 'Committee Member');
             })
             ->orderBy('last_name');
 
@@ -250,11 +245,9 @@ class CommitteeMemberController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
         }
 
-        $hasCommitteeRole = User::where('member_id', $validated['member_id'])
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'Committee Member');
-            })
-            ->exists();
+        $hasCommitteeRole = $member?->roles()
+            ->where('name', 'Committee Member')
+            ->exists() ?? false;
 
         if (!$hasCommitteeRole) {
             return back()->withErrors(['member_id' => 'Selected member does not have the Committee Member role.']);

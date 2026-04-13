@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
-import { Users, Save, X, MapPin, Building2, Lock, UserPlus } from 'lucide-vue-next';
+import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,14 +38,12 @@ defineProps<Props>();
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
-const canCreateUserAccounts = computed(() => permissions.value.includes('account-creation-access'));
 
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
 const selectedRegionCode = ref('');
 const selectedProvinceCode = ref('');
 const selectedCityCode = ref('');
-const createAccount = ref(false);
 
 const form = useForm({
     coop_id: '',
@@ -67,8 +65,6 @@ const form = useForm({
     educational_attainment: '',
     primary_livelihood: '',
     sector: '',
-    password: '',
-    password_confirmation: '',
     role_ids: [] as number[],
 });
 
@@ -106,15 +102,6 @@ watch(selectedCityCode, (newCity) => {
         form.city_municipality = city?.name || '';
         fetchBarangays(newCity);
         form.barangay = '';
-    }
-});
-
-watch(createAccount, (enabled) => {
-    if (!enabled) {
-        form.email = '';
-        form.password = '';
-        form.password_confirmation = '';
-        form.role_ids = [];
     }
 });
 
@@ -492,94 +479,34 @@ const toggleRole = (roleId: number) => {
                         </div>
                     </div>
 
-                    <!-- Account Access -->
-                    <div v-if="canCreateUserAccounts">
-                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                            <UserPlus class="h-5 w-5" />
-                            Account Access
-                        </h2>
-                        <div class="mb-4 flex items-center gap-3">
-                            <input
-                                id="create_account"
-                                v-model="createAccount"
-                                type="checkbox"
-                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <Label for="create_account">Create a system account for this member</Label>
+                    <!-- Role Assignment -->
+                    <div v-if="(page.props.auth?.permissions || []).includes('assign roles')">
+                        <h2 class="mb-4 text-lg font-semibold text-foreground">Role Assignment</h2>
+                        <Label>Assign Roles</Label>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <Badge
+                                v-for="role in availableRoles"
+                                :key="role.id"
+                                @click="toggleRole(role.id)"
+                                :class="[
+                                    'cursor-pointer border-2 transition-all',
+                                    form.role_ids.includes(role.id)
+                                        ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700'
+                                        : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
+                                ]"
+                            >
+                                <span class="flex items-center gap-1">
+                                    {{ role.name }}
+                                    <span v-if="form.role_ids.includes(role.id)" class="ml-1">✓</span>
+                                </span>
+                            </Badge>
                         </div>
-
-                        <div v-if="createAccount" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <Label for="account_email">Account Email</Label>
-                                <Input
-                                    id="account_email"
-                                    v-model="form.email"
-                                    type="email"
-                                    readonly
-                                    :class="{ 'border-red-500': form.errors.email }"
-                                />
-                                <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.email }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label for="password">Create Password</Label>
-                                <Input
-                                    id="password"
-                                    v-model="form.password"
-                                    type="password"
-                                    placeholder="Set a password"
-                                    :required="createAccount"
-                                    :class="{ 'border-red-500': form.errors.password }"
-                                />
-                                <p v-if="form.errors.password" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.password }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label for="password_confirmation" class="flex items-center gap-2">
-                                    <Lock class="h-4 w-4" />
-                                    Confirm Password
-                                </Label>
-                                <Input
-                                    id="password_confirmation"
-                                    v-model="form.password_confirmation"
-                                    type="password"
-                                    placeholder="Confirm password"
-                                    :required="createAccount"
-                                />
-                            </div>
-                        </div>
-
-                        <div v-if="canCreateUserAccounts && createAccount" class="mt-4">
-                            <Label>Assign Roles</Label>
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                <Badge
-                                    v-for="role in availableRoles"
-                                    :key="role.id"
-                                    @click="toggleRole(role.id)"
-                                    :class="[
-                                        'cursor-pointer border-2 transition-all',
-                                        form.role_ids.includes(role.id)
-                                            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700'
-                                            : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-                                    ]"
-                                >
-                                    <span class="flex items-center gap-1">
-                                        {{ role.name }}
-                                        <span v-if="form.role_ids.includes(role.id)" class="ml-1">✓</span>
-                                    </span>
-                                </Badge>
-                            </div>
-                            <p class="mt-1 text-xs text-gray-500">
-                                Select one or more roles for this member account.
-                            </p>
-                            <p v-if="form.role_ids.length === 0" class="mt-1 text-xs text-gray-500">
-                                If none selected, the account will default to the Member role.
-                            </p>
-                        </div>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Select one or more roles for this member.
+                        </p>
+                        <p v-if="form.role_ids.length === 0" class="mt-1 text-xs text-gray-500">
+                            If none selected, the default role behavior applies.
+                        </p>
                     </div>
 
                     <!-- Form Actions -->

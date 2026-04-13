@@ -27,6 +27,14 @@ export interface Member {
     full_name: string;
     age: number | null;
     active_officers_count?: number;
+    user?: {
+        id: number;
+        email: string;
+    } | null;
+    roles?: Array<{
+        id: number;
+        name: string;
+    }>;
     cooperative: CooperativeSummary;
 }
 

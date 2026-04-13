@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -175,6 +176,24 @@ class Member extends Model
     public function user(): HasOne
     {
         return $this->hasOne(User::class, 'member_id');
+    }
+
+    /**
+     * Get roles assigned directly to this member.
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'member_roles', 'member_id', 'role_id')
+            ->withTimestamps()
+            ->wherePivotNull('deleted_at');
+    }
+
+    /**
+     * Determine if the member has a specific role name.
+     */
+    public function hasRole(string $roleName): bool
+    {
+        return $this->roles()->where('name', $roleName)->exists();
     }
 
     /**

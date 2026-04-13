@@ -6,7 +6,6 @@ use App\Models\Cooperative;
 use App\Models\Member;
 use App\Models\Officer;
 use App\Models\OfficerTermHistory;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -115,7 +114,7 @@ class OfficerController extends Controller
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
-            ->whereHas('user.roles', function ($query) {
+            ->whereHas('roles', function ($query) {
                 $query->where('name', 'Officer');
             })
             ->orderBy('last_name');
@@ -176,11 +175,9 @@ class OfficerController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
         }
 
-        $hasOfficerRole = User::where('member_id', $validated['member_id'])
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'Officer');
-            })
-            ->exists();
+        $hasOfficerRole = $member?->roles()
+            ->where('name', 'Officer')
+            ->exists() ?? false;
 
         if (!$hasOfficerRole) {
             return back()->withErrors(['member_id' => 'Selected member does not have the Officer role.']);
@@ -214,10 +211,8 @@ class OfficerController extends Controller
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
-            ->where(function ($query) use ($officer) {
-                $query->whereHas('user.roles', function ($roleQuery) {
-                    $roleQuery->where('name', 'Officer');
-                })->orWhere('id', $officer->member_id);
+            ->whereHas('roles', function ($roleQuery) {
+                $roleQuery->where('name', 'Officer');
             })
             ->orderBy('last_name');
 
@@ -295,11 +290,9 @@ class OfficerController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
         }
 
-        $hasOfficerRole = User::where('member_id', $validated['member_id'])
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'Officer');
-            })
-            ->exists();
+        $hasOfficerRole = $member?->roles()
+            ->where('name', 'Officer')
+            ->exists() ?? false;
 
         if (!$hasOfficerRole) {
             return back()->withErrors(['member_id' => 'Selected member does not have the Officer role.']);

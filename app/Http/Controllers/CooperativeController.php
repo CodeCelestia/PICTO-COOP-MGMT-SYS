@@ -261,7 +261,7 @@ class CooperativeController extends Controller
         $memberPerPage = (int) $request->input('members_per_page', 15);
         $memberPerPage = max(1, min($memberPerPage, 500));
 
-        $membersQuery = Member::with('cooperative')
+        $membersQuery = Member::with(['cooperative', 'user'])
             ->withCount([
                 'officers as active_officers_count' => function ($q) {
                     $q->where('status', 'Active');

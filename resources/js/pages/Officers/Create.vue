@@ -113,6 +113,9 @@ const cancel = () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p v-if="filteredMembers.length === 0" class="mt-1 text-sm text-muted-foreground">
+                                    No members with Officer role found. Please assign the Officer role to a member first before adding them as an officer.
+                                </p>
                                 <p v-if="form.errors.member_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.member_id }}
                                 </p>

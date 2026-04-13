@@ -131,6 +131,9 @@ const cancel = () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <p v-if="filteredMembers.length === 0" class="mt-1 text-sm text-muted-foreground">
+                                    No members with Committee Member role found. Please assign the Committee Member role to a member first before adding them as a committee member.
+                                </p>
                                 <p v-if="form.errors.member_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.member_id }}
                                 </p>
