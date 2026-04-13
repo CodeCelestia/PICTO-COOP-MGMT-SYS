@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityParticipant;
 use App\Models\Member;
+use App\Models\MemberLoan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -124,6 +125,106 @@ class MemberPortalController extends Controller
         return Inertia::render('Members/PortalActivities', [
             'member' => $member,
             'participants' => $participants,
+        ]);
+    }
+
+    public function loans(Request $request): Response
+    {
+        $user = $request->user();
+
+        if (! $user?->member_id) {
+            abort(403);
+        }
+
+        if (! $user->can('read finance-member-loans') && ! $user->can('apply-own finance-member-loans')) {
+            abort(403);
+        }
+
+        $member = Member::with('cooperative')
+            ->where('id', $user->member_id)
+            ->firstOrFail();
+
+        $loans = MemberLoan::query()
+            ->where('member_id', $member->id)
+            ->when($member->coop_id, function ($query) use ($member) {
+                $query->where('coop_id', $member->coop_id);
+            })
+            ->withSum([
+                'payments as paid_amount' => function ($query) {
+                    $query->whereIn('status', ['Paid', 'Partial']);
+                },
+            ], 'amount_paid')
+            ->latest()
+            ->get()
+            ->map(function (MemberLoan $loan) {
+                $baseAmount = (float) ($loan->amount_disbursed ?? $loan->principal);
+                $paidAmount = (float) ($loan->paid_amount ?? 0);
+
+                return [
+                    'id' => $loan->id,
+                    'principal' => $loan->principal,
+                    'interest_rate' => $loan->interest_rate,
+                    'term_months' => $loan->term_months,
+                    'status' => $loan->status,
+                    'purpose' => $loan->purpose,
+                    'created_at' => optional($loan->created_at)->toDateString(),
+                    'amount_disbursed' => $loan->amount_disbursed,
+                    'paid_amount' => $paidAmount,
+                    'remaining_balance' => max(0, $baseAmount - $paidAmount),
+                ];
+            });
+
+        return Inertia::render('Members/PortalLoans', [
+            'member' => $member,
+            'loans' => $loans,
+            'permissions' => [
+                'can_view_details' => $user->can('read finance-member-loans'),
+            ],
+        ]);
+    }
+
+    public function showLoan(Request $request, MemberLoan $loan): Response
+    {
+        $user = $request->user();
+
+        if (! $user?->member_id) {
+            abort(403);
+        }
+
+        if (! $user->can('read finance-member-loans') && ! $user->can('apply-own finance-member-loans')) {
+            abort(403);
+        }
+
+        if ($loan->member_id !== $user->member_id) {
+            abort(403);
+        }
+
+        if ($user->coop_id && $loan->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        $loan->load(['payments']);
+
+        return Inertia::render('Members/PortalLoanShow', [
+            'loan' => [
+                'id' => $loan->id,
+                'status' => $loan->status,
+                'principal' => $loan->principal,
+                'interest_rate' => $loan->interest_rate,
+                'term_months' => $loan->term_months,
+                'purpose' => $loan->purpose,
+                'created_at' => optional($loan->created_at)->toDateString(),
+            ],
+            'repaymentSchedule' => $loan->getRepaymentSchedule()->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'payment_number' => $payment->payment_number,
+                    'due_date' => optional($payment->due_date)->toDateString(),
+                    'total_due' => $payment->total_due,
+                    'status' => $payment->status,
+                ];
+            }),
+            'remainingBalance' => $loan->getRemainingBalance(),
         ]);
     }
 

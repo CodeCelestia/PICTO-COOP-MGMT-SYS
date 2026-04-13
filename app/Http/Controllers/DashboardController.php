@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Member;
+use App\Models\MemberLoan;
 use App\Models\Cooperative;
 use App\Models\Activity;
 use App\Models\Training;
@@ -35,6 +36,10 @@ class DashboardController extends Controller
         $coopTrends = null;
         $memberProfile = null;
         $memberCoop = null;
+        $memberLoansCount = 0;
+        $memberRecentLoans = [];
+        $memberServicesCount = 0;
+        $memberActivitiesCount = 0;
 
         if ($isCoopAdmin && $coopId) {
             $period = $this->normalizeTrendPeriod(request('period', 'month'));
@@ -50,6 +55,10 @@ class DashboardController extends Controller
             $memberData = $this->getMemberDashboard($authUser->member_id);
             $memberProfile = $memberData['memberProfile'];
             $memberCoop = $memberData['memberCoop'];
+            $memberLoansCount = $memberData['memberLoansCount'];
+            $memberRecentLoans = $memberData['memberRecentLoans'];
+            $memberServicesCount = $memberData['memberServicesCount'];
+            $memberActivitiesCount = $memberData['memberActivitiesCount'];
         }
 
         return Inertia::render('Dashboard', [
@@ -68,6 +77,10 @@ class DashboardController extends Controller
             'coopTrends' => $coopTrends,
             'memberProfile' => $memberProfile,
             'memberCoop' => $memberCoop,
+            'memberLoansCount' => $memberLoansCount,
+            'memberRecentLoans' => $memberRecentLoans,
+            'memberServicesCount' => $memberServicesCount,
+            'memberActivitiesCount' => $memberActivitiesCount,
         ]);
     }
 
@@ -207,6 +220,10 @@ class DashboardController extends Controller
     {
         $memberProfile = null;
         $memberCoop = null;
+        $memberLoansCount = 0;
+        $memberRecentLoans = [];
+        $memberServicesCount = 0;
+        $memberActivitiesCount = 0;
         $member = Member::with('cooperative')->find($memberId);
 
         if ($member) {
@@ -234,11 +251,40 @@ class DashboardController extends Controller
                     'status' => $member->cooperative->status,
                 ];
             }
+
+            $loanQuery = MemberLoan::query()
+                ->where('member_id', $member->id)
+                ->when($member->coop_id, function ($query) use ($member) {
+                    $query->where('coop_id', $member->coop_id);
+                });
+
+            $memberLoansCount = (int) (clone $loanQuery)->count();
+
+            $memberRecentLoans = (clone $loanQuery)
+                ->latest()
+                ->take(3)
+                ->get()
+                ->map(function (MemberLoan $loan) {
+                    return [
+                        'id' => $loan->id,
+                        'principal' => $loan->principal,
+                        'status' => $loan->status,
+                        'created_at' => optional($loan->created_at)->format('M d, Y'),
+                    ];
+                })
+                ->toArray();
+
+            $memberServicesCount = (int) $member->servicesAvailed()->count();
+            $memberActivitiesCount = (int) $member->activityParticipants()->count();
         }
 
         return [
             'memberProfile' => $memberProfile,
             'memberCoop' => $memberCoop,
+            'memberLoansCount' => $memberLoansCount,
+            'memberRecentLoans' => $memberRecentLoans,
+            'memberServicesCount' => $memberServicesCount,
+            'memberActivitiesCount' => $memberActivitiesCount,
         ];
     }
 

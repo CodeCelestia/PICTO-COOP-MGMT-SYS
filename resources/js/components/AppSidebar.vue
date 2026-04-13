@@ -49,6 +49,7 @@ const canViewMembers = computed(() => can('read members-profile'));
 const canViewMembersManagement = computed(() => can('read members-management'));
 const canViewActivitiesProjects = computed(() => Boolean(auth.value?.permissions?.includes('read activities-&-projects')));
 const canViewTrainings = computed(() => Boolean(auth.value?.permissions?.includes('read training-&-capacity')));
+const canViewLoans = computed(() => can('read finance-member-loans') || can('apply-own finance-member-loans'));
 const canViewFinance = computed(() =>
     can('read financial-&-support')
     || can('read finance-funding-sources')
@@ -118,7 +119,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     ];
 
     if (isMemberOnly.value) {
-        return [
+        const memberItems: NavItem[] = [
             baseItems[0],
             baseItems[1],
             baseItems[4],
@@ -133,6 +134,16 @@ const mainNavItems = computed<NavItem[]>(() => {
                 icon: FileText,
             },
         ];
+
+        if (canViewLoans.value) {
+            memberItems.push({
+                title: 'My Loans',
+                href: '/member-portal/loans',
+                icon: DollarSign,
+            });
+        }
+
+        return memberItems;
     }
 
     const items: NavItem[] = [baseItems[0]];

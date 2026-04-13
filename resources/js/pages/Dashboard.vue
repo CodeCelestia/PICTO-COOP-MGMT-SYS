@@ -6,7 +6,8 @@ import {
     FileText,
     Activity,
     Shield,
-    UserCog
+    UserCog,
+    DollarSign
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -116,6 +117,13 @@ interface MemberCoop {
     status: string | null;
 }
 
+interface MemberLoanSummary {
+    id: number;
+    principal: string;
+    status: string;
+    created_at: string | null;
+}
+
 interface SuperAdminStats {
     stats: {
         totalUsers: number;
@@ -166,6 +174,10 @@ const props = defineProps<{
     coopTrends?: CoopTrends | null;
     memberProfile?: MemberProfile | null;
     memberCoop?: MemberCoop | null;
+    memberLoansCount?: number;
+    memberRecentLoans?: MemberLoanSummary[];
+    memberServicesCount?: number;
+    memberActivitiesCount?: number;
     superAdminStats?: SuperAdminStats;
 }>();
 
@@ -192,6 +204,39 @@ const formatNumber = (value: number | null | undefined) =>
     new Intl.NumberFormat('en-US').format(value ?? 0);
 
 const summaryCards = computed<SummaryCard[]>(() => {
+    if (props.isMember && props.memberProfile) {
+        return [
+            {
+                title: 'My Loans',
+                value: formatNumber(props.memberLoansCount || 0),
+                helper: 'Loan records',
+                icon: DollarSign,
+                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+            },
+            {
+                title: 'My Activities',
+                value: formatNumber(props.memberActivitiesCount || 0),
+                helper: 'Participation entries',
+                icon: Activity,
+                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
+            },
+            {
+                title: 'My Services',
+                value: formatNumber(props.memberServicesCount || 0),
+                helper: 'Services availed',
+                icon: FileText,
+                accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
+            },
+            {
+                title: 'My Status',
+                value: props.memberProfile.membership_status || 'N/A',
+                helper: 'Membership standing',
+                icon: Shield,
+                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+            },
+        ];
+    }
+
     if (props.isSuperAdmin && props.superAdminStats) {
         return [
             {
@@ -254,39 +299,6 @@ const summaryCards = computed<SummaryCard[]>(() => {
                 helper: 'Capacity building',
                 icon: Activity,
                 accent: { bg: 'bg-pink-100/70', text: 'text-pink-700', ring: 'ring-pink-200/60' },
-            },
-        ];
-    }
-
-    if (props.isMember && props.memberProfile) {
-        return [
-            {
-                title: 'Membership Status',
-                value: props.memberProfile.membership_status || 'N/A',
-                helper: 'Current standing',
-                icon: Shield,
-                accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
-            },
-            {
-                title: 'Membership Type',
-                value: props.memberProfile.membership_type || 'N/A',
-                helper: 'Enrollment category',
-                icon: UserCog,
-                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
-            },
-            {
-                title: 'Sector',
-                value: props.memberProfile.sector || 'N/A',
-                helper: 'Assigned sector',
-                icon: Activity,
-                accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
-            },
-            {
-                title: 'Joined',
-                value: props.memberProfile.date_joined || 'N/A',
-                helper: 'Date joined',
-                icon: FileText,
-                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
             },
         ];
     }
@@ -751,7 +763,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             {{ props.isSuperAdmin
                                 ? 'Super Admin Analytics'
                                 : props.isMember
-                                    ? 'Member Analytics'
+                                    ? 'My Dashboard'
                                     : props.isCoopAdmin
                                         ? (props.coopInfo?.name || 'Cooperative Analytics')
                                         : 'System Analytics' }}
@@ -760,13 +772,13 @@ const getMembershipBadgeColor = (status: string | null) => {
                             {{ props.isSuperAdmin
                                 ? 'Unified insights across users, coops, and operations.'
                                 : props.isMember
-                                    ? 'Your membership overview and cooperative summary.'
+                                    ? 'Your account, your records, and your transactions at a glance.'
                                     : props.isCoopAdmin
                                         ? 'Performance, participation, and training insights.'
                                         : 'System-wide operational monitoring and trends.' }}
                         </p>
                     </div>
-                    <div class="flex flex-wrap items-center gap-3">
+                    <div v-if="!props.isMember" class="flex flex-wrap items-center gap-3">
                         <div class="min-w-40">
                             <Select
                                 :model-value="analyticsFilters.range"
@@ -815,13 +827,15 @@ const getMembershipBadgeColor = (status: string | null) => {
                 <Card
                     v-for="card in summaryCards"
                     :key="card.title"
-                    class="group gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5"
+                    :class="props.isMember
+                        ? 'gap-0 rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm'
+                        : 'group gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5'"
                 >
                     <div class="flex items-center justify-between">
-                        <div :class="[card.accent.bg, card.accent.ring, 'rounded-xl p-3 ring-1 transition-colors group-hover:bg-slate-900/10']">
+                        <div :class="[card.accent.bg, card.accent.ring, 'rounded-xl p-3 ring-1 transition-colors', props.isMember ? '' : 'group-hover:bg-slate-900/10']">
                             <component :is="card.icon" :class="[card.accent.text, 'h-5 w-5']" />
                         </div>
-                        <Badge v-if="card.helper" class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                        <Badge v-if="card.helper && !props.isMember" class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
                             {{ card.helper }}
                         </Badge>
                     </div>
@@ -829,6 +843,9 @@ const getMembershipBadgeColor = (status: string | null) => {
                         <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">
                             {{ card.title }}
                         </h3>
+                        <p v-if="card.helper && props.isMember" class="mt-1 text-xs text-slate-500">
+                            {{ card.helper }}
+                        </p>
                         <p class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
                             {{ card.value }}
                         </p>
@@ -982,96 +999,172 @@ const getMembershipBadgeColor = (status: string | null) => {
 
                 <!-- Member Dashboard -->
                 <div v-if="props.isMember" class="md:col-span-2 grid gap-4">
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
-                        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <h2 class="text-lg font-semibold text-slate-900">My Membership Profile</h2>
-                                <p class="text-sm text-slate-500">Summary of your membership record.</p>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-lg font-semibold text-slate-900">My Profile</h2>
+                                    <p class="text-sm text-slate-500">Personal information on record.</p>
+                                </div>
+                                <Badge class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+                                    {{ props.memberProfile?.membership_status || 'N/A' }}
+                                </Badge>
                             </div>
-                            <Badge class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
-                                {{ props.memberProfile?.membership_status || 'N/A' }}
-                            </Badge>
+
+                            <div v-if="props.memberProfile" class="mt-5 text-sm text-slate-700">
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Name</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.name }}</span>
+                                </div>
+                                <div class="border-t border-gray-100" />
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Email</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.email || 'N/A' }}</span>
+                                </div>
+                                <div class="border-t border-gray-100" />
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Phone</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.phone || 'N/A' }}</span>
+                                </div>
+                                <div class="border-t border-gray-100" />
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Date joined</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.date_joined || 'N/A' }}</span>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Membership</h2>
+                                <p class="text-sm text-slate-500">Your membership classification.</p>
+                            </div>
+                            <div v-if="props.memberProfile" class="mt-5 text-sm text-slate-700">
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Type</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.membership_type || 'N/A' }}</span>
+                                </div>
+                                <div class="border-t border-gray-100" />
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Sector</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.sector || 'N/A' }}</span>
+                                </div>
+                                <div class="border-t border-gray-100" />
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-slate-500">Status</span>
+                                    <span class="font-medium text-slate-900">{{ props.memberProfile.membership_status || 'N/A' }}</span>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+
+                    <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">My Activity & Services</h2>
+                                <p class="text-sm text-slate-500">Your personal participation and services only.</p>
+                            </div>
                         </div>
 
-                        <div v-if="props.memberProfile" class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
+                        <div class="mt-6 grid gap-4 md:grid-cols-2">
+                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Member</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">My Activities</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="space-y-1 text-sm text-slate-700">
-                                    <div><strong>Name:</strong> {{ props.memberProfile.name }}</div>
-                                    <div><strong>Email:</strong> {{ props.memberProfile.email || 'N/A' }}</div>
-                                    <div><strong>Phone:</strong> {{ props.memberProfile.phone || 'N/A' }}</div>
-                                    <div><strong>Date Joined:</strong> {{ props.memberProfile.date_joined || 'N/A' }}</div>
+                                    <div class="text-2xl font-semibold text-slate-900">
+                                        {{ formatNumber(props.memberActivitiesCount || 0) }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">Participation records</div>
+                                    <div class="mt-3">
+                                        <Button
+                                            as-child
+                                            variant="outline"
+                                            size="sm"
+                                            class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                                        >
+                                            <a href="/member-portal/activities">View activities</a>
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
+                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Membership</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">My Services</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="space-y-1 text-sm text-slate-700">
-                                        <div><strong>Type:</strong> {{ props.memberProfile.membership_type || 'N/A' }}</div>
-                                        <div><strong>Sector:</strong> {{ props.memberProfile.sector || 'N/A' }}</div>
-                                        <div><strong>Status:</strong> {{ props.memberProfile.membership_status || 'N/A' }}</div>
-                                        <div>
-                                            <strong>Location:</strong>
-                                            {{ props.memberProfile.city_municipality || 'N/A' }}
-                                            {{ props.memberProfile.province ? `, ${props.memberProfile.province}` : '' }}
-                                        </div>
+                                    <div class="text-2xl font-semibold text-slate-900">
+                                        {{ formatNumber(props.memberServicesCount || 0) }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">Services availed</div>
+                                    <div class="mt-3">
+                                        <Button
+                                            as-child
+                                            variant="outline"
+                                            size="sm"
+                                            class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                                        >
+                                            <a href="/member-portal/services">View services</a>
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
                         </div>
                     </Card>
 
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                    <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-slate-900">My Cooperative</h2>
-                                <p class="text-sm text-slate-500">Cooperative assignment details.</p>
+                                <h2 class="text-lg font-semibold text-slate-900">My Loans</h2>
+                                <p class="text-sm text-slate-500">Your loan applications and balances.</p>
                             </div>
+                            <Button
+                                as-child
+                                variant="outline"
+                                size="sm"
+                                class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                            >
+                                <a href="/member-portal/loans">View loans</a>
+                            </Button>
                         </div>
 
-                        <div v-if="props.memberCoop" class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
+                        <div class="mt-6 grid gap-4 md:grid-cols-2">
+                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Cooperative</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Total Loans</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="space-y-1 text-sm text-slate-700">
-                                        <div><strong>Name:</strong> {{ props.memberCoop.name }}</div>
-                                        <div>
-                                            <strong>Location:</strong>
-                                            {{ props.memberCoop.city_municipality || 'N/A' }}
-                                            {{ props.memberCoop.province ? `, ${props.memberCoop.province}` : '' }}
-                                        </div>
-                                        <div><strong>Status:</strong> {{ props.memberCoop.status || 'N/A' }}</div>
+                                    <div class="text-2xl font-semibold text-slate-900">
+                                        {{ formatNumber(props.memberLoansCount || 0) }}
                                     </div>
+                                    <div class="text-xs text-slate-500">All loan records</div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-lg border border-slate-200/70 bg-slate-50/60 py-0 shadow-sm">
+                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Actions</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Recent Loans</CardTitle>
                                 </CardHeader>
-                                <CardContent class="px-4 pb-4 text-sm text-slate-700">
-                                    Use the My Profile page to update your personal information.
+                                <CardContent class="px-4 pb-4">
+                                    <div v-if="props.memberRecentLoans?.length" class="space-y-2 text-sm text-slate-700">
+                                        <div v-for="loan in props.memberRecentLoans" :key="loan.id" class="flex items-center justify-between">
+                                            <div>
+                                                <div class="font-semibold text-slate-900">{{ loan.principal }}</div>
+                                                <div class="text-xs text-slate-500">{{ loan.created_at || 'N/A' }}</div>
+                                            </div>
+                                            <Badge class="rounded-full bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-white">
+                                                {{ loan.status }}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div v-else class="text-sm text-slate-500">No loans recorded yet.</div>
                                 </CardContent>
                             </Card>
                         </div>
-
-                        <Card v-else class="mt-6 gap-0 rounded-lg border border-dashed border-slate-200 bg-slate-50 py-0 shadow-sm">
-                            <CardContent class="px-4 py-3 text-sm text-slate-600">
-                                No cooperative is assigned to your account yet. Please contact your cooperative admin.
-                            </CardContent>
-                        </Card>
                     </Card>
 
                 </div>
                 <!-- Cooperative Admin Overview -->
-                <div v-if="props.isCoopAdmin" class="md:col-span-2 grid gap-4">
+                <div v-if="props.isCoopAdmin && !props.isMember" class="md:col-span-2 grid gap-4">
                     <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
                         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                             <div>
