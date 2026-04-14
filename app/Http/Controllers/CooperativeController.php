@@ -8,6 +8,7 @@ use App\Models\CooperativeStatusHistory;
 use App\Models\Member;
 use App\Models\Officer;
 use App\Models\CommitteeMember;
+use App\Models\LoanType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -88,6 +89,10 @@ class CooperativeController extends Controller
 
     public function store(Request $request)
     {
+        if (!$request->user()?->can('create coop-master-profile')) {
+            abort(403, 'You do not have permission to create cooperative profiles.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'registration_number' => 'required|string|max:255|unique:cooperatives',
@@ -159,6 +164,10 @@ class CooperativeController extends Controller
     {
         $user = auth()->user();
 
+        if (!$request->user()?->can('update coop-master-profile')) {
+            abort(403, 'You do not have permission to update cooperative profiles.');
+        }
+
         if (!$this->canViewAllCooperatives() && $user?->coop_id && $cooperative->id !== $user->coop_id) {
             abort(403);
         }
@@ -220,6 +229,10 @@ class CooperativeController extends Controller
 
     public function destroy(Cooperative $cooperative)
     {
+        if (!auth()->user()?->can('delete coop-master-profile')) {
+            abort(403, 'You do not have permission to delete cooperative profiles.');
+        }
+
         $cooperative->delete();
 
         return redirect()->route('cooperatives.index')
@@ -334,6 +347,11 @@ class CooperativeController extends Controller
             ->orderBy('name')
             ->get();
 
+        $loanTypes = LoanType::query()
+            ->where('cooperative_id', $cooperative->id)
+            ->orderBy('name')
+            ->get(['id', 'cooperative_id', 'name', 'description', 'is_active']);
+
         return Inertia::render('Cooperatives/Show', [
             'cooperative' => $cooperative,
             'members' => $members,
@@ -357,6 +375,12 @@ class CooperativeController extends Controller
                 'per_page' => $request->input('committees_per_page'),
             ],
             'cooperatives' => $cooperatives,
+            'loanTypes' => $loanTypes,
+            'loanTypePermissions' => [
+                'can_create' => $user?->can('create finance-member-loans') ?? false,
+                'can_edit' => $user?->can('update finance-member-loans') ?? false,
+                'can_delete' => $user?->can('delete finance-member-loans') ?? false,
+            ],
         ]);
     }
 

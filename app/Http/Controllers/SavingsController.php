@@ -49,6 +49,10 @@ class SavingsController extends Controller
     {
         $user = $request->user();
 
+        if (!$user?->can('open finance-savings-accounts')) {
+            abort(403, 'You do not have permission to open savings accounts.');
+        }
+
         $membersQuery = Member::query()
             ->where('membership_status', 'Active')
             ->whereDoesntHave('savingsAccount')
@@ -67,13 +71,18 @@ class SavingsController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        if (!$user?->can('open finance-savings-accounts')) {
+            abort(403, 'You do not have permission to open savings accounts.');
+        }
+
         $validated = $request->validate([
             'member_id' => ['required', 'exists:members,id', 'unique:member_savings,member_id'],
             'opening_balance' => ['required', 'numeric', 'min:0'],
             'interest_rate' => ['required', 'numeric', 'min:0', 'max:10'],
         ]);
 
-        $user = $request->user();
         $memberQuery = Member::query()->where('id', $validated['member_id']);
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $memberQuery->where('coop_id', $user->coop_id);
@@ -139,6 +148,10 @@ class SavingsController extends Controller
 
     public function update(Request $request, MemberSavings $savings): RedirectResponse
     {
+        if (!$request->user()?->can('update finance-savings-accounts')) {
+            abort(403, 'You do not have permission to update savings accounts.');
+        }
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         $validated = $request->validate([
@@ -154,6 +167,10 @@ class SavingsController extends Controller
 
     public function destroy(MemberSavings $savings, Request $request): RedirectResponse
     {
+        if (!$request->user()?->can('close finance-savings-accounts')) {
+            abort(403, 'You do not have permission to close savings accounts.');
+        }
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         $savings->update([
@@ -167,6 +184,10 @@ class SavingsController extends Controller
 
     public function calculateInterest(Request $request, MemberSavings $savings): RedirectResponse
     {
+        if (!$request->user()?->can('calculate-interest finance-savings-accounts') && !$request->user()?->can('override finance-auto-jobs')) {
+            abort(403, 'You do not have permission to calculate savings interest.');
+        }
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         $interestAmount = ((float) $savings->current_balance * (float) $savings->interest_rate / 100) / 12;
@@ -206,6 +227,10 @@ class SavingsController extends Controller
 
     public function recordTransaction(Request $request, MemberSavings $savings): RedirectResponse
     {
+        if (!$request->user()?->can('record-deposit finance-savings-accounts') && !$request->user()?->can('record-withdrawal finance-savings-accounts')) {
+            abort(403, 'You do not have permission to record savings transactions.');
+        }
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         $validated = $request->validate([

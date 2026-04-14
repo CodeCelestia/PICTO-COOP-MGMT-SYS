@@ -35,6 +35,18 @@ const applyFilter = () => {
         preserveScroll: true,
     });
 };
+
+const closeAccount = (savingsId: number) => {
+    if (!props.permissions.can_close) {
+        return;
+    }
+
+    if (!window.confirm('Are you sure you want to close this savings account?')) {
+        return;
+    }
+
+    router.delete(`/finance/savings/${savingsId}`);
+};
 </script>
 
 <template>
@@ -87,7 +99,18 @@ const applyFilter = () => {
                         <td class="px-4 py-3">{{ row.interest_rate }}%</td>
                         <td class="px-4 py-3">{{ row.account_status }}</td>
                         <td class="px-4 py-3">
-                            <Link :href="`/finance/savings/${row.id}`" class="text-primary hover:underline">View</Link>
+                            <div class="flex items-center gap-3">
+                                <Link :href="`/finance/savings/${row.id}`" class="text-primary hover:underline">View</Link>
+                                <Link v-if="permissions.can_edit" :href="`/finance/savings/${row.id}/edit`" class="text-primary hover:underline">Edit</Link>
+                                <button
+                                    v-if="permissions.can_close && row.account_status !== 'Closed'"
+                                    type="button"
+                                    class="text-red-600 hover:underline"
+                                    @click="closeAccount(row.id)"
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>

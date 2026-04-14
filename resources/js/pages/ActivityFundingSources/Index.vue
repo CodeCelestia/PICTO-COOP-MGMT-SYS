@@ -2,6 +2,7 @@
 import { router, Link, usePage } from '@inertiajs/vue3';
 import { HandCoins, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -44,7 +45,8 @@ interface ActivitySummary {
 
 interface FundingSource {
     id: number;
-    activity_id: number;
+    activity_id: number | null;
+    category: 'activity' | 'project' | 'member_concern';
     coop_id: number;
     funder_name: string;
     funder_type: string;
@@ -166,6 +168,22 @@ const formatAmount = (value: string | null) => {
     const numberValue = Number(value);
     if (Number.isNaN(numberValue)) return value;
     return numberValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const categoryLabel = (category: FundingSource['category']) => {
+    if (category === 'member_concern') return 'Member Concern';
+    if (category === 'project') return 'Project';
+    return 'Activity';
+};
+
+const categoryBadgeClass = (category: FundingSource['category']) => {
+    if (category === 'member_concern') {
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+    }
+    if (category === 'project') {
+        return 'bg-green-100 text-green-800 border-green-200';
+    }
+    return 'bg-blue-100 text-blue-800 border-blue-200';
 };
 
 const visibleFundingSources = computed(() => props.fundingSources.data);
@@ -355,6 +373,7 @@ const bulkDeleteFundingSources = async () => {
                                 />
                             </TableHead>
                             <TableHead class="text-muted-foreground">Funder</TableHead>
+                            <TableHead class="text-muted-foreground">Category</TableHead>
                             <TableHead class="text-muted-foreground">Activity</TableHead>
                             <TableHead class="text-muted-foreground">Cooperative</TableHead>
                             <TableHead class="text-muted-foreground">Allocated</TableHead>
@@ -366,7 +385,7 @@ const bulkDeleteFundingSources = async () => {
                         </TableHeader>
                         <TableBody>
                             <TableRow v-if="fundingSources.data.length === 0">
-                                <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
+                                <TableCell :colspan="(showActions ? 9 : 8) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
                                     No funding sources found.
                                 </TableCell>
                             </TableRow>
@@ -388,6 +407,11 @@ const bulkDeleteFundingSources = async () => {
                                             <div class="text-xs text-muted-foreground">{{ source.funder_type }}</div>
                                         </div>
                                     </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge :class="categoryBadgeClass(source.category)" class="border">
+                                        {{ categoryLabel(source.category) }}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell class="text-sm text-muted-foreground">{{ source.activity?.title || 'N/A' }}</TableCell>
                                 <TableCell class="text-sm text-muted-foreground">{{ source.cooperative?.name || 'N/A' }}</TableCell>

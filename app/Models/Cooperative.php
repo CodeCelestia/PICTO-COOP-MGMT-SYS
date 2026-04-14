@@ -133,6 +133,11 @@ class Cooperative extends Model
     {
         return $this->hasMany(CooperativeStatusHistory::class, 'coop_id');
     }
+
+    public function loanTypes(): HasMany
+    {
+        return $this->hasMany(LoanType::class, 'cooperative_id');
+    }
 }
 
 

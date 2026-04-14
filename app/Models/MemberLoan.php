@@ -19,6 +19,7 @@ class MemberLoan extends Model
     protected $fillable = [
         'coop_id',
         'member_id',
+        'loan_type_id',
         'principal',
         'interest_rate',
         'term_months',
@@ -71,6 +72,11 @@ class MemberLoan extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class, 'member_id');
+    }
+
+    public function loanType(): BelongsTo
+    {
+        return $this->belongsTo(LoanType::class, 'loan_type_id');
     }
 
     public function approver(): BelongsTo

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\ActivityFundingSource;
 use App\Models\Cooperative;
+use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -67,6 +68,24 @@ class ActivityFundingSourceController extends Controller
         Activity::where('id', $activityId)->update([
             'funding_source' => $firstFunder,
         ]);
+    }
+
+    private function applyCategoryContextToRemarks(array &$validated): void
+    {
+        $remarks = trim((string) ($validated['remarks'] ?? ''));
+
+        if (($validated['category'] ?? null) === 'project' && !empty($validated['project_name'])) {
+            $remarks = trim("Project: {$validated['project_name']}\n{$remarks}");
+        }
+
+        if (($validated['category'] ?? null) === 'member_concern' && !empty($validated['member_id'])) {
+            $member = Member::find($validated['member_id']);
+            $memberLabel = $member ? $member->full_name : "Member #{$validated['member_id']}";
+            $remarks = trim("Member Concern: {$memberLabel}\n{$remarks}");
+        }
+
+        $validated['remarks'] = $remarks !== '' ? $remarks : null;
+        unset($validated['project_name'], $validated['member_id']);
     }
 
     /**
@@ -143,21 +162,32 @@ class ActivityFundingSourceController extends Controller
      */
     public function create(Request $request): Response
     {
+        if (!$request->user()?->can('create finance-funding-sources')) {
+            abort(403, 'You do not have permission to create funding sources.');
+        }
+
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 
         $user = auth()->user();
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
+        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $activitiesQuery->where('coop_id', $user->coop_id);
+            $membersQuery->where('coop_id', $user->coop_id);
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
         return Inertia::render('ActivityFundingSources/Create', [
             'activities' => $activitiesQuery->get(),
+            'members' => $membersQuery->get()->map(fn ($member) => [
+                'id' => $member->id,
+                'name' => $member->full_name,
+                'coop_id' => $member->coop_id,
+            ]),
             'cooperatives' => $cooperativesQuery->get(),
         ]);
     }
@@ -167,12 +197,19 @@ class ActivityFundingSourceController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if (!$request->user()?->can('create finance-funding-sources')) {
+            abort(403, 'You do not have permission to create funding sources.');
+        }
+
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }
 
         $validated = $request->validate([
-            'activity_id' => ['nullable', 'exists:activities,id'],
+            'activity_id' => ['nullable', 'exists:activities,id', Rule::requiredIf($request->input('category') === 'activity')],
+            'category' => ['required', Rule::in(['activity', 'project', 'member_concern'])],
+            'project_name' => [Rule::requiredIf($request->input('category') === 'project'), 'nullable', 'string', 'max:255'],
+            'member_id' => [Rule::requiredIf($request->input('category') === 'member_concern'), 'nullable', 'exists:members,id'],
             'coop_id' => ['required', 'exists:cooperatives,id'],
             'funder_name' => ['required', 'string', 'max:255'],
             'funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
@@ -182,6 +219,10 @@ class ActivityFundingSourceController extends Controller
             'status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        if (($validated['category'] ?? null) !== 'activity') {
+            $validated['activity_id'] = null;
+        }
 
         $activity = null;
         if (!empty($validated['activity_id'])) {
@@ -196,6 +237,19 @@ class ActivityFundingSourceController extends Controller
                 return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
             }
         }
+
+        if (($validated['category'] ?? null) === 'member_concern' && !empty($validated['member_id'])) {
+            $member = Member::find($validated['member_id']);
+            if (!$member) {
+                return back()->withErrors(['member_id' => 'Selected member not found.']);
+            }
+            $this->enforceCoopScope($member->coop_id);
+            if ((int) $validated['coop_id'] !== (int) $member->coop_id) {
+                return back()->withErrors(['member_id' => 'Selected member does not belong to the selected cooperative.']);
+            }
+        }
+
+        $this->applyCategoryContextToRemarks($validated);
 
         ActivityFundingSource::create($validated);
         $this->syncActivityFundingSourceSummary($activity?->id);
@@ -211,6 +265,10 @@ class ActivityFundingSourceController extends Controller
     {
         $user = auth()->user();
 
+        if (!$user?->can('update finance-funding-sources')) {
+            abort(403, 'You do not have permission to update funding sources.');
+        }
+
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
@@ -218,16 +276,23 @@ class ActivityFundingSourceController extends Controller
         $this->enforceCoopScope($activityFundingSource->coop_id);
 
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
+        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $activitiesQuery->where('coop_id', $user->coop_id);
+            $membersQuery->where('coop_id', $user->coop_id);
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
         return Inertia::render('ActivityFundingSources/Edit', [
             'fundingSource' => $activityFundingSource->load(['activity', 'cooperative']),
             'activities' => $activitiesQuery->get(),
+            'members' => $membersQuery->get()->map(fn ($member) => [
+                'id' => $member->id,
+                'name' => $member->full_name,
+                'coop_id' => $member->coop_id,
+            ]),
             'cooperatives' => $cooperativesQuery->get(),
         ]);
     }
@@ -239,12 +304,19 @@ class ActivityFundingSourceController extends Controller
     {
         $user = auth()->user();
 
+        if (!$request->user()?->can('update finance-funding-sources')) {
+            abort(403, 'You do not have permission to update funding sources.');
+        }
+
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
         $validated = $request->validate([
-            'activity_id' => ['nullable', 'exists:activities,id'],
+            'activity_id' => ['nullable', 'exists:activities,id', Rule::requiredIf($request->input('category') === 'activity')],
+            'category' => ['required', Rule::in(['activity', 'project', 'member_concern'])],
+            'project_name' => [Rule::requiredIf($request->input('category') === 'project'), 'nullable', 'string', 'max:255'],
+            'member_id' => [Rule::requiredIf($request->input('category') === 'member_concern'), 'nullable', 'exists:members,id'],
             'coop_id' => ['required', 'exists:cooperatives,id'],
             'funder_name' => ['required', 'string', 'max:255'],
             'funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
@@ -254,6 +326,10 @@ class ActivityFundingSourceController extends Controller
             'status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        if (($validated['category'] ?? null) !== 'activity') {
+            $validated['activity_id'] = null;
+        }
 
         $activity = null;
         if (!empty($validated['activity_id'])) {
@@ -268,6 +344,19 @@ class ActivityFundingSourceController extends Controller
                 return back()->withErrors(['coop_id' => 'Selected cooperative does not match the activity.']);
             }
         }
+
+        if (($validated['category'] ?? null) === 'member_concern' && !empty($validated['member_id'])) {
+            $member = Member::find($validated['member_id']);
+            if (!$member) {
+                return back()->withErrors(['member_id' => 'Selected member not found.']);
+            }
+            $this->enforceCoopScope($member->coop_id);
+            if ((int) $validated['coop_id'] !== (int) $member->coop_id) {
+                return back()->withErrors(['member_id' => 'Selected member does not belong to the selected cooperative.']);
+            }
+        }
+
+        $this->applyCategoryContextToRemarks($validated);
 
         $previousActivityId = $activityFundingSource->activity_id ? (int) $activityFundingSource->activity_id : null;
 
@@ -288,6 +377,10 @@ class ActivityFundingSourceController extends Controller
      */
     public function destroy(Request $request, ActivityFundingSource $activityFundingSource): RedirectResponse
     {
+        if (!$request->user()?->can('delete finance-funding-sources')) {
+            abort(403, 'You do not have permission to delete funding sources.');
+        }
+
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
         }

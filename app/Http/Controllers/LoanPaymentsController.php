@@ -15,6 +15,10 @@ class LoanPaymentsController extends Controller
     {
         $user = $request->user();
 
+        if (!$user?->can('record-payment finance-member-loans')) {
+            abort(403, 'You do not have permission to record loan payments.');
+        }
+
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $loan->coop_id !== $user->coop_id) {
             abort(403);
         }
@@ -26,6 +30,8 @@ class LoanPaymentsController extends Controller
         ]);
 
         DB::transaction(function () use ($loan, $validated, $user) {
+            $loan->loadMissing(['member:id,first_name,last_name', 'loanType:id,name']);
+
             $schedule = $loan->payments()
                 ->whereNotNull('payment_number')
                 ->where('status', 'Pending')
@@ -64,9 +70,10 @@ class LoanPaymentsController extends Controller
                 'period' => now()->format('Y-m'),
                 'type' => 'Income',
                 'amount' => $validated['amount'],
-                'source' => 'Member Loan Payment',
-                'purpose' => 'Loan payment for member #' . $loan->member_id,
-                'date_recorded' => now()->toDateString(),
+                'source' => 'loan_payment',
+                'purpose' => 'Loan payment from ' . ($loan->member?->full_name ?? ('Member #' . $loan->member_id)) . ' - ' . ($loan->loanType?->name ?? 'Unspecified Loan Type'),
+                'date_recorded' => $validated['paid_at'] ?? now()->toDateString(),
+                'reference_doc' => (string) $loan->id,
                 'recorded_by' => $user?->name,
             ]);
 

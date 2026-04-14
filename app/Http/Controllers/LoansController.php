@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\FinancialRecord;
+use App\Models\LoanType;
 use App\Models\LoanPayment;
 use App\Models\Member;
 use App\Models\MemberLoan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,7 +19,7 @@ class LoansController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $query = MemberLoan::query()->with(['member:id,first_name,last_name', 'cooperative:id,name']);
+        $query = MemberLoan::query()->with(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name']);
 
         if ($this->isMemberOnly($user) && $user?->member_id) {
             $query->where('member_id', $user->member_id);
@@ -57,6 +59,10 @@ class LoansController extends Controller
     {
         $user = $request->user();
 
+        if (!$user?->can('create finance-member-loans') && !$user?->can('apply-own finance-member-loans')) {
+            abort(403, 'You do not have permission to create loan applications.');
+        }
+
         if ($this->isMemberOnly($user) && ! $user?->member_id) {
             abort(403);
         }
@@ -72,23 +78,37 @@ class LoansController extends Controller
             $membersQuery->where('coop_id', $user->coop_id);
         }
 
+        $loanTypesQuery = LoanType::query()
+            ->select(['id', 'name', 'cooperative_id'])
+            ->where('is_active', true)
+            ->orderBy('name');
+
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $loanTypesQuery->where('cooperative_id', $user->coop_id);
+        }
+
         return Inertia::render('Finance/Loans/Create', [
             'members' => $membersQuery->get(),
-            'interestRates' => [12, 15, 18],
+            'loanTypes' => $loanTypesQuery->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        if (!$user?->can('create finance-member-loans') && !$user?->can('apply-own finance-member-loans')) {
+            abort(403, 'You do not have permission to create loan applications.');
+        }
+
         $validated = $request->validate([
             'member_id' => ['nullable', 'exists:members,id'],
-            'principal' => ['required', 'numeric', 'min:100'],
-            'interest_rate' => ['required', 'numeric', 'min:0', 'max:50'],
-            'term_months' => ['required', 'integer', 'min:1', 'max:60'],
+            'loan_type_id' => ['required', 'exists:loan_types,id'],
+            'principal' => ['required', 'numeric', 'min:0'],
             'purpose' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240'],
         ]);
-
-        $user = $request->user();
 
         if ($this->isMemberOnly($user)) {
             $validated['member_id'] = $user?->member_id;
@@ -104,19 +124,38 @@ class LoansController extends Controller
         }
         $member = $memberQuery->firstOrFail();
 
-        $loan = DB::transaction(function () use ($validated, $member, $user) {
+        $loanTypeQuery = LoanType::query()->where('id', $validated['loan_type_id']);
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $loanTypeQuery->where('cooperative_id', $user->coop_id);
+        }
+        $loanType = $loanTypeQuery->firstOrFail();
+
+        if (! $loanType->is_active) {
+            return back()->withErrors(['loan_type_id' => 'Selected loan type is not active.']);
+        }
+
+        if ((int) $loanType->cooperative_id !== (int) $member->coop_id) {
+            return back()->withErrors(['loan_type_id' => 'Selected loan type does not belong to the member cooperative.']);
+        }
+
+        $loan = DB::transaction(function () use ($validated, $member, $loanType, $request, $user) {
             $loan = MemberLoan::create([
                 'coop_id' => $member->coop_id,
                 'member_id' => $member->id,
+                'loan_type_id' => $loanType->id,
                 'principal' => $validated['principal'],
-                'interest_rate' => $validated['interest_rate'],
-                'term_months' => $validated['term_months'],
+                'interest_rate' => 0,
+                'term_months' => 1,
                 'status' => 'Pending',
                 'purpose' => $validated['purpose'] ?? null,
                 'created_by' => $user?->id,
             ]);
 
-            $this->generateRepaymentSchedule($loan);
+            if ((float) $loan->principal > 0 && (int) $loan->term_months > 0) {
+                $this->generateRepaymentSchedule($loan);
+            }
+
+            $this->attachUploadedFiles($loan, $request->file('attachments', []));
 
             return $loan;
         });
@@ -130,10 +169,14 @@ class LoansController extends Controller
     {
         $this->enforceLoanAccess($loan, $request->user());
 
-        $loan->load(['member:id,first_name,last_name', 'cooperative:id,name', 'payments']);
+        $loan->load(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name', 'payments']);
+        $memberLoanCount = MemberLoan::withTrashed()
+            ->where('member_id', $loan->member_id)
+            ->count();
 
         return Inertia::render('Finance/Loans/Show', [
             'loan' => $loan,
+            'memberLoanCount' => $memberLoanCount,
             'repaymentSchedule' => $loan->getRepaymentSchedule(),
             'remainingBalance' => $loan->getRemainingBalance(),
             'nextPaymentDue' => $loan->getNextPaymentDue(),
@@ -158,6 +201,10 @@ class LoansController extends Controller
 
     public function update(Request $request, MemberLoan $loan): RedirectResponse
     {
+        if (!$request->user()?->can('update finance-member-loans')) {
+            abort(403, 'You do not have permission to update loans.');
+        }
+
         $this->enforceLoanAccess($loan, $request->user());
 
         $validated = $request->validate([
@@ -175,6 +222,10 @@ class LoansController extends Controller
 
     public function destroy(MemberLoan $loan, Request $request): RedirectResponse
     {
+        if (!$request->user()?->can('delete finance-member-loans')) {
+            abort(403, 'You do not have permission to delete loans.');
+        }
+
         $this->enforceLoanAccess($loan, $request->user());
 
         $loan->delete();
@@ -185,6 +236,10 @@ class LoansController extends Controller
 
     public function approve(Request $request, MemberLoan $loan): RedirectResponse
     {
+        if (!$request->user()?->can('approve finance-member-loans') && !$request->user()?->can('approve-major finance-member-loans')) {
+            abort(403, 'You do not have permission to approve loans.');
+        }
+
         $this->enforceLoanAccess($loan, $request->user());
 
         if (! in_array($loan->status, ['Pending', 'Rejected'], true)) {
@@ -203,6 +258,10 @@ class LoansController extends Controller
 
     public function disburse(Request $request, MemberLoan $loan): RedirectResponse
     {
+        if (!$request->user()?->can('disburse finance-member-loans')) {
+            abort(403, 'You do not have permission to disburse loans.');
+        }
+
         $this->enforceLoanAccess($loan, $request->user());
 
         if (! in_array($loan->status, ['Approved', 'Active'], true)) {
@@ -216,6 +275,8 @@ class LoansController extends Controller
         ]);
 
         DB::transaction(function () use ($loan, $validated, $request) {
+            $loan->loadMissing(['member:id,first_name,last_name', 'loanType:id,name']);
+
             $loan->update([
                 'status' => 'Active',
                 'disbursement_date' => now(),
@@ -228,10 +289,11 @@ class LoansController extends Controller
                 'coop_id' => $loan->coop_id,
                 'period' => now()->format('Y-m'),
                 'type' => 'Loan',
-                'amount' => $validated['amount'],
-                'source' => 'Member Loan Disbursement',
-                'purpose' => 'Loan release for member #' . $loan->member_id,
+                'amount' => $loan->principal,
+                'source' => 'loan_release',
+                'purpose' => 'Loan released to ' . ($loan->member?->full_name ?? 'Unknown Member') . ' - ' . ($loan->loanType?->name ?? 'Unspecified Loan Type'),
                 'date_recorded' => now()->toDateString(),
+                'reference_doc' => (string) $loan->id,
                 'recorded_by' => $request->user()?->name,
             ]);
         });
@@ -306,5 +368,36 @@ class LoansController extends Controller
 
         return $user->can('apply-own finance-member-loans')
             && ! $user->can('create finance-member-loans');
+    }
+
+    /**
+     * @param  UploadedFile[]  $attachments
+     */
+    private function attachUploadedFiles(MemberLoan $loan, array $attachments): void
+    {
+        if (empty($attachments)) {
+            return;
+        }
+
+        $storedPaths = [];
+        foreach ($attachments as $attachment) {
+            if (! $attachment instanceof UploadedFile) {
+                continue;
+            }
+
+            $storedPaths[] = $attachment->store("loan-attachments/{$loan->id}", 'public');
+        }
+
+        if (empty($storedPaths)) {
+            return;
+        }
+
+        $existingRemarks = trim((string) ($loan->remarks ?? ''));
+        $attachmentLines = implode("\n", array_map(static fn (string $path) => "- {$path}", $storedPaths));
+        $attachmentBlock = "Attachments:\n{$attachmentLines}";
+
+        $loan->update([
+            'remarks' => trim($existingRemarks === '' ? $attachmentBlock : "{$existingRemarks}\n\n{$attachmentBlock}"),
+        ]);
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property int|null $activity_id
+ * @property string $category
  * @property int $coop_id
  * @property string $funder_name
  * @property string $funder_type
@@ -26,6 +27,7 @@ class ActivityFundingSource extends Model
     use CoopScoped;
     protected $fillable = [
         'activity_id',
+        'category',
         'coop_id',
         'funder_name',
         'funder_type',
@@ -42,6 +44,7 @@ class ActivityFundingSource extends Model
             'amount_allocated' => 'decimal:2',
             'amount_released' => 'decimal:2',
             'date_released' => 'date',
+            'category' => 'string',
         ];
     }
 

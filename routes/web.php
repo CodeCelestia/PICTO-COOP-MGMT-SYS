@@ -24,6 +24,7 @@ use App\Http\Controllers\FinancialRecordController;
 use App\Http\Controllers\FinancialRecordsController;
 use App\Http\Controllers\FundingSourcesController;
 use App\Http\Controllers\LoanPaymentsController;
+use App\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\LoansController;
 use App\Http\Controllers\SavingsController;
 use App\Http\Controllers\SavingsTransactionsController;
@@ -532,6 +533,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('{loan}/payments', [LoanPaymentsController::class, 'store'])
             ->middleware('permission:record-payment finance-member-loans')
             ->name('payments.store');
+    });
+
+    // Finance: Loan Types
+    Route::prefix('finance/loan-types')->name('finance.loan-types.')->group(function () {
+        Route::get('/', [LoanTypeController::class, 'index'])
+            ->middleware('permission:read finance-member-loans')
+            ->name('index');
+
+        Route::post('/', [LoanTypeController::class, 'store'])
+            ->middleware('permission:create finance-member-loans')
+            ->name('store');
+
+        Route::put('{loanType}', [LoanTypeController::class, 'update'])
+            ->middleware('permission:update finance-member-loans')
+            ->name('update');
+
+        Route::delete('{loanType}', [LoanTypeController::class, 'destroy'])
+            ->middleware('permission:delete finance-member-loans')
+            ->name('destroy');
     });
 
     // Finance: Savings

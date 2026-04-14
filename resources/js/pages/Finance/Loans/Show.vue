@@ -10,7 +10,11 @@ const props = defineProps<{
         interest_rate: string;
         term_months: number;
         purpose: string | null;
+        created_at?: string | null;
+        approved_at?: string | null;
+        disbursement_date?: string | null;
         member?: { first_name?: string; last_name?: string };
+        loan_type?: { name?: string };
     };
     repaymentSchedule: Array<{
         id: number;
@@ -36,17 +40,33 @@ const paymentForm = useForm({ amount: 0, paid_at: '', remarks: '' });
 const approve = () => approveForm.post(`/finance/loans/${props.loan.id}/approve`);
 const disburse = () => disburseForm.post(`/finance/loans/${props.loan.id}/disburse`);
 const recordPayment = () => paymentForm.post(`/finance/loans/${props.loan.id}/payments`);
+
+const formatDate = (value: string | null | undefined) => {
+    if (!value) return 'N/A';
+    return new Date(value).toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+    });
+};
+
+const formatAmount = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined || value === '') return '0.00';
+    const num = Number(value);
+    if (Number.isNaN(num)) return String(value);
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 </script>
 
 <template>
-    <Head :title="`Finance - Loan #${loan.id}`" />
+    <Head :title="`Finance - ${loan.member?.first_name || ''} ${loan.member?.last_name || ''} - Loan #${memberLoanCount}`" />
 
     <FinanceShellLayout active-tab="loans">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-semibold">Loan #{{ loan.id }}</h1>
+                <h1 class="text-2xl font-semibold">{{ loan.member?.first_name }} {{ loan.member?.last_name }} - Loan #{{ memberLoanCount }}</h1>
                 <p class="text-sm text-muted-foreground">
-                    {{ loan.member?.first_name }} {{ loan.member?.last_name }} | {{ loan.status }}
+                    Loan ID #{{ loan.id }} | {{ loan.status }}
                 </p>
             </div>
             <div class="flex gap-2">
@@ -55,22 +75,41 @@ const recordPayment = () => paymentForm.post(`/finance/loans/${props.loan.id}/pa
             </div>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div class="rounded-lg border bg-card p-4 text-sm">
-                <div class="text-muted-foreground">Principal</div>
-                <div class="mt-1 text-lg font-semibold">{{ loan.principal }}</div>
+                <div class="text-muted-foreground">Loan Amount</div>
+                <div class="mt-1 text-lg font-semibold">{{ formatAmount(loan.principal) }}</div>
             </div>
             <div class="rounded-lg border bg-card p-4 text-sm">
-                <div class="text-muted-foreground">Interest Rate</div>
-                <div class="mt-1 text-lg font-semibold">{{ loan.interest_rate }}%</div>
+                <div class="text-muted-foreground">Loan Type</div>
+                <div class="mt-1 text-lg font-semibold">{{ loan.loan_type?.name || 'N/A' }}</div>
             </div>
             <div class="rounded-lg border bg-card p-4 text-sm">
-                <div class="text-muted-foreground">Term</div>
-                <div class="mt-1 text-lg font-semibold">{{ loan.term_months }} months</div>
+                <div class="text-muted-foreground">Purpose</div>
+                <div class="mt-1 text-lg font-semibold">{{ loan.purpose || 'N/A' }}</div>
+            </div>
+            <div class="rounded-lg border bg-card p-4 text-sm">
+                <div class="text-muted-foreground">Status</div>
+                <div class="mt-1 text-lg font-semibold">{{ loan.status }}</div>
             </div>
             <div class="rounded-lg border bg-card p-4 text-sm">
                 <div class="text-muted-foreground">Remaining Balance</div>
-                <div class="mt-1 text-lg font-semibold">{{ remainingBalance.toFixed(2) }}</div>
+                <div class="mt-1 text-lg font-semibold">{{ formatAmount(remainingBalance) }}</div>
+            </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-lg border bg-card p-4 text-sm">
+                <div class="text-muted-foreground">Created</div>
+                <div class="mt-1 font-semibold">{{ formatDate(loan.created_at) }}</div>
+            </div>
+            <div class="rounded-lg border bg-card p-4 text-sm">
+                <div class="text-muted-foreground">Approved</div>
+                <div class="mt-1 font-semibold">{{ formatDate(loan.approved_at) }}</div>
+            </div>
+            <div class="rounded-lg border bg-card p-4 text-sm">
+                <div class="text-muted-foreground">Disbursed</div>
+                <div class="mt-1 font-semibold">{{ formatDate(loan.disbursement_date) }}</div>
             </div>
         </div>
 
@@ -117,7 +156,7 @@ const recordPayment = () => paymentForm.post(`/finance/loans/${props.loan.id}/pa
                     </tr>
                     <tr v-for="row in repaymentSchedule" :key="row.id" class="border-t">
                         <td class="px-4 py-2">{{ row.payment_number || '-' }}</td>
-                        <td class="px-4 py-2">{{ row.due_date || '-' }}</td>
+                        <td class="px-4 py-2">{{ formatDate(row.due_date) }}</td>
                         <td class="px-4 py-2">{{ row.total_due || '-' }}</td>
                         <td class="px-4 py-2">{{ row.status }}</td>
                     </tr>

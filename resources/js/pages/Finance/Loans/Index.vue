@@ -5,11 +5,11 @@ import { ref } from 'vue';
 
 interface Loan {
     id: number;
-    principal: string;
-    interest_rate: string;
+    purpose: string | null;
     status: string;
     created_at: string;
     member?: { first_name?: string; last_name?: string };
+    loan_type?: { name?: string };
 }
 
 const props = defineProps<{
@@ -41,11 +41,27 @@ const applyFilter = () => {
     });
 };
 
-const formatAmount = (value: string) => {
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatDate = (value: string | null | undefined) => {
+    if (!value) return 'N/A';
+    return new Date(value).toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+    });
 };
+
+const deleteLoan = (loanId: number) => {
+    if (!props.permissions.can_delete) {
+        return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this loan?')) {
+        return;
+    }
+
+    router.delete(`/finance/loans/${loanId}`);
+};
+
 </script>
 
 <template>
@@ -80,8 +96,8 @@ const formatAmount = (value: string) => {
                 <thead class="bg-muted/40">
                     <tr>
                         <th class="px-4 py-3 text-left">Member</th>
-                        <th class="px-4 py-3 text-left">Principal</th>
-                        <th class="px-4 py-3 text-left">Rate</th>
+                        <th class="px-4 py-3 text-left">Loan Type</th>
+                        <th class="px-4 py-3 text-left">Purpose</th>
                         <th class="px-4 py-3 text-left">Status</th>
                         <th class="px-4 py-3 text-left">Created</th>
                         <th class="px-4 py-3 text-left">Actions</th>
@@ -93,12 +109,23 @@ const formatAmount = (value: string) => {
                     </tr>
                     <tr v-for="loan in loans.data" :key="loan.id" class="border-t">
                         <td class="px-4 py-3">{{ loan.member?.first_name }} {{ loan.member?.last_name }}</td>
-                        <td class="px-4 py-3">{{ formatAmount(loan.principal) }}</td>
-                        <td class="px-4 py-3">{{ loan.interest_rate }}%</td>
+                        <td class="px-4 py-3">{{ loan.loan_type?.name || 'N/A' }}</td>
+                        <td class="px-4 py-3">{{ loan.purpose || 'N/A' }}</td>
                         <td class="px-4 py-3">{{ loan.status }}</td>
-                        <td class="px-4 py-3">{{ new Date(loan.created_at).toLocaleDateString() }}</td>
+                        <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
                         <td class="px-4 py-3">
-                            <Link :href="`/finance/loans/${loan.id}`" class="text-primary hover:underline">View</Link>
+                            <div class="flex items-center gap-3">
+                                <Link :href="`/finance/loans/${loan.id}`" class="text-primary hover:underline">View</Link>
+                                <Link v-if="permissions.can_edit" :href="`/finance/loans/${loan.id}/edit`" class="text-primary hover:underline">Edit</Link>
+                                <button
+                                    v-if="permissions.can_delete"
+                                    type="button"
+                                    class="text-red-600 hover:underline"
+                                    @click="deleteLoan(loan.id)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>

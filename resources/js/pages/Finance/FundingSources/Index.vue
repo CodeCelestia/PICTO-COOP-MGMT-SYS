@@ -5,6 +5,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 interface FundingSource {
     id: number;
     activity_id: number | null;
+    category: 'activity' | 'project' | 'member_concern';
     funder_name: string;
     funder_type: string;
     status: string;
@@ -32,6 +33,18 @@ const formatAmount = (value: string | null) => {
     if (Number.isNaN(num)) return value;
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const categoryLabel = (category: FundingSource['category']) => {
+    if (category === 'member_concern') return 'Member Concern';
+    if (category === 'project') return 'Project';
+    return 'Activity';
+};
+
+const categoryBadgeClass = (category: FundingSource['category']) => {
+    if (category === 'member_concern') return 'border border-orange-200 bg-orange-100 text-orange-800';
+    if (category === 'project') return 'border border-green-200 bg-green-100 text-green-800';
+    return 'border border-blue-200 bg-blue-100 text-blue-800';
+};
 </script>
 
 <template>
@@ -53,6 +66,7 @@ const formatAmount = (value: string | null) => {
                 <thead class="bg-muted/40">
                     <tr>
                         <th class="px-4 py-3 text-left">Funder</th>
+                        <th class="px-4 py-3 text-left">Category</th>
                         <th class="px-4 py-3 text-left">Activity</th>
                         <th class="px-4 py-3 text-left">Cooperative</th>
                         <th class="px-4 py-3 text-left">Status</th>
@@ -63,10 +77,15 @@ const formatAmount = (value: string | null) => {
                 </thead>
                 <tbody>
                     <tr v-if="fundingSources.data.length === 0">
-                        <td class="px-4 py-6 text-center text-muted-foreground" colspan="7">No funding sources found.</td>
+                        <td class="px-4 py-6 text-center text-muted-foreground" colspan="8">No funding sources found.</td>
                     </tr>
                     <tr v-for="item in fundingSources.data" :key="item.id" class="border-t">
                         <td class="px-4 py-3">{{ item.funder_name }} <span class="text-xs text-muted-foreground">({{ item.funder_type }})</span></td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium" :class="categoryBadgeClass(item.category)">
+                                {{ categoryLabel(item.category) }}
+                            </span>
+                        </td>
                         <td class="px-4 py-3">
                             <div class="flex flex-col gap-1">
                                 <span class="inline-flex w-fit rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground">

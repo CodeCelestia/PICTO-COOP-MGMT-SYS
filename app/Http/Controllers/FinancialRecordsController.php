@@ -49,6 +49,17 @@ class FinancialRecordsController extends Controller
 
     public function show(FinancialRecord $financialRecord)
     {
-        return redirect()->route('financial-records.edit', $financialRecord);
+        $user = request()->user();
+
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $financialRecord->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        return Inertia::render('Finance/FinancialRecords/Show', [
+            'record' => $financialRecord->load('cooperative:id,name'),
+            'permissions' => [
+                'can_edit' => $user?->can('update finance-ledger-entries') ?? false,
+            ],
+        ]);
     }
 }

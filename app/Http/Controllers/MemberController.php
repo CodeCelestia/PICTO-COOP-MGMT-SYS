@@ -516,6 +516,10 @@ class MemberController extends Controller
             abort(403);
         }
 
+        if (!$request->user()?->can('create members-profile')) {
+            abort(403, 'You do not have permission to create members.');
+        }
+
         $user = auth()->user();
         $coopId = $user?->coop_id;
 
@@ -750,6 +754,10 @@ class MemberController extends Controller
             abort(403);
         }
 
+        if (!$request->user()?->can('update members-profile')) {
+            abort(403, 'You do not have permission to update members.');
+        }
+
         if ($this->isCoopAdmin() && $coopId && $member->coop_id !== $coopId) {
             abort(403);
         }
@@ -857,6 +865,10 @@ class MemberController extends Controller
 
         if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
+        }
+
+        if (!$user?->can('delete members-profile')) {
+            abort(403, 'You do not have permission to delete members.');
         }
 
         if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {

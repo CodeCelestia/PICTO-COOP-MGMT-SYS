@@ -26,9 +26,16 @@ interface ActivityOption {
     coop_id: number;
 }
 
+interface MemberOption {
+    id: number;
+    name: string;
+    coop_id: number;
+}
+
 interface FundingSource {
     id: number;
     activity_id: number | null;
+    category: 'activity' | 'project' | 'member_concern';
     coop_id: number;
     funder_name: string;
     funder_type: string;
@@ -42,6 +49,7 @@ interface FundingSource {
 interface Props {
     fundingSource: FundingSource;
     activities: ActivityOption[];
+    members: MemberOption[];
     cooperatives: Cooperative[];
 }
 
@@ -66,6 +74,9 @@ const isFinanceContext = computed(() => page.url.startsWith('/finance/funding-so
 
 const form = useForm<{
     activity_id: string;
+    category: string;
+    project_name: string;
+    member_id: string;
     coop_id: string;
     funder_name: string;
     funder_type: string;
@@ -76,6 +87,9 @@ const form = useForm<{
     remarks: string;
 }>({
     activity_id: props.fundingSource.activity_id ? props.fundingSource.activity_id.toString() : NO_ACTIVITY_VALUE,
+    category: props.fundingSource.category || 'activity',
+    project_name: '',
+    member_id: '',
     coop_id: props.fundingSource.coop_id.toString(),
     funder_name: props.fundingSource.funder_name,
     funder_type: props.fundingSource.funder_type,
@@ -106,6 +120,15 @@ const selectedActivity = computed(() => {
     return filteredActivities.value.find((activity) => activity.id.toString() === form.activity_id) || null;
 });
 
+const filteredMembers = computed(() => {
+    if (!form.coop_id) {
+        return props.members;
+    }
+
+    const coopId = Number(form.coop_id);
+    return props.members.filter((member) => member.coop_id === coopId);
+});
+
 const selectedCooperative = computed(() => {
     if (form.coop_id) {
         return props.cooperatives.find((coop) => coop.id.toString() === form.coop_id) || null;
@@ -125,6 +148,11 @@ const fundingSourceBasePath = computed(() =>
 );
 
 watch(filteredActivities, (activities) => {
+    if (form.category !== 'activity') {
+        form.activity_id = NO_ACTIVITY_VALUE;
+        return;
+    }
+
     if (isFinanceContext.value) {
         if (
             form.activity_id
@@ -147,11 +175,38 @@ watch(filteredActivities, (activities) => {
     }
 }, { immediate: true });
 
+watch(() => form.category, (category) => {
+    if (category !== 'activity') {
+        form.activity_id = NO_ACTIVITY_VALUE;
+    }
+
+    if (category !== 'project') {
+        form.project_name = '';
+    }
+
+    if (category !== 'member_concern') {
+        form.member_id = '';
+    }
+});
+
+watch(filteredMembers, (members) => {
+    if (form.category !== 'member_concern') return;
+    if (!members.length) {
+        form.member_id = '';
+        return;
+    }
+    if (!members.some((member) => member.id.toString() === form.member_id)) {
+        form.member_id = members[0].id.toString();
+    }
+}, { immediate: true });
+
 const submit = () => {
     if (!canUpdate.value) return;
     form.transform((data) => ({
         ...data,
-        activity_id: data.activity_id === NO_ACTIVITY_VALUE ? '' : data.activity_id,
+        activity_id: data.category === 'activity' && data.activity_id !== NO_ACTIVITY_VALUE ? data.activity_id : '',
+        project_name: data.category === 'project' ? data.project_name : '',
+        member_id: data.category === 'member_concern' ? data.member_id : '',
     })).put(`${fundingSourceBasePath.value}/${props.fundingSource.id}`, {
         preserveScroll: true,
     });
@@ -179,6 +234,23 @@ const cancel = () => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
+                                <Label for="category">Category</Label>
+                                <Select v-model="form.category">
+                                    <SelectTrigger id="category" :class="{ 'border-red-500': form.errors.category }">
+                                        <SelectValue placeholder="Select category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="activity">Activity</SelectItem>
+                                        <SelectItem value="project">Project</SelectItem>
+                                        <SelectItem value="member_concern">Member Concern</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="form.errors.category" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.category }}
+                                </p>
+                            </div>
+
+                            <div v-if="form.category === 'activity'">
                                 <Label for="activity_id">Activity</Label>
                                 <Select v-model="form.activity_id" :disabled="isCoopScopedUser && filteredActivities.length === 1">
                                     <SelectTrigger id="activity_id" :class="{ 'border-red-500': form.errors.activity_id }">
@@ -199,6 +271,34 @@ const cancel = () => {
                                 </p>
                                 <p v-else-if="filteredActivities.length === 0" class="mt-1 text-sm text-muted-foreground">
                                     No activities found for the selected cooperative.
+                                </p>
+                            </div>
+
+                            <div v-if="form.category === 'project'">
+                                <Label for="project_name">Project Name</Label>
+                                <Input id="project_name" v-model="form.project_name" placeholder="Enter project name" />
+                                <p v-if="form.errors.project_name" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.project_name }}
+                                </p>
+                            </div>
+
+                            <div v-if="form.category === 'member_concern'">
+                                <Label for="member_id">Member</Label>
+                                <Select v-model="form.member_id">
+                                    <SelectTrigger id="member_id" :class="{ 'border-red-500': form.errors.member_id }">
+                                        <SelectValue placeholder="Select member" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="member in filteredMembers" :key="member.id" :value="member.id.toString()">
+                                            {{ member.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="form.errors.member_id" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.member_id }}
+                                </p>
+                                <p v-else-if="filteredMembers.length === 0" class="mt-1 text-sm text-muted-foreground">
+                                    No members found for the selected cooperative.
                                 </p>
                             </div>
 

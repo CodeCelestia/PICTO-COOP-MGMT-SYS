@@ -9,7 +9,7 @@ import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import MemberListPanel from '@/components/panels/MemberListPanel.vue';
 import OfficerListPanel from '@/components/panels/OfficerListPanel.vue';
 import CommitteeListPanel from '@/components/panels/CommitteeListPanel.vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import type {
     CommitteeMember,
     CooperativeSummary,
@@ -79,6 +79,18 @@ const props = defineProps<{
         per_page?: string;
     };
     cooperatives: CooperativeSummary[];
+    loanTypes: Array<{
+        id: number;
+        cooperative_id: number;
+        name: string;
+        description: string | null;
+        is_active: boolean;
+    }>;
+    loanTypePermissions: {
+        can_create: boolean;
+        can_edit: boolean;
+        can_delete: boolean;
+    };
 }>();
 
 const tabs: LiftedTab[] = [
@@ -86,12 +98,31 @@ const tabs: LiftedTab[] = [
     { id: 'members', label: 'Members', icon: Users },
     { id: 'officers', label: 'Officers', icon: ShieldCheck },
     { id: 'committees', label: 'Committees', icon: UsersRound },
+    { id: 'loan-types', label: 'Loan Types', icon: UsersRound },
 ];
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
+const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
+const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
+const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
 const activeTab = ref('profile');
+
+const addLoanTypeForm = useForm({
+    cooperative_id: props.cooperative.id,
+    name: '',
+    description: '',
+    is_active: true,
+});
+
+const editingLoanTypeId = ref<number | null>(null);
+const editLoanTypeForm = useForm({
+    cooperative_id: props.cooperative.id,
+    name: '',
+    description: '',
+    is_active: true,
+});
 
 const cooperativeBasePath = computed(() => {
     const [path] = page.url.split('?');
@@ -145,6 +176,50 @@ const formatFullAddress = (coop: Cooperative) => {
     ].filter(Boolean);
 
     return parts.join(', ') || 'N/A';
+};
+
+const startEditLoanType = (loanType: { id: number; name: string; description: string | null; is_active: boolean }) => {
+    editingLoanTypeId.value = loanType.id;
+    editLoanTypeForm.cooperative_id = props.cooperative.id;
+    editLoanTypeForm.name = loanType.name;
+    editLoanTypeForm.description = loanType.description || '';
+    editLoanTypeForm.is_active = loanType.is_active;
+};
+
+const cancelEditLoanType = () => {
+    editingLoanTypeId.value = null;
+    editLoanTypeForm.reset();
+    editLoanTypeForm.clearErrors();
+};
+
+const submitAddLoanType = () => {
+    addLoanTypeForm.post('/finance/loan-types', {
+        preserveScroll: true,
+        onSuccess: () => {
+            addLoanTypeForm.reset('name', 'description');
+            addLoanTypeForm.is_active = true;
+        },
+    });
+};
+
+const submitEditLoanType = (loanTypeId: number) => {
+    editLoanTypeForm.put(`/finance/loan-types/${loanTypeId}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            cancelEditLoanType();
+        },
+    });
+};
+
+const deleteLoanType = (loanTypeId: number) => {
+    if (!window.confirm('Are you sure you want to delete this loan type?')) {
+        return;
+    }
+
+    router.delete(`/finance/loan-types/${loanTypeId}`, {
+        preserveScroll: true,
+        data: { cooperative_id: props.cooperative.id },
+    });
 };
 
 const statusBadgeClass = computed(() => {
@@ -318,6 +393,102 @@ const statusBadgeClass = computed(() => {
                             query-prefix="committees_"
                             :lock-coop-id="String(cooperative.id)"
                         />
+                    </div>
+
+                    <div v-show="activeTab === 'loan-types'" class="space-y-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-foreground">Loan Types</h2>
+                                <p class="text-base text-muted-foreground">Define available loan products for this cooperative.</p>
+                            </div>
+                        </div>
+
+                        <section v-if="canCreateLoanType" class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                            <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Add Loan Type</h3>
+                            <form class="mt-4 grid gap-3 md:grid-cols-2" @submit.prevent="submitAddLoanType">
+                                <div class="md:col-span-1">
+                                    <label class="mb-1 block text-sm font-medium">Name</label>
+                                    <input v-model="addLoanTypeForm.name" type="text" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="e.g., Emergency Loan" />
+                                    <p v-if="addLoanTypeForm.errors.name" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.name }}</p>
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="mb-1 block text-sm font-medium">Status</label>
+                                    <select v-model="addLoanTypeForm.is_active" class="w-full rounded-md border px-3 py-2 text-sm">
+                                        <option :value="true">Active</option>
+                                        <option :value="false">Inactive</option>
+                                    </select>
+                                    <p v-if="addLoanTypeForm.errors.is_active" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.is_active }}</p>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="mb-1 block text-sm font-medium">Description</label>
+                                    <textarea v-model="addLoanTypeForm.description" rows="3" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="Optional description"></textarea>
+                                    <p v-if="addLoanTypeForm.errors.description" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.description }}</p>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <Button type="submit" class="gap-2" :disabled="addLoanTypeForm.processing">Add Loan Type</Button>
+                                </div>
+                            </form>
+                        </section>
+
+                        <section class="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+                            <table class="w-full text-sm">
+                                <thead class="bg-muted/40">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">Name</th>
+                                        <th class="px-4 py-3 text-left">Description</th>
+                                        <th class="px-4 py-3 text-left">Status</th>
+                                        <th class="px-4 py-3 text-left">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="loanTypes.length === 0">
+                                        <td class="px-4 py-6 text-center text-muted-foreground" colspan="4">
+                                            No loan types defined yet. Add your first loan type to start creating loans.
+                                        </td>
+                                    </tr>
+                                    <tr v-for="loanType in loanTypes" :key="loanType.id" class="border-t align-top">
+                                        <template v-if="editingLoanTypeId === loanType.id">
+                                            <td class="px-4 py-3">
+                                                <input v-model="editLoanTypeForm.name" type="text" class="w-full rounded-md border px-3 py-2 text-sm" />
+                                                <p v-if="editLoanTypeForm.errors.name" class="mt-1 text-xs text-red-600">{{ editLoanTypeForm.errors.name }}</p>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <textarea v-model="editLoanTypeForm.description" rows="2" class="w-full rounded-md border px-3 py-2 text-sm"></textarea>
+                                                <p v-if="editLoanTypeForm.errors.description" class="mt-1 text-xs text-red-600">{{ editLoanTypeForm.errors.description }}</p>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <select v-model="editLoanTypeForm.is_active" class="w-full rounded-md border px-3 py-2 text-sm">
+                                                    <option :value="true">Active</option>
+                                                    <option :value="false">Inactive</option>
+                                                </select>
+                                                <p v-if="editLoanTypeForm.errors.is_active" class="mt-1 text-xs text-red-600">{{ editLoanTypeForm.errors.is_active }}</p>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex flex-wrap gap-2">
+                                                    <Button size="sm" @click="submitEditLoanType(loanType.id)" :disabled="editLoanTypeForm.processing">Save</Button>
+                                                    <Button size="sm" variant="outline" @click="cancelEditLoanType">Cancel</Button>
+                                                </div>
+                                            </td>
+                                        </template>
+                                        <template v-else>
+                                            <td class="px-4 py-3 font-medium">{{ loanType.name }}</td>
+                                            <td class="px-4 py-3">{{ loanType.description || 'N/A' }}</td>
+                                            <td class="px-4 py-3">
+                                                <Badge :class="loanType.is_active ? 'border border-emerald-200 bg-emerald-100 text-emerald-800' : 'border border-slate-200 bg-slate-100 text-slate-700'">
+                                                    {{ loanType.is_active ? 'Active' : 'Inactive' }}
+                                                </Badge>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex flex-wrap gap-2">
+                                                    <Button v-if="canEditLoanType" size="sm" variant="outline" @click="startEditLoanType(loanType)">Edit</Button>
+                                                    <Button v-if="canDeleteLoanType" size="sm" variant="destructive" @click="deleteLoanType(loanType.id)">Delete</Button>
+                                                </div>
+                                            </td>
+                                        </template>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </section>
                     </div>
                 </CardContent>
             </Card>
