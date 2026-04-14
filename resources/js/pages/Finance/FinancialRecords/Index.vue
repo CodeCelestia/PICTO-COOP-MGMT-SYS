@@ -72,10 +72,10 @@ const deleteRecord = (recordId: number) => {
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-semibold">Financial Records</h1>
-                <p class="text-sm text-muted-foreground">Ledger entries and health metric references.</p>
+                <p class="text-sm text-muted-foreground">Loan and savings records are posted automatically. Use manual entries here for other finance transactions.</p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/financial-records/create" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-                New Ledger Entry
+                Add Manual Entry
             </Link>
         </div>
 

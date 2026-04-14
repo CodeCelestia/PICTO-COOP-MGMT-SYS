@@ -56,7 +56,7 @@ const closeAccount = (savingsId: number) => {
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-semibold">Savings Accounts</h1>
-                <p class="text-sm text-muted-foreground">Track member savings balances and transactions.</p>
+                <p class="text-sm text-muted-foreground">Manage member savings accounts, balances, and deposit or withdrawal activity in one place.</p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/savings/create" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
                 Open Savings Account
@@ -90,7 +90,12 @@ const closeAccount = (savingsId: number) => {
                 </thead>
                 <tbody>
                     <tr v-if="savings.data.length === 0">
-                        <td colspan="6" class="px-4 py-6 text-center text-muted-foreground">No savings accounts found.</td>
+                        <td colspan="6" class="px-4 py-8 text-center">
+                            <div class="space-y-1">
+                                <p class="font-medium text-foreground">No savings accounts yet</p>
+                                <p class="text-sm text-muted-foreground">Open a savings account for an active member to start tracking deposits, withdrawals, and interest.</p>
+                            </div>
+                        </td>
                     </tr>
                     <tr v-for="row in savings.data" :key="row.id" class="border-t">
                         <td class="px-4 py-3">{{ row.account_number }}</td>

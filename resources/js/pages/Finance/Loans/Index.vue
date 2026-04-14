@@ -72,6 +72,9 @@ const deleteLoan = (loanId: number) => {
             <div>
                 <h1 class="text-2xl font-semibold">Member Loans</h1>
                 <p class="text-sm text-muted-foreground">Apply, approve, disburse, and monitor loan lifecycle.</p>
+                <p class="mt-2 text-xs text-muted-foreground">
+                    Status guide: Pending = submitted and waiting review; Approved = cleared for release; Active = already released and being paid; Completed = fully paid; Defaulted = overdue with missed payments.
+                </p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/loans/create" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
                 New Loan
@@ -116,9 +119,9 @@ const deleteLoan = (loanId: number) => {
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-3">
                                 <Link :href="`/finance/loans/${loan.id}`" class="text-primary hover:underline">View</Link>
-                                <Link v-if="permissions.can_edit" :href="`/finance/loans/${loan.id}/edit`" class="text-primary hover:underline">Edit</Link>
+                                <Link v-if="permissions.can_edit && loan.status === 'Pending'" :href="`/finance/loans/${loan.id}/edit`" class="text-primary hover:underline">Edit</Link>
                                 <button
-                                    v-if="permissions.can_delete"
+                                    v-if="permissions.can_delete && loan.status === 'Pending'"
                                     type="button"
                                     class="text-red-600 hover:underline"
                                     @click="deleteLoan(loan.id)"

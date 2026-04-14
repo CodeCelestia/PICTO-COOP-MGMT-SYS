@@ -152,9 +152,15 @@ const trendRows = computed<TrendRow[]>(() => {
 
         <div
             v-if="hasNoStatementData"
-            class="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+            class="rounded-lg border border-border bg-muted/50 px-4 py-4 text-sm text-muted-foreground"
         >
-            No financial data has been recorded yet. Start by adding financial records, loans, or savings transactions.
+            <p class="font-medium text-foreground">No financial statement data yet.</p>
+            <p class="mt-1">To generate this report:</p>
+            <ul class="mt-1 list-disc space-y-1 pl-5">
+                <li>Add a manual entry in Financial Records for non-loan/non-savings transactions.</li>
+                <li>Create and process member loans so loan releases and payments post automatically.</li>
+                <li>Open savings accounts and record deposits or withdrawals to populate savings totals.</li>
+            </ul>
         </div>
 
         <div v-if="isStatementMode" class="rounded-lg border border-border bg-card">

@@ -40,6 +40,7 @@ const paymentForm = useForm({ amount: 0, paid_at: '', remarks: '' });
 const approve = () => approveForm.post(`/finance/loans/${props.loan.id}/approve`);
 const disburse = () => disburseForm.post(`/finance/loans/${props.loan.id}/disburse`);
 const recordPayment = () => paymentForm.post(`/finance/loans/${props.loan.id}/payments`);
+const isLifecycleLocked = ['Active', 'Completed'].includes(props.loan.status);
 
 const formatDate = (value: string | null | undefined) => {
     if (!value) return 'N/A';
@@ -114,21 +115,37 @@ const formatAmount = (value: string | number | null | undefined) => {
         </div>
 
         <div class="grid gap-4 xl:grid-cols-3">
-            <form v-if="permissions.can_approve" class="rounded-lg border bg-card p-4" @submit.prevent="approve">
+            <form
+                v-if="permissions.can_approve"
+                class="rounded-lg border bg-card p-4"
+                :class="{ 'opacity-60 bg-muted/40': isLifecycleLocked }"
+                @submit.prevent="approve"
+            >
                 <h2 class="font-semibold">Approve Loan</h2>
+                <p v-if="isLifecycleLocked" class="mt-2 text-xs text-muted-foreground">
+                    Approval is disabled because this loan is already {{ loan.status }}.
+                </p>
                 <textarea v-model="approveForm.remarks" rows="3" class="mt-3 w-full rounded-md border px-3 py-2 text-sm" placeholder="Approval remarks"></textarea>
-                <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="approveForm.processing">Approve</button>
+                <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="approveForm.processing || isLifecycleLocked">Approve</button>
             </form>
 
-            <form v-if="permissions.can_disburse" class="rounded-lg border bg-card p-4" @submit.prevent="disburse">
+            <form
+                v-if="permissions.can_disburse"
+                class="rounded-lg border bg-card p-4"
+                :class="{ 'opacity-60 bg-muted/40': isLifecycleLocked }"
+                @submit.prevent="disburse"
+            >
                 <h2 class="font-semibold">Disburse</h2>
+                <p v-if="isLifecycleLocked" class="mt-2 text-xs text-muted-foreground">
+                    Disbursement is disabled because this loan is already {{ loan.status }}.
+                </p>
                 <input v-model.number="disburseForm.amount" type="number" step="0.01" class="mt-3 w-full rounded-md border px-3 py-2 text-sm" placeholder="Amount" />
                 <select v-model="disburseForm.disbursement_method" class="mt-3 w-full rounded-md border px-3 py-2 text-sm">
                     <option value="cash">Cash</option>
                     <option value="check">Check</option>
                     <option value="bank_transfer">Bank Transfer</option>
                 </select>
-                <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="disburseForm.processing">Disburse</button>
+                <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="disburseForm.processing || isLifecycleLocked">Disburse</button>
             </form>
 
             <form v-if="permissions.can_record_payment" class="rounded-lg border bg-card p-4" @submit.prevent="recordPayment">

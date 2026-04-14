@@ -261,6 +261,9 @@ const cancel = () => {
                                 <p v-if="form.errors.category" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.category }}
                                 </p>
+                                <p class="mt-1 text-sm text-muted-foreground">
+                                    Activity: tied to a specific activity record. Project: for broader cooperative projects not tied to one activity. Member Concern: support tied to an individual member need.
+                                </p>
                             </div>
 
                             <div v-if="form.category === 'activity'">
