@@ -828,25 +828,25 @@ const getMembershipBadgeColor = (status: string | null) => {
                     v-for="card in summaryCards"
                     :key="card.title"
                     :class="props.isMember
-                        ? 'gap-0 rounded-xl border border-slate-200/70 bg-white p-5 shadow-sm'
-                        : 'group gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5'"
+                        ? 'gap-0 rounded-xl border border-border bg-card p-5 shadow-sm'
+                        : 'group gap-0 rounded-2xl border border-border bg-card p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5'"
                 >
                     <div class="flex items-center justify-between">
-                        <div :class="[card.accent.bg, card.accent.ring, 'rounded-xl p-3 ring-1 transition-colors', props.isMember ? '' : 'group-hover:bg-slate-900/10']">
-                            <component :is="card.icon" :class="[card.accent.text, 'h-5 w-5']" />
+                        <div :class="['rounded-xl bg-muted/70 p-3 ring-1 ring-border/70 transition-colors', props.isMember ? '' : 'group-hover:bg-muted']">
+                            <component :is="card.icon" class="h-5 w-5 text-foreground" />
                         </div>
-                        <Badge v-if="card.helper && !props.isMember" class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                        <Badge v-if="card.helper && !props.isMember" class="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                             {{ card.helper }}
                         </Badge>
                     </div>
                     <div class="mt-4">
-                        <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        <h3 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             {{ card.title }}
                         </h3>
-                        <p v-if="card.helper && props.isMember" class="mt-1 text-xs text-slate-500">
+                        <p v-if="card.helper && props.isMember" class="mt-1 text-xs text-muted-foreground">
                             {{ card.helper }}
                         </p>
-                        <p class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                        <p class="mt-2 text-2xl font-semibold tracking-tight text-foreground">
                             {{ card.value }}
                         </p>
                     </div>

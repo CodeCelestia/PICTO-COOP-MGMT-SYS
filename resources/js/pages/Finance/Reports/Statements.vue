@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
+import { Button } from '@/components/ui/button';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Download } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 type TrendRow = {
@@ -141,9 +143,11 @@ const trendRows = computed<TrendRow[]>(() => {
                 <Link
                     v-if="canExportReports"
                     :href="exportHref"
-                    class="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
                 >
-                    {{ exportLabel }}
+                    <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                        <Download class="h-4 w-4" />
+                        {{ exportLabel }}
+                    </Button>
                 </Link>
             </div>
 
@@ -152,7 +156,7 @@ const trendRows = computed<TrendRow[]>(() => {
 
         <div
             v-if="hasNoStatementData"
-            class="rounded-lg border border-border bg-muted/50 px-4 py-4 text-sm text-muted-foreground"
+            class="mt-6 rounded-lg border border-border bg-muted/50 px-4 py-4 text-sm text-muted-foreground"
         >
             <p class="font-medium text-foreground">No financial statement data yet.</p>
             <p class="mt-1">To generate this report:</p>
@@ -163,7 +167,7 @@ const trendRows = computed<TrendRow[]>(() => {
             </ul>
         </div>
 
-        <div v-if="isStatementMode" class="rounded-lg border border-border bg-card">
+        <div v-if="isStatementMode" class="mt-6 rounded-lg border border-border bg-card">
             <div class="grid grid-cols-[1fr_auto] gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-6">
                 <span>Category</span>
                 <span>Amount</span>
@@ -194,7 +198,7 @@ const trendRows = computed<TrendRow[]>(() => {
             </div>
         </div>
 
-        <div v-else-if="props.mode === 'funder-accountability'" class="rounded-lg border border-border bg-card">
+        <div v-else-if="props.mode === 'funder-accountability'" class="mt-6 rounded-lg border border-border bg-card">
             <div class="grid grid-cols-[1fr_auto] gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-6">
                 <span>Metric</span>
                 <span>Value</span>
@@ -211,7 +215,7 @@ const trendRows = computed<TrendRow[]>(() => {
             </div>
         </div>
 
-        <div v-else class="space-y-3 rounded-lg border border-border bg-card p-4 sm:p-6">
+        <div v-else class="mt-6 space-y-3 rounded-lg border border-border bg-card p-4 sm:p-6">
             <div class="flex items-center justify-between border-b border-border pb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>Period</span>
                 <span>Total Amount</span>

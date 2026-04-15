@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
+import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -70,23 +71,29 @@ watch(activeFinanceTab, (tab) => {
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="space-y-1">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <Card class="border-border bg-card/95 shadow-sm">
+                <CardContent class="space-y-4 p-4 sm:p-5">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{{ activeHeader.title }}</h1>
+                            <p class="text-sm text-muted-foreground">{{ activeHeader.subtitle }}</p>
+                        </div>
+                        <div v-if="$slots['header-actions']" class="flex items-center gap-2">
+                            <slot name="header-actions" />
+                        </div>
+                    </div>
+
                     <div>
-                        <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{{ activeHeader.title }}</h1>
-                        <p class="text-sm text-muted-foreground">{{ activeHeader.subtitle }}</p>
+                        <LiftedTabs v-model="activeFinanceTab" :tabs="financeTabs" />
                     </div>
-                    <div v-if="$slots['header-actions']" class="flex items-center gap-2">
-                        <slot name="header-actions" />
-                    </div>
-                </div>
-            </div>
+                </CardContent>
+            </Card>
 
-            <div class="rounded-xl border border-border bg-card p-4">
-                <LiftedTabs v-model="activeFinanceTab" :tabs="financeTabs" />
-            </div>
-
-            <slot />
+            <Card class="border-border bg-card/95 shadow-sm">
+                <CardContent class="p-4 sm:p-5">
+                    <slot />
+                </CardContent>
+            </Card>
         </div>
     </AppLayout>
 </template>

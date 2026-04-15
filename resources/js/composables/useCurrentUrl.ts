@@ -23,9 +23,23 @@ export type UseCurrentUrlReturn = {
 };
 
 const page = usePage();
+const normalizePath = (path: string) => {
+    if (!path) {
+        return '/';
+    }
+
+    const trimmed = path.trim();
+
+    if (trimmed === '/') {
+        return '/';
+    }
+
+    return trimmed.replace(/\/+$/, '');
+};
+
 const currentUrlReactive = computed(() => {
     try {
-        return new URL(page.url, window?.location.origin).pathname;
+        return normalizePath(new URL(page.url, window?.location.origin).pathname);
     } catch {
         return '/';
     }
@@ -37,15 +51,22 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
         currentUrl?: string,
         startsWith: boolean = false,
     ) {
-        const urlToCompare = currentUrl ?? currentUrlReactive.value;
+        const urlToCompare = normalizePath(currentUrl ?? currentUrlReactive.value);
         const urlString = toUrl(urlToCheck);
 
         if (!urlString) {
             return false;
         }
 
-        const comparePath = (path: string): boolean =>
-            startsWith ? urlToCompare.startsWith(path) : path === urlToCompare;
+        const comparePath = (path: string): boolean => {
+            const normalizedPath = normalizePath(path);
+
+            return startsWith
+                ? normalizedPath === '/'
+                    ? urlToCompare === '/'
+                    : urlToCompare === normalizedPath || urlToCompare.startsWith(`${normalizedPath}/`)
+                : normalizedPath === urlToCompare;
+        };
 
         if (!urlString.startsWith('http')) {
             return comparePath(urlString);

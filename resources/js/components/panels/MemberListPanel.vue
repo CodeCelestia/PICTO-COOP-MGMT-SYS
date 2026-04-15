@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
-import { Plus, Pencil, Trash2, Search, Eye, Wallet } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Search, Eye, Wallet, UserPlus } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -428,6 +428,35 @@ const submitCreateAccount = () => {
                             </TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
+                                    <Badge
+                                        v-if="canCreateUserAccounts && hasLinkedAccount(member)"
+                                        variant="secondary"
+                                        class="h-8 px-2.5"
+                                    >
+                                        Has Account
+                                    </Badge>
+                                    <Button
+                                        v-else-if="canCreateUserAccounts"
+                                        @click="openCreateAccountModal(member)"
+                                        variant="default"
+                                        size="sm"
+                                        class="h-8 gap-1.5 border border-slate-900 bg-slate-900 text-white hover:bg-slate-800 dark:border-slate-300 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                                        title="Create linked account"
+                                    >
+                                        <UserPlus class="h-4 w-4" />
+                                        Create Account
+                                    </Button>
+                                    <Link v-if="canReadMemberLoans" :href="`/finance/loans?member_id=${member.id}`">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            class="h-8 gap-1.5 border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-900/55"
+                                            title="View member loans"
+                                        >
+                                            <Wallet class="h-4 w-4" />
+                                            Loans
+                                        </Button>
+                                    </Link>
                                     <Link v-if="canViewMember" :href="`/members/${member.id}`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1.5" title="View member">
                                             <Eye class="h-4 w-4" />
@@ -440,29 +469,6 @@ const submitCreateAccount = () => {
                                             Edit
                                         </Button>
                                     </Link>
-                                    <Link v-if="canReadMemberLoans" :href="`/finance/loans?member_id=${member.id}`">
-                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-other gap-1.5" title="View member loans">
-                                            <Wallet class="h-4 w-4" />
-                                            Loans
-                                        </Button>
-                                    </Link>
-                                    <Badge
-                                        v-if="canCreateUserAccounts && hasLinkedAccount(member)"
-                                        variant="secondary"
-                                        class="h-8 px-2.5"
-                                    >
-                                        Has Account
-                                    </Badge>
-                                    <Button
-                                        v-else-if="canCreateUserAccounts"
-                                        @click="openCreateAccountModal(member)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-other gap-1.5"
-                                        title="Create linked account"
-                                    >
-                                        Create Account
-                                    </Button>
                                     <Button
                                         v-if="canDeleteMember"
                                         @click="deleteMember(member)"

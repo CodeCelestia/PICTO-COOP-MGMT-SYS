@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 
 interface FinancialRecord {
@@ -69,17 +71,20 @@ const deleteRecord = (recordId: number) => {
     <Head title="Finance - Financial Records" />
 
     <FinanceShellLayout active-tab="financial-records">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold">Financial Records</h1>
                 <p class="text-sm text-muted-foreground">Loan and savings records are posted automatically. Use manual entries here for other finance transactions.</p>
             </div>
-            <Link v-if="permissions.can_create" href="/finance/financial-records/create" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-                Add Manual Entry
+            <Link v-if="permissions.can_create" href="/finance/financial-records/create">
+                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                    <Plus class="h-4 w-4" />
+                    Add Manual Entry
+                </Button>
             </Link>
         </div>
 
-        <div class="overflow-hidden rounded-lg border bg-card">
+        <div class="mt-6 overflow-hidden rounded-lg border bg-card">
             <table class="w-full text-sm">
                 <thead class="bg-muted/40">
                     <tr>
@@ -104,23 +109,33 @@ const deleteRecord = (recordId: number) => {
                         <td class="px-4 py-3">{{ formatAmount(record.amount) }}</td>
                         <td class="px-4 py-3">{{ formatDate(record.date_recorded) }}</td>
                         <td class="px-4 py-3">
-                            <div class="flex items-center gap-3">
-                                <Link :href="`/finance/financial-records/${record.id}`" class="text-primary hover:underline">View</Link>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Link :href="`/finance/financial-records/${record.id}`">
+                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                        <Eye class="h-4 w-4" />
+                                        View
+                                    </Button>
+                                </Link>
                                 <Link
                                     v-if="permissions.can_edit"
                                     :href="`/finance/financial-records/${record.id}/edit`"
-                                    class="text-primary hover:underline"
                                 >
-                                    Edit
+                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
+                                        <Pencil class="h-4 w-4" />
+                                        Edit
+                                    </Button>
                                 </Link>
-                                <button
+                                <Button
                                     v-if="permissions.can_delete"
                                     type="button"
-                                    class="text-red-600 hover:underline"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
                                     @click="deleteRecord(record.id)"
                                 >
+                                    <Trash2 class="h-4 w-4" />
                                     Delete
-                                </button>
+                                </Button>
                             </div>
                         </td>
                     </tr>

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/vue3';
+import { Eye, Plus } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 
 interface FundingSource {
@@ -51,17 +53,20 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
     <Head title="Finance - Funding Sources" />
 
     <FinanceShellLayout active-tab="funding-sources">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold">Funding Sources</h1>
                 <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
             </div>
-            <Link v-if="permissions.can_create" href="/finance/funding-sources/create" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-                New Funding Source
+            <Link v-if="permissions.can_create" href="/finance/funding-sources/create">
+                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                    <Plus class="h-4 w-4" />
+                    New Funding Source
+                </Button>
             </Link>
         </div>
 
-        <div class="overflow-hidden rounded-lg border bg-card">
+        <div class="mt-6 overflow-hidden rounded-lg border bg-card">
             <table class="w-full text-sm">
                 <thead class="bg-muted/40">
                     <tr>
@@ -99,7 +104,12 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                         <td class="px-4 py-3">{{ formatAmount(item.amount_allocated) }}</td>
                         <td class="px-4 py-3">{{ formatAmount(item.amount_released) }}</td>
                         <td class="px-4 py-3">
-                            <Link :href="`/finance/funding-sources/${item.id}`" class="text-primary hover:underline">Open</Link>
+                            <Link :href="`/finance/funding-sources/${item.id}`">
+                                <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                    <Eye class="h-4 w-4" />
+                                    View
+                                </Button>
+                            </Link>
                         </td>
                     </tr>
                 </tbody>

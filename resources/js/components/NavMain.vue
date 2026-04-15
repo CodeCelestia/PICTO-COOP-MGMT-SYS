@@ -31,7 +31,7 @@ const props = defineProps<{
     items: NavItem[];
 }>();
 
-const { isCurrentUrl } = useCurrentUrl();
+const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
 const sectionDefinitions: SectionDefinition[] = [
     {
         id: 'management',
@@ -69,7 +69,6 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
                 url.startsWith('/pds') ||
                 url.startsWith('/activities') ||
                 url.startsWith('/trainings') ||
-                url.startsWith('/skill-inventories') ||
                 url.startsWith('/member-portal/activities') ||
                 url.startsWith('/finance') ||
                 url.startsWith('/member-portal/services') ||
@@ -109,6 +108,16 @@ function isPlaceholderHref(href: NavItem['href']) {
 
     return !url || url === '#';
 }
+
+function isItemActive(item: NavItem) {
+    const url = toUrl(item.href);
+
+    if (url === '/finance') {
+        return isCurrentOrParentUrl(item.href);
+    }
+
+    return isCurrentUrl(item.href);
+}
 </script>
 
 <template>
@@ -121,7 +130,7 @@ function isPlaceholderHref(href: NavItem['href']) {
                 <SidebarMenuButton
                     as-child
                     :tooltip="dashboardItem.title"
-                    :is-active="isCurrentUrl(dashboardItem.href)"
+                    :is-active="isItemActive(dashboardItem)"
                 >
                     <Link
                         :href="dashboardItem.href"
@@ -158,7 +167,7 @@ function isPlaceholderHref(href: NavItem['href']) {
                             v-if="!isPlaceholderHref(item.href)"
                             as-child
                             :tooltip="item.title"
-                            :is-active="isCurrentUrl(item.href)"
+                            :is-active="isItemActive(item)"
                         >
                             <Link
                                 :href="item.href"
@@ -193,7 +202,7 @@ function isPlaceholderHref(href: NavItem['href']) {
                     v-if="!isPlaceholderHref(item.href)"
                     as-child
                     :tooltip="item.title"
-                    :is-active="isCurrentUrl(item.href)"
+                    :is-active="isItemActive(item)"
                 >
                     <Link
                         :href="item.href"

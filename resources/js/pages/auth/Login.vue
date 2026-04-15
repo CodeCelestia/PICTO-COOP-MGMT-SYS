@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import { Mail, Lock } from 'lucide-vue-next';
+import { Form, Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, Mail, Lock } from 'lucide-vue-next';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthSplitCard from '@/layouts/auth/AuthSplitCard.vue';
-import { register } from '@/routes';
+import { home } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -18,11 +19,50 @@ defineProps<{
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
+
+const philippineDate = ref('');
+const philippineTime = ref('');
+let philippineClock: ReturnType<typeof setInterval> | null = null;
+
+const updatePhilippineClock = () => {
+    const now = new Date();
+    philippineDate.value = now.toLocaleDateString('en-PH', {
+        timeZone: 'Asia/Manila',
+        weekday: 'long',
+        month: 'long',
+        day: '2-digit',
+        year: 'numeric',
+    });
+    philippineTime.value = now.toLocaleTimeString('en-PH', {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    });
+};
+
+onMounted(() => {
+    updatePhilippineClock();
+    philippineClock = setInterval(updatePhilippineClock, 1000);
+});
+
+onBeforeUnmount(() => {
+    if (philippineClock) {
+        clearInterval(philippineClock);
+        philippineClock = null;
+    }
+});
 </script>
 
 <template>
-    <AuthSplitCard>
-        <Head title="Sign In - Coop System">
+    <AuthSplitCard
+        title="Coop SDN Management Information System"
+        :show-project-logo="true"
+        :title-date="philippineDate"
+        :title-time="philippineTime"
+    >
+        <Head title="Login">
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
             <link
@@ -34,22 +74,17 @@ defineProps<{
         <!-- Welcome Header -->
         <div class="mb-8 text-white">
             <div class="mb-2 flex items-center gap-2">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 text-sky-100">
-                    <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        class="h-6 w-6" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                    >
-                        <path 
-                            stroke-linecap="round" 
-                            stroke-linejoin="round" 
-                            stroke-width="2" 
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-                        />
-                    </svg>
-                </div>
+                <Button
+                    as-child
+                    variant="outline"
+                    size="sm"
+                    class="h-9 border-sky-300/35 bg-slate-950/40 px-3 text-sky-100 hover:bg-sky-500/15"
+                >
+                    <Link :href="home()" class="inline-flex items-center gap-1.5">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back
+                    </Link>
+                </Button>
             </div>
             <h2 class="font-display text-2xl font-semibold">Welcome back</h2>
             <p class="mt-1 text-sm text-slate-300/90">
@@ -152,21 +187,6 @@ defineProps<{
                     <Spinner v-if="processing" class="mr-2" />
                     Sign In
                 </Button>
-            </div>
-
-            <!-- Register Link -->
-            <div
-                class="text-center text-sm text-slate-300/90"
-                v-if="canRegister"
-            >
-                Don't have an account?
-                <TextLink 
-                    :href="register()" 
-                    :tabindex="5" 
-                    class="font-medium text-sky-300 hover:text-sky-200 hover:underline"
-                >
-                    Create an account
-                </TextLink>
             </div>
         </Form>
     </AuthSplitCard>

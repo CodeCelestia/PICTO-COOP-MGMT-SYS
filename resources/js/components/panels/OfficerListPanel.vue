@@ -185,9 +185,6 @@ const bulkDeleteOfficers = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link href="/committee-members" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Committee Members
-                    </Link>
                     <Link v-if="canCreateOfficer" href="/officers/create">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />

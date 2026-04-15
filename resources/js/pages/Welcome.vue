@@ -4,7 +4,6 @@ import {
     ArrowRight,
     BarChart3,
     Building2,
-    CircuitBoard,
     Handshake,
     LockKeyhole,
     Quote,
@@ -197,12 +196,13 @@ onBeforeUnmount(() => {
         <header class="sticky top-0 z-40 border-b border-sky-300/15 bg-slate-950/45 backdrop-blur-sm">
             <div class="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
                 <a href="#top" class="group flex items-center gap-4">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-xl border border-sky-300/30 bg-slate-950/80 text-sky-200 transition-colors group-hover:border-sky-200/70 group-hover:text-sky-100">
-                        <CircuitBoard class="h-6 w-6" />
+                    <div class="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-sky-300/30 bg-slate-950/80 text-sky-200 transition-colors group-hover:border-sky-200/70 group-hover:text-sky-100">
+                        <img src="/SDN_Logo.png" alt="SDN Logo" class="h-11 w-11 object-contain" />
                     </div>
                     <div>
-                        <p class="font-display text-base font-semibold tracking-wide text-sky-100 sm:text-lg">Coop System</p>
-                        <p class="text-sm text-slate-300/85">Cooperative Management Platform</p>
+                        <p class="font-display text-base font-semibold tracking-wide text-sky-100 sm:text-lg">
+                            Coop SDN Management Information System
+                        </p>
                     </div>
                 </a>
 
@@ -218,17 +218,9 @@ onBeforeUnmount(() => {
                     <template v-else>
                         <Button
                             as-child
-                            variant="outline"
-                            class="border-sky-200/40 bg-slate-950/40 font-semibold text-sky-100 hover:bg-sky-500/15"
-                        >
-                            <Link :href="login()">Login</Link>
-                        </Button>
-
-                        <Button
-                            as-child
                             class="bg-[#0e7ea0] font-semibold text-white shadow-[0_0_0_1px_rgba(126,221,255,0.28)] hover:bg-[#1294bc]"
                         >
-                            <Link :href="canRegister ? register() : login()">Sign Up</Link>
+                            <Link :href="login()">Login</Link>
                         </Button>
                     </template>
                 </div>

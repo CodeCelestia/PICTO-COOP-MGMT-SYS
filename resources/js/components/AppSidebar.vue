@@ -9,7 +9,6 @@ import {
     History,
     Building2,
     GraduationCap,
-    Sparkles,
     FileSpreadsheet,
     Shield,
 } from 'lucide-vue-next';
@@ -58,7 +57,6 @@ const canViewFinance = computed(() =>
     || can('read finance-savings-accounts')
     || can('read finance-reports')
 );
-const canViewSkillInventories = computed(() => can('read training-&-capacity'));
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
@@ -110,11 +108,6 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Trainings',
             href: '/trainings',
             icon: GraduationCap,
-        },
-        {
-            title: 'Skills Inventory',
-            href: '/skill-inventories',
-            icon: Sparkles,
         },
     ];
 
@@ -198,15 +191,6 @@ const mainNavItems = computed<NavItem[]>(() => {
 
     if (canViewTrainings.value) {
         items.push(baseItems[8]);
-    }
-
-
-    if (canViewSkillInventories.value) {
-        items.push({
-            title: 'Skills Inventory',
-            href: canViewAllCoops.value ? '/skill-inventories/select' : '/skill-inventories',
-            icon: Sparkles,
-        });
     }
 
     if (canViewActivityLogs.value) {

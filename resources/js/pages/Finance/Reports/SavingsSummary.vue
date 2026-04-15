@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
+import { Button } from '@/components/ui/button';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Download } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -78,9 +80,11 @@ const hasNoSavingsData = computed(() => {
                 <Link
                     v-if="canExportReports"
                     href="/finance/reports/savings-summary/export"
-                    class="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
                 >
-                    Export Savings Summary
+                    <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                        <Download class="h-4 w-4" />
+                        Export Savings Summary
+                    </Button>
                 </Link>
             </div>
 
@@ -89,12 +93,12 @@ const hasNoSavingsData = computed(() => {
 
         <div
             v-if="hasNoSavingsData"
-            class="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+            class="mt-6 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
         >
             No savings data has been recorded yet. Start by creating savings accounts and posting transactions.
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <div class="rounded-lg border border-border bg-card p-4">
                 <div class="text-xs text-muted-foreground">Total Accounts</div>
                 <div class="mt-1 text-xl font-semibold">{{ summary.total_accounts }}</div>
