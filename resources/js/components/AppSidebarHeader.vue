@@ -71,7 +71,7 @@ const buildGenericBreadcrumbs = (path: string, rootTitle: string, rootHref: stri
 
 const buildFinanceBreadcrumbs = (path: string): BreadcrumbItem[] => {
     const segments = path.split('/').filter(Boolean);
-    const crumbs: BreadcrumbItem[] = [{ title: 'Finance', href: '/finance/funding-sources' }];
+    const crumbs: BreadcrumbItem[] = [{ title: 'Finance', href: '/finance' }];
 
     if (segments.length < 2) {
         return crumbs;

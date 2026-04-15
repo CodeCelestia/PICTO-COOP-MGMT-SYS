@@ -110,7 +110,7 @@ provideSidebarContext({
         '--sidebar-width': isLargeMode ? SIDEBAR_WIDTH_LARGE : SIDEBAR_WIDTH,
         '--sidebar-width-icon': isLargeMode ? SIDEBAR_WIDTH_ICON_LARGE : SIDEBAR_WIDTH_ICON,
         '--sidebar-menu-item-gap': isLargeMode ? '16px' : '12px',
-        '--sidebar-menu-font-size': isLargeMode ? '18px' : '16px',
+        '--sidebar-menu-font-size': isLargeMode ? '19px' : '17px',
         '--sidebar-menu-item-height': isLargeMode ? '44px' : '36px',
         '--sidebar-menu-item-height-lg': isLargeMode ? '52px' : '48px',
         '--sidebar-menu-icon-size': isLargeMode ? '24px' : '20px',

@@ -79,7 +79,7 @@ const deleteLoan = (loanId: number) => {
                 </p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/loans/create">
-                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Loan
                 </Button>

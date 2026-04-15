@@ -61,7 +61,7 @@ const closeAccount = (savingsId: number) => {
                 <p class="text-sm text-muted-foreground">Manage member savings accounts, balances, and deposit or withdrawal activity in one place.</p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/savings/create">
-                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     Open Savings Account
                 </Button>

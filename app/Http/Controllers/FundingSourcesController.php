@@ -55,6 +55,17 @@ class FundingSourcesController extends Controller
 
     public function show(ActivityFundingSource $fundingSource)
     {
-        return redirect()->route('activity-funding-sources.edit', $fundingSource);
+        $user = request()->user();
+
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $fundingSource->coop_id !== $user->coop_id) {
+            abort(403);
+        }
+
+        return Inertia::render('Finance/FundingSources/Show', [
+            'fundingSource' => $fundingSource->load(['activity:id,title', 'cooperative:id,name']),
+            'permissions' => [
+                'can_edit' => $user?->can('update finance-funding-sources') ?? false,
+            ],
+        ]);
     }
 }

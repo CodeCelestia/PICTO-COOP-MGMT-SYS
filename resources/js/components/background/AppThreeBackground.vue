@@ -9,7 +9,7 @@ type Runtime = {
     scene: THREE.Scene | null;
     camera: THREE.PerspectiveCamera | null;
     frameId: number;
-    clock: THREE.Clock | null;
+    clock: THREE.Timer | null;
     visibilityPaused: boolean;
     networkGroup: THREE.Group | null;
     structures: THREE.InstancedMesh | null;
@@ -246,12 +246,12 @@ const onResize = (runtime: Runtime) => {
     runtime.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 };
 
-const animate = (runtime: Runtime) => {
+const animate = (runtime: Runtime, timestamp?: number) => {
     if (!runtime.renderer || !runtime.scene || !runtime.camera || !runtime.clock) {
         return;
     }
 
-    runtime.frameId = window.requestAnimationFrame(() => animate(runtime));
+    runtime.frameId = window.requestAnimationFrame((nextTimestamp) => animate(runtime, nextTimestamp));
 
     if (runtime.visibilityPaused) {
         return;
@@ -261,7 +261,8 @@ const animate = (runtime: Runtime) => {
         return;
     }
 
-    const elapsed = runtime.clock.getElapsedTime();
+    runtime.clock.update(timestamp);
+    const elapsed = runtime.clock.getElapsed();
 
     if (runtime.networkGroup) {
         runtime.networkGroup.rotation.y = elapsed * 0.055;
@@ -398,7 +399,7 @@ const initializeRuntime = (runtime: Runtime) => {
     runtime.rings = makeRings(runtime);
     runtime.scene.add(runtime.rings);
 
-    runtime.clock = new THREE.Clock();
+    runtime.clock = new THREE.Timer();
     onResize(runtime);
 
     runtime.visibilityHandler = () => {

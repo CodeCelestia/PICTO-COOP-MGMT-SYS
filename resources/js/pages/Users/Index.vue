@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { Users, Plus, X, Calendar, MessageSquare, UserPlus, Mail, Lock, User as UserIcon, Pencil, Trash2, Eye } from 'lucide-vue-next';
+import { Users, Plus, X, Calendar, MessageSquare, UserPlus, Mail, Lock, User as UserIcon, Pencil, Trash2, Eye, Search, Check } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -107,6 +107,9 @@ const roleForm = useForm({
 });
 
 const isCreateDialogOpen = ref(false);
+const isCoopPickerOpen = ref(false);
+const coopPickerSearch = ref('');
+const coopPickerFilter = ref<'all' | 'a-m' | 'n-z'>('all');
 const createForm = useForm({
     name: '',
     email: '',
@@ -122,7 +125,7 @@ const openAssignDialog = (user: User) => {
     selectedRoleId.value = null;
     expiresAt.value = '';
     remarks.value = '';
-    selectedCoopId.value = null;
+    selectedCoopId.value = user.coop_id || null;
     isAssignDialogOpen.value = true;
 };
 
@@ -262,7 +265,62 @@ const getAccountStatusBadgeColor = (accountStatus: string | undefined) => {
 const openCreateDialog = () => {
     if (!canCreateUsers.value) return;
     createForm.reset();
+    createForm.coop_id = '';
+    createForm.role_ids = [];
+    coopPickerSearch.value = '';
+    coopPickerFilter.value = 'all';
+    isCoopPickerOpen.value = false;
     isCreateDialogOpen.value = true;
+};
+
+const sortedCooperatives = computed(() =>
+    [...props.cooperatives].sort((a, b) => a.name.localeCompare(b.name)),
+);
+
+const filteredCooperatives = computed(() => {
+    const search = coopPickerSearch.value.trim().toLowerCase();
+
+    return sortedCooperatives.value.filter((coop) => {
+        const name = coop.name.toLowerCase();
+        const firstLetter = name.charAt(0);
+        const matchesSearch = search === '' || name.includes(search) || String(coop.id).includes(search);
+
+        if (!matchesSearch) {
+            return false;
+        }
+
+        if (coopPickerFilter.value === 'a-m') {
+            return firstLetter >= 'a' && firstLetter <= 'm';
+        }
+
+        if (coopPickerFilter.value === 'n-z') {
+            return firstLetter >= 'n' && firstLetter <= 'z';
+        }
+
+        return true;
+    });
+});
+
+const selectedCreateCooperative = computed(() => {
+    const coopId = Number(createForm.coop_id);
+    if (!coopId) {
+        return null;
+    }
+
+    return props.cooperatives.find((coop) => coop.id === coopId) || null;
+});
+
+const openCooperativePicker = () => {
+    if (!showCoopSelector.value) {
+        return;
+    }
+
+    isCoopPickerOpen.value = true;
+};
+
+const selectCooperativeForCreate = (coop: Cooperative) => {
+    createForm.coop_id = String(coop.id);
+    isCoopPickerOpen.value = false;
 };
 
 const openRoleDialog = () => {
@@ -909,21 +967,25 @@ const toggleRole = (roleId: number) => {
                         </div>
 
                         <div v-if="showCoopSelector" class="grid gap-2">
-                            <Label for="create_coop_id">Cooperative</Label>
-                            <Select v-model="createForm.coop_id">
-                                <SelectTrigger id="create_coop_id" :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.coop_id }">
-                                    <SelectValue placeholder="Select cooperative" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="coop in cooperatives"
-                                        :key="coop.id"
-                                        :value="coop.id.toString()"
-                                    >
-                                        {{ coop.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label for="create_coop_picker">Cooperative</Label>
+                            <Button
+                                id="create_coop_picker"
+                                type="button"
+                                variant="outline"
+                                class="h-10 w-full items-center justify-between"
+                                :class="{ 'border-red-500 focus-visible:ring-red-500': createForm.errors.coop_id }"
+                                @click="openCooperativePicker"
+                            >
+                                <span class="truncate text-left">
+                                    {{ selectedCreateCooperative ? selectedCreateCooperative.name : 'Choose Cooperative' }}
+                                </span>
+                                <span class="ml-2 text-xs text-muted-foreground">
+                                    {{ selectedCreateCooperative ? `ID ${selectedCreateCooperative.id}` : 'Select' }}
+                                </span>
+                            </Button>
+                            <p v-if="selectedCreateCooperative" class="text-xs text-muted-foreground">
+                                Selected Cooperative: {{ selectedCreateCooperative.name }}
+                            </p>
                             <p v-if="createForm.errors.coop_id" class="text-sm text-red-600">
                                 {{ createForm.errors.coop_id }}
                             </p>
@@ -933,7 +995,7 @@ const toggleRole = (roleId: number) => {
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            @click="isCreateDialogOpen = false"
+                            @click="isCreateDialogOpen = false; isCoopPickerOpen = false"
                             :disabled="createForm.processing"
                         >
                             Cancel
@@ -943,6 +1005,80 @@ const toggleRole = (roleId: number) => {
                             :disabled="createForm.processing"
                         >
                             {{ createForm.processing ? 'Creating...' : 'Create User' }}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog v-model:open="isCoopPickerOpen">
+                <DialogContent class="w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Choose Cooperative</DialogTitle>
+                        <DialogDescription>
+                            Search and filter cooperatives, then select one to assign to the new user.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="grid gap-4 py-2">
+                        <div class="grid gap-3 sm:grid-cols-3">
+                            <div class="grid gap-2 sm:col-span-2">
+                                <Label for="coop_search">Search</Label>
+                                <div class="relative">
+                                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        id="coop_search"
+                                        v-model="coopPickerSearch"
+                                        class="pl-9"
+                                        placeholder="Search by cooperative name or ID"
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label for="coop_filter">Filter</Label>
+                                <Select v-model="coopPickerFilter">
+                                    <SelectTrigger id="coop_filter">
+                                        <SelectValue placeholder="All names" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All names</SelectItem>
+                                        <SelectItem value="a-m">Name A-M</SelectItem>
+                                        <SelectItem value="n-z">Name N-Z</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div class="max-h-80 overflow-y-auto rounded-md border border-border">
+                            <div v-if="!filteredCooperatives.length" class="px-4 py-8 text-center text-sm text-muted-foreground">
+                                No Cooperatives found.
+                            </div>
+
+                            <button
+                                v-for="coop in filteredCooperatives"
+                                :key="coop.id"
+                                type="button"
+                                class="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition hover:bg-muted/50 last:border-b-0"
+                                @click="selectCooperativeForCreate(coop)"
+                            >
+                                <div>
+                                    <div class="font-medium text-foreground">{{ coop.name }}</div>
+                                    <div class="text-xs text-muted-foreground">Cooperative ID: {{ coop.id }}</div>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-medium text-primary">
+                                    <Check
+                                        v-if="selectedCreateCooperative?.id === coop.id"
+                                        class="h-4 w-4"
+                                    />
+                                    <span>{{ selectedCreateCooperative?.id === coop.id ? 'Selected' : 'Select' }}</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" @click="isCoopPickerOpen = false">
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>

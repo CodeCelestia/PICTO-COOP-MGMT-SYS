@@ -16,7 +16,7 @@ const delegatedProps = reactiveOmit(props, "class")
     v-bind="delegatedProps"
     :class="
       cn(
-        'flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+        'mb-1.5 flex items-center gap-2 text-sm leading-none font-medium select-none has-data-[slot=checkbox]:mb-0 has-[input[type=checkbox]]:mb-0 has-[input[type=radio]]:mb-0 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
         props.class,
       )
     "

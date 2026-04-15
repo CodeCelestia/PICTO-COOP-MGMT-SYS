@@ -59,7 +59,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                 <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/funding-sources/create">
-                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Funding Source
                 </Button>

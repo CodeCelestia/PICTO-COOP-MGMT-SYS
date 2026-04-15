@@ -211,12 +211,12 @@ const footerNavItems = computed<NavItem[]>(() => {
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
+        <SidebarHeader class="px-2 pt-3 pb-5">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
                         <Link :href="dashboard()">
-                            <AppLogo />
+                            <AppLogo variant="sidebar" />
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

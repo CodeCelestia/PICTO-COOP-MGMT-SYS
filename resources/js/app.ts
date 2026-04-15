@@ -10,6 +10,22 @@ import { initializeTheme } from '@/composables/useAppearance';
 const appName = 'COOP-SDN-MIS';
 const NAVIGATION_STUCK_TIMEOUT_MS = 8000;
 const ALERT_CONFIRM_COLOR = '#0e7ea0';
+const PHONE_PLACEHOLDER = '09XX-XXX-XXXX';
+const PHONE_INVALID_MESSAGE = 'Please enter a valid Philippine phone number (11 digits).';
+const PHONE_FIELD_PATTERN = /(phone|mobile|cell(?:phone)?|telephone|tel|contact(?:[_\s-]*(?:no|number))?)/i;
+const PHONE_CONTROL_KEYS = new Set([
+    'Backspace',
+    'Delete',
+    'Tab',
+    'Escape',
+    'Enter',
+    'ArrowLeft',
+    'ArrowRight',
+    'ArrowUp',
+    'ArrowDown',
+    'Home',
+    'End',
+]);
 
 let pendingNavigationUrl: string | null = null;
 let navigationWatchdog: ReturnType<typeof setTimeout> | null = null;
@@ -97,6 +113,297 @@ const isVisibleField = (field: HTMLElement) => {
     return field.offsetParent !== null || field.getClientRects().length > 0;
 };
 
+const getPhoneLabelText = (field: HTMLInputElement) => {
+    if (field.id) {
+        const associatedLabel = document.querySelector(`label[for="${field.id}"]`);
+        if (associatedLabel?.textContent) {
+            return associatedLabel.textContent;
+        }
+    }
+
+    const wrappedLabel = field.closest('label');
+    if (wrappedLabel?.textContent) {
+        return wrappedLabel.textContent;
+    }
+
+    const parentLabel = field.parentElement?.querySelector('label');
+    if (parentLabel?.textContent) {
+        return parentLabel.textContent;
+    }
+
+    return '';
+};
+
+const isPhoneInputField = (field: HTMLInputElement) => {
+    if (field.dataset.phoneField === 'true') {
+        return true;
+    }
+
+    if (field.type === 'tel') {
+        return true;
+    }
+
+    const signature = [
+        field.name,
+        field.id,
+        field.autocomplete,
+        field.getAttribute('aria-label') || '',
+        field.placeholder,
+        getPhoneLabelText(field),
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    return PHONE_FIELD_PATTERN.test(signature);
+};
+
+const toDigits = (value: string) => value.replace(/\D/g, '');
+
+const normalizeToLocalPhoneDigits = (value: string) => {
+    let digits = toDigits(value);
+
+    if (digits.startsWith('63')) {
+        digits = `0${digits.slice(2)}`;
+    } else if (digits.startsWith('9')) {
+        digits = `0${digits}`;
+    }
+
+    return digits.slice(0, 11);
+};
+
+const formatPhoneDisplay = (value: string) => {
+    const raw = value.trim();
+    const digits = toDigits(raw);
+
+    if (!digits.length) {
+        return raw.startsWith('+') ? '+63 ' : '';
+    }
+
+    const wantsInternational =
+        raw.startsWith('+63')
+        || raw.startsWith('+')
+        || (!raw.startsWith('0') && digits.startsWith('63'));
+
+    if (wantsInternational) {
+        let intlDigits = digits;
+
+        if (intlDigits.startsWith('0')) {
+            intlDigits = `63${intlDigits.slice(1)}`;
+        } else if (intlDigits.startsWith('9')) {
+            intlDigits = `63${intlDigits}`;
+        } else if (!intlDigits.startsWith('63')) {
+            intlDigits = `63${intlDigits}`;
+        }
+
+        intlDigits = intlDigits.slice(0, 12);
+        const subscriberNumber = intlDigits.slice(2, 12);
+
+        let formatted = '+63';
+        if (subscriberNumber.length > 0) {
+            formatted += ` ${subscriberNumber.slice(0, 3)}`;
+        }
+        if (subscriberNumber.length > 3) {
+            formatted += `-${subscriberNumber.slice(3, 6)}`;
+        }
+        if (subscriberNumber.length > 6) {
+            formatted += `-${subscriberNumber.slice(6, 10)}`;
+        }
+
+        return formatted;
+    }
+
+    let localDigits = digits;
+    if (localDigits.startsWith('63')) {
+        localDigits = `0${localDigits.slice(2)}`;
+    } else if (localDigits.startsWith('9')) {
+        localDigits = `0${localDigits}`;
+    }
+
+    localDigits = localDigits.slice(0, 11);
+
+    let formatted = localDigits.slice(0, 4);
+    if (localDigits.length > 4) {
+        formatted += `-${localDigits.slice(4, 7)}`;
+    }
+    if (localDigits.length > 7) {
+        formatted += `-${localDigits.slice(7, 11)}`;
+    }
+
+    return formatted;
+};
+
+const applyPhoneFieldDefaults = (field: HTMLInputElement) => {
+    field.dataset.phoneField = 'true';
+    field.placeholder = PHONE_PLACEHOLDER;
+    field.inputMode = 'numeric';
+
+    if (!field.autocomplete) {
+        field.autocomplete = 'tel';
+    }
+};
+
+const applyPhoneFormattingToField = (field: HTMLInputElement, dispatchInput = false) => {
+    if (!isPhoneInputField(field)) {
+        return;
+    }
+
+    applyPhoneFieldDefaults(field);
+
+    const formattedValue = formatPhoneDisplay(field.value);
+    if (field.value === formattedValue) {
+        return;
+    }
+
+    field.value = formattedValue;
+
+    if (dispatchInput) {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+        try {
+            field.setSelectionRange(formattedValue.length, formattedValue.length);
+        } catch {
+            // Keep behavior safe for inputs that don't support text selection.
+        }
+    }
+};
+
+const applyPhoneFormattingToDocument = (root: ParentNode = document) => {
+    root.querySelectorAll<HTMLInputElement>('input').forEach((field) => {
+        if (isPhoneInputField(field)) {
+            applyPhoneFormattingToField(field);
+        }
+    });
+};
+
+const getInvalidPhoneFields = (form: HTMLFormElement) => {
+    const invalidFields: HTMLInputElement[] = [];
+
+    form.querySelectorAll<HTMLInputElement>('input').forEach((field) => {
+        if (!isPhoneInputField(field) || field.disabled || !isVisibleField(field)) {
+            return;
+        }
+
+        applyPhoneFormattingToField(field);
+
+        const value = field.value.trim();
+        if (!value) {
+            return;
+        }
+
+        const localDigits = normalizeToLocalPhoneDigits(value);
+        if (!/^09\d{9}$/.test(localDigits)) {
+            invalidFields.push(field);
+            return;
+        }
+
+        if (field.value !== localDigits) {
+            field.value = localDigits;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+
+    return invalidFields;
+};
+
+const registerPhilippinePhoneFormatting = () => {
+    applyPhoneFormattingToDocument();
+
+    document.addEventListener(
+        'focusin',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) {
+                return;
+            }
+
+            applyPhoneFormattingToField(target);
+        },
+        true,
+    );
+
+    document.addEventListener(
+        'keydown',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || !isPhoneInputField(target)) {
+                return;
+            }
+
+            applyPhoneFieldDefaults(target);
+
+            if (event.ctrlKey || event.metaKey) {
+                return;
+            }
+
+            if (PHONE_CONTROL_KEYS.has(event.key)) {
+                return;
+            }
+
+            if (/^\d$/.test(event.key)) {
+                return;
+            }
+
+            if (
+                event.key === '+'
+                && (target.selectionStart ?? 0) === 0
+                && !target.value.includes('+')
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+        },
+        true,
+    );
+
+    document.addEventListener(
+        'input',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || !isPhoneInputField(target)) {
+                return;
+            }
+
+            applyPhoneFormattingToField(target);
+        },
+        true,
+    );
+
+    document.addEventListener(
+        'paste',
+        (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement) || !isPhoneInputField(target)) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const pastedText = event.clipboardData?.getData('text') || '';
+            target.value = formatPhoneDisplay(pastedText);
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+        true,
+    );
+
+    const observer = new MutationObserver(() => {
+        applyPhoneFormattingToDocument();
+    });
+
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+    }
+
+    router.on('finish', () => {
+        window.requestAnimationFrame(() => {
+            applyPhoneFormattingToDocument();
+        });
+    });
+};
+
 const getMissingRequiredFields = (form: HTMLFormElement) => {
     const requiredFields = Array.from(
         form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
@@ -180,6 +487,29 @@ const registerRequiredFieldAlert = () => {
 
             const missingFields = getMissingRequiredFields(form);
             if (!missingFields.length) {
+                const invalidPhoneFields = getInvalidPhoneFields(form);
+
+                if (!invalidPhoneFields.length) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                const firstInvalidPhoneField = invalidPhoneFields[0];
+
+                void Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Phone Number',
+                    text: PHONE_INVALID_MESSAGE,
+                    confirmButtonColor: ALERT_CONFIRM_COLOR,
+                }).then(() => {
+                    if (firstInvalidPhoneField) {
+                        firstInvalidPhoneField.focus();
+                        firstInvalidPhoneField.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }
+                });
+
                 return;
             }
 
@@ -278,4 +608,5 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+registerPhilippinePhoneFormatting();
 registerRequiredFieldAlert();

@@ -77,7 +77,7 @@ const deleteRecord = (recordId: number) => {
                 <p class="text-sm text-muted-foreground">Loan and savings records are posted automatically. Use manual entries here for other finance transactions.</p>
             </div>
             <Link v-if="permissions.can_create" href="/finance/financial-records/create">
-                <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     Add Manual Entry
                 </Button>

@@ -144,7 +144,7 @@ const trendRows = computed<TrendRow[]>(() => {
                     v-if="canExportReports"
                     :href="exportHref"
                 >
-                    <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                    <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                         <Download class="h-4 w-4" />
                         {{ exportLabel }}
                     </Button>

@@ -1165,7 +1165,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                 </div>
                 <!-- Cooperative Admin Overview -->
                 <div v-if="props.isCoopAdmin && !props.isMember" class="md:col-span-2 grid gap-4">
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
+                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 shadow-sm">
                         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h2 class="text-lg font-semibold text-slate-900">Activity & Training Trends</h2>
@@ -1313,7 +1313,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                             </Button>
                         </div>
 
-                        <div v-if="props.coopTrends" class="mt-6 space-y-4">
+                        <div v-if="props.coopTrends" class="mt-6 space-y-4 pb-2">
                             <Card class="mx-auto w-full gap-0 rounded-lg border border-slate-200/70 bg-slate-50/70 py-0 shadow-sm lg:w-1/2">
                                 <CardContent class="p-4">
                                     <div v-if="!hasVisibleSeries" class="flex h-44 items-center justify-center text-sm text-slate-500">

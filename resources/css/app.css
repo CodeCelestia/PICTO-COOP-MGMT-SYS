@@ -234,6 +234,11 @@ html[data-a11y-size='large'] {
 }
 
 @layer components {
+    label:not([data-slot='label']):not(.sr-only):not(.flex):not(.inline-flex) {
+        display: block;
+        margin-bottom: 0.375rem;
+    }
+
     .app-bg-host {
         opacity: var(--app-bg-opacity, 0.75);
     }

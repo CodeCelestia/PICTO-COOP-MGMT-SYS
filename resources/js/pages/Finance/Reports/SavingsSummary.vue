@@ -81,7 +81,7 @@ const hasNoSavingsData = computed(() => {
                     v-if="canExportReports"
                     href="/finance/reports/savings-summary/export"
                 >
-                    <Button class="gap-2 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                    <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                         <Download class="h-4 w-4" />
                         Export Savings Summary
                     </Button>

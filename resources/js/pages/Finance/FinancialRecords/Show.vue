@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { Separator } from '@/components/ui/separator';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 
 interface FinancialRecord {
@@ -85,54 +86,58 @@ const displayTitle = (record: FinancialRecord) => {
                     <h1 class="text-2xl font-semibold">{{ displayTitle(record) }}</h1>
                     <p class="text-sm text-muted-foreground">Read-only ledger entry details.</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <Link
-                        v-if="permissions.can_edit"
-                        :href="`/finance/financial-records/${record.id}/edit`"
-                        class="rounded-md border px-3 py-2 text-sm"
-                    >
-                        Edit
-                    </Link>
-                    <Link href="/finance/financial-records" class="rounded-md border px-3 py-2 text-sm">Back</Link>
-                </div>
+                <Link href="/finance/financial-records" class="rounded-md border px-3 py-2 text-sm">Back</Link>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2">
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Type</div>
-                    <div class="mt-1 text-sm font-medium">{{ formatTypeLabel(record.type) }}</div>
+            <div class="space-y-6">
+                <div class="space-y-4">
+                    <h2 class="text-sm font-semibold text-muted-foreground">Basic Information</h2>
+                    <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Type</p>
+                            <p class="text-base font-medium text-foreground">{{ formatTypeLabel(record.type) }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Amount</p>
+                            <p class="text-base font-medium text-foreground">{{ formatAmount(record.amount) }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Cooperative</p>
+                            <p class="text-base font-medium text-foreground">{{ record.cooperative?.name || 'N/A' }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Date Recorded</p>
+                            <p class="text-base font-medium text-foreground">{{ formatDate(record.date_recorded) }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Period</p>
+                            <p class="text-base font-medium text-foreground">{{ periodLabel(record.period) }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Source</p>
+                            <p class="text-base font-medium text-foreground">{{ record.source ? formatTypeLabel(record.source) : 'N/A' }}</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Amount</div>
-                    <div class="mt-1 text-sm font-medium">{{ formatAmount(record.amount) }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Cooperative</div>
-                    <div class="mt-1 text-sm font-medium">{{ record.cooperative?.name || 'N/A' }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Date Recorded</div>
-                    <div class="mt-1 text-sm font-medium">{{ formatDate(record.date_recorded) }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Period</div>
-                    <div class="mt-1 text-sm font-medium">{{ periodLabel(record.period) }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Source</div>
-                    <div class="mt-1 text-sm font-medium">{{ record.source ? formatTypeLabel(record.source) : 'N/A' }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4 md:col-span-2">
-                    <div class="text-xs text-muted-foreground">Description</div>
-                    <div class="mt-1 text-sm font-medium">{{ record.purpose || 'N/A' }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Reference</div>
-                    <div class="mt-1 text-sm font-medium">{{ record.reference_doc || 'N/A' }}</div>
-                </div>
-                <div class="rounded-lg border bg-card p-4">
-                    <div class="text-xs text-muted-foreground">Recorded By</div>
-                    <div class="mt-1 text-sm font-medium">{{ record.recorded_by || 'N/A' }}</div>
+
+                <Separator />
+
+                <div class="space-y-4">
+                    <h2 class="text-sm font-semibold text-muted-foreground">Record Details</h2>
+                    <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+                        <div class="space-y-1.5 md:col-span-2">
+                            <p class="text-sm text-muted-foreground">Description</p>
+                            <p class="text-base font-medium text-foreground">{{ record.purpose || 'N/A' }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Reference</p>
+                            <p class="text-base font-medium text-foreground">{{ record.reference_doc || 'N/A' }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm text-muted-foreground">Recorded By</p>
+                            <p class="text-base font-medium text-foreground">{{ record.recorded_by || 'N/A' }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
