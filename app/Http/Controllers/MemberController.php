@@ -112,6 +112,45 @@ class MemberController extends Controller
     }
 
     /**
+     * Resolve member roles that should be mirrored to the linked user account.
+     *
+     * @return \Illuminate\Support\Collection<int, Role>
+     */
+    private function resolveMemberAccountRoles(Member $member)
+    {
+        $assignableRoleIds = $this->assignableMemberRoleIds();
+
+        $roles = $member->roles()
+            ->whereIn('roles.id', $assignableRoleIds)
+            ->get();
+
+        if ($roles->isNotEmpty()) {
+            return $roles;
+        }
+
+        $defaultRole = Role::where('name', 'Member')->first();
+
+        return $defaultRole ? collect([$defaultRole]) : collect();
+    }
+
+    private function syncUserRolesFromMember(User $user, Member $member): void
+    {
+        $roles = $this->resolveMemberAccountRoles($member);
+
+        if ($roles->isNotEmpty()) {
+            $user->syncRoles($roles);
+        } else {
+            $user->syncRoles([]);
+        }
+
+        $primaryRole = $roles->sortBy('level')->first();
+
+        $user->update([
+            'account_type' => $this->resolveAccountType($primaryRole),
+        ]);
+    }
+
+    /**
      * Roles reserved for higher-level system users and not assignable in member account flow.
      *
      * @return array<int, string>
@@ -839,6 +878,11 @@ class MemberController extends Controller
             $member->update($memberData);
             $member->roles()->sync($validated['role_ids'] ?? []);
 
+            $userAccount = $member->user;
+            if ($userAccount) {
+                $this->syncUserRolesFromMember($userAccount, $member);
+            }
+
             if ($sectorChanged || $livelihoodChanged) {
                 MemberSectorHistory::create([
                     'member_id' => $member->id,
@@ -907,17 +951,22 @@ class MemberController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        User::create([
+        $memberRoles = $this->resolveMemberAccountRoles($member);
+        $primaryRole = $memberRoles->sortBy('level')->first();
+
+        $account = User::create([
             'name' => $member->full_name,
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'coop_id' => $member->coop_id,
             'member_id' => $member->id,
-            'account_type' => 'Member',
+            'account_type' => $this->resolveAccountType($primaryRole),
             'account_status' => 'Active',
             'created_by' => $user->name,
             'password_changed_at' => now(),
         ]);
+
+        $this->syncUserRolesFromMember($account, $member);
 
         return redirect()->back()->with('success', 'Member account created successfully.');
     }
