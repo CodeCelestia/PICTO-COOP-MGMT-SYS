@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
@@ -25,13 +26,6 @@ defineProps<{
         can_delete: boolean;
     };
 }>();
-
-const formatAmount = (value: string | null) => {
-    if (!value) return '0.00';
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 
 const formatTypeLabel = (value: string | null | undefined) => {
     if (!value) return 'Unknown';
@@ -94,7 +88,7 @@ const deleteRecord = (recordId: number) => {
                         <th class="px-4 py-3 text-left">Source</th>
                         <th class="px-4 py-3 text-left">Amount</th>
                         <th class="px-4 py-3 text-left">Date</th>
-                        <th class="px-4 py-3 text-left">Actions</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,10 +100,10 @@ const deleteRecord = (recordId: number) => {
                         <td class="px-4 py-3">{{ formatTypeLabel(record.type) }}</td>
                         <td class="px-4 py-3">{{ record.cooperative?.name || 'N/A' }}</td>
                         <td class="px-4 py-3">{{ record.source ? formatTypeLabel(record.source) : 'N/A' }}</td>
-                        <td class="px-4 py-3">{{ formatAmount(record.amount) }}</td>
+                        <td class="px-4 py-3">{{ formatPhilippinePeso(record.amount) }}</td>
                         <td class="px-4 py-3">{{ formatDate(record.date_recorded) }}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex flex-wrap items-center gap-2">
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex flex-wrap items-center justify-center gap-2">
                                 <Link :href="`/finance/financial-records/${record.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />

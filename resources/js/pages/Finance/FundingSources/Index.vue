@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
+import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import { Head, Link } from '@inertiajs/vue3';
 import { Eye, Plus } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
@@ -28,13 +31,6 @@ defineProps<{
         can_approve: boolean;
     };
 }>();
-
-const formatAmount = (value: string | null) => {
-    if (!value) return '0.00';
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 
 const categoryLabel = (category: FundingSource['category']) => {
     if (category === 'member_concern') return 'Member Concern';
@@ -77,7 +73,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                         <th class="px-4 py-3 text-left">Status</th>
                         <th class="px-4 py-3 text-left">Allocated</th>
                         <th class="px-4 py-3 text-left">Released</th>
-                        <th class="px-4 py-3 text-left">Action</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,16 +96,22 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                             </div>
                         </td>
                         <td class="px-4 py-3">{{ item.cooperative?.name || 'N/A' }}</td>
-                        <td class="px-4 py-3">{{ item.status }}</td>
-                        <td class="px-4 py-3">{{ formatAmount(item.amount_allocated) }}</td>
-                        <td class="px-4 py-3">{{ formatAmount(item.amount_released) }}</td>
                         <td class="px-4 py-3">
-                            <Link :href="`/finance/funding-sources/${item.id}`">
-                                <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
-                                    <Eye class="h-4 w-4" />
-                                    View
-                                </Button>
-                            </Link>
+                            <Badge :class="[getFinanceStatusBadgeClass(item.status), 'rounded-md px-2 py-0.5 text-xs font-medium']">
+                                {{ item.status }}
+                            </Badge>
+                        </td>
+                        <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_allocated) }}</td>
+                        <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_released) }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex flex-wrap items-center justify-center gap-2">
+                                <Link :href="`/finance/funding-sources/${item.id}`">
+                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                        <Eye class="h-4 w-4" />
+                                        View
+                                    </Button>
+                                </Link>
+                            </div>
                         </td>
                     </tr>
                 </tbody>

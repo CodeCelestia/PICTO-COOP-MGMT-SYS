@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Download } from 'lucide-vue-next';
@@ -46,15 +47,6 @@ watch(activeTab, (tab) => {
         router.visit(href);
     }
 });
-
-const formatPeso = (value: number | null | undefined): string => {
-    const amount = Number(value ?? 0);
-    const safeAmount = Number.isFinite(amount) ? amount : 0;
-    return `₱ ${safeAmount.toLocaleString('en-PH', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
-};
 
 const hasNoLoanData = computed(() => {
     return (
@@ -123,11 +115,11 @@ const hasNoLoanData = computed(() => {
             </div>
             <div class="rounded-lg border border-border bg-card p-4 md:col-span-2">
                 <div class="text-xs text-muted-foreground">Principal Total</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.principal_total) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.principal_total) }}</div>
             </div>
             <div class="rounded-lg border border-border bg-card p-4 md:col-span-2">
                 <div class="text-xs text-muted-foreground">Outstanding Balance</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.outstanding_balance) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.outstanding_balance) }}</div>
             </div>
         </div>
     </FinanceShellLayout>

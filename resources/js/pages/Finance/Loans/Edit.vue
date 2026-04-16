@@ -44,7 +44,7 @@ const submit = () => {
 
                 <div>
                     <label class="mb-1 block text-sm">Status</label>
-                    <select v-model="form.status" class="w-full rounded-md border px-3 py-2 text-sm">
+                    <select v-model="form.status" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
                         <option value="Pending">Pending</option>
                         <option value="Approved">Approved</option>
                         <option value="Active">Active</option>

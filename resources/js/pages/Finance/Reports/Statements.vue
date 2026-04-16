@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Download } from 'lucide-vue-next';
@@ -95,10 +96,7 @@ const toNumber = (value: unknown): number => {
 };
 
 const formatPeso = (value: unknown): string => {
-    return `₱ ${toNumber(value).toLocaleString('en-PH', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
+    return formatPhilippinePeso(toNumber(value));
 };
 
 const statementRows = computed(() => [

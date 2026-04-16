@@ -756,10 +756,10 @@ const getMembershipBadgeColor = (status: string | null) => {
             <div class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(14,64,120,0.08),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.03),rgba(15,23,42,0))]" />
 
             <!-- Header -->
-            <Card class="gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.1)] backdrop-blur">
+            <Card :class="props.isMember ? 'gap-0 rounded-2xl border border-border bg-card p-6 shadow-sm' : 'gap-0 rounded-2xl border border-slate-200/70 bg-white/90 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.1)] backdrop-blur'">
                 <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">
-                        <h1 class="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+                        <h1 :class="props.isMember ? 'text-2xl font-semibold tracking-tight text-foreground md:text-3xl' : 'text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl'">
                             {{ props.isSuperAdmin
                                 ? 'Super Admin Analytics'
                                 : props.isMember
@@ -768,7 +768,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                         ? (props.coopInfo?.name || 'Cooperative Analytics')
                                         : 'System Analytics' }}
                         </h1>
-                        <p class="text-sm text-slate-600">
+                        <p :class="props.isMember ? 'text-sm text-muted-foreground' : 'text-sm text-slate-600'">
                             {{ props.isSuperAdmin
                                 ? 'Unified insights across users, coops, and operations.'
                                 : props.isMember
@@ -1000,109 +1000,109 @@ const getMembershipBadgeColor = (status: string | null) => {
                 <!-- Member Dashboard -->
                 <div v-if="props.isMember" class="md:col-span-2 grid gap-4">
                     <div class="grid gap-4 lg:grid-cols-2">
-                        <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                        <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <h2 class="text-lg font-semibold text-slate-900">My Profile</h2>
-                                    <p class="text-sm text-slate-500">Personal information on record.</p>
+                                    <h2 class="text-lg font-semibold text-foreground">My Profile</h2>
+                                    <p class="text-sm text-muted-foreground">Personal information on record.</p>
                                 </div>
-                                <Badge class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white">
+                                <Badge class="rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary-foreground">
                                     {{ props.memberProfile?.membership_status || 'N/A' }}
                                 </Badge>
                             </div>
 
-                            <div v-if="props.memberProfile" class="mt-5 text-sm text-slate-700">
+                            <div v-if="props.memberProfile" class="mt-5 text-sm text-foreground">
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Name</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.name }}</span>
+                                    <span class="text-muted-foreground">Name</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.name }}</span>
                                 </div>
-                                <div class="border-t border-gray-100" />
+                                <div class="border-t border-border/70" />
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Email</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.email || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Email</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.email || 'N/A' }}</span>
                                 </div>
-                                <div class="border-t border-gray-100" />
+                                <div class="border-t border-border/70" />
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Phone</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.phone || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Phone</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.phone || 'N/A' }}</span>
                                 </div>
-                                <div class="border-t border-gray-100" />
+                                <div class="border-t border-border/70" />
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Date joined</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.date_joined || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Date joined</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.date_joined || 'N/A' }}</span>
                                 </div>
                             </div>
                         </Card>
 
-                        <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                        <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
                             <div>
-                                <h2 class="text-lg font-semibold text-slate-900">Membership</h2>
-                                <p class="text-sm text-slate-500">Your membership classification.</p>
+                                <h2 class="text-lg font-semibold text-foreground">Membership</h2>
+                                <p class="text-sm text-muted-foreground">Your membership classification.</p>
                             </div>
-                            <div v-if="props.memberProfile" class="mt-5 text-sm text-slate-700">
+                            <div v-if="props.memberProfile" class="mt-5 text-sm text-foreground">
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Type</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.membership_type || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Type</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.membership_type || 'N/A' }}</span>
                                 </div>
-                                <div class="border-t border-gray-100" />
+                                <div class="border-t border-border/70" />
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Sector</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.sector || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Sector</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.sector || 'N/A' }}</span>
                                 </div>
-                                <div class="border-t border-gray-100" />
+                                <div class="border-t border-border/70" />
                                 <div class="flex items-center justify-between py-2">
-                                    <span class="text-slate-500">Status</span>
-                                    <span class="font-medium text-slate-900">{{ props.memberProfile.membership_status || 'N/A' }}</span>
+                                    <span class="text-muted-foreground">Status</span>
+                                    <span class="font-medium text-foreground">{{ props.memberProfile.membership_status || 'N/A' }}</span>
                                 </div>
                             </div>
                         </Card>
                     </div>
 
-                    <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                    <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-slate-900">My Activity & Services</h2>
-                                <p class="text-sm text-slate-500">Your personal participation and services only.</p>
+                                <h2 class="text-lg font-semibold text-foreground">My Activity & Services</h2>
+                                <p class="text-sm text-muted-foreground">Your personal participation and services only.</p>
                             </div>
                         </div>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
+                            <Card class="gap-0 rounded-md border border-border bg-muted/40">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">My Activities</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">My Activities</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="text-2xl font-semibold text-slate-900">
+                                    <div class="text-2xl font-semibold text-foreground">
                                         {{ formatNumber(props.memberActivitiesCount || 0) }}
                                     </div>
-                                    <div class="mt-1 text-xs text-slate-500">Participation records</div>
+                                    <div class="mt-1 text-xs text-muted-foreground">Participation records</div>
                                     <div class="mt-3">
                                         <Button
                                             as-child
                                             variant="outline"
                                             size="sm"
-                                            class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                                            class="rounded border-border"
                                         >
                                             <a href="/member-portal/activities">View activities</a>
                                         </Button>
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
+                            <Card class="gap-0 rounded-md border border-border bg-muted/40">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">My Services</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">My Services</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="text-2xl font-semibold text-slate-900">
+                                    <div class="text-2xl font-semibold text-foreground">
                                         {{ formatNumber(props.memberServicesCount || 0) }}
                                     </div>
-                                    <div class="mt-1 text-xs text-slate-500">Services availed</div>
+                                    <div class="mt-1 text-xs text-muted-foreground">Services availed</div>
                                     <div class="mt-3">
                                         <Button
                                             as-child
                                             variant="outline"
                                             size="sm"
-                                            class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                                            class="rounded border-border"
                                         >
                                             <a href="/member-portal/services">View services</a>
                                         </Button>
@@ -1112,51 +1112,51 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </div>
                     </Card>
 
-                    <Card class="gap-0 rounded-lg border border-gray-300 bg-white p-6 py-0 shadow-sm">
+                    <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-slate-900">My Loans</h2>
-                                <p class="text-sm text-slate-500">Your loan applications and balances.</p>
+                                <h2 class="text-lg font-semibold text-foreground">My Loans</h2>
+                                <p class="text-sm text-muted-foreground">Your loan applications and balances.</p>
                             </div>
                             <Button
                                 as-child
                                 variant="outline"
                                 size="sm"
-                                class="rounded border border-gray-300 focus-visible:border-[#1F4E78] focus-visible:ring-2 focus-visible:ring-[#1F4E78]/10"
+                                class="rounded border-border"
                             >
                                 <a href="/member-portal/loans">View loans</a>
                             </Button>
                         </div>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2">
-                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
+                            <Card class="gap-0 rounded-md border border-border bg-muted/40">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Total Loans</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Total Loans</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div class="text-2xl font-semibold text-slate-900">
+                                    <div class="text-2xl font-semibold text-foreground">
                                         {{ formatNumber(props.memberLoansCount || 0) }}
                                     </div>
-                                    <div class="text-xs text-slate-500">All loan records</div>
+                                    <div class="text-xs text-muted-foreground">All loan records</div>
                                 </CardContent>
                             </Card>
-                            <Card class="gap-0 rounded-md border border-gray-200 bg-gray-50 py-0">
+                            <Card class="gap-0 rounded-md border border-border bg-muted/40">
                                 <CardHeader class="px-4 pt-4 pb-2">
-                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-slate-500">Recent Loans</CardTitle>
+                                    <CardTitle class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recent Loans</CardTitle>
                                 </CardHeader>
                                 <CardContent class="px-4 pb-4">
-                                    <div v-if="props.memberRecentLoans?.length" class="space-y-2 text-sm text-slate-700">
+                                    <div v-if="props.memberRecentLoans?.length" class="space-y-2 text-sm text-foreground">
                                         <div v-for="loan in props.memberRecentLoans" :key="loan.id" class="flex items-center justify-between">
                                             <div>
-                                                <div class="font-semibold text-slate-900">{{ loan.principal }}</div>
-                                                <div class="text-xs text-slate-500">{{ loan.created_at || 'N/A' }}</div>
+                                                <div class="font-semibold text-foreground">{{ loan.principal }}</div>
+                                                <div class="text-xs text-muted-foreground">{{ loan.created_at || 'N/A' }}</div>
                                             </div>
-                                            <Badge class="rounded-full bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-white">
+                                            <Badge class="rounded-full bg-primary px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-primary-foreground">
                                                 {{ loan.status }}
                                             </Badge>
                                         </div>
                                     </div>
-                                    <div v-else class="text-sm text-slate-500">No loans recorded yet.</div>
+                                    <div v-else class="text-sm text-muted-foreground">No loans recorded yet.</div>
                                 </CardContent>
                             </Card>
                         </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import { ShieldCheck } from 'lucide-vue-next';
+import { Form, Head, router } from '@inertiajs/vue3';
+import { ArrowLeft } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,15 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
 };
 
 const code = ref<string>('');
+
+const goBackToLogin = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    router.visit('/login');
+};
 </script>
 
 <template>
@@ -60,9 +69,16 @@ const code = ref<string>('');
 
         <div class="mb-8 text-white">
             <div class="mb-2 flex items-center gap-2">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 text-sky-100">
-                    <ShieldCheck class="h-5 w-5" />
-                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-9 border-sky-300/35 bg-slate-950/40 px-3 text-sky-100 hover:bg-sky-500/15"
+                    @click="goBackToLogin"
+                >
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </Button>
             </div>
             <h2 class="font-display text-2xl font-semibold">{{ authConfigContent.title }}</h2>
             <p class="mt-1 text-sm text-slate-300/90">

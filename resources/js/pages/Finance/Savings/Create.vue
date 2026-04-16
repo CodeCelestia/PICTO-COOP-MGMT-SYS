@@ -28,7 +28,7 @@ const submit = () => {
             <form class="space-y-4 rounded-lg border bg-card p-4" @submit.prevent="submit">
                 <div>
                     <label class="mb-1 block text-sm">Member</label>
-                    <select v-model="form.member_id" class="w-full rounded-md border px-3 py-2 text-sm">
+                    <select v-model="form.member_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
                         <option value="">Select member</option>
                         <option v-for="member in members" :key="member.id" :value="member.id">
                             {{ member.first_name }} {{ member.last_name }}

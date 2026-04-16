@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
@@ -24,13 +25,6 @@ defineProps<{
         can_edit: boolean;
     };
 }>();
-
-const formatAmount = (value: string | null) => {
-    if (!value) return '0.00';
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 
 const formatTypeLabel = (value: string | null | undefined) => {
     if (!value) return 'Unknown';
@@ -99,7 +93,7 @@ const displayTitle = (record: FinancialRecord) => {
                         </div>
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Amount</p>
-                            <p class="text-base font-medium text-foreground">{{ formatAmount(record.amount) }}</p>
+                            <p class="text-base font-medium text-foreground">{{ formatPhilippinePeso(record.amount) }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Cooperative</p>

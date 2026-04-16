@@ -228,6 +228,17 @@ html[data-a11y-size='large'] {
     * {
         @apply border-border outline-ring/50;
     }
+
+    select {
+        @apply border-input bg-background text-foreground;
+        color-scheme: light dark;
+    }
+
+    option,
+    optgroup {
+        @apply bg-popover text-popover-foreground;
+    }
+
     body {
         @apply bg-background text-foreground;
     }

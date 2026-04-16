@@ -46,9 +46,9 @@ interface Role {
     level: number;
     description?: string | null;
     is_active?: boolean;
-    assigned_at?: string;
-    assigned_by?: string;
-    status?: string;
+    assigned_at?: string | null;
+    assigned_by?: string | number | null;
+    status?: string | null;
     expires_at?: string | null;
 }
 
@@ -237,6 +237,55 @@ const formatDate = (date: string | null | undefined) => {
         month: 'short',
         day: 'numeric',
     });
+};
+
+const resolveRoleAssignedBy = (role: Role) => {
+    if (role.assigned_by === null || role.assigned_by === undefined || role.assigned_by === '') {
+        return 'System';
+    }
+
+    if (typeof role.assigned_by === 'string' && Number.isNaN(Number(role.assigned_by))) {
+        return role.assigned_by;
+    }
+
+    const assignerId = Number(role.assigned_by);
+    if (!Number.isNaN(assignerId)) {
+        return props.users.find((user) => user.id === assignerId)?.name || `User #${assignerId}`;
+    }
+
+    return 'System';
+};
+
+const resolveRoleAssignedOn = (role: Role, user: User) => {
+    if (role.assigned_at) {
+        return formatDate(role.assigned_at);
+    }
+
+    // Fallback keeps the field informative when assignment metadata is missing.
+    return formatDate(user.created_at);
+};
+
+const resolveRoleStatus = (role: Role) => {
+    const status = (role.status || '').trim();
+    return status || 'Active';
+};
+
+const getRoleStatusBadgeClass = (status: string | null | undefined) => {
+    const normalized = String(status || '').trim().toLowerCase();
+
+    if (normalized === 'active') {
+        return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200';
+    }
+
+    if (normalized === 'pending') {
+        return 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200';
+    }
+
+    if (normalized === 'inactive' || normalized === 'revoked') {
+        return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200';
+    }
+
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200';
 };
 
 const getAccountTypeBadgeColor = (accountType: string | undefined) => {
@@ -515,9 +564,14 @@ const toggleRole = (roleId: number) => {
                                                     class="absolute bottom-full left-0 z-10 mb-2 hidden w-64 rounded-md border border-border/80 bg-card/95 p-2 text-xs text-card-foreground shadow-[0_14px_30px_-18px_rgba(2,8,20,0.55)] backdrop-blur-sm group-hover:block group-focus-within:block"
                                                 >
                                                     <div class="space-y-1">
-                                                        <div><strong>Assigned By:</strong> {{ role.assigned_by }}</div>
-                                                        <div><strong>Assigned On:</strong> {{ formatDate(role.assigned_at) }}</div>
-                                                        <div><strong>Status:</strong> {{ role.status }}</div>
+                                                        <div><strong>Assigned By:</strong> {{ resolveRoleAssignedBy(role) }}</div>
+                                                        <div><strong>Assigned On:</strong> {{ resolveRoleAssignedOn(role, user) }}</div>
+                                                        <div class="flex items-center gap-1.5">
+                                                            <strong>Status:</strong>
+                                                            <Badge :class="[getRoleStatusBadgeClass(resolveRoleStatus(role)), 'rounded-md px-2 py-0.5 text-[11px] font-medium']">
+                                                                {{ resolveRoleStatus(role) }}
+                                                            </Badge>
+                                                        </div>
                                                         <div v-if="role.expires_at">
                                                             <strong>Expires:</strong> {{ formatDate(role.expires_at) }}
                                                         </div>

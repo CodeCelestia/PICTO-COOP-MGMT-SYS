@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { LockKeyhole } from 'lucide-vue-next';
+import { ArrowLeft } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthSplitCard from '@/layouts/auth/AuthSplitCard.vue';
 import { store } from '@/routes/password/confirm';
+
+const goBack = () => {
+    if (typeof window !== 'undefined') {
+        window.history.back();
+    }
+};
 </script>
 
 <template>
@@ -26,9 +32,16 @@ import { store } from '@/routes/password/confirm';
 
         <div class="mb-8 text-white">
             <div class="mb-2 flex items-center gap-2">
-                <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-300/20 bg-sky-500/10 text-sky-100">
-                    <LockKeyhole class="h-5 w-5" />
-                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-9 border-sky-300/35 bg-slate-950/40 px-3 text-sky-100 hover:bg-sky-500/15"
+                    @click="goBack"
+                >
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </Button>
             </div>
             <h2 class="font-display text-2xl font-semibold">Confirm your password</h2>
             <p class="mt-1 text-sm text-slate-300/90">

@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
+import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Filter, Pencil, Plus, XCircle } from 'lucide-vue-next';
@@ -72,7 +75,7 @@ const closeAccount = (savingsId: number) => {
             <div class="flex items-end gap-3">
                 <div>
                     <label class="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
-                    <select v-model="status" class="rounded-md border px-3 py-2 text-sm">
+                    <select v-model="status" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
                         <option value="">All</option>
                         <option v-for="item in accountStatuses" :key="item" :value="item">{{ item }}</option>
                     </select>
@@ -93,7 +96,7 @@ const closeAccount = (savingsId: number) => {
                         <th class="px-4 py-3 text-left">Balance</th>
                         <th class="px-4 py-3 text-left">Interest</th>
                         <th class="px-4 py-3 text-left">Status</th>
-                        <th class="px-4 py-3 text-left">Actions</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,11 +111,15 @@ const closeAccount = (savingsId: number) => {
                     <tr v-for="row in savings.data" :key="row.id" class="border-t">
                         <td class="px-4 py-3">{{ row.account_number }}</td>
                         <td class="px-4 py-3">{{ row.member?.first_name }} {{ row.member?.last_name }}</td>
-                        <td class="px-4 py-3">{{ row.current_balance }}</td>
+                        <td class="px-4 py-3">{{ formatPhilippinePeso(row.current_balance) }}</td>
                         <td class="px-4 py-3">{{ row.interest_rate }}%</td>
-                        <td class="px-4 py-3">{{ row.account_status }}</td>
                         <td class="px-4 py-3">
-                            <div class="flex flex-wrap items-center gap-2">
+                            <Badge :class="[getFinanceStatusBadgeClass(row.account_status), 'rounded-md px-2 py-0.5 text-xs font-medium']">
+                                {{ row.account_status }}
+                            </Badge>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex flex-wrap items-center justify-center gap-2">
                                 <Link :href="`/finance/savings/${row.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />

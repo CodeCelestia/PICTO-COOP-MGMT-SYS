@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
@@ -27,13 +28,6 @@ defineProps<{
         can_edit: boolean;
     };
 }>();
-
-const formatAmount = (value: string | null) => {
-    if (!value) return '0.00';
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 
 const formatDate = (value: string | null | undefined) => {
     if (!value) return 'N/A';
@@ -114,11 +108,11 @@ const activityLabel = (source: FundingSource) => {
                     <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Amount Allocated</p>
-                            <p class="text-base font-medium text-foreground">{{ formatAmount(fundingSource.amount_allocated) }}</p>
+                            <p class="text-base font-medium text-foreground">{{ formatPhilippinePeso(fundingSource.amount_allocated) }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Amount Released</p>
-                            <p class="text-base font-medium text-foreground">{{ formatAmount(fundingSource.amount_released) }}</p>
+                            <p class="text-base font-medium text-foreground">{{ formatPhilippinePeso(fundingSource.amount_released) }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Date Released</p>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import { Button } from '@/components/ui/button';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Download } from 'lucide-vue-next';
@@ -45,15 +46,6 @@ watch(activeTab, (tab) => {
         router.visit(href);
     }
 });
-
-const formatPeso = (value: number | null | undefined): string => {
-    const amount = Number(value ?? 0);
-    const safeAmount = Number.isFinite(amount) ? amount : 0;
-    return `₱ ${safeAmount.toLocaleString('en-PH', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
-};
 
 const hasNoSavingsData = computed(() => {
     return (
@@ -109,19 +101,19 @@ const hasNoSavingsData = computed(() => {
             </div>
             <div class="rounded-lg border border-border bg-card p-4">
                 <div class="text-xs text-muted-foreground">Total Balance</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.total_balance) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.total_balance) }}</div>
             </div>
             <div class="rounded-lg border border-border bg-card p-4">
                 <div class="text-xs text-muted-foreground">Total Deposits</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.total_deposits) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.total_deposits) }}</div>
             </div>
             <div class="rounded-lg border border-border bg-card p-4">
                 <div class="text-xs text-muted-foreground">Total Withdrawals</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.total_withdrawals) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.total_withdrawals) }}</div>
             </div>
             <div class="rounded-lg border border-border bg-card p-4">
                 <div class="text-xs text-muted-foreground">Interest Credited</div>
-                <div class="mt-1 text-xl font-semibold">{{ formatPeso(summary.total_interest_credited) }}</div>
+                <div class="mt-1 text-xl font-semibold">{{ formatPhilippinePeso(summary.total_interest_credited) }}</div>
             </div>
         </div>
     </FinanceShellLayout>

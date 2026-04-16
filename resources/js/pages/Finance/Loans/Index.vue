@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Filter, Pencil, Plus, Trash2 } from 'lucide-vue-next';
@@ -91,7 +93,7 @@ const deleteLoan = (loanId: number) => {
             <div class="flex flex-wrap items-end gap-3">
                 <div>
                     <label class="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
-                    <select v-model="selectedStatus" class="rounded-md border px-3 py-2 text-sm">
+                    <select v-model="selectedStatus" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
                         <option value="">All</option>
                         <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                     </select>
@@ -112,7 +114,7 @@ const deleteLoan = (loanId: number) => {
                         <th class="px-4 py-3 text-left">Purpose</th>
                         <th class="px-4 py-3 text-left">Status</th>
                         <th class="px-4 py-3 text-left">Created</th>
-                        <th class="px-4 py-3 text-left">Actions</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,10 +125,14 @@ const deleteLoan = (loanId: number) => {
                         <td class="px-4 py-3">{{ loan.member?.first_name }} {{ loan.member?.last_name }}</td>
                         <td class="px-4 py-3">{{ loan.loan_type?.name || 'N/A' }}</td>
                         <td class="px-4 py-3">{{ loan.purpose || 'N/A' }}</td>
-                        <td class="px-4 py-3">{{ loan.status }}</td>
-                        <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
                         <td class="px-4 py-3">
-                            <div class="flex flex-wrap items-center gap-2">
+                            <Badge :class="[getFinanceStatusBadgeClass(loan.status), 'rounded-md px-2 py-0.5 text-xs font-medium']">
+                                {{ loan.status }}
+                            </Badge>
+                        </td>
+                        <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex flex-wrap items-center justify-center gap-2">
                                 <Link :href="`/finance/loans/${loan.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />

@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, Eye } from 'lucide-vue-next';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
+import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import {
     Table,
     TableBody,
@@ -57,68 +62,90 @@ const formatDate = (date: string | null) => {
 
 const formatAmount = (amount: string | number | null) => {
     if (amount === null || amount === undefined) return 'N/A';
-    const value = Number(amount);
-    if (Number.isNaN(value)) return String(amount);
-    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatPhilippinePeso(amount);
 };
 </script>
 
 <template>
-    <AppLayout>
-        <div class="p-6">
-            <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">My Loans</h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        {{ member.first_name }} {{ member.last_name }}
-                        <span v-if="member.cooperative">· {{ member.cooperative.name }}</span>
-                    </p>
-                </div>
-                <Link href="/member-portal">
-                    <Button variant="outline">Back to Dashboard</Button>
-                </Link>
-            </div>
+    <Head title="My Loans" />
 
-            <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Principal</TableHead>
-                            <TableHead>Interest Rate</TableHead>
-                            <TableHead>Term</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Remaining</TableHead>
-                            <TableHead>Created</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <TableRow v-if="loans.length === 0">
-                            <TableCell colspan="7" class="text-center text-gray-500">
-                                No loan records found yet.
-                            </TableCell>
-                        </TableRow>
-                        <TableRow v-for="loan in loans" :key="loan.id">
-                            <TableCell class="text-sm text-gray-900">{{ formatAmount(loan.principal) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ loan.interest_rate }}%</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ loan.term_months }} months</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ loan.status }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatAmount(loan.remaining_balance) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">{{ formatDate(loan.created_at) }}</TableCell>
-                            <TableCell class="text-sm text-gray-600">
-                                <Link
-                                    v-if="permissions.can_view_details"
-                                    :href="`/member-portal/loans/${loan.id}`"
-                                    class="text-primary hover:underline"
-                                >
-                                    View
-                                </Link>
-                                <span v-else class="text-gray-400">View</span>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </div>
+    <AppLayout>
+        <div class="space-y-6 p-4 md:p-6">
+            <Card class="rounded-xl border border-border bg-card p-5 shadow-sm">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">My Loans</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            {{ member.first_name }} {{ member.last_name }}
+                            <span v-if="member.cooperative">· {{ member.cooperative.name }}</span>
+                        </p>
+                    </div>
+                    <Link href="/member-portal">
+                        <Button variant="outline" class="gap-2">
+                            <ArrowLeft class="h-4 w-4" />
+                            Back to Dashboard
+                        </Button>
+                    </Link>
+                </div>
+            </Card>
+
+            <Card class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <CardHeader class="px-6 pb-3">
+                    <CardTitle class="text-base font-semibold text-foreground">Loan History</CardTitle>
+                    <CardDescription class="text-sm text-muted-foreground">Your loan records and current balances.</CardDescription>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <div class="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Principal</TableHead>
+                                    <TableHead>Interest Rate</TableHead>
+                                    <TableHead>Term</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Remaining</TableHead>
+                                    <TableHead>Created</TableHead>
+                                    <TableHead class="text-center">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="loans.length === 0">
+                                    <TableCell colspan="7" class="py-8 text-center text-muted-foreground">
+                                        No loan records found yet.
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-for="loan in loans" :key="loan.id">
+                                    <TableCell class="text-sm text-foreground">{{ formatAmount(loan.principal) }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ loan.interest_rate }}%</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ loan.term_months }} months</TableCell>
+                                    <TableCell>
+                                        <Badge :class="[getFinanceStatusBadgeClass(loan.status), 'rounded-md px-2 py-0.5 text-xs font-medium']">
+                                            {{ loan.status }}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ formatAmount(loan.remaining_balance) }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ formatDate(loan.created_at) }}</TableCell>
+                                    <TableCell class="text-center">
+                                        <Link
+                                            v-if="permissions.can_view_details"
+                                            :href="`/member-portal/loans/${loan.id}`"
+                                        >
+                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                                <Eye class="h-4 w-4" />
+                                                View
+                                            </Button>
+                                        </Link>
+                                        <Button v-else variant="ghost" size="sm" class="table-action-btn table-action-view gap-2" disabled>
+                                            <Eye class="h-4 w-4" />
+                                            View
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     </AppLayout>
 </template>
