@@ -20,6 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -93,6 +94,8 @@ interface CoopMember {
     membership_status: string | null;
     date_joined: string | null;
 }
+
+const { cooperativeLabel, cooperativeLabelLower } = useCoopLabel();
 
 interface MemberProfile {
     id: number;
@@ -247,9 +250,9 @@ const summaryCards = computed<SummaryCard[]>(() => {
                 accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
             },
             {
-                title: 'Cooperatives',
+                title: cooperativeLabel.value,
                 value: formatNumber(props.superAdminStats.stats.totalCooperatives),
-                helper: 'Active cooperatives',
+                helper: `Active ${cooperativeLabelLower.value}`,
                 icon: FileText,
                 accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
             },
@@ -948,10 +951,10 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Cooperatives by Province -->
+                    <!-- Cooperative distribution by province -->
                     <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
                         <CardHeader class="px-6 pt-6 pb-4">
-                            <CardTitle class="text-lg font-semibold text-slate-900">Cooperatives by Province</CardTitle>
+                            <CardTitle class="text-lg font-semibold text-slate-900">{{ cooperativeLabel }} by Province</CardTitle>
                             <p class="text-sm text-slate-500 mt-1">Geographic distribution</p>
                         </CardHeader>
                         <CardContent class="px-6 pb-6">
@@ -1529,7 +1532,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <h3 class="text-base font-semibold text-slate-900">Sector Distribution</h3>
-                                        <p class="text-sm text-slate-500">Active cooperatives by sector</p>
+                                        <p class="text-sm text-slate-500">Active {{ cooperativeLabelLower }} by sector</p>
                                     </div>
 
                                     <div class="inline-flex gap-1 rounded-lg bg-muted/55 p-1">
@@ -1584,7 +1587,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                         </div>
 
                                         <div class="pt-1 text-xs text-slate-500">
-                                            Total cooperatives: {{ sectorTotal }}
+                                            Total {{ cooperativeLabelLower }}: {{ sectorTotal }}
                                         </div>
                                     </div>
 
@@ -1631,7 +1634,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                             </div>
 
                                             <div class="pt-1 text-xs text-slate-500">
-                                                Total cooperatives: {{ sectorTotal }}
+                                                Total {{ cooperativeLabelLower }}: {{ sectorTotal }}
                                             </div>
                                         </div>
                                     </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    House,
     LayoutGrid,
     Users,
     FileText,
@@ -11,12 +12,14 @@ import {
     GraduationCap,
     FileSpreadsheet,
     Shield,
+    Monitor,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import {
     Sidebar,
     SidebarContent,
@@ -32,13 +35,16 @@ import type { NavItem } from '@/types';
 const page = usePage();
 const auth = computed(() => page.props.auth as {
     user?: { member_id?: number | null };
+    roles?: string[];
     permissions?: string[];
     isCoopAdmin?: boolean;
 } | undefined);
 const authUser = computed(() => auth.value?.user);
+const roles = computed<string[]>(() => auth.value?.roles || []);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const isMember = computed(() => Boolean(authUser.value?.member_id));
+const isSuperAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'super admin'));
 
 const can = (permission: string) => permissions.value.includes(permission);
 
@@ -61,61 +67,63 @@ const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
 const isMemberOnly = computed(() => isMember.value && !canViewMembersManagement.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
+const { cooperativeLabel } = useCoopLabel();
 
 const mainNavItems = computed<NavItem[]>(() => {
-    const baseItems: NavItem[] = [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-        {
-            title: 'My Profile',
-            href: '/member-portal',
-            icon: Users,
-        },
-        {
-            title: 'Cooperatives',
-            href: isCoopAdmin.value ? '/cooperatives/my' : '/cooperatives',
-            icon: Building2,
-        },
-        {
-            title: 'Members',
-            href: '/members',
-            icon: Users,
-        },
-        {
-            title: isMember.value ? 'My PDS' : 'Personal Data Sheet',
-            href: isMember.value ? '/pds/my' : '/pds',
-            icon: FileSpreadsheet,
-        },
-        {
-            title: 'Officers & Committees',
-            href: '/officers',
-            icon: Users,
-        },
-        {
-            title: 'Activities & Projects',
-            href: '/activities',
-            icon: FileText,
-        },
-        {
-            title: 'Finance',
-            href: '/finance',
-            icon: DollarSign,
-        },
-        {
-            title: 'Trainings',
-            href: '/trainings',
-            icon: GraduationCap,
-        },
-    ];
+    const homepageItem: NavItem = {
+        title: 'Homepage',
+        href: '/homepage',
+        icon: House,
+    };
+
+    const dashboardItem: NavItem = {
+        title: 'Dashboard',
+        href: dashboard(),
+        icon: LayoutGrid,
+    };
+
+    const myProfileItem: NavItem = {
+        title: 'My Profile',
+        href: '/member-portal',
+        icon: Users,
+    };
+
+    const cooperativesItem: NavItem = {
+        title: cooperativeLabel.value,
+        href: isCoopAdmin.value ? '/cooperatives/my' : '/cooperatives',
+        icon: Building2,
+    };
+
+    const pdsItem: NavItem = {
+        title: isMember.value ? 'My PDS' : 'Personal Data Sheet',
+        href: isMember.value ? '/pds/my' : '/pds',
+        icon: FileSpreadsheet,
+    };
+
+    const activitiesItem: NavItem = {
+        title: 'Activities & Projects',
+        href: '/activities',
+        icon: FileText,
+    };
+
+    const financeItem: NavItem = {
+        title: 'Finance',
+        href: '/finance',
+        icon: DollarSign,
+    };
+
+    const trainingsItem: NavItem = {
+        title: 'Trainings',
+        href: '/trainings',
+        icon: GraduationCap,
+    };
 
     if (isMemberOnly.value) {
         const memberItems: NavItem[] = [
-            baseItems[0],
-            baseItems[1],
-            baseItems[4],
+            homepageItem,
+            dashboardItem,
+            myProfileItem,
+            pdsItem,
             {
                 title: 'My Services',
                 href: '/member-portal/services',
@@ -139,7 +147,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         return memberItems;
     }
 
-    const items: NavItem[] = [baseItems[0]];
+    const items: NavItem[] = [homepageItem, dashboardItem];
 
     if (canManageUsers.value) {
         items.push({
@@ -157,8 +165,16 @@ const mainNavItems = computed<NavItem[]>(() => {
         });
     }
 
+    if (isSuperAdmin.value) {
+        items.push({
+            title: 'Display',
+            href: '/display',
+            icon: Monitor,
+        });
+    }
+
     if (canViewCoops.value) {
-        items.push(baseItems[2]);
+        items.push(cooperativesItem);
     }
 
     if (canViewMembersManagement.value && isCoopAdmin.value) {
@@ -178,19 +194,19 @@ const mainNavItems = computed<NavItem[]>(() => {
     }
 
     if (canViewMembers.value || isMember.value) {
-        items.push(baseItems[4]);
+        items.push(pdsItem);
     }
 
     if (canViewActivitiesProjects.value) {
-        items.push(baseItems[6]);
+        items.push(activitiesItem);
     }
 
     if (canViewFinance.value) {
-        items.push(baseItems[7]);
+        items.push(financeItem);
     }
 
     if (canViewTrainings.value) {
-        items.push(baseItems[8]);
+        items.push(trainingsItem);
     }
 
     if (canViewActivityLogs.value) {
@@ -215,7 +231,7 @@ const footerNavItems = computed<NavItem[]>(() => {
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard()">
+                        <Link href="/homepage">
                             <AppLogo variant="sidebar" />
                         </Link>
                     </SidebarMenuButton>

@@ -32,6 +32,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import UserMenuContent from '@/components/UserMenuContent.vue';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
@@ -49,10 +50,11 @@ const props = withDefaults(defineProps<Props>(), {
 const page = usePage();
 const auth = computed(() => page.props.auth);
 const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
+const { cooperativeLabel } = useCoopLabel();
 
 const activeItemStyles = 'bg-accent text-accent-foreground';
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = computed<NavItem[]>(() => [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -64,7 +66,7 @@ const mainNavItems: NavItem[] = [
         icon: Users,
     },
     {
-        title: 'Cooperatives',
+        title: cooperativeLabel.value,
         href: '/cooperatives',
         icon: Building2,
     },
@@ -78,7 +80,7 @@ const mainNavItems: NavItem[] = [
         href: '/session-history',
         icon: FileText,
     },
-];
+]);
 
 const rightNavItems: NavItem[] = [
     {

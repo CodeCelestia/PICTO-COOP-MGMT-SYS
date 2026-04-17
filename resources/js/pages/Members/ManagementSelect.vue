@@ -21,6 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
@@ -61,6 +62,12 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const {
+    availableCooperativesLabel,
+    cooperativeLabelLower,
+    noCooperativesFoundLabel,
+    totalCooperativesLabel,
+} = useCoopLabel();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -221,12 +228,12 @@ const formatDate = (date: string | null) => {
                             Choose a cooperative to view and manage its members.
                         </p>
                         <p class="mt-2 max-w-3xl text-sm text-muted-foreground">
-                            Use the search and filters below to narrow down cooperatives, then open one to manage members, services, activities, and trainings in one place.
+                            Use the search and filters below to narrow down {{ cooperativeLabelLower }}, then open one to manage members, services, activities, and trainings in one place.
                         </p>
                     </div>
                     <div class="flex items-center gap-3">
                         <Badge variant="outline" class="hidden sm:inline-flex">
-                            {{ cooperatives.total }} total cooperatives
+                            {{ cooperatives.total }} {{ totalCooperativesLabel }}
                         </Badge>
                     </div>
                 </div>
@@ -234,7 +241,7 @@ const formatDate = (date: string | null) => {
                 <div class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
                     title="Filters"
-                    description="Show filter fields to refine cooperative results."
+                    :description="`Show filter fields to refine ${cooperativeLabelLower} results.`"
                     showLabel="Show filters"
                     hideLabel="Hide filters"
                 >
@@ -366,7 +373,7 @@ const formatDate = (date: string | null) => {
 
             <Card class="overflow-hidden border-border/80 bg-card shadow-sm">
                 <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">Available Cooperatives</CardTitle>
+                    <CardTitle class="text-base font-semibold text-foreground">{{ availableCooperativesLabel }}</CardTitle>
                     <CardDescription>Select one cooperative to continue to Step 2: member management.</CardDescription>
                 </CardHeader>
 
@@ -388,7 +395,7 @@ const formatDate = (date: string | null) => {
                                 <TableRow v-if="cooperatives.data.length === 0">
                                     <TableCell colspan="7" class="py-10 text-center text-muted-foreground">
                                         <div class="mx-auto max-w-md space-y-2">
-                                            <p class="font-medium text-foreground">No cooperatives matched your filters.</p>
+                                            <p class="font-medium text-foreground">{{ noCooperativesFoundLabel }}</p>
                                             <p class="text-sm text-muted-foreground">
                                                 Try clearing filters or searching with a broader keyword like a province name.
                                             </p>
@@ -453,7 +460,7 @@ const formatDate = (date: string | null) => {
                             <div class="text-sm text-muted-foreground">
                                 Showing {{ (cooperatives.current_page - 1) * cooperatives.per_page + 1 }} to
                                 {{ Math.min(cooperatives.current_page * cooperatives.per_page, cooperatives.total) }} of
-                                {{ cooperatives.total }} cooperatives
+                                {{ cooperatives.total }} {{ cooperativeLabelLower }}
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <Button

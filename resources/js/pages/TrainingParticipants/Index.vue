@@ -21,6 +21,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
@@ -97,6 +98,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const filters = computed(() => props.filters);
+const { allCooperativesLabel } = useCoopLabel();
 
 const page = usePage();
 const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
@@ -275,10 +277,10 @@ const bulkDeleteParticipants = async () => {
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
-                                <SelectValue placeholder="All Cooperatives" />
+                                <SelectValue :placeholder="allCooperativesLabel" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
+                                <SelectItem value="all">{{ allCooperativesLabel }}</SelectItem>
                                 <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
                                     {{ coop.name }}
                                 </SelectItem>

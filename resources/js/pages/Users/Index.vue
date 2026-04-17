@@ -37,6 +37,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -81,6 +82,7 @@ const props = defineProps<{
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const { cooperativeLabelLower, noCooperativesFoundLabel } = useCoopLabel();
 const canCreateUsers = computed(() => permissions.value.includes('create user-accounts'));
 const canUpdateUsers = computed(() => permissions.value.includes('update user-accounts'));
 const canDeleteUsers = computed(() => permissions.value.includes('delete user-accounts'));
@@ -1069,7 +1071,7 @@ const toggleRole = (roleId: number) => {
                     <DialogHeader>
                         <DialogTitle>Choose Cooperative</DialogTitle>
                         <DialogDescription>
-                            Search and filter cooperatives, then select one to assign to the new user.
+                            Search and filter {{ cooperativeLabelLower }}, then select one to assign to the new user.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1105,7 +1107,7 @@ const toggleRole = (roleId: number) => {
 
                         <div class="max-h-80 overflow-y-auto rounded-md border border-border">
                             <div v-if="!filteredCooperatives.length" class="px-4 py-8 text-center text-sm text-muted-foreground">
-                                No Cooperatives found.
+                                {{ noCooperativesFoundLabel }}
                             </div>
 
                             <button

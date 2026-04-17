@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { Building2 } from 'lucide-vue-next';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -23,6 +24,7 @@ const props = defineProps<{
     targetUrl: string;
     cooperatives: CooperativeOption[];
 }>();
+const { noCooperativesFoundLabel } = useCoopLabel();
 
 const goToTarget = (coopId: number) => {
     router.get(`${props.targetUrl}?coop_id=${coopId}`);
@@ -56,7 +58,7 @@ const goToTarget = (coopId: number) => {
                                 <TableBody>
                                     <TableRow v-if="cooperatives.length === 0">
                                         <TableCell class="py-10 text-center text-muted-foreground">
-                                            No cooperatives found.
+                                            {{ noCooperativesFoundLabel }}
                                         </TableCell>
                                     </TableRow>
                                     <TableRow

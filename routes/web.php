@@ -34,10 +34,12 @@ use App\Http\Controllers\TrainingParticipantController;
 use App\Http\Controllers\SkillInventoryController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PdsController;
+use App\Http\Controllers\HomepageController;
+use App\Http\Controllers\DisplayController;
 
 Route::get('/', function () {
     if (auth()->check()) {
-        return redirect()->route('dashboard');
+        return redirect()->route('homepage');
     }
 
     return Inertia::render('Welcome', [
@@ -46,7 +48,20 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('homepage', [HomepageController::class, 'index'])->name('homepage');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::middleware('role:Super Admin')->prefix('display')->name('display.')->group(function () {
+        Route::get('/', [DisplayController::class, 'index'])->name('index');
+        Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->name('carousel-photos.store');
+        Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->name('carousel-photos.default');
+        Route::patch('carousel-photos/{carouselPhoto}/toggle', [DisplayController::class, 'toggleCarouselPhoto'])->name('carousel-photos.toggle');
+        Route::delete('carousel-photos/{carouselPhoto}', [DisplayController::class, 'destroyCarouselPhoto'])->name('carousel-photos.destroy');
+
+        Route::post('whats-new', [DisplayController::class, 'storeWhatsNew'])->name('whats-new.store');
+        Route::put('whats-new/{whatsNewEntry}', [DisplayController::class, 'updateWhatsNew'])->name('whats-new.update');
+        Route::delete('whats-new/{whatsNewEntry}', [DisplayController::class, 'destroyWhatsNew'])->name('whats-new.destroy');
+    });
     
     // User Management (Provincial Admin & Super Admin)
     Route::get('users', [UserController::class, 'index'])

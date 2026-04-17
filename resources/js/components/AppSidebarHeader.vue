@@ -14,6 +14,7 @@ import {
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useAppBackgroundPreference } from '@/composables/useAppBackgroundPreference';
 import { useAppearance } from '@/composables/useAppearance';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import type { BreadcrumbItem } from '@/types';
 import type { User } from '@/types';
 
@@ -30,6 +31,7 @@ const { isLargeMode, toggleLargeMode } = useSidebar();
 const { resolvedAppearance, updateAppearance } = useAppearance();
 const page = usePage();
 const user = computed(() => page.props.auth.user as User);
+const { cooperativeLabel, cooperativeManagementLabel } = useCoopLabel();
 
 const humanizeSegment = (segment: string) =>
     segment
@@ -119,7 +121,7 @@ const buildCooperativeManagementBreadcrumbs = (path: string): BreadcrumbItem[] =
 
     if (segments[0] === 'members' && segments[1] === 'management') {
         const crumbs: BreadcrumbItem[] = [
-            { title: 'Cooperative Management', href: '/members/management' },
+            { title: cooperativeManagementLabel.value, href: '/members/management' },
             { title: 'Members', href: '/members/management' },
         ];
 
@@ -130,7 +132,7 @@ const buildCooperativeManagementBreadcrumbs = (path: string): BreadcrumbItem[] =
         return crumbs;
     }
 
-    const crumbs: BreadcrumbItem[] = [{ title: 'Cooperative Management', href: '/cooperatives' }];
+    const crumbs: BreadcrumbItem[] = [{ title: cooperativeManagementLabel.value, href: '/cooperatives' }];
 
     if (segments.length <= 1) {
         return crumbs;
@@ -139,7 +141,7 @@ const buildCooperativeManagementBreadcrumbs = (path: string): BreadcrumbItem[] =
     const next = segments[1];
 
     if (next === 'types') {
-        crumbs.push({ title: 'Cooperative Types', href: '/cooperatives/types' });
+        crumbs.push({ title: `${cooperativeLabel.value} Types`, href: '/cooperatives/types' });
         return crumbs;
     }
 
@@ -201,9 +203,9 @@ const buildMemberPortalBreadcrumbs = (path: string): BreadcrumbItem[] => {
 };
 
 const fallbackBreadcrumbs = computed<BreadcrumbItem[]>(() => {
-    const rawUrl = page.url || '/dashboard';
+    const rawUrl = page.url || '/homepage';
     const [pathOnly] = rawUrl.split('?');
-    const path = pathOnly === '/' ? '/dashboard' : (pathOnly?.replace(/\/+$/, '') || '/dashboard');
+    const path = pathOnly === '/' ? '/homepage' : (pathOnly?.replace(/\/+$/, '') || '/homepage');
 
     if (path.startsWith('/finance')) {
         return buildFinanceBreadcrumbs(path);
@@ -217,7 +219,9 @@ const fallbackBreadcrumbs = computed<BreadcrumbItem[]>(() => {
         return buildMemberPortalBreadcrumbs(path);
     }
 
+    if (path.startsWith('/homepage')) return [{ title: 'Homepage', href: '/homepage' }];
     if (path.startsWith('/dashboard')) return [{ title: 'Dashboard', href: '/dashboard' }];
+    if (path.startsWith('/display')) return buildGenericBreadcrumbs(path, 'Display', '/display');
     if (path.startsWith('/users')) return buildGenericBreadcrumbs(path, 'User Management', '/users');
     if (path.startsWith('/roles-permissions')) return buildGenericBreadcrumbs(path, 'Roles & Permissions', '/roles-permissions');
     if (path.startsWith('/members')) return buildGenericBreadcrumbs(path, 'Members', '/members');
@@ -241,7 +245,7 @@ const fallbackBreadcrumbs = computed<BreadcrumbItem[]>(() => {
 
     const segments = path.split('/').filter(Boolean);
     if (!segments.length) {
-        return [{ title: 'Dashboard', href: '/dashboard' }];
+        return [{ title: 'Homepage', href: '/homepage' }];
     }
 
     return buildGenericBreadcrumbs(path, humanizeSegment(segments[0]), `/${segments[0]}`);

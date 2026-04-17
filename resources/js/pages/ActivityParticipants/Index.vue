@@ -21,6 +21,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
@@ -79,6 +80,7 @@ const filters = computed(() => props.filters);
 const page = usePage();
 const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
 const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
 const canDelete = computed(() => permissions.value.includes('delete activities-&-projects'));
@@ -233,10 +235,10 @@ const bulkDeleteParticipants = async () => {
                         <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
                         <Select v-model="coopId">
                             <SelectTrigger id="coop_filter">
-                                <SelectValue placeholder="All Cooperatives" />
+                                <SelectValue :placeholder="allCooperativesLabel" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Cooperatives</SelectItem>
+                                <SelectItem value="all">{{ allCooperativesLabel }}</SelectItem>
                                 <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
                                     {{ coop.name }}
                                 </SelectItem>

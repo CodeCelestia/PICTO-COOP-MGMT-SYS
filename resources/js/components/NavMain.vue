@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import {
     CircleHelp,
+    House,
     LayoutDashboard,
     Users,
 } from 'lucide-vue-next';
@@ -45,8 +46,12 @@ const sectionDefinitions: SectionDefinition[] = [
     },
 ];
 
-const dashboardItem = computed<NavItem | undefined>(() => {
-    return props.items.find((item) => toUrl(item.href) === '/dashboard');
+const topNavItems = computed<NavItem[]>(() => {
+    const priorityOrder = ['/homepage', '/dashboard'];
+
+    return priorityOrder
+        .map((path) => props.items.find((item) => toUrl(item.href) === path))
+        .filter((item): item is NavItem => Boolean(item));
 });
 
 const sectionedItems = computed<SectionWithItems[]>(() => {
@@ -56,7 +61,10 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
     };
 
     props.items
-        .filter((item) => toUrl(item.href) !== '/dashboard')
+        .filter((item) => {
+            const path = toUrl(item.href);
+            return path !== '/dashboard' && path !== '/homepage';
+        })
         .forEach((item) => {
             const url = toUrl(item.href);
             const title = item.title.toLowerCase();
@@ -76,7 +84,8 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
 
             const isSystemSection =
                 url.startsWith('/roles-permissions') ||
-                url.startsWith('/activity-logs');
+                url.startsWith('/activity-logs') ||
+                url.startsWith('/display');
 
             if (isManagementSection) {
                 buckets.management.push(item);
@@ -124,22 +133,22 @@ function isItemActive(item: NavItem) {
     <SidebarGroup class="px-2 pb-1">
         <SidebarMenu>
             <SidebarMenuItem
-                v-if="dashboardItem"
-                :key="`dashboard:${getHrefKey(dashboardItem.href)}`"
+                v-for="item in topNavItems"
+                :key="`top-nav:${getHrefKey(item.href)}`"
             >
                 <SidebarMenuButton
                     as-child
-                    :tooltip="dashboardItem.title"
-                    :is-active="isItemActive(dashboardItem)"
+                    :tooltip="item.title"
+                    :is-active="isItemActive(item)"
                 >
                     <Link
-                        :href="dashboardItem.href"
+                        :href="item.href"
                         prefetch
                         :preserve-state="false"
                         :preserve-scroll="false"
                     >
-                        <component :is="dashboardItem.icon || LayoutDashboard" />
-                        <span class="font-semibold">{{ dashboardItem.title }}</span>
+                        <component :is="item.icon || (toUrl(item.href) === '/homepage' ? House : LayoutDashboard)" />
+                        <span class="font-semibold">{{ item.title }}</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

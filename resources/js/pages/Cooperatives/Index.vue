@@ -29,6 +29,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
@@ -82,13 +83,21 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const {
+    availableCooperativesLabel,
+    cooperativeLabel,
+    cooperativeLabelLower,
+    cooperativeManagementLabel,
+    noCooperativesFoundLabel,
+    totalCooperativesLabel,
+} = useCoopLabel();
 
-const breadcrumbs: BreadcrumbItem[] = [
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     {
-        title: 'Cooperative Management',
+        title: cooperativeManagementLabel.value,
         href: '/cooperatives',
     },
-];
+]);
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
@@ -300,8 +309,8 @@ const getTypePreview = (coop: Cooperative) => {
         if (!selectedCount.value || !canBulkDelete.value) return;
 
         const confirmed = await confirmAction({
-            title: 'Delete selected cooperatives?',
-            text: `Delete ${selectedCount.value} selected cooperative record(s)? This action cannot be undone.`,
+            title: `Delete selected ${cooperativeLabelLower.value}?`,
+            text: `Delete ${selectedCount.value} selected ${cooperativeLabelLower.value} record(s)? This action cannot be undone.`,
             confirmButtonText: 'Delete selected',
         });
 
@@ -323,9 +332,9 @@ const getTypePreview = (coop: Cooperative) => {
                             <Sparkles class="h-3.5 w-3.5" />
                             Step 1 of 2
                         </div>
-                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Cooperative Management</h1>
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{{ cooperativeManagementLabel }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground md:text-base">
-                            Manage cooperative master profiles
+                            Manage {{ cooperativeLabelLower }} master profiles
                         </p>
                         <p v-if="!isCoopAdminOnly" class="mt-2 max-w-3xl text-sm text-muted-foreground">
                             Select a cooperative to manage its members, officers, and committees.
@@ -333,7 +342,7 @@ const getTypePreview = (coop: Cooperative) => {
                     </div>
                     <div class="flex items-center gap-3">
                         <Badge variant="outline" class="hidden sm:inline-flex">
-                            {{ cooperatives.total }} total cooperatives
+                            {{ cooperatives.total }} {{ totalCooperativesLabel }}
                         </Badge>
                         <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
                             <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
@@ -357,7 +366,7 @@ const getTypePreview = (coop: Cooperative) => {
                 <div v-if="!isCoopAdminOnly" class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
                     title="Filters"
-                    description="Show filter fields to refine cooperative results."
+                    :description="`Show filter fields to refine ${cooperativeLabelLower} results.`"
                     showLabel="Show filters"
                     hideLabel="Hide filters"
                 >
@@ -571,7 +580,7 @@ const getTypePreview = (coop: Cooperative) => {
 
             <Card v-else class="overflow-hidden border-border/80 bg-card shadow-sm">
                 <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">Available Cooperatives</CardTitle>
+                    <CardTitle class="text-base font-semibold text-foreground">{{ availableCooperativesLabel }}</CardTitle>
                     <CardDescription>Open a cooperative profile to continue to members, officers, and committees management.</CardDescription>
                 </CardHeader>
 
@@ -584,7 +593,7 @@ const getTypePreview = (coop: Cooperative) => {
                                         <Checkbox
                                             :model-value="allVisibleSelected"
                                             :disabled="cooperatives.data.length === 0"
-                                            aria-label="Select all cooperatives"
+                                            :aria-label="`Select all ${cooperativeLabelLower}`"
                                             @update:model-value="toggleAll"
                                         />
                                     </TableHead>
@@ -601,7 +610,7 @@ const getTypePreview = (coop: Cooperative) => {
                                 <TableRow v-if="cooperatives.data.length === 0">
                                     <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
                                         <div class="mx-auto max-w-md space-y-2">
-                                            <p class="font-medium text-foreground">No cooperatives matched your current filters.</p>
+                                            <p class="font-medium text-foreground">{{ noCooperativesFoundLabel }}</p>
                                             <p class="text-sm text-muted-foreground">Try clearing filters or searching by province or registration number.</p>
                                         </div>
                                     </TableCell>
@@ -709,7 +718,7 @@ const getTypePreview = (coop: Cooperative) => {
                             <div class="text-sm text-muted-foreground">
                                 Showing {{ (cooperatives.current_page - 1) * cooperatives.per_page + 1 }} to
                                 {{ Math.min(cooperatives.current_page * cooperatives.per_page, cooperatives.total) }} of
-                                {{ cooperatives.total }} cooperatives
+                                {{ cooperatives.total }} {{ cooperativeLabelLower }}
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <Button

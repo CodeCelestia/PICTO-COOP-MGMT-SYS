@@ -9,6 +9,7 @@ import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import MemberListPanel from '@/components/panels/MemberListPanel.vue';
 import OfficerListPanel from '@/components/panels/OfficerListPanel.vue';
 import CommitteeListPanel from '@/components/panels/CommitteeListPanel.vue';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import type {
     CommitteeMember,
@@ -103,6 +104,7 @@ const tabs: LiftedTab[] = [
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const { cooperativeManagementLabel } = useCoopLabel();
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
 const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
@@ -133,7 +135,7 @@ const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) 
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     {
-        title: 'Cooperative Management',
+        title: cooperativeManagementLabel.value,
         href: '/cooperatives',
     },
     {
@@ -251,7 +253,7 @@ const statusBadgeClass = computed(() => {
                             </div>
                             <div class="space-y-1">
                                 <CardTitle class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-                                    Cooperative Management  |  {{ cooperative.name }}
+                                    {{ cooperativeManagementLabel }}  |  {{ cooperative.name }}
                                 </CardTitle>
                                 <p class="text-base text-muted-foreground">Review and manage profile, members, officers, and committees</p>
                             </div>

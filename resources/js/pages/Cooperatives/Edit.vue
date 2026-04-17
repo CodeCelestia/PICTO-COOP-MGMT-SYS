@@ -3,6 +3,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { Building2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import CooperativeForm from '@/components/Cooperatives/CooperativeForm.vue';
+import { useCoopLabel } from '@/composables/useCoopLabel';
 import { Badge } from '@/components/ui/badge';
 import {
     Card,
@@ -56,6 +57,7 @@ const props = defineProps<{
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canUpdateCoop = computed(() => permissions.value.includes('update coop-master-profile'));
+const { cooperativeLabel } = useCoopLabel();
 
 const cancel = () => {
     router.get('/cooperatives');
@@ -74,7 +76,7 @@ const actionUrl = computed(() => `/cooperatives/${props.cooperative.id}`);
                             <Building2 class='h-5 w-5' />
                         </div>
                         <div>
-                            <Badge variant='outline' class='mb-2'>Cooperatives</Badge>
+                            <Badge variant='outline' class='mb-2'>{{ cooperativeLabel }}</Badge>
                             <h1 class='text-2xl font-semibold tracking-tight text-foreground sm:text-3xl'>Edit Cooperative</h1>
                             <p class='mt-1 text-sm text-muted-foreground'>Update cooperative master profile</p>
                         </div>
