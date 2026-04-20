@@ -73,6 +73,21 @@ class CooperativeController extends Controller
 
         $cooperatives = $query->with('types')->orderBy('name')->paginate($perPage)->withQueryString();
 
+        $cooperatives->getCollection()->transform(function ($cooperative) {
+            $latestAccreditation = $cooperative->accreditations()
+                ->orderByDesc('date_granted')
+                ->first(['id', 'cooperative_id', 'level', 'date_granted']);
+
+            $cooperative->setAttribute('latest_accreditation', $latestAccreditation ? [
+                'id' => $latestAccreditation->id,
+                'cooperative_id' => $latestAccreditation->cooperative_id,
+                'level' => $latestAccreditation->level,
+                'date_granted' => optional($latestAccreditation->date_granted)->toDateString(),
+            ] : null);
+
+            return $cooperative;
+        });
+
         return Inertia::render('Cooperatives/Index', [
             'cooperatives' => $cooperatives,
             'cooperativeTypes' => CooperativeType::orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
@@ -98,7 +113,7 @@ class CooperativeController extends Controller
             'registration_number' => 'required|string|max:255|unique:cooperatives',
             'type_ids' => 'required|array|min:1',
             'type_ids.*' => 'integer|exists:cooperative_types,id',
-            'classification' => 'required|in:Primary,Secondary,Tertiary',
+            'classification' => 'nullable|in:micro,small,medium,large',
             'date_established' => 'required|date',
             'address' => 'required|string',
             'province' => 'required|string|max:255',
@@ -108,8 +123,6 @@ class CooperativeController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
-            'accreditation_status' => 'nullable|string|max:255',
-            'accreditation_date' => 'nullable|date',
         ]);
 
         $typeIds = $validated['type_ids'];
@@ -177,7 +190,7 @@ class CooperativeController extends Controller
             'registration_number' => 'required|string|max:255|unique:cooperatives,registration_number,' . $cooperative->id,
             'type_ids' => 'required|array|min:1',
             'type_ids.*' => 'integer|exists:cooperative_types,id',
-            'classification' => 'required|in:Primary,Secondary,Tertiary',
+            'classification' => 'nullable|in:micro,small,medium,large',
             'date_established' => 'required|date',
             'address' => 'required|string',
             'province' => 'required|string|max:255',
@@ -187,8 +200,6 @@ class CooperativeController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
-            'accreditation_status' => 'nullable|string|max:255',
-            'accreditation_date' => 'nullable|date',
             'change_reason' => 'nullable|string|max:500',
             'status_remarks' => 'nullable|string|max:500',
         ]);
@@ -241,6 +252,10 @@ class CooperativeController extends Controller
 
     public function restore(int $id)
     {
+        if (!auth()->user()->hasRole(['Super Admin', 'Provincial Admin'])) {
+            abort(403, 'Only Super Admin and Provincial Admin can restore records.');
+        }
+
         $cooperative = Cooperative::withTrashed()->findOrFail($id);
         $cooperative->restore();
 
@@ -255,9 +270,13 @@ class CooperativeController extends Controller
 
         if ($canViewAll) {
             if ($cooperative) {
-                $cooperative = $cooperative->load('types');
+                $cooperative = $cooperative->load(['types', 'accreditations' => function ($query) {
+                    $query->orderByDesc('date_granted');
+                }]);
             } elseif ($user?->coop_id) {
-                $cooperative = Cooperative::with('types')->findOrFail($user->coop_id);
+                $cooperative = Cooperative::with(['types', 'accreditations' => function ($query) {
+                    $query->orderByDesc('date_granted');
+                }])->findOrFail($user->coop_id);
             } else {
                 return redirect()->route('cooperatives.index');
             }
@@ -266,7 +285,9 @@ class CooperativeController extends Controller
                 abort(404);
             }
 
-            $cooperative = Cooperative::with('types')->findOrFail($user->coop_id);
+            $cooperative = Cooperative::with(['types', 'accreditations' => function ($query) {
+                $query->orderByDesc('date_granted');
+            }])->findOrFail($user->coop_id);
         }
 
         $memberSearch = $request->input('members_search');
@@ -350,7 +371,7 @@ class CooperativeController extends Controller
         $loanTypes = LoanType::query()
             ->where('cooperative_id', $cooperative->id)
             ->orderBy('name')
-            ->get(['id', 'cooperative_id', 'name', 'description', 'is_active']);
+            ->get(['id', 'cooperative_id', 'name', 'classification', 'description', 'is_active']);
 
         return Inertia::render('Cooperatives/Show', [
             'cooperative' => $cooperative,

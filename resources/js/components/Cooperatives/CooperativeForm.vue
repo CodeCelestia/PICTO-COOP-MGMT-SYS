@@ -14,7 +14,7 @@ interface CooperativeData {
   id?: number;
   name?: string;
   registration_number?: string;
-  classification?: 'Primary' | 'Secondary' | 'Tertiary' | null;
+  classification?: 'micro' | 'small' | 'medium' | 'large' | null;
   types?: Array<{ id: number; name: string }>;
   date_established?: string;
   address?: string;
@@ -259,11 +259,6 @@ const submit = () => {
     return;
   }
 
-  if (!form.classification) {
-    form.setError('classification', 'Please select cooperative classification.');
-    return;
-  }
-
   if (props.method === 'post') {
     form.post(props.action, { preserveScroll: true });
   } else {
@@ -308,23 +303,26 @@ const submit = () => {
             <p v-if="form.errors.type_ids" class="mt-1 text-sm text-red-500">{{ form.errors.type_ids }}</p>
           </div>
           <div>
-            <Label for="classification">Cooperative Classification <span class="text-red-500">*</span></Label>
-            <Select v-model="form.classification">
-              <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
-                <SelectValue placeholder="Select classification" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Primary">Primary</SelectItem>
-                <SelectItem value="Secondary">Secondary</SelectItem>
-                <SelectItem value="Tertiary">Tertiary</SelectItem>
-              </SelectContent>
-            </Select>
-            <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
-          </div>
-          <div>
             <Label for="date_established">Date Established <span class="text-red-500">*</span></Label>
             <Input id="date_established" v-model="form.date_established" type="date" required :class="{'border-red-500 focus-visible:ring-red-500': form.errors.date_established}" />
             <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
+          </div>
+          <div>
+            <Label for="classification">Classification</Label>
+            <Select v-model="form.classification">
+              <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
+                <SelectValue placeholder="Select classification (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                <SelectItem value="micro">Micro - loans up to P10,000</SelectItem>
+                <SelectItem value="small">Small - loans up to P50,000</SelectItem>
+                <SelectItem value="medium">Medium - loans up to P500,000</SelectItem>
+                <SelectItem value="large">Large - loans above P500,000</SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="mt-1 text-xs text-muted-foreground">Optional but recommended for loan tier alignment.</p>
+            <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
           </div>
           <div class="md:col-span-2">
             <Label for="address">Address <span class="text-red-500">*</span></Label>

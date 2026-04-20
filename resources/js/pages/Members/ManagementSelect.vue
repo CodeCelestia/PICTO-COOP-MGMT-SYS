@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Building2, Filter, Search, Sparkles } from 'lucide-vue-next';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +62,14 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage();
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const {
     availableCooperativesLabel,
     cooperativeLabelLower,
@@ -177,6 +185,14 @@ const applyFilters = () => {
     });
 };
 
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
+
 const resetFilters = () => {
     search.value = '';
     status.value = 'all';
@@ -270,7 +286,7 @@ const formatDate = (date: string | null) => {
                                     <SelectItem value="Inactive">Inactive</SelectItem>
                                     <SelectItem value="Suspended">Suspended</SelectItem>
                                     <SelectItem value="Dissolved">Dissolved</SelectItem>
-                                    <SelectItem value="Archived">Archived</SelectItem>
+                                    <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

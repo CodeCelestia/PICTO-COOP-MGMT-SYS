@@ -18,7 +18,6 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    classification: string | null;
     types?: Array<{ id: number; name: string }>;
     date_established: string;
     address: string;

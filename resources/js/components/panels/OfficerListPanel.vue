@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
 import { Users, Plus, Pencil, Trash2, Search, RotateCcw } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,13 @@ const hasCoopLock = computed(() => Boolean(props.lockCoopId));
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const { allCooperativesLabel } = useCoopLabel();
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 const canEditOfficer = computed(() => permissions.value.includes('update officers-&-committees'));
@@ -65,7 +72,7 @@ const showActions = computed(() => canEditOfficer.value || canDeleteOfficer.valu
 const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || props.lockCoopId || 'all');
 const status = ref(props.filters.status || 'all');
-const isArchivedView = computed(() => status.value === 'Archived');
+const isArchivedView = computed(() => props.filters?.status === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.officers.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -94,6 +101,14 @@ const applyFilters = () => {
     });
 };
 
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
+
 const resetFilters = () => {
     search.value = '';
     coopId.value = props.lockCoopId || 'all';
@@ -119,7 +134,7 @@ const deleteOfficer = async (officer: Officer) => {
 };
 
 const restoreOfficer = async (officer: Officer) => {
-    if (!canDeleteOfficer.value) return;
+    if (!canRestore.value) return;
     const confirmed = await confirmAction({
         title: 'Restore officer record?',
         text: `Restore ${officer.member.full_name} to active records?`,
@@ -242,7 +257,7 @@ const bulkDeleteOfficers = async () => {
                                 <SelectItem value="Retired">Retired</SelectItem>
                                 <SelectItem value="Removed">Removed</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
-                                <SelectItem value="Archived">Archived</SelectItem>
+                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -352,7 +367,7 @@ const bulkDeleteOfficers = async () => {
                                         Delete
                                     </Button>
                                     <Button
-                                        v-if="isArchivedView && canDeleteOfficer"
+                                        v-if="isArchivedView && canRestore"
                                         @click="restoreOfficer(officer)"
                                         variant="ghost"
                                         size="sm"

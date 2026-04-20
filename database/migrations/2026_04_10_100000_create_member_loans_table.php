@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('cooperative_id')->constrained('cooperatives')->cascadeOnDelete();
             $table->string('name');
+            $table->enum('classification', ['micro', 'small', 'medium', 'large'])->nullable();
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

@@ -394,6 +394,10 @@ class PdsController extends Controller
 
     public function restore(int $id): RedirectResponse
     {
+        if (!auth()->user()->hasRole(['Super Admin', 'Provincial Admin'])) {
+            abort(403, 'Only Super Admin and Provincial Admin can restore records.');
+        }
+
         $pds = PdsSubmission::withTrashed()->findOrFail($id);
         abort_unless($this->canAccessSubmission($pds), 403);
 

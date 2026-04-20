@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('registration_number')->unique();
-            $table->string('classification')->nullable()->default(null);
+            $table->enum('classification', ['micro', 'small', 'medium', 'large'])->nullable();
             $table->date('date_established');
             $table->text('address');
             $table->string('province');
@@ -25,8 +25,6 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
             $table->enum('status', ['Active', 'Inactive', 'Dissolved', 'Suspended'])->default('Active');
-            $table->string('accreditation_status')->nullable(); // Accredited / Pending / Revoked
-            $table->date('accreditation_date')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
@@ -35,6 +33,20 @@ return new class extends Migration
             $table->index('province');
             $table->index('region');
             $table->index('city_municipality');
+        });
+
+        Schema::create('accreditations', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('cooperative_id')->constrained('cooperatives')->cascadeOnDelete();
+            $table->string('level');
+            $table->date('date_granted');
+            $table->date('valid_until')->nullable();
+            $table->string('issuing_body')->nullable()->default('CDA');
+            $table->text('remarks')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['cooperative_id', 'date_granted']);
         });
 
         Schema::table('users', function (Blueprint $table) {
@@ -58,6 +70,8 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['coop_id']);
         });
+
+        Schema::dropIfExists('accreditations');
 
         Schema::dropIfExists('cooperatives');
     }

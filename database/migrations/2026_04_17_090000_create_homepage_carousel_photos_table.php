@@ -19,6 +19,7 @@ return new class extends Migration
             $table->boolean('is_enabled')->default(true);
             $table->boolean('is_core')->default(false);
             $table->timestamps();
+            $table->softDeletes();
 
             $table->index(['is_default', 'is_enabled']);
         });

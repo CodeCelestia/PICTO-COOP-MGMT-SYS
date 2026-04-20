@@ -973,15 +973,14 @@ class MemberController extends Controller
 
     public function restore(int $id): RedirectResponse
     {
-        $user = auth()->user();
-
-        if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
-            abort(403);
+        if (!auth()->user()->hasRole(['Super Admin', 'Provincial Admin'])) {
+            abort(403, 'Only Super Admin and Provincial Admin can restore records.');
         }
 
+        $user = auth()->user();
         $member = Member::withTrashed()->findOrFail($id);
 
-        if ($this->isCoopAdmin() && $user?->coop_id && $member->coop_id !== $user->coop_id) {
+        if ($user?->coop_id && $member->coop_id !== $user->coop_id) {
             abort(403);
         }
 

@@ -16,7 +16,7 @@ class LoanTypeController extends Controller
         $loanTypes = LoanType::query()
             ->where('cooperative_id', $coopId)
             ->orderBy('name')
-            ->get(['id', 'cooperative_id', 'name', 'description', 'is_active', 'created_at', 'updated_at']);
+            ->get(['id', 'cooperative_id', 'name', 'classification', 'description', 'is_active', 'created_at', 'updated_at']);
 
         return response()->json(['data' => $loanTypes]);
     }
@@ -27,6 +27,7 @@ class LoanTypeController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'classification' => ['nullable', 'in:micro,small,medium,large'],
             'description' => ['nullable', 'string'],
             'is_active' => ['required', 'boolean'],
         ]);
@@ -34,6 +35,7 @@ class LoanTypeController extends Controller
         LoanType::create([
             'cooperative_id' => $coopId,
             'name' => $validated['name'],
+            'classification' => $validated['classification'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) $validated['is_active'],
         ]);
@@ -47,12 +49,14 @@ class LoanTypeController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'classification' => ['nullable', 'in:micro,small,medium,large'],
             'description' => ['nullable', 'string'],
             'is_active' => ['required', 'boolean'],
         ]);
 
         $loanType->update([
             'name' => $validated['name'],
+            'classification' => $validated['classification'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) $validated['is_active'],
         ]);

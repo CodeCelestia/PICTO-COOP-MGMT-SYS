@@ -40,7 +40,6 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    classification: string | null;
     date_established: string;
     address: string;
     province: string;
@@ -50,8 +49,12 @@ interface Cooperative {
     email: string | null;
     phone: string | null;
     status: 'Active' | 'Inactive' | 'Dissolved' | 'Suspended';
-    accreditation_status: string | null;
-    accreditation_date: string | null;
+    latest_accreditation?: {
+        id: number;
+        cooperative_id: number;
+        level: string;
+        date_granted: string | null;
+    } | null;
     created_at: string;
     deleted_at?: string | null;
     types?: Array<{ id: number; name: string }>;
@@ -101,6 +104,13 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
 const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
@@ -109,7 +119,7 @@ const canBulkDelete = computed(() => canDeleteCoop.value && !isArchivedView.valu
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value || canViewAllCoops.value);
 const isCoopAdminOnly = computed(() => !canViewAllCoops.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
-const isArchivedView = computed(() => status.value === 'Archived');
+const isArchivedView = computed(() => props.filters?.status === 'Archived');
 
 const coopTypes = computed(() => props.cooperativeTypes.map((type) => type.name));
 
@@ -203,6 +213,14 @@ const applyFilters = () => {
         preserveScroll: true,
     });
 };
+
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
 
 const resetFilters = () => {
     search.value = '';
@@ -395,7 +413,7 @@ const getTypePreview = (coop: Cooperative) => {
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Dissolved">Dissolved</SelectItem>
-                                <SelectItem value="Archived">Archived</SelectItem>
+                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -543,7 +561,6 @@ const getTypePreview = (coop: Cooperative) => {
                                     <strong>Type:</strong>
                                     {{ coopProfile.types?.length ? coopProfile.types.map((t) => t.name).join(', ') : 'N/A' }}
                                 </div>
-                                <div><strong>Classification:</strong> {{ coopProfile.classification || 'N/A' }}</div>
                                 <div><strong>Date Established:</strong> {{ formatDate(coopProfile.date_established) }}</div>
                             </div>
                         </div>
@@ -558,8 +575,8 @@ const getTypePreview = (coop: Cooperative) => {
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
                             <div class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Accreditation</div>
                             <div class="mt-2 space-y-1 text-sm text-foreground">
-                                <div><strong>Status:</strong> {{ coopProfile.accreditation_status || 'N/A' }}</div>
-                                <div><strong>Date:</strong> {{ formatDate(coopProfile.accreditation_date) }}</div>
+                                <div><strong>Latest Level:</strong> {{ coopProfile.latest_accreditation?.level || 'N/A' }}</div>
+                                <div><strong>Date Granted:</strong> {{ formatDate(coopProfile.latest_accreditation?.date_granted || null) }}</div>
                             </div>
                         </div>
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
@@ -661,9 +678,9 @@ const getTypePreview = (coop: Cooperative) => {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <div v-if="coop.accreditation_status" class="text-sm">
-                                            <div class="text-foreground">{{ coop.accreditation_status }}</div>
-                                            <div class="text-xs text-muted-foreground">{{ formatDate(coop.accreditation_date) }}</div>
+                                        <div v-if="coop.latest_accreditation" class="text-sm">
+                                            <div class="text-foreground">{{ coop.latest_accreditation.level }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ formatDate(coop.latest_accreditation.date_granted || null) }}</div>
                                         </div>
                                         <span v-else class="text-muted-foreground">N/A</span>
                                     </TableCell>
@@ -696,7 +713,7 @@ const getTypePreview = (coop: Cooperative) => {
                                                 Delete
                                             </Button>
                                             <Button
-                                                v-if="canDeleteCoop && isArchivedView"
+                                                v-if="canRestore && isArchivedView"
                                                 @click="restoreCooperative(coop)"
                                                 @click.stop
                                                 variant="ghost"

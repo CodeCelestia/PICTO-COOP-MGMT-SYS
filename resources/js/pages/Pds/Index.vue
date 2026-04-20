@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Pencil, Download, Trash2, RotateCcw } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -72,13 +72,20 @@ const props = defineProps<Props>();
 const page = usePage();
 const { allCooperativesLabel } = useCoopLabel();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
 const isCoopAdmin = computed(() => Boolean(page.props.auth?.isCoopAdmin));
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
 const coopId = ref(props.filters.coop_id || 'all');
-const isArchivedView = computed(() => status.value === 'Archived');
+const isArchivedView = computed(() => props.filters?.status === 'Archived');
 const canBulkDelete = computed(() => !isArchivedView.value);
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.submissions.per_page || 10);
@@ -137,6 +144,8 @@ const deleteSubmission = async (id: number) => {
 };
 
 const restoreSubmission = async (pds: PdsSubmission) => {
+    if (!canRestore.value) return;
+
     const confirmed = await confirmAction({
         title: 'Restore PDS submission?',
         text: `Restore PDS #${pds.id} to active records?`,
@@ -161,6 +170,14 @@ const applyFilters = () => {
         preserveScroll: true,
     });
 };
+
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
 
 const clearFilters = () => {
     search.value = '';
@@ -254,7 +271,7 @@ const bulkDeleteSubmissions = async () => {
                                     <SelectItem value="all">All Statuses</SelectItem>
                                     <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="final">Final</SelectItem>
-                                    <SelectItem value="Archived">Archived</SelectItem>
+                                    <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -371,7 +388,7 @@ const bulkDeleteSubmissions = async () => {
                                             Delete
                                         </Button>
                                         <Button
-                                            v-if="isArchivedView"
+                                            v-if="canRestore && isArchivedView"
                                             variant="outline"
                                             size="sm"
                                             class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"

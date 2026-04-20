@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -83,6 +83,13 @@ const showCoopFilter = computed(() => !lockedCoopId.value);
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
 const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
@@ -93,7 +100,7 @@ const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
 const category = ref(props.filters.category || 'all');
-const isArchivedView = computed(() => status.value === 'Archived');
+const isArchivedView = computed(() => props.filters?.status === 'Archived');
 const canBulkDelete = computed(() => canDelete.value && !isArchivedView.value);
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 15);
@@ -144,6 +151,14 @@ const applyFilters = () => {
     });
 };
 
+watch(status, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
+
 const resetFilters = () => {
     search.value = '';
     coopId.value = lockedCoopId.value || 'all';
@@ -170,7 +185,7 @@ const deleteActivity = async (activity: Activity) => {
 };
 
 const restoreActivity = async (activity: Activity) => {
-    if (!canDelete.value) return;
+    if (!canRestore.value) return;
     const confirmed = await confirmAction({
         title: 'Restore activity?',
         text: `Restore ${activity.title} to active records?`,
@@ -319,7 +334,7 @@ const bulkDeleteActivities = async () => {
                                     <SelectItem v-for="option in statusOptions" :key="option" :value="option">
                                         {{ option }}
                                     </SelectItem>
-                                    <SelectItem value="Archived">Archived</SelectItem>
+                                    <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -440,7 +455,7 @@ const bulkDeleteActivities = async () => {
                                         Delete
                                     </Button>
                                     <Button
-                                        v-if="isArchivedView && canDelete"
+                                        v-if="isArchivedView && canRestore"
                                         @click="restoreActivity(activity)"
                                         variant="ghost"
                                         size="sm"

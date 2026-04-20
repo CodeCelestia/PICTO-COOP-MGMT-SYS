@@ -356,8 +356,8 @@ class OfficerController extends Controller
 
     public function restore(int $id): RedirectResponse
     {
-        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
-            abort(403);
+        if (!auth()->user()->hasRole(['Super Admin', 'Provincial Admin'])) {
+            abort(403, 'Only Super Admin and Provincial Admin can restore records.');
         }
 
         $officer = Officer::withTrashed()->findOrFail($id);

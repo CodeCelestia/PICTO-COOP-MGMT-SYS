@@ -166,7 +166,6 @@ class FinancePermissionFlowTest extends TestCase
         return Cooperative::create([
             'name' => $name,
             'registration_number' => $registration,
-            'classification' => 'Primary',
             'date_established' => now()->subYears(3)->toDateString(),
             'address' => 'Sample Address',
             'province' => 'Leyte',

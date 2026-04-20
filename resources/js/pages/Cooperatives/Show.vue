@@ -23,7 +23,7 @@ interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    classification: string | null;
+    classification: 'micro' | 'small' | 'medium' | 'large' | null;
     types?: Array<{ id: number; name: string }>;
     date_established: string;
     address: string;
@@ -34,8 +34,17 @@ interface Cooperative {
     email: string | null;
     phone: string | null;
     status: string;
-    accreditation_status: string | null;
-    accreditation_date: string | null;
+    accreditations?: Accreditation[];
+}
+
+interface Accreditation {
+    id: number;
+    cooperative_id: number;
+    level: string;
+    date_granted: string;
+    valid_until: string | null;
+    issuing_body: string | null;
+    remarks: string | null;
 }
 
 
@@ -84,6 +93,7 @@ const props = defineProps<{
         id: number;
         cooperative_id: number;
         name: string;
+        classification: 'micro' | 'small' | 'medium' | 'large' | null;
         description: string | null;
         is_active: boolean;
     }>;
@@ -109,11 +119,30 @@ const canEditCoop = computed(() => permissions.value.includes('update coop-maste
 const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
+const canManageAccreditations = computed(() => permissions.value.includes('update coop-master-profile'));
 const activeTab = ref('profile');
+const editingAccreditationId = ref<number | null>(null);
+
+const addAccreditationForm = useForm({
+    level: '',
+    date_granted: '',
+    valid_until: '',
+    issuing_body: 'CDA',
+    remarks: '',
+});
+
+const editAccreditationForm = useForm({
+    level: '',
+    date_granted: '',
+    valid_until: '',
+    issuing_body: 'CDA',
+    remarks: '',
+});
 
 const addLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
     name: '',
+    classification: '',
     description: '',
     is_active: true,
 });
@@ -122,6 +151,7 @@ const editingLoanTypeId = ref<number | null>(null);
 const editLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
     name: '',
+    classification: '',
     description: '',
     is_active: true,
 });
@@ -132,6 +162,36 @@ const cooperativeBasePath = computed(() => {
 });
 
 const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) => type.name) || []);
+
+const classificationLabel = computed(() => {
+    switch (props.cooperative.classification) {
+        case 'micro':
+            return 'Micro';
+        case 'small':
+            return 'Small';
+        case 'medium':
+            return 'Medium';
+        case 'large':
+            return 'Large';
+        default:
+            return null;
+    }
+});
+
+const classificationBadgeClass = computed(() => {
+    switch (props.cooperative.classification) {
+        case 'micro':
+            return 'border border-sky-300 bg-sky-100 text-sky-800 dark:border-sky-400/40 dark:bg-sky-500/20 dark:text-sky-200';
+        case 'small':
+            return 'border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200';
+        case 'medium':
+            return 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/20 dark:text-amber-200';
+        case 'large':
+            return 'border border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-400/40 dark:bg-rose-500/20 dark:text-rose-200';
+        default:
+            return 'border border-border bg-muted text-foreground';
+    }
+});
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
     {
@@ -180,10 +240,57 @@ const formatFullAddress = (coop: Cooperative) => {
     return parts.join(', ') || 'N/A';
 };
 
-const startEditLoanType = (loanType: { id: number; name: string; description: string | null; is_active: boolean }) => {
+const accreditations = computed(() => props.cooperative.accreditations || []);
+
+const submitAddAccreditation = () => {
+    addAccreditationForm.post(`/cooperatives/${props.cooperative.id}/accreditations`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            addAccreditationForm.reset('level', 'date_granted', 'valid_until', 'issuing_body', 'remarks');
+            addAccreditationForm.issuing_body = 'CDA';
+        },
+    });
+};
+
+const startEditAccreditation = (accreditation: Accreditation) => {
+    editingAccreditationId.value = accreditation.id;
+    editAccreditationForm.level = accreditation.level;
+    editAccreditationForm.date_granted = accreditation.date_granted;
+    editAccreditationForm.valid_until = accreditation.valid_until || '';
+    editAccreditationForm.issuing_body = accreditation.issuing_body || 'CDA';
+    editAccreditationForm.remarks = accreditation.remarks || '';
+};
+
+const cancelEditAccreditation = () => {
+    editingAccreditationId.value = null;
+    editAccreditationForm.reset();
+    editAccreditationForm.clearErrors();
+};
+
+const submitEditAccreditation = (accreditationId: number) => {
+    editAccreditationForm.put(`/cooperatives/${props.cooperative.id}/accreditations/${accreditationId}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            cancelEditAccreditation();
+        },
+    });
+};
+
+const deleteAccreditation = (accreditationId: number) => {
+    if (!window.confirm('Are you sure you want to delete this accreditation record?')) {
+        return;
+    }
+
+    router.delete(`/cooperatives/${props.cooperative.id}/accreditations/${accreditationId}`, {
+        preserveScroll: true,
+    });
+};
+
+const startEditLoanType = (loanType: { id: number; name: string; classification: 'micro' | 'small' | 'medium' | 'large' | null; description: string | null; is_active: boolean }) => {
     editingLoanTypeId.value = loanType.id;
     editLoanTypeForm.cooperative_id = props.cooperative.id;
     editLoanTypeForm.name = loanType.name;
+    editLoanTypeForm.classification = loanType.classification || '';
     editLoanTypeForm.description = loanType.description || '';
     editLoanTypeForm.is_active = loanType.is_active;
 };
@@ -198,10 +305,40 @@ const submitAddLoanType = () => {
     addLoanTypeForm.post('/finance/loan-types', {
         preserveScroll: true,
         onSuccess: () => {
-            addLoanTypeForm.reset('name', 'description');
+            addLoanTypeForm.reset('name', 'classification', 'description');
             addLoanTypeForm.is_active = true;
         },
     });
+};
+
+const loanTypeClassificationLabel = (classification: 'micro' | 'small' | 'medium' | 'large' | null): string | null => {
+    switch (classification) {
+        case 'micro':
+            return 'Micro';
+        case 'small':
+            return 'Small';
+        case 'medium':
+            return 'Medium';
+        case 'large':
+            return 'Large';
+        default:
+            return null;
+    }
+};
+
+const loanTypeClassificationBadgeClass = (classification: 'micro' | 'small' | 'medium' | 'large' | null): string => {
+    switch (classification) {
+        case 'micro':
+            return 'border border-sky-300 bg-sky-100 text-sky-800';
+        case 'small':
+            return 'border border-emerald-300 bg-emerald-100 text-emerald-800';
+        case 'medium':
+            return 'border border-amber-300 bg-amber-100 text-amber-800';
+        case 'large':
+            return 'border border-rose-300 bg-rose-100 text-rose-800';
+        default:
+            return 'border border-slate-200 bg-slate-100 text-slate-700';
+    }
 };
 
 const submitEditLoanType = (loanTypeId: number) => {
@@ -304,7 +441,9 @@ const statusBadgeClass = computed(() => {
                                     <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
                                         <dt class="font-semibold text-muted-foreground">Classification</dt>
                                         <dd>
-                                            <Badge variant="outline" class="font-medium">{{ cooperative.classification || 'N/A' }}</Badge>
+                                            <Badge class="font-medium" :class="classificationBadgeClass">
+                                                {{ classificationLabel || 'Not set' }}
+                                            </Badge>
                                         </dd>
                                     </div>
                                     <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
@@ -332,18 +471,92 @@ const statusBadgeClass = computed(() => {
                                 </dl>
                             </section>
 
-                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
-                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Accreditation</h3>
-                                <dl class="mt-4 space-y-3 text-base text-foreground">
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">Status</dt>
-                                        <dd class="font-semibold">{{ cooperative.accreditation_status || 'N/A' }}</dd>
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm xl:col-span-2">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Accreditations</h3>
+                                    <Button v-if="canManageAccreditations" size="sm" variant="outline" @click="submitAddAccreditation" :disabled="addAccreditationForm.processing">Add Accreditation</Button>
+                                </div>
+
+                                <form v-if="canManageAccreditations" class="mt-4 grid gap-3 rounded-lg border border-border/70 bg-muted/30 p-4 md:grid-cols-2" @submit.prevent="submitAddAccreditation">
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium">Level</label>
+                                        <input v-model="addAccreditationForm.level" type="text" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="e.g., Level 1" />
+                                        <p v-if="addAccreditationForm.errors.level" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.level }}</p>
                                     </div>
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">Date</dt>
-                                        <dd class="font-semibold">{{ formatDate(cooperative.accreditation_date) }}</dd>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium">Date Granted</label>
+                                        <input v-model="addAccreditationForm.date_granted" type="date" class="w-full rounded-md border px-3 py-2 text-sm" />
+                                        <p v-if="addAccreditationForm.errors.date_granted" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.date_granted }}</p>
                                     </div>
-                                </dl>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium">Valid Until</label>
+                                        <input v-model="addAccreditationForm.valid_until" type="date" class="w-full rounded-md border px-3 py-2 text-sm" />
+                                        <p v-if="addAccreditationForm.errors.valid_until" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.valid_until }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium">Issuing Body</label>
+                                        <input v-model="addAccreditationForm.issuing_body" type="text" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="CDA" />
+                                        <p v-if="addAccreditationForm.errors.issuing_body" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.issuing_body }}</p>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="mb-1 block text-sm font-medium">Remarks</label>
+                                        <textarea v-model="addAccreditationForm.remarks" rows="2" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="Optional remarks"></textarea>
+                                        <p v-if="addAccreditationForm.errors.remarks" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.remarks }}</p>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <Button type="submit" size="sm" :disabled="addAccreditationForm.processing">Save Accreditation</Button>
+                                    </div>
+                                </form>
+
+                                <div class="mt-4 overflow-hidden rounded-lg border border-border/70">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-muted/40">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left">Level</th>
+                                                <th class="px-3 py-2 text-left">Date Granted</th>
+                                                <th class="px-3 py-2 text-left">Valid Until</th>
+                                                <th class="px-3 py-2 text-left">Issuing Body</th>
+                                                <th class="px-3 py-2 text-left">Remarks</th>
+                                                <th v-if="canManageAccreditations" class="px-3 py-2 text-left">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-if="accreditations.length === 0">
+                                                <td class="px-3 py-4 text-center text-muted-foreground" :colspan="canManageAccreditations ? 6 : 5">
+                                                    No accreditation records yet.
+                                                </td>
+                                            </tr>
+                                            <tr v-for="accreditation in accreditations" :key="accreditation.id" class="border-t">
+                                                <template v-if="editingAccreditationId === accreditation.id">
+                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.level" type="text" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
+                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.date_granted" type="date" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
+                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.valid_until" type="date" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
+                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.issuing_body" type="text" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
+                                                    <td class="px-3 py-2"><textarea v-model="editAccreditationForm.remarks" rows="2" class="w-full rounded-md border px-2 py-1 text-sm"></textarea></td>
+                                                    <td class="px-3 py-2">
+                                                        <div class="flex flex-wrap gap-2">
+                                                            <Button size="sm" @click="submitEditAccreditation(accreditation.id)" :disabled="editAccreditationForm.processing">Save</Button>
+                                                            <Button size="sm" variant="outline" @click="cancelEditAccreditation">Cancel</Button>
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                                <template v-else>
+                                                    <td class="px-3 py-2">{{ accreditation.level }}</td>
+                                                    <td class="px-3 py-2">{{ formatDate(accreditation.date_granted) }}</td>
+                                                    <td class="px-3 py-2">{{ formatDate(accreditation.valid_until) }}</td>
+                                                    <td class="px-3 py-2">{{ accreditation.issuing_body || 'CDA' }}</td>
+                                                    <td class="px-3 py-2">{{ accreditation.remarks || 'N/A' }}</td>
+                                                    <td v-if="canManageAccreditations" class="px-3 py-2">
+                                                        <div class="flex flex-wrap gap-2">
+                                                            <Button size="sm" variant="outline" @click="startEditAccreditation(accreditation)">Edit</Button>
+                                                            <Button size="sm" variant="destructive" @click="deleteAccreditation(accreditation.id)">Delete</Button>
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </section>
 
                             <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
@@ -422,6 +635,18 @@ const statusBadgeClass = computed(() => {
                                     <p v-if="addLoanTypeForm.errors.is_active" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.is_active }}</p>
                                 </div>
                                 <div class="md:col-span-2">
+                                    <label class="mb-1 block text-sm font-medium">Classification</label>
+                                    <select v-model="addLoanTypeForm.classification" class="w-full rounded-md border px-3 py-2 text-sm">
+                                        <option value="">None</option>
+                                        <option value="micro">Micro</option>
+                                        <option value="small">Small</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="large">Large</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-muted-foreground">Optional but recommended.</p>
+                                    <p v-if="addLoanTypeForm.errors.classification" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.classification }}</p>
+                                </div>
+                                <div class="md:col-span-2">
                                     <label class="mb-1 block text-sm font-medium">Description</label>
                                     <textarea v-model="addLoanTypeForm.description" rows="3" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="Optional description"></textarea>
                                     <p v-if="addLoanTypeForm.errors.description" class="mt-1 text-xs text-red-600">{{ addLoanTypeForm.errors.description }}</p>
@@ -453,6 +678,17 @@ const statusBadgeClass = computed(() => {
                                             <td class="px-4 py-3">
                                                 <input v-model="editLoanTypeForm.name" type="text" class="w-full rounded-md border px-3 py-2 text-sm" />
                                                 <p v-if="editLoanTypeForm.errors.name" class="mt-1 text-xs text-red-600">{{ editLoanTypeForm.errors.name }}</p>
+                                                <div class="mt-2">
+                                                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Classification</label>
+                                                    <select v-model="editLoanTypeForm.classification" class="w-full rounded-md border px-3 py-2 text-sm">
+                                                        <option value="">None</option>
+                                                        <option value="micro">Micro</option>
+                                                        <option value="small">Small</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="large">Large</option>
+                                                    </select>
+                                                    <p v-if="editLoanTypeForm.errors.classification" class="mt-1 text-xs text-red-600">{{ editLoanTypeForm.errors.classification }}</p>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-3">
                                                 <textarea v-model="editLoanTypeForm.description" rows="2" class="w-full rounded-md border px-3 py-2 text-sm"></textarea>
@@ -474,6 +710,11 @@ const statusBadgeClass = computed(() => {
                                         </template>
                                         <template v-else>
                                             <td class="px-4 py-3 font-medium">{{ loanType.name }}</td>
+                                            <td class="px-4 py-3">
+                                                <Badge class="font-medium" :class="loanTypeClassificationBadgeClass(loanType.classification)">
+                                                    {{ loanTypeClassificationLabel(loanType.classification) || 'None' }}
+                                                </Badge>
+                                            </td>
                                             <td class="px-4 py-3">{{ loanType.description || 'N/A' }}</td>
                                             <td class="px-4 py-3">
                                                 <Badge :class="loanType.is_active ? 'border border-emerald-200 bg-emerald-100 text-emerald-800' : 'border border-slate-200 bg-slate-100 text-slate-700'">

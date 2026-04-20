@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Plus, Pencil, Trash2, Search, Eye, Wallet, UserPlus } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -61,6 +61,13 @@ const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const canRestore = computed(() => {
+    const roles = page.props.auth?.roles ?? [];
+    return (
+        roles.includes('Super Admin') ||
+        roles.includes('Provincial Admin')
+    );
+});
 const canViewMember = computed(() => permissions.value.includes('read members-profile'));
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
@@ -72,7 +79,7 @@ const showActions = computed(() => canViewMember.value || canEditMember.value ||
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
-const isArchivedView = computed(() => membershipStatus.value === 'Archived');
+const isArchivedView = computed(() => props.filters?.membership_status === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.members.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -98,6 +105,14 @@ const applyFilters = () => {
     });
 };
 
+watch(membershipStatus, (newStatus, oldStatus) => {
+    if (newStatus === oldStatus) return;
+
+    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+        applyFilters();
+    }
+});
+
 const resetFilters = () => {
     search.value = '';
     membershipStatus.value = 'all';
@@ -122,7 +137,7 @@ const deleteMember = async (member: Member) => {
 };
 
 const restoreMember = async (member: Member) => {
-    if (!canDeleteMember.value) return;
+    if (!canRestore.value) return;
     const confirmed = await confirmAction({
         title: 'Restore member?',
         text: `Restore ${member.full_name} to active records?`,
@@ -318,7 +333,7 @@ const submitCreateAccount = () => {
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
                                 <SelectItem value="Deceased">Deceased</SelectItem>
-                                <SelectItem value="Archived">Archived</SelectItem>
+                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -470,7 +485,7 @@ const submitCreateAccount = () => {
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDeleteMember"
+                                        v-if="canDeleteMember && !isArchivedView"
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
@@ -479,6 +494,16 @@ const submitCreateAccount = () => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
+                                    </Button>
+                                    <Button
+                                        v-if="canRestore && isArchivedView"
+                                        @click="restoreMember(member)"
+                                        variant="ghost"
+                                        size="sm"
+                                        class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"
+                                        title="Restore member"
+                                    >
+                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

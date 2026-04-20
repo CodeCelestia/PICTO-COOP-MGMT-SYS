@@ -24,8 +24,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $status
- * @property string|null $accreditation_status
- * @property \Illuminate\Support\Carbon|null $accreditation_date
  */
 class Cooperative extends Model
 {
@@ -49,15 +47,12 @@ class Cooperative extends Model
         'email',
         'phone',
         'status',
-        'accreditation_status',
-        'accreditation_date',
     ];
 
     protected function casts(): array
     {
         return [
             'date_established' => 'date',
-            'accreditation_date' => 'date',
         ];
     }
 
@@ -67,7 +62,7 @@ class Cooperative extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'registration_number', 'status', 'province', 'classification'])
+            ->logOnly(['name', 'registration_number', 'status', 'province'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Cooperative has been {$eventName}");
@@ -137,6 +132,11 @@ class Cooperative extends Model
     public function loanTypes(): HasMany
     {
         return $this->hasMany(LoanType::class, 'cooperative_id');
+    }
+
+    public function accreditations(): HasMany
+    {
+        return $this->hasMany(Accreditation::class, 'cooperative_id');
     }
 }
 

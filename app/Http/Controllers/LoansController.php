@@ -67,8 +67,19 @@ class LoansController extends Controller
             abort(403);
         }
 
+        $isSuperOrProvincialAdmin = (bool) ($user?->hasRole(['Super Admin', 'Provincial Admin']));
+        $preselectedCooperativeId = null;
+
+        if ($isSuperOrProvincialAdmin) {
+            $requestedCooperativeId = (int) $request->input('cooperative_id');
+            if ($requestedCooperativeId > 0) {
+                $preselectedCooperativeId = $requestedCooperativeId;
+            }
+        }
+
         $membersQuery = Member::query()
-            ->select(['id', 'first_name', 'last_name'])
+            ->select(['id', 'first_name', 'last_name', 'coop_id'])
+            ->with('cooperative:id,classification')
             ->where('membership_status', 'Active')
             ->orderBy('last_name');
 
@@ -79,7 +90,7 @@ class LoansController extends Controller
         }
 
         $loanTypesQuery = LoanType::query()
-            ->select(['id', 'name', 'cooperative_id'])
+            ->select(['id', 'name', 'cooperative_id', 'classification'])
             ->where('is_active', true)
             ->orderBy('name');
 
@@ -87,9 +98,59 @@ class LoansController extends Controller
             $loanTypesQuery->where('cooperative_id', $user->coop_id);
         }
 
+        $cooperatives = collect();
+
+        if ($isSuperOrProvincialAdmin) {
+            $cooperatives = \App\Models\Cooperative::query()
+                ->select(['id', 'name', 'classification'])
+                ->orderBy('name')
+                ->get()
+                ->map(function ($cooperative) {
+                    $members = Member::query()
+                        ->select(['id', 'first_name', 'last_name', 'coop_id'])
+                        ->where('membership_status', 'Active')
+                        ->where('coop_id', $cooperative->id)
+                        ->orderBy('last_name')
+                        ->get();
+
+                    $loanTypes = LoanType::query()
+                        ->select(['id', 'name', 'cooperative_id', 'classification'])
+                        ->where('is_active', true)
+                        ->where('cooperative_id', $cooperative->id)
+                        ->orderBy('name')
+                        ->get();
+
+                    return [
+                        'id' => $cooperative->id,
+                        'name' => $cooperative->name,
+                        'classification' => $cooperative->classification,
+                        'members' => $members,
+                        'loan_types' => $loanTypes,
+                    ];
+                })
+                ->values();
+        }
+
+        $members = $membersQuery->get();
+        $loanTypes = $loanTypesQuery->get();
+
+        if ($isSuperOrProvincialAdmin) {
+            if ($preselectedCooperativeId) {
+                $selectedCooperative = $cooperatives->firstWhere('id', $preselectedCooperativeId);
+                $members = collect($selectedCooperative['members'] ?? []);
+                $loanTypes = collect($selectedCooperative['loan_types'] ?? []);
+            } else {
+                $members = collect();
+                $loanTypes = collect();
+            }
+        }
+
         return Inertia::render('Finance/Loans/Create', [
-            'members' => $membersQuery->get(),
-            'loanTypes' => $loanTypesQuery->get(),
+            'members' => $members,
+            'loanTypes' => $loanTypes,
+            'cooperatives' => $cooperatives,
+            'showCooperativePicker' => $isSuperOrProvincialAdmin,
+            'preselectedCooperativeId' => $preselectedCooperativeId,
         ]);
     }
 
@@ -118,7 +179,7 @@ class LoansController extends Controller
             return back()->withErrors(['member_id' => 'Member is required.']);
         }
 
-        $memberQuery = Member::query()->where('id', $validated['member_id']);
+        $memberQuery = Member::query()->with('cooperative:id,classification')->where('id', $validated['member_id']);
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $memberQuery->where('coop_id', $user->coop_id);
         }
@@ -136,6 +197,11 @@ class LoansController extends Controller
 
         if ((int) $loanType->cooperative_id !== (int) $member->coop_id) {
             return back()->withErrors(['loan_type_id' => 'Selected loan type does not belong to the member cooperative.']);
+        }
+
+        $cooperativeClassification = $member->cooperative?->classification;
+        if ($cooperativeClassification && $loanType->classification && $loanType->classification !== $cooperativeClassification) {
+            return back()->withErrors(['loan_type_id' => 'Selected loan type classification does not match the cooperative classification.']);
         }
 
         $loan = DB::transaction(function () use ($validated, $member, $loanType, $request, $user) {

@@ -36,6 +36,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PdsController;
 use App\Http\Controllers\HomepageController;
 use App\Http\Controllers\DisplayController;
+use App\Http\Controllers\AccreditationController;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -117,7 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete coop-master-profile')
         ->name('cooperatives.destroy');
     Route::post('cooperatives/{id}/restore', [CooperativeController::class, 'restore'])
-        ->middleware('permission:update coop-master-profile')
+        ->middleware(['permission:update coop-master-profile', 'role:Super Admin|Provincial Admin'])
         ->name('cooperatives.restore');
     Route::get('cooperatives/my', [CooperativeController::class, 'show'])
         ->middleware('permission:read coop-master-profile')
@@ -125,6 +126,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('cooperatives/{cooperative}', [CooperativeController::class, 'show'])
         ->middleware('permission:read coop-master-profile')
         ->name('cooperatives.show-specific');
+    Route::get('cooperatives/{cooperative}/accreditations', [AccreditationController::class, 'index'])
+        ->middleware('permission:update coop-master-profile')
+        ->name('cooperatives.accreditations.index');
+    Route::post('cooperatives/{cooperative}/accreditations', [AccreditationController::class, 'store'])
+        ->middleware('permission:update coop-master-profile')
+        ->name('cooperatives.accreditations.store');
+    Route::put('cooperatives/{cooperative}/accreditations/{accreditation}', [AccreditationController::class, 'update'])
+        ->middleware('permission:update coop-master-profile')
+        ->name('cooperatives.accreditations.update');
+    Route::delete('cooperatives/{cooperative}/accreditations/{accreditation}', [AccreditationController::class, 'destroy'])
+        ->middleware('permission:update coop-master-profile')
+        ->name('cooperatives.accreditations.destroy');
 
     // Cooperative Type Management
     Route::get('cooperative-types', [CooperativeTypeController::class, 'index'])
@@ -172,7 +185,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete members-profile')
         ->name('members.destroy');
     Route::post('members/{id}/restore', [MemberController::class, 'restore'])
-        ->middleware('permission:update members-profile')
+        ->middleware(['permission:update members-profile', 'role:Super Admin|Provincial Admin'])
         ->name('members.restore');
     Route::get('members/{member}/services-availed', [MemberController::class, 'servicesAvailed'])
         ->middleware('permission:read members-profile')
@@ -210,7 +223,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->parameters(['pds' => 'pds'])
         ->middleware('permission:read members-profile|update members-profile');
     Route::post('pds/{id}/restore', [PdsController::class, 'restore'])
-        ->middleware('permission:update members-profile')
+        ->middleware(['permission:update members-profile', 'role:Super Admin|Provincial Admin'])
         ->name('pds.restore');
     Route::get('pds/{pds}/download', [PdsController::class, 'download'])
         ->middleware('permission:read members-profile')
@@ -259,7 +272,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete officers-&-committees')
         ->name('officers.destroy');
     Route::post('officers/{id}/restore', [OfficerController::class, 'restore'])
-        ->middleware('permission:update officers-&-committees')
+        ->middleware(['permission:update officers-&-committees', 'role:Super Admin|Provincial Admin'])
         ->name('officers.restore');
 
     Route::get('committee-members', [CommitteeMemberController::class, 'index'])
@@ -304,7 +317,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:delete activities-&-projects')
         ->name('activities.destroy');
     Route::post('activities/{id}/restore', [ActivityController::class, 'restore'])
-        ->middleware('permission:update activities-&-projects')
+        ->middleware(['permission:update activities-&-projects', 'role:Super Admin|Provincial Admin'])
         ->name('activities.restore');
 
     // Activity Funding Sources
