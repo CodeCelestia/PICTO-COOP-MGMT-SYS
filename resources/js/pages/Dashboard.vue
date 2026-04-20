@@ -342,9 +342,6 @@ const summaryCards = computed<SummaryCard[]>(() => {
     return [];
 });
 
-const recentUsersComputed = computed(() => props.recentUsers || []);
-const usersByRoleComputed = computed(() => props.usersByRole || []);
-
 const trendPeriods = [
     { value: 'day', label: 'Daily' },
     { value: 'week', label: 'Weekly' },
@@ -860,67 +857,6 @@ const getMembershipBadgeColor = (status: string | null) => {
             <div class="grid gap-4 md:grid-cols-2">
                 <!-- Super Admin Dashboard -->
                 <div v-if="props.isSuperAdmin && props.superAdminStats" class="md:col-span-2 grid gap-4">
-                    <!-- Users by Role -->
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
-                        <CardHeader class="px-6 pt-6 pb-4">
-                            <CardTitle class="text-lg font-semibold text-slate-900">Users by Role</CardTitle>
-                            <p class="text-sm text-slate-500 mt-1">Distribution of roles across all users</p>
-                        </CardHeader>
-                        <CardContent class="px-6 pb-6">
-                            <div class="space-y-3">
-                                <div v-for="role in props.superAdminStats.usersByRole" :key="role.name" class="flex items-center justify-between">
-                                    <span class="text-sm font-medium text-slate-600">{{ role.name }}</span>
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-2 w-32 rounded-full bg-slate-100">
-                                            <div
-                                                :style="{ width: (role.count / Math.max(...props.superAdminStats.usersByRole.map((r: any) => r.count))) * 100 + '%' }"
-                                                class="h-full rounded-full bg-blue-500 transition-all duration-500"
-                                            />
-                                        </div>
-                                        <span class="text-sm font-semibold text-slate-900 min-w-12 text-right">{{ role.count }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Recent Users -->
-                    <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
-                        <CardHeader class="px-6 pt-6 pb-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <CardTitle class="text-lg font-semibold text-slate-900">Recent Users</CardTitle>
-                                    <p class="text-sm text-slate-500 mt-1">Latest user registrations</p>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent class="px-6 pb-6">
-                            <div class="space-y-3">
-                                <div v-for="user in props.superAdminStats.recentUsers" :key="user.id" class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0">
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-slate-900">{{ user.name }}</p>
-                                        <p class="text-xs text-slate-500">{{ user.email }}</p>
-                                        <div v-if="user.roles.length > 0" class="mt-1 flex flex-wrap gap-1">
-                                            <Badge
-                                                v-for="role in user.roles"
-                                                :key="role"
-                                                :class="[getRoleBadgeColor(role), 'rounded-md px-2 py-0.5 text-xs font-medium']"
-                                            >
-                                                {{ role }}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <Badge :class="user.account_status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200'">
-                                            {{ user.account_status }}
-                                        </Badge>
-                                        <p class="text-xs text-slate-500 mt-2">{{ user.created_at }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
                     <!-- Recent Activities -->
                     <Card class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 p-6 py-0 shadow-sm">
                         <CardHeader class="px-6 pt-6 pb-4">
@@ -1643,86 +1579,6 @@ const getMembershipBadgeColor = (status: string | null) => {
                         </div>
                     </Card>
                 </div>
-
-                <!-- Recent User Registrations -->
-                <Card v-if="!props.isCoopAdmin && !props.isMember" class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
-                    <div class="border-b border-slate-200/70 p-6">
-                        <h2 class="text-lg font-semibold text-slate-900">Recent User Registrations</h2>
-                        <p class="text-sm text-slate-500">Latest users added to the system</p>
-                    </div>
-                    <div class="p-6">
-                        <div v-if="recentUsersComputed.length > 0" class="space-y-4">
-                            <Card
-                                v-for="user in recentUsersComputed"
-                                :key="user.id"
-                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-sm"
-                            >
-                                <CardContent class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
-                                    <div class="rounded-full bg-slate-900 p-2 dark:bg-slate-100">
-                                        <Users class="h-5 w-5 text-white dark:text-slate-900" />
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="font-semibold text-slate-900">{{ user.name }}</p>
-                                        <p class="text-sm text-slate-500">{{ user.email }}</p>
-                                        <div v-if="user.roles.length > 0" class="mt-1 flex flex-wrap gap-1">
-                                            <Badge
-                                                v-for="role in user.roles"
-                                                :key="role"
-                                                :class="[getRoleBadgeColor(role), 'rounded-md px-2 py-0.5 text-xs font-medium']"
-                                            >
-                                                {{ role }}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <span class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ user.created_at }}</span>
-                                </CardContent>
-                            </Card>
-                        </div>
-                        <div v-else class="text-center py-8 text-slate-500">
-                            <Users class="h-12 w-12 mx-auto mb-2 opacity-40" />
-                            <p>No recent registrations</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <!-- Users by Role Breakdown -->
-                <Card v-if="!props.isCoopAdmin && !props.isMember" class="gap-0 rounded-xl border border-slate-200/70 bg-white/90 py-0 shadow-sm">
-                    <div class="border-b border-slate-200/70 p-6">
-                        <h2 class="text-lg font-semibold text-slate-900">Users by Role</h2>
-                        <p class="text-sm text-slate-500">Distribution of users across roles</p>
-                    </div>
-                    <div class="p-6">
-                        <div v-if="usersByRoleComputed.length > 0" class="space-y-4">
-                            <Card
-                                v-for="roleData in usersByRoleComputed"
-                                :key="roleData.name"
-                                class="gap-0 rounded-lg border border-slate-200/80 bg-card py-0 shadow-sm"
-                            >
-                                <CardContent class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="rounded-full bg-slate-900 p-2 dark:bg-slate-100">
-                                            <Shield class="h-5 w-5 text-white dark:text-slate-900" />
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-slate-900">{{ roleData.name }}</p>
-                                            <p class="text-sm text-slate-500">
-                                                {{ ((roleData.count / (props.stats?.totalUsers || 1)) * 100).toFixed(1) }}% of total
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-2xl font-semibold text-slate-900">{{ roleData.count }}</p>
-                                        <p class="text-xs text-slate-500">users</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                        <div v-else class="text-center py-8 text-slate-500">
-                            <Shield class="h-12 w-12 mx-auto mb-2 opacity-40" />
-                            <p>No role assignments yet</p>
-                        </div>
-                    </div>
-                </Card>
             </div>
         </div>
     </AppLayout>

@@ -116,7 +116,7 @@ class ActivityController extends Controller
         }
 
         $user = auth()->user();
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region')->orderBy('name');
         $officersQuery = Officer::with('member:id,first_name,last_name')
             ->select('id', 'member_id', 'coop_id')
             ->orderBy('id');
@@ -152,8 +152,12 @@ class ActivityController extends Controller
 
         $validated = $request->validate([
             'coop_id' => $this->isCoopAdmin() && $coopId
-                ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
-                : ['required', 'exists:cooperatives,id'],
+                ? ['nullable', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['nullable', 'exists:cooperatives,id'],
+            'coop_ids' => ['nullable', 'array'],
+            'coop_ids.*' => $this->isCoopAdmin() && $coopId
+                ? ['integer', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['integer', 'exists:cooperatives,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['required', Rule::in(['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'])],
@@ -181,39 +185,74 @@ class ActivityController extends Controller
             'funding_sources.*.remarks' => ['nullable', 'string'],
         ]);
 
+        $selectedCoopIds = collect($validated['coop_ids'] ?? [])
+            ->merge(!empty($validated['coop_id']) ? [$validated['coop_id']] : [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         if ($this->isCoopAdmin() && $coopId) {
-            $validated['coop_id'] = $coopId;
+            $selectedCoopIds = collect([(int) $coopId]);
         }
 
-        $this->enforceCoopScope((int) $validated['coop_id']);
+        if ($selectedCoopIds->isEmpty()) {
+            return back()->withErrors([
+                'coop_ids' => 'Please select at least one cooperative.',
+            ])->withInput();
+        }
 
         if (!empty($validated['responsible_officer_id'])) {
+            if ($selectedCoopIds->count() > 1) {
+                return back()->withErrors([
+                    'responsible_officer_id' => 'Responsible officer can only be set when one cooperative is selected.',
+                ])->withInput();
+            }
+
             $officer = Officer::find($validated['responsible_officer_id']);
-            if ($officer && $officer->coop_id !== (int) $validated['coop_id']) {
+            if ($officer && $officer->coop_id !== $selectedCoopIds->first()) {
                 return back()->withErrors(['responsible_officer_id' => 'Selected officer does not belong to this cooperative.']);
             }
         }
 
         $fundingSources = $validated['funding_sources'] ?? [];
-        unset($validated['funding_sources']);
+        unset($validated['funding_sources'], $validated['coop_ids']);
 
-        $activity = Activity::create($validated);
+        $createdCount = 0;
 
-        foreach ($fundingSources as $source) {
-            $activity->fundingSources()->create([
-                'coop_id' => $activity->coop_id,
-                'funder_name' => $source['funder_name'],
-                'funder_type' => $source['funder_type'],
-                'amount_allocated' => $source['amount_allocated'] ?? null,
-                'amount_released' => $source['amount_released'] ?? null,
-                'date_released' => $source['date_released'] ?? null,
-                'status' => $source['status'],
-                'remarks' => $source['remarks'] ?? null,
-            ]);
+        foreach ($selectedCoopIds as $selectedCoopId) {
+            $this->enforceCoopScope((int) $selectedCoopId);
+
+            $payload = $validated;
+            $payload['coop_id'] = (int) $selectedCoopId;
+
+            if ($selectedCoopIds->count() > 1) {
+                $payload['responsible_officer_id'] = null;
+            }
+
+            $activity = Activity::create($payload);
+            $createdCount++;
+
+            foreach ($fundingSources as $source) {
+                $activity->fundingSources()->create([
+                    'coop_id' => $activity->coop_id,
+                    'funder_name' => $source['funder_name'],
+                    'funder_type' => $source['funder_type'],
+                    'amount_allocated' => $source['amount_allocated'] ?? null,
+                    'amount_released' => $source['amount_released'] ?? null,
+                    'date_released' => $source['date_released'] ?? null,
+                    'status' => $source['status'],
+                    'remarks' => $source['remarks'] ?? null,
+                ]);
+            }
         }
 
+        $successMessage = $createdCount > 1
+            ? "Activities created successfully for {$createdCount} cooperatives."
+            : 'Activity created successfully.';
+
         return redirect()->route('activities.index')
-            ->with('success', 'Activity created successfully.');
+            ->with('success', $successMessage);
     }
 
     /**

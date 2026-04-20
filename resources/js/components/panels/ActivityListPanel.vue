@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users } from 'lucide-vue-next';
+import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users, Eye } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -71,6 +78,8 @@ interface Props {
     baseUrl?: string;
     queryPrefix?: string;
     lockCoopId?: string;
+    showParticipantActionInRows?: boolean;
+    showViewActionInRows?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -94,7 +103,11 @@ const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
 const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
 const canDelete = computed(() => permissions.value.includes('delete activities-&-projects'));
-const showActions = computed(() => canEdit.value || canDelete.value);
+const showParticipantActionInRows = computed(() => props.showParticipantActionInRows || false);
+const showViewActionInRows = computed(() => props.showViewActionInRows || false);
+const showActions = computed(() => showViewActionInRows.value || showParticipantActionInRows.value || canEdit.value || canDelete.value);
+const isViewDialogOpen = ref(false);
+const selectedActivity = ref<Activity | null>(null);
 
 const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
@@ -210,6 +223,11 @@ const formatDate = (date: string | null) => {
 
 const formatOfficerName = (activity: Activity) => {
     return activity.responsible_officer?.member?.full_name || 'N/A';
+};
+
+const openViewDialog = (activity: Activity) => {
+    selectedActivity.value = activity;
+    isViewDialogOpen.value = true;
 };
 
 const visibleActivities = computed(() => props.activities.data);
@@ -432,6 +450,22 @@ const bulkDeleteActivities = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
+                                    <Button
+                                        v-if="showViewActionInRows"
+                                        @click="openViewDialog(activity)"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-2"
+                                    >
+                                        <Eye class="h-4 w-4" />
+                                        View
+                                    </Button>
+                                    <Link v-if="showParticipantActionInRows" :href="`/activity-participants?activity_id=${activity.id}&coop_id=${activity.coop_id}`">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                            <Users class="h-4 w-4" />
+                                            Participants
+                                        </Button>
+                                    </Link>
                                     <Link :href="`/activity-funding-sources?activity_id=${activity.id}`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-other gap-2">
                                             <HandCoins class="h-4 w-4" />
@@ -493,5 +527,51 @@ const bulkDeleteActivities = async () => {
                 </div>
             </div>
         </div>
+
+        <Dialog v-model:open="isViewDialogOpen">
+            <DialogContent class="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{{ selectedActivity?.title || 'Activity details' }}</DialogTitle>
+                    <DialogDescription>
+                        Full details for the selected activity or project.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="selectedActivity" class="grid gap-4 text-sm sm:grid-cols-2">
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cooperative</p>
+                        <p class="text-foreground">{{ selectedActivity.cooperative.name }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</p>
+                        <p class="text-foreground">{{ selectedActivity.category || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+                        <p class="text-foreground">{{ selectedActivity.status || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Responsible Officer</p>
+                        <p class="text-foreground">{{ formatOfficerName(selectedActivity) }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Started</p>
+                        <p class="text-foreground">{{ formatDate(selectedActivity.date_started) }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Ended</p>
+                        <p class="text-foreground">{{ formatDate(selectedActivity.date_ended) }}</p>
+                    </div>
+                    <div class="space-y-1 sm:col-span-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funding Source</p>
+                        <p class="text-foreground">{{ selectedActivity.funding_source || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1 sm:col-span-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>
+                        <p class="whitespace-pre-wrap text-foreground">{{ selectedActivity.description || 'N/A' }}</p>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

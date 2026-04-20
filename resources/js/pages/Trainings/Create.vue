@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { GraduationCap, Save, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -14,11 +15,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
     id: number;
     name: string;
+    registration_number?: string | null;
+    status?: string | null;
+    region?: string | null;
 }
 
 interface Props {
@@ -29,12 +34,12 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateTraining = computed(() => permissions.value.includes('create training-&-capacity'));
 
 const form = useForm({
     coop_id: props.cooperatives[0]?.id?.toString() || '',
+    coop_ids: props.cooperatives[0]?.id ? [props.cooperatives[0].id.toString()] : ([] as string[]),
     title: '',
     date_conducted: '',
     facilitator: '',
@@ -50,10 +55,48 @@ const form = useForm({
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'];
+const isCooperativeDialogOpen = ref(false);
+const selectedCoopIds = ref<string[]>(form.coop_ids);
+
+const selectedCooperatives = computed(() => {
+    const selectedSet = new Set(selectedCoopIds.value);
+    return props.cooperatives.filter((coop) => selectedSet.has(String(coop.id)));
+});
+
+const selectedCooperativeSummary = computed(() => {
+    const count = selectedCoopIds.value.length;
+
+    if (count === 0) return 'Choose Cooperative(s)';
+    if (count === 1) return selectedCooperatives.value[0]?.name || '1 cooperative selected';
+
+    return `${count} cooperatives selected`;
+});
+
+const syncSelectedCooperatives = (ids: string[]) => {
+    selectedCoopIds.value = [...new Set(ids)];
+    form.coop_ids = [...selectedCoopIds.value];
+    form.coop_id = selectedCoopIds.value[0] || '';
+    form.clearErrors('coop_id', 'coop_ids');
+};
+
+const openCooperativePicker = () => {
+    if (!props.cooperatives.length) return;
+    isCooperativeDialogOpen.value = true;
+};
 
 const submit = () => {
     if (!canCreateTraining.value) return;
-    form.post('/trainings', {
+
+    if (!selectedCoopIds.value.length) {
+        form.setError('coop_ids', 'Please select at least one cooperative.');
+        return;
+    }
+
+    form.transform((data) => ({
+        ...data,
+        coop_id: selectedCoopIds.value[0] || '',
+        coop_ids: [...selectedCoopIds.value],
+    })).post('/trainings', {
         preserveScroll: true,
     });
 };
@@ -80,19 +123,38 @@ const cancel = () => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="coop_id">Cooperative</Label>
-                                <Select v-model="form.coop_id" :disabled="isCoopAdmin">
-                                    <SelectTrigger id="coop_id" :class="{ 'border-red-500': form.errors.coop_id }">
-                                        <SelectValue placeholder="Select cooperative" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                            {{ coop.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label for="coop_picker">Cooperatives</Label>
+                                <Button
+                                    id="coop_picker"
+                                    type="button"
+                                    variant="outline"
+                                    class="h-10 w-full items-center justify-between"
+                                    :class="{ 'border-red-500 focus-visible:ring-red-500': form.errors.coop_ids || form.errors.coop_id }"
+                                    @click="openCooperativePicker"
+                                >
+                                    <span class="truncate text-left">{{ selectedCooperativeSummary }}</span>
+                                    <span class="ml-2 text-xs text-muted-foreground">
+                                        {{ selectedCoopIds.length ? `${selectedCoopIds.length} selected` : 'Select' }}
+                                    </span>
+                                </Button>
+                                <div v-if="selectedCooperatives.length" class="mt-2 flex flex-wrap gap-1.5">
+                                    <Badge
+                                        v-for="coop in selectedCooperatives.slice(0, 4)"
+                                        :key="coop.id"
+                                        variant="secondary"
+                                        class="max-w-full truncate"
+                                    >
+                                        {{ coop.name }}
+                                    </Badge>
+                                    <Badge v-if="selectedCooperatives.length > 4" variant="outline">
+                                        +{{ selectedCooperatives.length - 4 }} more
+                                    </Badge>
+                                </div>
                                 <p v-if="form.errors.coop_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.coop_id }}
+                                </p>
+                                <p v-if="form.errors.coop_ids" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.coop_ids }}
                                 </p>
                             </div>
 
@@ -219,5 +281,17 @@ const cancel = () => {
                 </form>
             </div>
         </div>
+
+        <CooperativeMultiSelectDialog
+            :open="isCooperativeDialogOpen"
+            :cooperatives="cooperatives"
+            :selected-ids="selectedCoopIds"
+            title="Choose Cooperatives"
+            description="Search and filter cooperatives, then choose one or more entries for this training record."
+            confirm-label="Confirm"
+            cancel-label="Cancel"
+            @update:open="(value) => isCooperativeDialogOpen = value"
+            @confirm="syncSelectedCooperatives"
+        />
     </AppLayout>
 </template>

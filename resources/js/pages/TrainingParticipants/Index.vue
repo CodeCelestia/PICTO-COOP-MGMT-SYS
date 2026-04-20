@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { Users, Plus, Pencil, Trash2, Search, ArrowLeft } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -126,6 +126,17 @@ const resolvedPerPage = () => {
     return String(Math.min(parsed, 500));
 };
 
+const selectedTraining = computed(() => props.trainings.find((training) => String(training.id) === trainingId.value));
+const backCoopId = computed(() => {
+    if (coopId.value && coopId.value !== 'all') return coopId.value;
+    return selectedTraining.value?.coop_id ? String(selectedTraining.value.coop_id) : '';
+});
+const backToTrainingsHref = computed(() => (
+    backCoopId.value
+        ? `/cooperatives/${backCoopId.value}?tab=training-capacity`
+        : '/trainings'
+));
+
 const applyFilters = () => {
     router.get('/training-participants', {
         search: search.value,
@@ -224,11 +235,11 @@ const bulkDeleteParticipants = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link href="/trainings" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Trainings
-                    </Link>
-                    <Link href="/skill-inventories" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Skills Inventory
+                    <Link :href="backToTrainingsHref">
+                        <Button variant="outline" class="h-9 gap-2">
+                            <ArrowLeft class="h-4 w-4" />
+                            Back
+                        </Button>
                     </Link>
                     <Link v-if="canCreate" href="/training-participants/create">
                         <Button class="gap-2">

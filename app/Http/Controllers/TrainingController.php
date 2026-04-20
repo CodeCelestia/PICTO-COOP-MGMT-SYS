@@ -81,7 +81,7 @@ class TrainingController extends Controller
 
         $trainings = $query->latest()->paginate($perPage)->withQueryString();
 
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region')->orderBy('name');
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);
         }
@@ -132,8 +132,12 @@ class TrainingController extends Controller
 
         $validated = $request->validate([
             'coop_id' => $this->isCoopAdmin() && $coopId
-                ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
-                : ['required', 'exists:cooperatives,id'],
+                ? ['nullable', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['nullable', 'exists:cooperatives,id'],
+            'coop_ids' => ['nullable', 'array'],
+            'coop_ids.*' => $this->isCoopAdmin() && $coopId
+                ? ['integer', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['integer', 'exists:cooperatives,id'],
             'title' => ['required', 'string', 'max:255'],
             'date_conducted' => ['nullable', 'date'],
             'facilitator' => ['nullable', 'string', 'max:255'],
@@ -147,8 +151,21 @@ class TrainingController extends Controller
             'status' => ['required', Rule::in(['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
+        $selectedCoopIds = collect($validated['coop_ids'] ?? [])
+            ->merge(!empty($validated['coop_id']) ? [$validated['coop_id']] : [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         if ($this->isCoopAdmin() && $coopId) {
-            $validated['coop_id'] = $coopId;
+            $selectedCoopIds = collect([(int) $coopId]);
+        }
+
+        if ($selectedCoopIds->isEmpty()) {
+            return back()->withErrors([
+                'coop_ids' => 'Please select at least one cooperative.',
+            ])->withInput();
         }
 
         $validated['follow_up_needed'] = (bool) ($validated['follow_up_needed'] ?? false);
@@ -156,12 +173,26 @@ class TrainingController extends Controller
             $validated['follow_up_date'] = null;
         }
 
-        $this->enforceCoopScope((int) $validated['coop_id']);
+        unset($validated['coop_ids']);
 
-        Training::create($validated);
+        $createdCount = 0;
+
+        foreach ($selectedCoopIds as $selectedCoopId) {
+            $this->enforceCoopScope((int) $selectedCoopId);
+
+            $payload = $validated;
+            $payload['coop_id'] = (int) $selectedCoopId;
+
+            Training::create($payload);
+            $createdCount++;
+        }
+
+        $successMessage = $createdCount > 1
+            ? "Training records created successfully for {$createdCount} cooperatives."
+            : 'Training record created successfully.';
 
         return redirect()->route('trainings.index')
-            ->with('success', 'Training record created successfully.');
+            ->with('success', $successMessage);
     }
 
     public function edit(Training $training): Response

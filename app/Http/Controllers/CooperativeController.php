@@ -8,6 +8,8 @@ use App\Models\CooperativeStatusHistory;
 use App\Models\Member;
 use App\Models\Officer;
 use App\Models\CommitteeMember;
+use App\Models\Activity;
+use App\Models\Training;
 use App\Models\LoanType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -71,7 +73,7 @@ class CooperativeController extends Controller
         $perPage = (int) $request->input('per_page', 20);
         $perPage = max(1, min($perPage, 500));
 
-        $cooperatives = $query->with('types')->orderBy('name')->paginate($perPage)->withQueryString();
+        $cooperatives = $query->with('types')->withCount('members')->orderBy('name')->paginate($perPage)->withQueryString();
 
         $cooperatives->getCollection()->transform(function ($cooperative) {
             $latestAccreditation = $cooperative->accreditations()
@@ -363,6 +365,63 @@ class CooperativeController extends Controller
 
         $committeeMembers = $committeeQuery->latest()->paginate($committeePerPage)->withQueryString();
 
+        $activitySearch = $request->input('activities_search');
+        $activityStatus = $request->input('activities_status');
+        $activityCategory = $request->input('activities_category');
+        $activityPerPage = (int) $request->input('activities_per_page', 15);
+        $activityPerPage = max(1, min($activityPerPage, 500));
+
+        $activitiesQuery = Activity::with(['cooperative', 'responsibleOfficer.member'])
+            ->where('coop_id', $cooperative->id);
+
+        if ($activitySearch) {
+            $activitiesQuery->where(function ($q) use ($activitySearch) {
+                $q->where('title', 'like', "%{$activitySearch}%")
+                    ->orWhere('description', 'like', "%{$activitySearch}%")
+                    ->orWhere('funding_source', 'like', "%{$activitySearch}%")
+                    ->orWhere('implementing_partner', 'like', "%{$activitySearch}%");
+            });
+        }
+
+        if ($activityStatus === 'Archived') {
+            $activitiesQuery->onlyTrashed();
+        } elseif ($activityStatus) {
+            $activitiesQuery->where('status', $activityStatus);
+        }
+
+        if ($activityCategory) {
+            $activitiesQuery->where('category', $activityCategory);
+        }
+
+        $activities = $activitiesQuery->latest()->paginate($activityPerPage)->withQueryString();
+
+        $trainingSearch = $request->input('trainings_search');
+        $trainingStatus = $request->input('trainings_status');
+        $trainingTargetGroup = $request->input('trainings_target_group');
+        $trainingPerPage = (int) $request->input('trainings_per_page', 15);
+        $trainingPerPage = max(1, min($trainingPerPage, 500));
+
+        $trainingsQuery = Training::with('cooperative')
+            ->where('coop_id', $cooperative->id);
+
+        if ($trainingSearch) {
+            $trainingsQuery->where(function ($q) use ($trainingSearch) {
+                $q->where('title', 'like', "%{$trainingSearch}%")
+                    ->orWhere('facilitator', 'like', "%{$trainingSearch}%")
+                    ->orWhere('venue', 'like', "%{$trainingSearch}%");
+            });
+        }
+
+        if ($trainingStatus) {
+            $trainingsQuery->where('status', $trainingStatus);
+        }
+
+        if ($trainingTargetGroup) {
+            $trainingsQuery->where('target_group', $trainingTargetGroup);
+        }
+
+        $trainings = $trainingsQuery->latest()->paginate($trainingPerPage)->withQueryString();
+
         $cooperatives = Cooperative::select('id', 'name')
             ->where('id', $cooperative->id)
             ->orderBy('name')
@@ -394,6 +453,22 @@ class CooperativeController extends Controller
                 'coop_id' => $request->input('committees_coop_id', (string) $cooperative->id),
                 'status' => $committeeStatus,
                 'per_page' => $request->input('committees_per_page'),
+            ],
+            'activities' => $activities,
+            'activityFilters' => [
+                'search' => $activitySearch,
+                'coop_id' => $request->input('activities_coop_id', (string) $cooperative->id),
+                'status' => $activityStatus,
+                'category' => $activityCategory,
+                'per_page' => $request->input('activities_per_page'),
+            ],
+            'trainings' => $trainings,
+            'trainingFilters' => [
+                'search' => $trainingSearch,
+                'status' => $trainingStatus,
+                'target_group' => $trainingTargetGroup,
+                'coop_id' => $request->input('trainings_coop_id', (string) $cooperative->id),
+                'per_page' => $request->input('trainings_per_page'),
             ],
             'cooperatives' => $cooperatives,
             'loanTypes' => $loanTypes,

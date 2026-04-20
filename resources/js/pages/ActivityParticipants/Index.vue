@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { Users, Plus, Pencil, Trash2, Search, ArrowLeft } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -104,6 +104,17 @@ const resolvedPerPage = () => {
     return String(Math.min(parsed, 500));
 };
 
+const selectedActivity = computed(() => props.activities.find((activity) => String(activity.id) === activityId.value));
+const backCoopId = computed(() => {
+    if (coopId.value && coopId.value !== 'all') return coopId.value;
+    return selectedActivity.value?.coop_id ? String(selectedActivity.value.coop_id) : '';
+});
+const backToActivitiesHref = computed(() => (
+    backCoopId.value
+        ? `/cooperatives/${backCoopId.value}?tab=activities-projects`
+        : '/activities'
+));
+
 const applyFilters = () => {
     router.get('/activity-participants', {
         search: search.value,
@@ -200,8 +211,11 @@ const bulkDeleteParticipants = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link href="/activities" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Activities
+                    <Link :href="backToActivitiesHref">
+                        <Button variant="outline" class="h-9 gap-2">
+                            <ArrowLeft class="h-4 w-4" />
+                            Back
+                        </Button>
                     </Link>
                     <Link v-if="canCreate" href="/activity-participants/create">
                         <Button class="gap-2">
@@ -212,6 +226,7 @@ const bulkDeleteParticipants = async () => {
                 </div>
                 </div>
 
+                <div class="mt-6 border-t border-border/60 pt-6">
                 <FilterPanel
                     title="Filters"
                     description="Show activity participant filters when ready."
@@ -294,6 +309,7 @@ const bulkDeleteParticipants = async () => {
                     <Button @click="resetFilters" variant="outline">Clear Filters</Button>
                 </div>
             </FilterPanel>
+            </div>
             </div>
 
             <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">

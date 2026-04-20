@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Building2, Pencil, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
+import { Building2, ClipboardList, GraduationCap, Pencil, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
 import MemberListPanel from '@/components/panels/MemberListPanel.vue';
 import OfficerListPanel from '@/components/panels/OfficerListPanel.vue';
 import CommitteeListPanel from '@/components/panels/CommitteeListPanel.vue';
+import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
+import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import { useCoopLabel } from '@/composables/useCoopLabel';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import type {
@@ -88,6 +90,67 @@ const props = defineProps<{
         status?: string;
         per_page?: string;
     };
+    activities: {
+        data: Array<{
+            id: number;
+            coop_id: number;
+            title: string;
+            description: string | null;
+            category: string;
+            date_started: string | null;
+            date_ended: string | null;
+            status: string;
+            responsible_officer_id: number | null;
+            funding_source: string | null;
+            cooperative: {
+                id: number;
+                name: string;
+            };
+            responsible_officer?: {
+                id: number;
+                member: {
+                    full_name: string;
+                };
+            } | null;
+        }>;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+    activityFilters: {
+        search?: string;
+        coop_id?: string;
+        status?: string;
+        category?: string;
+        per_page?: string;
+    };
+    trainings: {
+        data: Array<{
+            id: number;
+            coop_id: number;
+            title: string;
+            date_conducted: string | null;
+            facilitator: string | null;
+            target_group: string;
+            status: string;
+            cooperative: {
+                id: number;
+                name: string;
+            };
+        }>;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
+    trainingFilters: {
+        search?: string;
+        status?: string;
+        target_group?: string;
+        coop_id?: string;
+        per_page?: string;
+    };
     cooperatives: CooperativeSummary[];
     loanTypes: Array<{
         id: number;
@@ -110,6 +173,8 @@ const tabs: LiftedTab[] = [
     { id: 'officers', label: 'Officers', icon: ShieldCheck },
     { id: 'committees', label: 'Committees', icon: UsersRound },
     { id: 'loan-types', label: 'Loan Types', icon: UsersRound },
+    { id: 'activities-projects', label: 'Activities & Projects', icon: ClipboardList },
+    { id: 'training-capacity', label: 'Training & Capacity', icon: GraduationCap },
 ];
 
 const page = usePage();
@@ -732,6 +797,32 @@ const statusBadgeClass = computed(() => {
                                 </tbody>
                             </table>
                         </section>
+                    </div>
+
+                    <div v-show="activeTab === 'activities-projects'" class="space-y-4">
+                        <ActivityListPanel
+                            :activities="activities"
+                            :cooperatives="cooperatives"
+                            :filters="activityFilters"
+                            :base-url="`${cooperativeBasePath}?tab=activities-projects`"
+                            query-prefix="activities_"
+                            :lock-coop-id="String(cooperative.id)"
+                            :show-view-action-in-rows="true"
+                            :show-participant-action-in-rows="true"
+                        />
+                    </div>
+
+                    <div v-show="activeTab === 'training-capacity'" class="space-y-4">
+                        <TrainingListPanel
+                            :trainings="trainings"
+                            :cooperatives="cooperatives"
+                            :filters="trainingFilters"
+                            :base-url="`${cooperativeBasePath}?tab=training-capacity`"
+                            query-prefix="trainings_"
+                            :lock-coop-id="String(cooperative.id)"
+                            :show-view-action-in-rows="true"
+                            :show-participant-action-in-rows="true"
+                        />
                     </div>
                 </CardContent>
             </Card>

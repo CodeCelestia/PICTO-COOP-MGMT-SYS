@@ -10,7 +10,6 @@ import {
     History,
     Building2,
     GraduationCap,
-    FileSpreadsheet,
     Shield,
     Monitor,
 } from 'lucide-vue-next';
@@ -50,8 +49,6 @@ const can = (permission: string) => permissions.value.includes(permission);
 
 const canViewAllCoops = computed(() => can('view-all-cooperatives'));
 const canViewCoops = computed(() => can('read coop-master-profile') || can('view-all-cooperatives'));
-const canViewMembers = computed(() => can('read members-profile'));
-const canViewMembersManagement = computed(() => can('read members-management'));
 const canViewActivitiesProjects = computed(() => Boolean(auth.value?.permissions?.includes('read activities-&-projects')));
 const canViewTrainings = computed(() => Boolean(auth.value?.permissions?.includes('read training-&-capacity')));
 const canViewLoans = computed(() => can('read finance-member-loans') || can('apply-own finance-member-loans'));
@@ -66,7 +63,7 @@ const canViewFinance = computed(() =>
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
-const isMemberOnly = computed(() => isMember.value && !canViewMembersManagement.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
+const isMemberOnly = computed(() => isMember.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
 const { cooperativeLabel } = useCoopLabel();
 
 const mainNavItems = computed<NavItem[]>(() => {
@@ -94,12 +91,6 @@ const mainNavItems = computed<NavItem[]>(() => {
         icon: Building2,
     };
 
-    const pdsItem: NavItem = {
-        title: isMember.value ? 'My PDS' : 'Personal Data Sheet',
-        href: isMember.value ? '/pds/my' : '/pds',
-        icon: FileSpreadsheet,
-    };
-
     const activitiesItem: NavItem = {
         title: 'Activities & Projects',
         href: '/activities',
@@ -113,7 +104,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     };
 
     const trainingsItem: NavItem = {
-        title: 'Trainings',
+        title: 'Training & Capacity',
         href: '/trainings',
         icon: GraduationCap,
     };
@@ -123,7 +114,6 @@ const mainNavItems = computed<NavItem[]>(() => {
             homepageItem,
             dashboardItem,
             myProfileItem,
-            pdsItem,
             {
                 title: 'My Services',
                 href: '/member-portal/services',
@@ -177,32 +167,12 @@ const mainNavItems = computed<NavItem[]>(() => {
         items.push(cooperativesItem);
     }
 
-    if (canViewMembersManagement.value && isCoopAdmin.value) {
-        items.push({
-            title: 'Members Management',
-            href: '/members/management',
-            icon: Users,
-        });
-    }
-
-    if (canViewMembersManagement.value && !isCoopAdmin.value && canViewCoops.value) {
-        items.push({
-            title: 'Members Management',
-            href: '/members/management',
-            icon: Users,
-        });
-    }
-
-    if (canViewMembers.value || isMember.value) {
-        items.push(pdsItem);
+    if (canViewFinance.value) {
+        items.push(financeItem);
     }
 
     if (canViewActivitiesProjects.value) {
         items.push(activitiesItem);
-    }
-
-    if (canViewFinance.value) {
-        items.push(financeItem);
     }
 
     if (canViewTrainings.value) {

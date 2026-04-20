@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Save, Trash2, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,11 +14,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
     id: number;
     name: string;
+    registration_number?: string | null;
+    status?: string | null;
+    region?: string | null;
 }
 
 interface OfficerOption {
@@ -46,12 +51,12 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
-const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateActivity = computed(() => permissions.value.includes('create activities-&-projects'));
 
 const form = useForm({
     coop_id: props.cooperatives[0]?.id?.toString() || '',
+    coop_ids: props.cooperatives[0]?.id ? [props.cooperatives[0].id.toString()] : ([] as string[]),
     title: '',
     description: '',
     category: 'Project',
@@ -76,10 +81,55 @@ const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training
 const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
+const isCooperativeDialogOpen = ref(false);
+const selectedCoopIds = ref<string[]>(form.coop_ids);
+
+const selectedCooperatives = computed(() => {
+    const selectedSet = new Set(selectedCoopIds.value);
+    return props.cooperatives.filter((coop) => selectedSet.has(String(coop.id)));
+});
+
+const selectedCooperativeSummary = computed(() => {
+    const count = selectedCoopIds.value.length;
+
+    if (count === 0) return 'Choose Cooperative(s)';
+    if (count === 1) return selectedCooperatives.value[0]?.name || '1 cooperative selected';
+
+    return `${count} cooperatives selected`;
+});
+
+const singleSelectedCoopId = computed(() => (
+    selectedCoopIds.value.length === 1 ? selectedCoopIds.value[0] : ''
+));
+
+const syncSelectedCooperatives = (ids: string[]) => {
+    selectedCoopIds.value = [...new Set(ids)];
+    form.coop_ids = [...selectedCoopIds.value];
+    form.coop_id = selectedCoopIds.value[0] || '';
+
+    if (selectedCoopIds.value.length !== 1) {
+        form.responsible_officer_id = 'none';
+    }
+
+    form.clearErrors('coop_id', 'coop_ids', 'responsible_officer_id');
+};
+
+const openCooperativePicker = () => {
+    if (!props.cooperatives.length) return;
+    isCooperativeDialogOpen.value = true;
+};
+
+watch(singleSelectedCoopId, (newValue) => {
+    form.coop_id = newValue;
+
+    if (!newValue) {
+        form.responsible_officer_id = 'none';
+    }
+});
 
 const filteredOfficers = computed(() => {
-    if (!form.coop_id) return props.officers;
-    return props.officers.filter(officer => officer.coop_id.toString() === form.coop_id);
+    if (!singleSelectedCoopId.value) return [];
+    return props.officers.filter((officer) => officer.coop_id.toString() === singleSelectedCoopId.value);
 });
 
 const addFundingSource = () => {
@@ -100,8 +150,19 @@ const removeFundingSource = (index: number) => {
 
 const submit = () => {
     if (!canCreateActivity.value) return;
+    if (!selectedCoopIds.value.length) {
+        form.setError('coop_ids', 'Please select at least one cooperative.');
+        return;
+    }
+
+    if (selectedCoopIds.value.length !== 1) {
+        form.responsible_officer_id = 'none';
+    }
+
     form.transform((data) => ({
         ...data,
+        coop_id: selectedCoopIds.value[0] || '',
+        coop_ids: [...selectedCoopIds.value],
         responsible_officer_id: data.responsible_officer_id === 'none' ? '' : data.responsible_officer_id,
         funding_source: data.funding_source || data.funding_sources[0]?.funder_name || '',
         funding_sources: data.funding_sources.map((source) => ({
@@ -138,19 +199,41 @@ const cancel = () => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="coop_id">Cooperative</Label>
-                                <Select v-model="form.coop_id" :disabled="isCoopAdmin">
-                                    <SelectTrigger id="coop_id" :class="{ 'border-red-500': form.errors.coop_id }">
-                                        <SelectValue placeholder="Select cooperative" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                            {{ coop.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label for="coop_picker">Cooperatives</Label>
+                                <Button
+                                    id="coop_picker"
+                                    type="button"
+                                    variant="outline"
+                                    class="h-10 w-full items-center justify-between"
+                                    :class="{ 'border-red-500 focus-visible:ring-red-500': form.errors.coop_ids || form.errors.coop_id }"
+                                    @click="openCooperativePicker"
+                                >
+                                    <span class="truncate text-left">{{ selectedCooperativeSummary }}</span>
+                                    <span class="ml-2 text-xs text-muted-foreground">
+                                        {{ selectedCoopIds.length ? `${selectedCoopIds.length} selected` : 'Select' }}
+                                    </span>
+                                </Button>
+                                <div v-if="selectedCooperatives.length" class="mt-2 flex flex-wrap gap-1.5">
+                                    <Badge
+                                        v-for="coop in selectedCooperatives.slice(0, 4)"
+                                        :key="coop.id"
+                                        variant="secondary"
+                                        class="max-w-full truncate"
+                                    >
+                                        {{ coop.name }}
+                                    </Badge>
+                                    <Badge v-if="selectedCooperatives.length > 4" variant="outline">
+                                        +{{ selectedCooperatives.length - 4 }} more
+                                    </Badge>
+                                </div>
+                                <p v-if="selectedCoopIds.length > 1" class="mt-1 text-xs text-muted-foreground">
+                                    Responsible officer is available only when one cooperative is selected.
+                                </p>
                                 <p v-if="form.errors.coop_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.coop_id }}
+                                </p>
+                                <p v-if="form.errors.coop_ids" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.coop_ids }}
                                 </p>
                             </div>
 
@@ -214,7 +297,7 @@ const cancel = () => {
 
                             <div>
                                 <Label for="responsible_officer_id">Responsible Officer</Label>
-                                <Select v-model="form.responsible_officer_id">
+                                <Select v-model="form.responsible_officer_id" :disabled="!singleSelectedCoopId">
                                     <SelectTrigger id="responsible_officer_id" :class="{ 'border-red-500': form.errors.responsible_officer_id }">
                                         <SelectValue placeholder="Select officer" />
                                     </SelectTrigger>
@@ -407,5 +490,17 @@ const cancel = () => {
                 </form>
             </div>
         </div>
+
+        <CooperativeMultiSelectDialog
+            :open="isCooperativeDialogOpen"
+            :cooperatives="cooperatives"
+            :selected-ids="selectedCoopIds"
+            title="Choose Cooperatives"
+            description="Search and filter cooperatives, then choose one or more entries for this activity."
+            confirm-label="Confirm"
+            cancel-label="Cancel"
+            @update:open="(value) => isCooperativeDialogOpen = value"
+            @confirm="syncSelectedCooperatives"
+        />
     </AppLayout>
 </template>

@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { GraduationCap, Plus, Pencil, Trash2, Search, Users } from 'lucide-vue-next';
+import { GraduationCap, Plus, Pencil, Trash2, Search, Users, Eye } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -60,6 +67,8 @@ interface Props {
     baseUrl?: string;
     queryPrefix?: string;
     lockCoopId?: string;
+    showParticipantActionInRows?: boolean;
+    showViewActionInRows?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -77,7 +86,11 @@ const canCreate = computed(() => permissions.value.includes('create training-&-c
 const canEdit = computed(() => permissions.value.includes('update training-&-capacity'));
 const canDelete = computed(() => permissions.value.includes('delete training-&-capacity'));
 const canBulkDelete = computed(() => canDelete.value);
-const showActions = computed(() => canEdit.value || canDelete.value);
+const showParticipantActionInRows = computed(() => props.showParticipantActionInRows || false);
+const showViewActionInRows = computed(() => props.showViewActionInRows || false);
+const showActions = computed(() => showViewActionInRows.value || showParticipantActionInRows.value || canEdit.value || canDelete.value);
+const isViewDialogOpen = ref(false);
+const selectedTraining = ref<Training | null>(null);
 
 const search = ref(props.filters.search || '');
 const status = ref(props.filters.status || 'all');
@@ -166,6 +179,11 @@ const formatDate = (date: string | null) => {
     });
 };
 
+const openViewDialog = (training: Training) => {
+    selectedTraining.value = training;
+    isViewDialogOpen.value = true;
+};
+
 const visibleTrainings = computed(() => props.trainings.data);
 
 const {
@@ -219,9 +237,6 @@ const bulkDeleteTrainings = async () => {
                             <Users class="h-4 w-4" />
                             Participants
                         </Button>
-                    </Link>
-                    <Link href="/skill-inventories" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Skills Inventory
                     </Link>
                     <Link v-if="canCreate" href="/trainings/create">
                         <Button class="gap-2">
@@ -384,6 +399,22 @@ const bulkDeleteTrainings = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ training.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
+                                    <Button
+                                        v-if="showViewActionInRows"
+                                        @click="openViewDialog(training)"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-2"
+                                    >
+                                        <Eye class="h-4 w-4" />
+                                        View
+                                    </Button>
+                                    <Link v-if="showParticipantActionInRows" :href="`/training-participants?training_id=${training.id}&coop_id=${training.coop_id}`">
+                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                            <Users class="h-4 w-4" />
+                                            Participants
+                                        </Button>
+                                    </Link>
                                     <Link v-if="canEdit" :href="`/trainings/${training.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
@@ -429,5 +460,39 @@ const bulkDeleteTrainings = async () => {
                 </div>
             </div>
         </div>
+
+        <Dialog v-model:open="isViewDialogOpen">
+            <DialogContent class="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{{ selectedTraining?.title || 'Training details' }}</DialogTitle>
+                    <DialogDescription>
+                        Full details for the selected training record.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="selectedTraining" class="grid gap-4 text-sm sm:grid-cols-2">
+                    <div class="space-y-1 sm:col-span-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cooperative</p>
+                        <p class="text-foreground">{{ selectedTraining.cooperative.name }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Conducted</p>
+                        <p class="text-foreground">{{ formatDate(selectedTraining.date_conducted) }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+                        <p class="text-foreground">{{ selectedTraining.status || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Facilitator</p>
+                        <p class="text-foreground">{{ selectedTraining.facilitator || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Target Group</p>
+                        <p class="text-foreground">{{ selectedTraining.target_group || 'N/A' }}</p>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

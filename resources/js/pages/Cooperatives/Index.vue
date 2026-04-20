@@ -39,6 +39,7 @@ import type { BreadcrumbItem } from '@/types';
 interface Cooperative {
     id: number;
     name: string;
+    members_count?: number;
     registration_number: string;
     date_established: string;
     address: string;
@@ -275,6 +276,14 @@ const getStatusBadgeColor = (status: string) => {
         'Suspended': 'bg-orange-100 text-orange-800 border-orange-200',
     };
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+};
+
+const getMemberCountBadgeColor = (memberCount: number) => {
+    if (memberCount === 0) {
+        return 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300';
+    }
+
+    return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200';
 };
 
 const formatDate = (date: string | null) => {
@@ -615,6 +624,7 @@ const getTypePreview = (coop: Cooperative) => {
                                         />
                                     </TableHead>
                                     <TableHead>Cooperative</TableHead>
+                                    <TableHead class="text-center">No. Members</TableHead>
                                     <TableHead>Type</TableHead>
                                     <TableHead>Location</TableHead>
                                     <TableHead>Status</TableHead>
@@ -625,7 +635,7 @@ const getTypePreview = (coop: Cooperative) => {
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-if="cooperatives.data.length === 0">
-                                    <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
+                                    <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
                                         <div class="mx-auto max-w-md space-y-2">
                                             <p class="font-medium text-foreground">{{ noCooperativesFoundLabel }}</p>
                                             <p class="text-sm text-muted-foreground">Try clearing filters or searching by province or registration number.</p>
@@ -655,6 +665,16 @@ const getTypePreview = (coop: Cooperative) => {
                                                 <div class="text-foreground">{{ coop.name }}</div>
                                             </div>
                                         </div>
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <Badge
+                                            :class="[
+                                                getMemberCountBadgeColor(coop.members_count ?? 0),
+                                                'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                                            ]"
+                                        >
+                                            {{ coop.members_count ?? 0 }}
+                                        </Badge>
                                     </TableCell>
                                     <TableCell>
                                         <div class="flex items-center gap-2">
