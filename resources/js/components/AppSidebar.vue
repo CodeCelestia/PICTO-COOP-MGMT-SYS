@@ -12,6 +12,7 @@ import {
     GraduationCap,
     Shield,
     Monitor,
+    Trash2,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -44,6 +45,7 @@ const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const isMember = computed(() => Boolean(authUser.value?.member_id));
 const isSuperAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'super admin'));
+const isProvincialAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'provincial admin'));
 
 const can = (permission: string) => permissions.value.includes(permission);
 
@@ -63,6 +65,7 @@ const canViewFinance = computed(() =>
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
+const canViewRecycleBin = computed(() => isSuperAdmin.value || isProvincialAdmin.value);
 const isMemberOnly = computed(() => isMember.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
 const { cooperativeLabel } = useCoopLabel();
 
@@ -184,6 +187,14 @@ const mainNavItems = computed<NavItem[]>(() => {
             title: 'Activity Logs',
             href: '/activity-logs',
             icon: History,
+        });
+    }
+
+    if (canViewRecycleBin.value) {
+        items.push({
+            title: 'Recycle Bin',
+            href: '/recycle-bin',
+            icon: Trash2,
         });
     }
 

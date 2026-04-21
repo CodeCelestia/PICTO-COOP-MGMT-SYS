@@ -224,6 +224,7 @@ const fallbackBreadcrumbs = computed<BreadcrumbItem[]>(() => {
     if (path.startsWith('/display')) return buildGenericBreadcrumbs(path, 'Display', '/display');
     if (path.startsWith('/users')) return buildGenericBreadcrumbs(path, 'User Management', '/users');
     if (path.startsWith('/roles-permissions')) return buildGenericBreadcrumbs(path, 'Roles & Permissions', '/roles-permissions');
+    if (path.startsWith('/recycle-bin')) return buildGenericBreadcrumbs(path, 'Recycle Bin', '/recycle-bin');
     if (path.startsWith('/members')) return buildGenericBreadcrumbs(path, 'Members', '/members');
     if (path.startsWith('/pds/my')) return [{ title: 'My PDS', href: '/pds/my' }];
     if (path.startsWith('/pds')) return buildGenericBreadcrumbs(path, 'Personal Data Sheet', '/pds');

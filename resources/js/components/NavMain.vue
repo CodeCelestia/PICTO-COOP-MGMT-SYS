@@ -200,7 +200,8 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
                 url.startsWith('/users') ||
                 url.startsWith('/roles-permissions') ||
                 url.startsWith('/activity-logs') ||
-                url.startsWith('/display');
+                url.startsWith('/display') ||
+                url.startsWith('/recycle-bin');
 
             if (isManagementSection) {
                 buckets.management.push(item);

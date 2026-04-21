@@ -37,6 +37,7 @@ use App\Http\Controllers\PdsController;
 use App\Http\Controllers\HomepageController;
 use App\Http\Controllers\DisplayController;
 use App\Http\Controllers\AccreditationController;
+use App\Http\Controllers\RecycleBinController;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -709,6 +710,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:read audit-logs')
         ->defaults('tab', 'accounts')
         ->name('account-status-history.index');
+
+    // Recycle Bin (Super Admin & Provincial Admin only)
+    Route::get('recycle-bin', [RecycleBinController::class, 'index'])
+        ->middleware('role:Super Admin|Provincial Admin')
+        ->name('recycle-bin.index');
+    Route::post('recycle-bin/restore', [RecycleBinController::class, 'restore'])
+        ->middleware('role:Super Admin|Provincial Admin')
+        ->name('recycle-bin.restore');
+    Route::delete('recycle-bin', [RecycleBinController::class, 'destroy'])
+        ->middleware('role:Super Admin|Provincial Admin')
+        ->name('recycle-bin.destroy');
 });
 
 require __DIR__.'/settings.php';

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { HandCoins, Plus, Save, X } from 'lucide-vue-next';
+import { File, FileText, HandCoins, Image, Plus, Save, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,14 +13,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction, notifySuccess } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;
@@ -116,7 +110,6 @@ const form = useForm<{
 const funderTypes = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const statusOptions = ['Released', 'Pending', 'Partially Released'];
 const maxFundingSourceFiles = 3;
-const isFilesDialogOpen = ref(false);
 const existingAttachmentPaths = ref<string[]>([...(props.fundingSource.attachment_paths || [])]);
 const existingAttachmentNames = ref<string[]>([...(props.fundingSource.attachment_names || [])]);
 const existingAttachmentCount = computed(() => existingAttachmentNames.value.length);
@@ -128,32 +121,53 @@ const addAttachmentSlot = () => {
 
 const updateAttachmentSlot = (event: Event, index: number) => {
     const input = event.target as HTMLInputElement | null;
-    form.attachments[index] = input?.files?.[0] || null;
+    const nextFile = input?.files?.[0] || null;
+    form.attachments[index] = nextFile;
+    if (nextFile) notifySuccess('File added to funding source.');
 };
 
-const removeAttachmentSlot = (index: number) => {
+const removeAttachmentSlot = async (index: number) => {
+    const ok = await confirmAction({
+        title: 'Remove file?',
+        text: 'This will remove the selected file from this funding source.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
     form.attachments.splice(index, 1);
 };
 
-const activeAttachments = computed(() => {
+const fileKindFromName = (name: string) => {
+    const extension = name.split('.').pop()?.toLowerCase() || '';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) return 'image';
+    if (extension === 'pdf') return 'pdf';
+    return 'file';
+};
+
+const fundingSourceFiles = computed(() => {
     const existing = existingAttachmentNames.value.map((name, idx) => ({
         name,
         url: existingAttachmentPaths.value[idx]
             ? `/storage/${existingAttachmentPaths.value[idx]}`
             : undefined,
+        kind: fileKindFromName(name),
     }));
     const pending = form.attachments
-        .map((file, pendingIndex) => ({ file, pendingIndex }))
-        .filter((entry): entry is { file: File; pendingIndex: number } => Boolean(entry.file))
-        .map(({ file, pendingIndex }) => ({ name: file.name, pendingIndex }));
+        .map((file, pendingIndex) => (file ? {
+            name: file.name,
+            pendingIndex,
+            kind: fileKindFromName(file.name),
+        } : null))
+        .filter((entry): entry is { name: string; pendingIndex: number; kind: string } => Boolean(entry));
     return [...existing, ...pending];
 });
 
-const removeActiveAttachment = (pendingIndex: number) => {
-    removeAttachmentSlot(pendingIndex);
-};
-
-const removeExistingAttachment = (path: string) => {
+const removeExistingAttachment = async (path: string) => {
+    const ok = await confirmAction({
+        title: 'Remove file?',
+        text: 'This will remove the file from this funding source.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
     const pathIndex = existingAttachmentPaths.value.indexOf(path);
     if (pathIndex === -1) return;
     const removedPath = existingAttachmentPaths.value[pathIndex];
@@ -465,16 +479,6 @@ const cancel = () => {
                             <div class="md:col-span-2">
                                 <Label>Files</Label>
                                 <div class="space-y-2">
-                                    <div v-for="(file, index) in form.attachments" :key="index" class="flex items-center gap-2">
-                                        <Input
-                                            type="file"
-                                            accept=".pdf,.jpg,.jpeg,.png"
-                                            @change="updateAttachmentSlot($event, index)"
-                                        />
-                                        <Button type="button" variant="outline" size="sm" @click="removeAttachmentSlot(index)">
-                                            Remove
-                                        </Button>
-                                    </div>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <Button
                                             type="button"
@@ -487,12 +491,65 @@ const cancel = () => {
                                             <Plus class="h-3.5 w-3.5" />
                                             Add File
                                         </Button>
-                                        <Button type="button" variant="secondary" size="sm" @click="isFilesDialogOpen = true">
-                                            Files
-                                        </Button>
                                         <span class="text-xs text-muted-foreground">
                                             {{ existingAttachmentCount + form.attachments.length }}/{{ maxFundingSourceFiles }} files
                                         </span>
+                                    </div>
+                                    <div v-for="(file, index) in form.attachments" :key="index" class="flex items-center gap-2">
+                                        <Input
+                                            type="file"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            @change="updateAttachmentSlot($event, index)"
+                                        />
+                                        <Button type="button" variant="outline" size="sm" @click="removeAttachmentSlot(index)">
+                                            Remove
+                                        </Button>
+                                    </div>
+                                    <div class="border-t border-border/60 pt-2">
+                                        <div class="rounded-lg border border-border bg-muted/30 p-2">
+                                            <div v-if="fundingSourceFiles.length === 0" class="text-xs text-muted-foreground">
+                                                No files added yet.
+                                            </div>
+                                            <ul v-else class="space-y-2">
+                                                <li
+                                                    v-for="file in fundingSourceFiles"
+                                                    :key="file.name + '-' + (('pendingIndex' in file) ? file.pendingIndex : file.url ?? 'existing')"
+                                                    class="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-xs shadow-sm"
+                                                >
+                                                    <div class="flex min-w-0 items-center gap-2">
+                                                        <FileText v-if="file.kind === 'pdf'" class="h-4 w-4 text-rose-500" />
+                                                        <Image v-else-if="file.kind === 'image'" class="h-4 w-4 text-emerald-500" />
+                                                        <File v-else class="h-4 w-4 text-muted-foreground" />
+                                                        <template v-if="'url' in file && file.url">
+                                                            <a :href="file.url" class="truncate text-primary underline" target="_blank" rel="noreferrer">
+                                                                {{ file.name }}
+                                                            </a>
+                                                        </template>
+                                                        <span v-else class="truncate">{{ file.name }}</span>
+                                                    </div>
+                                                    <Button
+                                                        v-if="'pendingIndex' in file"
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        class="h-7 px-2"
+                                                        @click="removeAttachmentSlot(file.pendingIndex)"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                    <Button
+                                                        v-else-if="'url' in file && file.url"
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        class="h-7 px-2"
+                                                        @click="removeExistingAttachment(file.url.replace('/storage/', ''))"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                                 <p v-if="form.errors.attachments" class="mt-1 text-sm text-red-500">
@@ -516,46 +573,4 @@ const cancel = () => {
             </div>
         </div>
     </AppLayout>
-
-    <Dialog v-model:open="isFilesDialogOpen">
-        <DialogContent class="max-w-md">
-            <DialogHeader>
-                <DialogTitle>Funding Source Files</DialogTitle>
-                <DialogDescription>Existing and selected files for this funding source.</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-2">
-                <div v-if="activeAttachments.length === 0" class="text-sm text-muted-foreground">
-                    No files added yet.
-                </div>
-                <ul v-else class="space-y-2">
-                    <li v-for="file in activeAttachments" :key="`${file.name}-${file.pendingIndex ?? file.url ?? 'existing'}`" class="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                        <div class="truncate">
-                            <a v-if="file.url" :href="file.url" class="text-primary underline" target="_blank" rel="noreferrer">
-                                {{ file.name }}
-                            </a>
-                            <span v-else>{{ file.name }}</span>
-                        </div>
-                        <Button
-                            v-if="file.pendingIndex !== undefined"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            @click="removeActiveAttachment(file.pendingIndex)"
-                        >
-                            Remove
-                        </Button>
-                        <Button
-                            v-else-if="file.url"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            @click="removeExistingAttachment(file.url.replace('/storage/', ''))"
-                        >
-                            Remove
-                        </Button>
-                    </li>
-                </ul>
-            </div>
-        </DialogContent>
-    </Dialog>
 </template>
