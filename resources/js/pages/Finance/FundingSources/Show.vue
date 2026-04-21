@@ -2,7 +2,16 @@
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import { computed, ref } from 'vue';
 
 interface FundingSource {
     id: number;
@@ -16,18 +25,30 @@ interface FundingSource {
     date_released: string | null;
     status: string;
     remarks: string | null;
+    attachment_paths?: string[] | null;
+    attachment_names?: string[] | null;
     created_at?: string | null;
     updated_at?: string | null;
     activity?: { title?: string };
     cooperative?: { name?: string };
 }
 
-defineProps<{
+const props = defineProps<{
     fundingSource: FundingSource;
     permissions: {
         can_edit: boolean;
     };
 }>();
+
+const isFilesDialogOpen = ref(false);
+const attachmentList = computed(() =>
+    (props.fundingSource.attachment_names || []).map((name, idx) => ({
+        name,
+        url: props.fundingSource.attachment_paths?.[idx]
+            ? `/storage/${props.fundingSource.attachment_paths[idx]}`
+            : undefined,
+    }))
+);
 
 const formatDate = (value: string | null | undefined) => {
     if (!value) return 'N/A';
@@ -134,6 +155,19 @@ const activityLabel = (source: FundingSource) => {
                             <p class="text-sm text-muted-foreground">Remarks</p>
                             <p class="text-base font-medium text-foreground whitespace-pre-line">{{ fundingSource.remarks || 'N/A' }}</p>
                         </div>
+                        <div class="space-y-1.5 md:col-span-2">
+                            <p class="text-sm text-muted-foreground">Files</p>
+                            <div class="text-base font-medium text-foreground">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    @click="isFilesDialogOpen = true"
+                                >
+                                    Files
+                                </Button>
+                            </div>
+                        </div>
                         <div class="space-y-1.5">
                             <p class="text-sm text-muted-foreground">Created</p>
                             <p class="text-base font-medium text-foreground">{{ formatDate(fundingSource.created_at) }}</p>
@@ -147,4 +181,26 @@ const activityLabel = (source: FundingSource) => {
             </div>
         </div>
     </FinanceShellLayout>
+
+    <Dialog v-model:open="isFilesDialogOpen">
+        <DialogContent class="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Funding Source Files</DialogTitle>
+                <DialogDescription>Files uploaded for this funding source.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-2">
+                <div v-if="attachmentList.length === 0" class="text-sm text-muted-foreground">
+                    No files uploaded yet.
+                </div>
+                <ul v-else class="space-y-2">
+                    <li v-for="file in attachmentList" :key="file.name" class="rounded-md border border-border px-3 py-2 text-sm">
+                        <a v-if="file.url" :href="file.url" class="text-primary underline" target="_blank" rel="noreferrer">
+                            {{ file.name }}
+                        </a>
+                        <span v-else>{{ file.name }}</span>
+                    </li>
+                </ul>
+            </div>
+        </DialogContent>
+    </Dialog>
 </template>

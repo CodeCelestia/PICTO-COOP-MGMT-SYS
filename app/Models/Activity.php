@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $actual_community_beneficiaries
  * @property string|null $implementing_partner
  * @property string|null $outcomes
+ * @property string|null $outcomes_attachment_path
  * @property string|null $remarks
  */
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -52,6 +53,7 @@ class Activity extends Model
         'actual_community_beneficiaries',
         'implementing_partner',
         'outcomes',
+        'outcomes_attachment_path',
         'remarks',
     ];
 

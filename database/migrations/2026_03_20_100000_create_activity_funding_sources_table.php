@@ -20,6 +20,8 @@ return new class extends Migration
             $table->date('date_released')->nullable();
             $table->enum('status', ['Released', 'Pending', 'Partially Released']);
             $table->text('remarks')->nullable();
+            $table->json('attachment_paths')->nullable();
+            $table->json('attachment_names')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

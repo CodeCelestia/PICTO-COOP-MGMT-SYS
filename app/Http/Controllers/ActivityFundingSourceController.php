@@ -8,6 +8,7 @@ use App\Models\Cooperative;
 use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -218,6 +219,10 @@ class ActivityFundingSourceController extends Controller
             'date_released' => ['nullable', 'date'],
             'status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'remarks' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array', 'max:3'],
+            'attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'attachments_removed' => ['nullable', 'array'],
+            'attachments_removed.*' => ['string'],
         ]);
 
         if (($validated['category'] ?? null) !== 'activity') {
@@ -248,6 +253,30 @@ class ActivityFundingSourceController extends Controller
                 return back()->withErrors(['member_id' => 'Selected member does not belong to the selected cooperative.']);
             }
         }
+
+        $attachmentPaths = $activityFundingSource->attachment_paths ?? [];
+        $attachmentNames = $activityFundingSource->attachment_names ?? [];
+
+        if (!empty($validated['attachments_removed'])) {
+            foreach ($validated['attachments_removed'] as $removedPath) {
+                $index = array_search($removedPath, $attachmentPaths, true);
+                if ($index !== false) {
+                    Storage::disk('public')->delete($attachmentPaths[$index]);
+                    array_splice($attachmentPaths, $index, 1);
+                    array_splice($attachmentNames, $index, 1);
+                }
+            }
+        }
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $attachmentPaths[] = $file->store('funding-source-attachments', 'public');
+                $attachmentNames[] = $file->getClientOriginalName();
+            }
+        }
+
+        $validated['attachment_paths'] = $attachmentPaths;
+        $validated['attachment_names'] = $attachmentNames;
 
         $this->applyCategoryContextToRemarks($validated);
 
@@ -325,6 +354,10 @@ class ActivityFundingSourceController extends Controller
             'date_released' => ['nullable', 'date'],
             'status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'remarks' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array', 'max:3'],
+            'attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'attachments_removed' => ['nullable', 'array'],
+            'attachments_removed.*' => ['string'],
         ]);
 
         if (($validated['category'] ?? null) !== 'activity') {
@@ -355,6 +388,30 @@ class ActivityFundingSourceController extends Controller
                 return back()->withErrors(['member_id' => 'Selected member does not belong to the selected cooperative.']);
             }
         }
+
+        $attachmentPaths = $activityFundingSource->attachment_paths ?? [];
+        $attachmentNames = $activityFundingSource->attachment_names ?? [];
+
+        if (!empty($validated['attachments_removed'])) {
+            foreach ($validated['attachments_removed'] as $removedPath) {
+                $index = array_search($removedPath, $attachmentPaths, true);
+                if ($index !== false) {
+                    Storage::disk('public')->delete($attachmentPaths[$index]);
+                    array_splice($attachmentPaths, $index, 1);
+                    array_splice($attachmentNames, $index, 1);
+                }
+            }
+        }
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $attachmentPaths[] = $file->store('funding-source-attachments', 'public');
+                $attachmentNames[] = $file->getClientOriginalName();
+            }
+        }
+
+        $validated['attachment_paths'] = $attachmentPaths;
+        $validated['attachment_names'] = $attachmentNames;
 
         $this->applyCategoryContextToRemarks($validated);
 

@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $date_released
  * @property string|null $status
  * @property string|null $remarks
+ * @property array|null $attachment_paths
+ * @property array|null $attachment_names
  */
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -36,6 +38,8 @@ class ActivityFundingSource extends Model
         'date_released',
         'status',
         'remarks',
+        'attachment_paths',
+        'attachment_names',
     ];
 
     protected function casts(): array
@@ -45,6 +49,8 @@ class ActivityFundingSource extends Model
             'amount_released' => 'decimal:2',
             'date_released' => 'date',
             'category' => 'string',
+            'attachment_paths' => 'array',
+            'attachment_names' => 'array',
         ];
     }
 

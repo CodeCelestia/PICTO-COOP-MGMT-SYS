@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Save, Trash2, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -45,6 +52,7 @@ interface Activity {
     actual_community_beneficiaries: number | null;
     implementing_partner: string | null;
     outcomes: string | null;
+    outcomes_attachment_path?: string | null;
     remarks: string | null;
     funding_sources?: FundingSourceRecord[];
 }
@@ -58,6 +66,8 @@ interface FundingSourceRecord {
     date_released: string | null;
     status: string;
     remarks: string | null;
+    attachment_paths?: string[] | null;
+    attachment_names?: string[] | null;
 }
 
 interface FundingSourceFormRow {
@@ -69,6 +79,10 @@ interface FundingSourceFormRow {
     date_released: string;
     status: string;
     remarks: string;
+    attachments: Array<File | null>;
+    attachment_paths?: string[] | null;
+    attachment_names?: string[] | null;
+    attachments_removed?: string[];
 }
 
 interface Props {
@@ -103,6 +117,7 @@ const form = useForm({
     actual_community_beneficiaries: props.activity.actual_community_beneficiaries?.toString() || '',
     implementing_partner: props.activity.implementing_partner || '',
     outcomes: props.activity.outcomes || '',
+    outcomes_attachment: null as File | null,
     remarks: props.activity.remarks || '',
     funding_sources: (props.activity.funding_sources || []).map((source) => ({
         id: source.id,
@@ -113,6 +128,10 @@ const form = useForm({
         date_released: source.date_released || '',
         status: source.status,
         remarks: source.remarks || '',
+        attachments: [],
+        attachment_paths: source.attachment_paths || [],
+        attachment_names: source.attachment_names || [],
+        attachments_removed: [],
     })) as FundingSourceFormRow[],
 });
 
@@ -120,6 +139,8 @@ const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training
 const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
+const maxFundingSourceFiles = 3;
+const filesDialogIndex = ref<number | null>(null);
 
 const filteredOfficers = computed(() => {
     if (!form.coop_id) return props.officers;
@@ -135,7 +156,70 @@ const addFundingSource = () => {
         date_released: '',
         status: 'Pending',
         remarks: '',
+        attachments: [],
+        attachment_paths: [],
+        attachment_names: [],
+        attachments_removed: [],
     });
+};
+
+const addFundingSourceAttachment = (index: number) => {
+    const existingCount = form.funding_sources[index].attachment_names?.length || 0;
+    if (existingCount + form.funding_sources[index].attachments.length >= maxFundingSourceFiles) return;
+    form.funding_sources[index].attachments.push(null);
+};
+
+const updateFundingSourceAttachment = (event: Event, index: number, fileIndex: number) => {
+    const input = event.target as HTMLInputElement | null;
+    form.funding_sources[index].attachments[fileIndex] = input?.files?.[0] || null;
+};
+
+const removeFundingSourceAttachment = (index: number, fileIndex: number) => {
+    form.funding_sources[index].attachments.splice(fileIndex, 1);
+};
+
+const openFilesDialog = (index: number) => {
+    filesDialogIndex.value = index;
+};
+
+const closeFilesDialog = () => {
+    filesDialogIndex.value = null;
+};
+
+const activeFundingSourceFiles = computed<Array<{ name: string; url?: string; pendingIndex?: number }>>(() => {
+    if (filesDialogIndex.value === null) return [];
+    const source = form.funding_sources[filesDialogIndex.value];
+    const existing = (source.attachment_names || []).map((name, idx) => ({
+        name,
+        url: source.attachment_paths?.[idx] ? `/storage/${source.attachment_paths[idx]}` : undefined,
+    }));
+    const pending = source.attachments
+        .map((file, pendingIndex) => ({ file, pendingIndex }))
+        .filter((entry): entry is { file: File; pendingIndex: number } => Boolean(entry.file))
+        .map(({ file, pendingIndex }) => ({ name: file.name, pendingIndex }));
+    return [...existing, ...pending];
+});
+
+const removeActiveFundingSourceFile = (pendingIndex: number) => {
+    if (filesDialogIndex.value === null) return;
+    removeFundingSourceAttachment(filesDialogIndex.value, pendingIndex);
+};
+
+const removeExistingFundingSourceFile = (index: number, path: string) => {
+    const source = form.funding_sources[index];
+    const pathIndex = source.attachment_paths?.indexOf(path) ?? -1;
+    if (pathIndex === -1) return;
+    const removedPath = source.attachment_paths?.[pathIndex];
+    if (removedPath) {
+        source.attachments_removed = [...(source.attachments_removed || []), removedPath];
+    }
+    source.attachment_paths?.splice(pathIndex, 1);
+    source.attachment_names?.splice(pathIndex, 1);
+};
+
+const updateOutcomesAttachment = (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    form.outcomes_attachment = input?.files?.[0] || null;
 };
 
 const removeFundingSource = (index: number) => {
@@ -154,7 +238,10 @@ const submit = () => {
             amount_released: source.amount_released || null,
             date_released: source.date_released || null,
             remarks: source.remarks || null,
+            attachments: source.attachments.filter((file): file is File => Boolean(file)),
+            attachments_removed: source.attachments_removed || [],
         })),
+        outcomes_attachment: data.outcomes_attachment || null,
     })).put(`/activities/${props.activity.id}`, {
         preserveScroll: true,
     });
@@ -287,7 +374,7 @@ const cancel = () => {
                                     </Button>
                                 </div>
                                 <div class="overflow-x-auto rounded-md border border-border">
-                                    <table class="w-full min-w-[920px] text-sm">
+                                    <table class="w-full min-w-230 text-sm">
                                         <thead class="bg-muted/50 text-left">
                                             <tr>
                                                 <th class="px-3 py-2 font-medium">Funding Source Name</th>
@@ -296,12 +383,13 @@ const cancel = () => {
                                                 <th class="px-3 py-2 font-medium">Amount Released</th>
                                                 <th class="px-3 py-2 font-medium">Status</th>
                                                 <th class="px-3 py-2 font-medium">Notes</th>
+                                                <th class="px-3 py-2 font-medium">Files</th>
                                                 <th class="px-3 py-2 font-medium">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr v-if="form.funding_sources.length === 0">
-                                                <td colspan="7" class="px-3 py-4 text-center text-muted-foreground">
+                                                <td colspan="8" class="px-3 py-4 text-center text-muted-foreground">
                                                     No funding sources yet.
                                                 </td>
                                             </tr>
@@ -341,6 +429,44 @@ const cancel = () => {
                                                 </td>
                                                 <td class="px-2 py-2 align-top">
                                                     <Input v-model="source.remarks" placeholder="Optional notes" />
+                                                </td>
+                                                <td class="px-2 py-2 align-top">
+                                                    <div class="space-y-2">
+                                                        <div v-for="(file, fileIndex) in source.attachments" :key="fileIndex" class="flex items-center gap-2">
+                                                            <Input
+                                                                type="file"
+                                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                                @change="updateFundingSourceAttachment($event, index, fileIndex)"
+                                                            />
+                                                            <Button type="button" variant="outline" size="sm" @click="removeFundingSourceAttachment(index, fileIndex)">
+                                                                Remove
+                                                            </Button>
+                                                        </div>
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                class="gap-1"
+                                                                :disabled="(source.attachment_names?.length || 0) + source.attachments.length >= maxFundingSourceFiles"
+                                                                @click="addFundingSourceAttachment(index)"
+                                                            >
+                                                                <Plus class="h-3.5 w-3.5" />
+                                                                Add File
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                @click="openFilesDialog(index)"
+                                                            >
+                                                                Files
+                                                            </Button>
+                                                            <span class="text-xs text-muted-foreground">
+                                                                {{ (source.attachment_names?.length || 0) + source.attachments.length }}/{{ maxFundingSourceFiles }} files
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td class="px-2 py-2 align-top">
                                                     <Button type="button" variant="outline" @click="removeFundingSource(index)">
@@ -429,6 +555,30 @@ const cancel = () => {
                             </div>
 
                             <div class="md:col-span-2">
+                                <Label for="outcomes_attachment">Outcomes Attachment</Label>
+                                <div class="space-y-2">
+                                    <Input
+                                        id="outcomes_attachment"
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        @change="updateOutcomesAttachment"
+                                    />
+                                    <a
+                                        v-if="props.activity.outcomes_attachment_path"
+                                        :href="`/storage/${props.activity.outcomes_attachment_path}`"
+                                        class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        View current file
+                                    </a>
+                                </div>
+                                <p v-if="form.errors.outcomes_attachment" class="mt-1 text-sm text-red-500">
+                                    {{ form.errors.outcomes_attachment }}
+                                </p>
+                            </div>
+
+                            <div class="md:col-span-2">
                                 <Label for="remarks">Remarks</Label>
                                 <Textarea id="remarks" v-model="form.remarks" placeholder="Additional notes" />
                                 <p v-if="form.errors.remarks" class="mt-1 text-sm text-red-500">
@@ -452,4 +602,46 @@ const cancel = () => {
             </div>
         </div>
     </AppLayout>
+
+    <Dialog :open="filesDialogIndex !== null" @update:open="(value) => { if (!value) closeFilesDialog(); }">
+        <DialogContent class="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Funding Source Files</DialogTitle>
+                <DialogDescription>Existing and newly selected files for this funding source.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-2">
+                <div v-if="activeFundingSourceFiles.length === 0" class="text-sm text-muted-foreground">
+                    No files added yet.
+                </div>
+                <ul v-else class="space-y-2">
+                    <li v-for="file in activeFundingSourceFiles" :key="`${file.name}-${file.pendingIndex ?? file.url ?? 'existing'}`" class="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                        <div class="truncate">
+                            <a v-if="file.url" :href="file.url" class="text-primary underline" target="_blank" rel="noreferrer">
+                                {{ file.name }}
+                            </a>
+                            <span v-else>{{ file.name }}</span>
+                        </div>
+                        <Button
+                            v-if="file.pendingIndex !== undefined"
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="removeActiveFundingSourceFile(file.pendingIndex)"
+                        >
+                            Remove
+                        </Button>
+                        <Button
+                            v-else-if="file.url"
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="removeExistingFundingSourceFile(filesDialogIndex ?? 0, file.url.replace('/storage/', ''))"
+                        >
+                            Remove
+                        </Button>
+                    </li>
+                </ul>
+            </div>
+        </DialogContent>
+    </Dialog>
 </template>

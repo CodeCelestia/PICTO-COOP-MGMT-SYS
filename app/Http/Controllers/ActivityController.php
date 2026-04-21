@@ -8,6 +8,7 @@ use App\Models\Cooperative;
 use App\Models\Officer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -174,6 +175,7 @@ class ActivityController extends Controller
             'actual_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
+            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
@@ -183,6 +185,10 @@ class ActivityController extends Controller
             'funding_sources.*.date_released' => ['nullable', 'date'],
             'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'funding_sources.*.remarks' => ['nullable', 'string'],
+            'funding_sources.*.attachments' => ['nullable', 'array', 'max:3'],
+            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'funding_sources.*.attachments_removed' => ['nullable', 'array'],
+            'funding_sources.*.attachments_removed.*' => ['string'],
         ]);
 
         $selectedCoopIds = collect($validated['coop_ids'] ?? [])
@@ -215,7 +221,24 @@ class ActivityController extends Controller
             }
         }
 
+        if ($request->hasFile('outcomes_attachment')) {
+            $validated['outcomes_attachment_path'] = $request->file('outcomes_attachment')
+                ->store('activity-outcomes-attachments', 'public');
+        }
+
         $fundingSources = $validated['funding_sources'] ?? [];
+        foreach ($fundingSources as $index => $source) {
+            if ($request->hasFile("funding_sources.{$index}.attachments")) {
+                $paths = [];
+                $names = [];
+                foreach ($request->file("funding_sources.{$index}.attachments") as $file) {
+                    $paths[] = $file->store('funding-source-attachments', 'public');
+                    $names[] = $file->getClientOriginalName();
+                }
+                $fundingSources[$index]['attachment_paths'] = $paths;
+                $fundingSources[$index]['attachment_names'] = $names;
+            }
+        }
         unset($validated['funding_sources'], $validated['coop_ids']);
 
         $createdCount = 0;
@@ -243,6 +266,8 @@ class ActivityController extends Controller
                     'date_released' => $source['date_released'] ?? null,
                     'status' => $source['status'],
                     'remarks' => $source['remarks'] ?? null,
+                    'attachment_paths' => $source['attachment_paths'] ?? null,
+                    'attachment_names' => $source['attachment_names'] ?? null,
                 ]);
             }
         }
@@ -325,6 +350,7 @@ class ActivityController extends Controller
             'actual_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
+            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.id' => ['nullable', 'integer'],
@@ -335,6 +361,10 @@ class ActivityController extends Controller
             'funding_sources.*.date_released' => ['nullable', 'date'],
             'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'funding_sources.*.remarks' => ['nullable', 'string'],
+            'funding_sources.*.attachments' => ['nullable', 'array', 'max:3'],
+            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'funding_sources.*.attachments_removed' => ['nullable', 'array'],
+            'funding_sources.*.attachments_removed.*' => ['string'],
         ]);
 
         if ($this->isCoopAdmin() && $coopId) {
@@ -350,7 +380,24 @@ class ActivityController extends Controller
             }
         }
 
+        if ($request->hasFile('outcomes_attachment')) {
+            $validated['outcomes_attachment_path'] = $request->file('outcomes_attachment')
+                ->store('activity-outcomes-attachments', 'public');
+        }
+
         $fundingSources = $validated['funding_sources'] ?? [];
+        foreach ($fundingSources as $index => $source) {
+            if ($request->hasFile("funding_sources.{$index}.attachments")) {
+                $paths = [];
+                $names = [];
+                foreach ($request->file("funding_sources.{$index}.attachments") as $file) {
+                    $paths[] = $file->store('funding-source-attachments', 'public');
+                    $names[] = $file->getClientOriginalName();
+                }
+                $fundingSources[$index]['attachment_paths'] = $paths;
+                $fundingSources[$index]['attachment_names'] = $names;
+            }
+        }
         unset($validated['funding_sources']);
 
         $activity->update($validated);
@@ -377,11 +424,47 @@ class ActivityController extends Controller
                 'remarks' => $source['remarks'] ?? null,
             ];
 
+            if (array_key_exists('attachment_paths', $source)) {
+                $payload['attachment_paths'] = $source['attachment_paths'];
+                $payload['attachment_names'] = $source['attachment_names'] ?? [];
+            }
+
             if (!empty($source['id'])) {
-                ActivityFundingSource::where('id', (int) $source['id'])
+                $fundingSource = ActivityFundingSource::where('id', (int) $source['id'])
                     ->where('activity_id', $activity->id)
-                    ->update($payload);
+                    ->first();
+
+                if ($fundingSource) {
+                    $attachmentPaths = $fundingSource->attachment_paths ?? [];
+                    $attachmentNames = $fundingSource->attachment_names ?? [];
+
+                    if (!empty($source['attachments_removed'])) {
+                        foreach ($source['attachments_removed'] as $removedPath) {
+                            $index = array_search($removedPath, $attachmentPaths, true);
+                            if ($index !== false) {
+                                Storage::disk('public')->delete($attachmentPaths[$index]);
+                                array_splice($attachmentPaths, $index, 1);
+                                array_splice($attachmentNames, $index, 1);
+                            }
+                        }
+                    }
+
+                    if (!empty($source['attachment_paths'])) {
+                        $attachmentPaths = array_merge($attachmentPaths, $source['attachment_paths']);
+                        $attachmentNames = array_merge($attachmentNames, $source['attachment_names'] ?? []);
+                    }
+
+                    $payload['attachment_paths'] = $attachmentPaths;
+                    $payload['attachment_names'] = $attachmentNames;
+
+                    $fundingSource->update($payload);
+                }
             } else {
+                if (!empty($source['attachment_paths'])) {
+                    $payload['attachment_paths'] = $source['attachment_paths'];
+                    $payload['attachment_names'] = $source['attachment_names'] ?? [];
+                }
+
                 $activity->fundingSources()->create($payload);
             }
         }

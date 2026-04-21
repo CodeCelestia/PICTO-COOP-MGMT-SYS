@@ -30,6 +30,7 @@ return new class extends Migration
             $table->unsignedInteger('actual_community_beneficiaries')->nullable();
             $table->string('implementing_partner')->nullable();
             $table->text('outcomes')->nullable();
+            $table->string('outcomes_attachment_path')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
             $table->softDeletes();
