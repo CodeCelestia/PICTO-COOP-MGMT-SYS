@@ -351,6 +351,7 @@ class ActivityController extends Controller
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
             'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'outcomes_attachment_removed' => ['nullable', 'boolean'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.id' => ['nullable', 'integer'],
@@ -381,8 +382,16 @@ class ActivityController extends Controller
         }
 
         if ($request->hasFile('outcomes_attachment')) {
+            if (!empty($activity->outcomes_attachment_path)) {
+                Storage::disk('public')->delete($activity->outcomes_attachment_path);
+            }
             $validated['outcomes_attachment_path'] = $request->file('outcomes_attachment')
                 ->store('activity-outcomes-attachments', 'public');
+        } elseif (!empty($validated['outcomes_attachment_removed'])) {
+            if (!empty($activity->outcomes_attachment_path)) {
+                Storage::disk('public')->delete($activity->outcomes_attachment_path);
+            }
+            $validated['outcomes_attachment_path'] = null;
         }
 
         $fundingSources = $validated['funding_sources'] ?? [];

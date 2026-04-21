@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Save, Trash2, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { ClipboardList, File, FileText, Image, Plus, Save, Trash2, X } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction, notifySuccess } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;
@@ -83,6 +77,7 @@ interface FundingSourceFormRow {
     attachment_paths?: string[] | null;
     attachment_names?: string[] | null;
     attachments_removed?: string[];
+    is_saved?: boolean;
 }
 
 interface Props {
@@ -118,6 +113,7 @@ const form = useForm({
     implementing_partner: props.activity.implementing_partner || '',
     outcomes: props.activity.outcomes || '',
     outcomes_attachment: null as File | null,
+    outcomes_attachment_removed: false,
     remarks: props.activity.remarks || '',
     funding_sources: (props.activity.funding_sources || []).map((source) => ({
         id: source.id,
@@ -132,6 +128,7 @@ const form = useForm({
         attachment_paths: source.attachment_paths || [],
         attachment_names: source.attachment_names || [],
         attachments_removed: [],
+        is_saved: true,
     })) as FundingSourceFormRow[],
 });
 
@@ -140,12 +137,31 @@ const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
 const maxFundingSourceFiles = 3;
-const filesDialogIndex = ref<number | null>(null);
 
 const filteredOfficers = computed(() => {
     if (!form.coop_id) return props.officers;
     return props.officers.filter(officer => officer.coop_id.toString() === form.coop_id);
 });
+
+const isFundingSourceValid = (source: FundingSourceFormRow) => {
+    return (
+        source.funder_name.trim() !== '' &&
+        source.funder_type.trim() !== '' &&
+        source.amount_allocated !== '' &&
+        source.amount_released !== '' &&
+        source.status.trim() !== ''
+    );
+};
+
+const saveFundingSource = (index: number) => {
+    const source = form.funding_sources[index];
+    if (!isFundingSourceValid(source)) {
+        notifySuccess('Please fill all required funding source fields before saving.');
+        return;
+    }
+    source.is_saved = true;
+    notifySuccess('Funding source saved.');
+};
 
 const addFundingSource = () => {
     form.funding_sources.push({
@@ -160,6 +176,7 @@ const addFundingSource = () => {
         attachment_paths: [],
         attachment_names: [],
         attachments_removed: [],
+        is_saved: false,
     });
 };
 
@@ -171,41 +188,51 @@ const addFundingSourceAttachment = (index: number) => {
 
 const updateFundingSourceAttachment = (event: Event, index: number, fileIndex: number) => {
     const input = event.target as HTMLInputElement | null;
-    form.funding_sources[index].attachments[fileIndex] = input?.files?.[0] || null;
+    const nextFile = input?.files?.[0] || null;
+    form.funding_sources[index].attachments[fileIndex] = nextFile;
+    if (nextFile) notifySuccess('File added to funding source.');
 };
 
-const removeFundingSourceAttachment = (index: number, fileIndex: number) => {
+const removeFundingSourceAttachment = async (index: number, fileIndex: number) => {
+    const ok = await confirmAction({
+        title: 'Remove file?',
+        text: 'This will remove the selected file from this funding source.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
     form.funding_sources[index].attachments.splice(fileIndex, 1);
 };
 
-const openFilesDialog = (index: number) => {
-    filesDialogIndex.value = index;
+const fileKindFromName = (name: string) => {
+    const extension = name.split('.').pop()?.toLowerCase() || '';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) return 'image';
+    if (extension === 'pdf') return 'pdf';
+    return 'file';
 };
 
-const closeFilesDialog = () => {
-    filesDialogIndex.value = null;
-};
-
-const activeFundingSourceFiles = computed<Array<{ name: string; url?: string; pendingIndex?: number }>>(() => {
-    if (filesDialogIndex.value === null) return [];
-    const source = form.funding_sources[filesDialogIndex.value];
+const fundingSourceFiles = (source: FundingSourceFormRow) => {
     const existing = (source.attachment_names || []).map((name, idx) => ({
         name,
         url: source.attachment_paths?.[idx] ? `/storage/${source.attachment_paths[idx]}` : undefined,
+        kind: fileKindFromName(name),
     }));
     const pending = source.attachments
-        .map((file, pendingIndex) => ({ file, pendingIndex }))
-        .filter((entry): entry is { file: File; pendingIndex: number } => Boolean(entry.file))
-        .map(({ file, pendingIndex }) => ({ name: file.name, pendingIndex }));
+        .map((file, pendingIndex) => (file ? {
+            name: file.name,
+            pendingIndex,
+            kind: fileKindFromName(file.name),
+        } : null))
+        .filter((entry): entry is { name: string; pendingIndex: number; kind: string } => Boolean(entry));
     return [...existing, ...pending];
-});
-
-const removeActiveFundingSourceFile = (pendingIndex: number) => {
-    if (filesDialogIndex.value === null) return;
-    removeFundingSourceAttachment(filesDialogIndex.value, pendingIndex);
 };
 
-const removeExistingFundingSourceFile = (index: number, path: string) => {
+const removeExistingFundingSourceFile = async (index: number, path: string) => {
+    const ok = await confirmAction({
+        title: 'Remove file?',
+        text: 'This will remove the file from this funding source.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
     const source = form.funding_sources[index];
     const pathIndex = source.attachment_paths?.indexOf(path) ?? -1;
     if (pathIndex === -1) return;
@@ -219,10 +246,41 @@ const removeExistingFundingSourceFile = (index: number, path: string) => {
 
 const updateOutcomesAttachment = (event: Event) => {
     const input = event.target as HTMLInputElement | null;
-    form.outcomes_attachment = input?.files?.[0] || null;
+    const nextFile = input?.files?.[0] || null;
+    form.outcomes_attachment = nextFile;
+    if (nextFile) {
+        form.outcomes_attachment_removed = false;
+        notifySuccess('Outcomes attachment added.');
+    }
 };
 
-const removeFundingSource = (index: number) => {
+const removeOutcomesAttachment = async () => {
+    const ok = await confirmAction({
+        title: 'Remove attachment?',
+        text: 'This will clear the selected outcomes file.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
+    form.outcomes_attachment = null;
+    form.outcomes_attachment_removed = true;
+};
+
+const outcomesExistingName = computed(() => {
+    const path = props.activity.outcomes_attachment_path;
+    return path ? path.split('/').pop() || 'Outcomes attachment' : '';
+});
+
+const outcomesExistingUrl = computed(() => (
+    props.activity.outcomes_attachment_path ? `/storage/${props.activity.outcomes_attachment_path}` : ''
+));
+
+const removeFundingSource = async (index: number) => {
+    const ok = await confirmAction({
+        title: 'Delete funding source?',
+        text: 'This will remove the entire funding source entry.',
+        confirmButtonText: 'Delete',
+    });
+    if (!ok) return;
     form.funding_sources.splice(index, 1);
 };
 
@@ -242,6 +300,7 @@ const submit = () => {
             attachments_removed: source.attachments_removed || [],
         })),
         outcomes_attachment: data.outcomes_attachment || null,
+        outcomes_attachment_removed: data.outcomes_attachment_removed || false,
     })).put(`/activities/${props.activity.id}`, {
         preserveScroll: true,
     });
@@ -393,87 +452,155 @@ const cancel = () => {
                                                     No funding sources yet.
                                                 </td>
                                             </tr>
-                                            <tr v-for="(source, index) in form.funding_sources" :key="source.id ?? index" class="border-t border-border">
-                                                <td class="px-2 py-2 align-top">
-                                                    <Input v-model="source.funder_name" placeholder="e.g., DA Region V" />
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Select v-model="source.funder_type">
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Type" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem v-for="option in funderTypeOptions" :key="option" :value="option">
-                                                                {{ option }}
-                                                            </SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Input v-model="source.amount_allocated" type="number" min="0" step="0.01" />
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Input v-model="source.amount_released" type="number" min="0" step="0.01" />
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Select v-model="source.status">
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem v-for="option in fundingStatusOptions" :key="option" :value="option">
-                                                                {{ option }}
-                                                            </SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Input v-model="source.remarks" placeholder="Optional notes" />
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <div class="space-y-2">
-                                                        <div v-for="(file, fileIndex) in source.attachments" :key="fileIndex" class="flex items-center gap-2">
-                                                            <Input
-                                                                type="file"
-                                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                                @change="updateFundingSourceAttachment($event, index, fileIndex)"
-                                                            />
-                                                            <Button type="button" variant="outline" size="sm" @click="removeFundingSourceAttachment(index, fileIndex)">
-                                                                Remove
-                                                            </Button>
+                                            <template v-for="(source, index) in form.funding_sources" :key="source.id ?? index">
+                                                <tr class="border-t border-border">
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Input v-model="source.funder_name" placeholder="e.g., DA Region V" />
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Select v-model="source.funder_type">
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Type" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem v-for="option in funderTypeOptions" :key="option" :value="option">
+                                                                    {{ option }}
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Input v-model="source.amount_allocated" type="number" min="0" step="0.01" />
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Input v-model="source.amount_released" type="number" min="0" step="0.01" />
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Select v-model="source.status">
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Status" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem v-for="option in fundingStatusOptions" :key="option" :value="option">
+                                                                    {{ option }}
+                                                                </SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <Input v-model="source.remarks" placeholder="Optional notes" />
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <div class="space-y-3">
+                                                            <div v-for="(file, fileIndex) in source.attachments" :key="fileIndex" class="flex flex-wrap items-center gap-2">
+                                                                <Input
+                                                                    type="file"
+                                                                    class="min-w-56 flex-1"
+                                                                    accept=".pdf,.jpg,.jpeg,.png"
+                                                                    @change="updateFundingSourceAttachment($event, index, fileIndex)"
+                                                                />
+                                                                <Button
+                                                                    v-if="fileIndex === source.attachments.length - 1"
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    class="gap-1"
+                                                                    :disabled="(source.attachment_names?.length || 0) + source.attachments.length >= maxFundingSourceFiles"
+                                                                    @click="addFundingSourceAttachment(index)"
+                                                                >
+                                                                    <Plus class="h-3.5 w-3.5" />
+                                                                    Add File
+                                                                </Button>
+                                                                <span v-if="fileIndex === source.attachments.length - 1" class="text-xs text-muted-foreground">
+                                                                    {{ (source.attachment_names?.length || 0) + source.attachments.length }}/{{ maxFundingSourceFiles }} files
+                                                                </span>
+                                                            </div>
+                                                            <div v-if="source.attachments.length === 0" class="flex flex-wrap items-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    class="gap-1"
+                                                                    :disabled="(source.attachment_names?.length || 0) + source.attachments.length >= maxFundingSourceFiles"
+                                                                    @click="addFundingSourceAttachment(index)"
+                                                                >
+                                                                    <Plus class="h-3.5 w-3.5" />
+                                                                    Add File
+                                                                </Button>
+                                                                <span class="text-xs text-muted-foreground">
+                                                                    {{ source.attachment_names?.length || 0 }}/{{ maxFundingSourceFiles }} files
+                                                                </span>
+                                                            </div>
+                                                            <div class="border-t border-border/60 pt-2">
+                                                                <div class="rounded-lg border border-border bg-muted/30 p-2">
+                                                                    <div v-if="fundingSourceFiles(source).length === 0" class="text-xs text-muted-foreground">
+                                                                        No files added yet.
+                                                                    </div>
+                                                                    <ul v-else class="space-y-2">
+                                                                        <li
+                                                                            v-for="file in fundingSourceFiles(source)"
+                                                                            :key="file.name + '-' + (('pendingIndex' in file) ? file.pendingIndex : file.url ?? 'existing')"
+                                                                            class="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-xs shadow-sm"
+                                                                        >
+                                                                            <div class="flex min-w-0 items-center gap-2">
+                                                                                <FileText v-if="file.kind === 'pdf'" class="h-4 w-4 text-rose-500" />
+                                                                                <Image v-else-if="file.kind === 'image'" class="h-4 w-4 text-emerald-500" />
+                                                                                <File v-else class="h-4 w-4 text-muted-foreground" />
+                                                                                <template v-if="'url' in file && file.url">
+                                                                                    <a :href="file.url" class="truncate text-primary underline" target="_blank" rel="noreferrer">
+                                                                                        {{ file.name }}
+                                                                                    </a>
+                                                                                </template>
+                                                                                <span v-else class="truncate">{{ file.name }}</span>
+                                                                            </div>
+                                                                            <Button
+                                                                                v-if="'pendingIndex' in file"
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                class="h-7 px-2"
+                                                                                @click="removeFundingSourceAttachment(index, file.pendingIndex)"
+                                                                            >
+                                                                                Remove
+                                                                            </Button>
+                                                                            <Button
+                                                                                v-else-if="'url' in file && file.url"
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                class="h-7 px-2"
+                                                                                @click="removeExistingFundingSourceFile(index, file.url.replace('/storage/', ''))"
+                                                                            >
+                                                                                Remove
+                                                                            </Button>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div class="flex flex-wrap items-center gap-2">
+                                                    </td>
+                                                    <td class="px-2 py-2 align-top">
+                                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                            <span v-if="source.is_saved" class="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                                                                Saved
+                                                            </span>
                                                             <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                class="gap-1"
-                                                                :disabled="(source.attachment_names?.length || 0) + source.attachments.length >= maxFundingSourceFiles"
-                                                                @click="addFundingSourceAttachment(index)"
-                                                            >
-                                                                <Plus class="h-3.5 w-3.5" />
-                                                                Add File
-                                                            </Button>
-                                                            <Button
+                                                                v-if="!source.is_saved"
                                                                 type="button"
                                                                 variant="secondary"
                                                                 size="sm"
-                                                                @click="openFilesDialog(index)"
+                                                                class="gap-1"
+                                                                @click="saveFundingSource(index)"
                                                             >
-                                                                Files
+                                                                Save
                                                             </Button>
-                                                            <span class="text-xs text-muted-foreground">
-                                                                {{ (source.attachment_names?.length || 0) + source.attachments.length }}/{{ maxFundingSourceFiles }} files
-                                                            </span>
+                                                            <Button type="button" variant="outline" size="sm" @click="removeFundingSource(index)">
+                                                                <Trash2 class="h-4 w-4" />
+                                                            </Button>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-2 py-2 align-top">
-                                                    <Button type="button" variant="outline" @click="removeFundingSource(index)">
-                                                        <Trash2 class="h-4 w-4" />
-                                                    </Button>
-                                                </td>
-                                            </tr>
+                                                    </td>
+                                                </tr>
+                                            </template>
                                         </tbody>
                                     </table>
                                 </div>
@@ -563,21 +690,50 @@ const cancel = () => {
                             <div class="md:col-span-2">
                                 <Label for="outcomes_attachment">Outcomes Attachment</Label>
                                 <div class="space-y-2">
-                                    <Input
-                                        id="outcomes_attachment"
-                                        type="file"
-                                        accept=".pdf,.jpg,.jpeg,.png"
-                                        @change="updateOutcomesAttachment"
-                                    />
-                                    <a
-                                        v-if="props.activity.outcomes_attachment_path"
-                                        :href="`/storage/${props.activity.outcomes_attachment_path}`"
-                                        class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary/10"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        View current file
-                                    </a>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <Input
+                                            id="outcomes_attachment"
+                                            type="file"
+                                            class="min-w-56 flex-1"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            @change="updateOutcomesAttachment"
+                                        />
+                                        <span class="text-xs text-muted-foreground">1 file max</span>
+                                    </div>
+                                    <div class="border-t border-border/60 pt-2">
+                                        <div class="rounded-lg border border-border bg-muted/30 p-2">
+                                            <div v-if="!form.outcomes_attachment && (!props.activity.outcomes_attachment_path || form.outcomes_attachment_removed)" class="text-xs text-muted-foreground">
+                                                No file added yet.
+                                            </div>
+                                            <div v-else-if="form.outcomes_attachment" class="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-xs shadow-sm">
+                                                <div class="flex min-w-0 items-center gap-2">
+                                                    <FileText v-if="fileKindFromName(form.outcomes_attachment.name) === 'pdf'" class="h-4 w-4 text-rose-500" />
+                                                    <Image v-else-if="fileKindFromName(form.outcomes_attachment.name) === 'image'" class="h-4 w-4 text-emerald-500" />
+                                                    <File v-else class="h-4 w-4 text-muted-foreground" />
+                                                    <span class="truncate">{{ form.outcomes_attachment.name }}</span>
+                                                </div>
+                                                <Button type="button" variant="ghost" size="sm" class="h-7 px-2" @click="removeOutcomesAttachment">
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                            <div v-else-if="props.activity.outcomes_attachment_path && !form.outcomes_attachment_removed" class="flex items-center justify-between gap-2 rounded-md bg-background px-2 py-1.5 text-xs shadow-sm">
+                                                <div class="flex min-w-0 items-center gap-2">
+                                                    <FileText v-if="fileKindFromName(outcomesExistingName) === 'pdf'" class="h-4 w-4 text-rose-500" />
+                                                    <Image v-else-if="fileKindFromName(outcomesExistingName) === 'image'" class="h-4 w-4 text-emerald-500" />
+                                                    <File v-else class="h-4 w-4 text-muted-foreground" />
+                                                    <a :href="outcomesExistingUrl" class="truncate text-primary underline" target="_blank" rel="noreferrer">
+                                                        {{ outcomesExistingName }}
+                                                    </a>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs text-muted-foreground">Current file</span>
+                                                    <Button type="button" variant="ghost" size="sm" class="h-7 px-2" @click="removeOutcomesAttachment">
+                                                        Remove
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <p v-if="form.errors.outcomes_attachment" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.outcomes_attachment }}
@@ -609,45 +765,4 @@ const cancel = () => {
         </div>
     </AppLayout>
 
-    <Dialog :open="filesDialogIndex !== null" @update:open="(value) => { if (!value) closeFilesDialog(); }">
-        <DialogContent class="max-w-md">
-            <DialogHeader>
-                <DialogTitle>Funding Source Files</DialogTitle>
-                <DialogDescription>Existing and newly selected files for this funding source.</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-2">
-                <div v-if="activeFundingSourceFiles.length === 0" class="text-sm text-muted-foreground">
-                    No files added yet.
-                </div>
-                <ul v-else class="space-y-2">
-                    <li v-for="file in activeFundingSourceFiles" :key="`${file.name}-${file.pendingIndex ?? file.url ?? 'existing'}`" class="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                        <div class="truncate">
-                            <a v-if="file.url" :href="file.url" class="text-primary underline" target="_blank" rel="noreferrer">
-                                {{ file.name }}
-                            </a>
-                            <span v-else>{{ file.name }}</span>
-                        </div>
-                        <Button
-                            v-if="file.pendingIndex !== undefined"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            @click="removeActiveFundingSourceFile(file.pendingIndex)"
-                        >
-                            Remove
-                        </Button>
-                        <Button
-                            v-else-if="file.url"
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            @click="removeExistingFundingSourceFile(filesDialogIndex ?? 0, file.url.replace('/storage/', ''))"
-                        >
-                            Remove
-                        </Button>
-                    </li>
-                </ul>
-            </div>
-        </DialogContent>
-    </Dialog>
 </template>

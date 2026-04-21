@@ -221,6 +221,14 @@ const formatDate = (date: string | null) => {
     });
 };
 
+const formatDateRange = (start: string | null, end: string | null) => {
+    if (!start && !end) return 'N/A';
+    if (!start) return formatDate(end);
+    if (!end) return formatDate(start);
+    if (start === end) return formatDate(start);
+    return `${formatDate(start)} - ${formatDate(end)}`;
+};
+
 const formatOfficerName = (activity: Activity) => {
     return activity.responsible_officer?.member?.full_name || 'N/A';
 };
@@ -444,7 +452,7 @@ const bulkDeleteActivities = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ activity.cooperative.name }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.category }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">
-                                {{ formatDate(activity.date_started) }} - {{ formatDate(activity.date_ended) }}
+                                {{ formatDateRange(activity.date_started, activity.date_ended) }}
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.status }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
