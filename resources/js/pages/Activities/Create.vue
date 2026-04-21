@@ -486,52 +486,58 @@ const cancel = () => {
                                 </p>
                             </div>
 
-                            <div>
-                                <Label for="budget">Budget</Label>
-                                <Input id="budget" v-model="form.budget" type="number" min="0" step="0.01" />
-                                <p v-if="form.errors.budget" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.budget }}
-                                </p>
-                            </div>
+                            <div class="md:col-span-2 grid gap-4 md:grid-cols-2">
+                                <div class="space-y-4">
+                                    <div>
+                                        <Label for="budget">Budget</Label>
+                                        <Input id="budget" v-model="form.budget" type="number" min="0" step="0.01" />
+                                        <p v-if="form.errors.budget" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.budget }}
+                                        </p>
+                                    </div>
 
-                            <div>
-                                <Label for="actual_expense">Actual Expense</Label>
-                                <Input id="actual_expense" v-model="form.actual_expense" type="number" min="0" step="0.01" />
-                                <p v-if="form.errors.actual_expense" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.actual_expense }}
-                                </p>
-                            </div>
+                                    <div>
+                                        <Label for="target_member_beneficiaries">Target Member Beneficiaries</Label>
+                                        <Input id="target_member_beneficiaries" v-model="form.target_member_beneficiaries" type="number" min="0" />
+                                        <p v-if="form.errors.target_member_beneficiaries" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.target_member_beneficiaries }}
+                                        </p>
+                                    </div>
 
-                            <div>
-                                <Label for="target_member_beneficiaries">Target Member Beneficiaries</Label>
-                                <Input id="target_member_beneficiaries" v-model="form.target_member_beneficiaries" type="number" min="0" />
-                                <p v-if="form.errors.target_member_beneficiaries" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.target_member_beneficiaries }}
-                                </p>
-                            </div>
+                                    <div>
+                                        <Label for="target_community_beneficiaries">Target Community Beneficiaries</Label>
+                                        <Input id="target_community_beneficiaries" v-model="form.target_community_beneficiaries" type="number" min="0" />
+                                        <p v-if="form.errors.target_community_beneficiaries" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.target_community_beneficiaries }}
+                                        </p>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <Label for="target_community_beneficiaries">Target Community Beneficiaries</Label>
-                                <Input id="target_community_beneficiaries" v-model="form.target_community_beneficiaries" type="number" min="0" />
-                                <p v-if="form.errors.target_community_beneficiaries" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.target_community_beneficiaries }}
-                                </p>
-                            </div>
+                                <div class="space-y-4">
+                                    <div>
+                                        <Label for="actual_expense">Actual Expense</Label>
+                                        <Input id="actual_expense" v-model="form.actual_expense" type="number" min="0" step="0.01" />
+                                        <p v-if="form.errors.actual_expense" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.actual_expense }}
+                                        </p>
+                                    </div>
 
-                            <div>
-                                <Label for="actual_member_beneficiaries">Actual Member Beneficiaries</Label>
-                                <Input id="actual_member_beneficiaries" v-model="form.actual_member_beneficiaries" type="number" min="0" />
-                                <p v-if="form.errors.actual_member_beneficiaries" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.actual_member_beneficiaries }}
-                                </p>
-                            </div>
+                                    <div>
+                                        <Label for="actual_member_beneficiaries">Actual Member Beneficiaries</Label>
+                                        <Input id="actual_member_beneficiaries" v-model="form.actual_member_beneficiaries" type="number" min="0" />
+                                        <p v-if="form.errors.actual_member_beneficiaries" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.actual_member_beneficiaries }}
+                                        </p>
+                                    </div>
 
-                            <div>
-                                <Label for="actual_community_beneficiaries">Actual Community Beneficiaries</Label>
-                                <Input id="actual_community_beneficiaries" v-model="form.actual_community_beneficiaries" type="number" min="0" />
-                                <p v-if="form.errors.actual_community_beneficiaries" class="mt-1 text-sm text-red-500">
-                                    {{ form.errors.actual_community_beneficiaries }}
-                                </p>
+                                    <div>
+                                        <Label for="actual_community_beneficiaries">Actual Community Beneficiaries</Label>
+                                        <Input id="actual_community_beneficiaries" v-model="form.actual_community_beneficiaries" type="number" min="0" />
+                                        <p v-if="form.errors.actual_community_beneficiaries" class="mt-1 text-sm text-red-500">
+                                            {{ form.errors.actual_community_beneficiaries }}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="md:col-span-2">
