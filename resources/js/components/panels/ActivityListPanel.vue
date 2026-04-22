@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users, Eye } from 'lucide-vue-next';
+import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users, Eye, FileText } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -480,6 +480,18 @@ const bulkDeleteActivities = async () => {
                                             Funding
                                         </Button>
                                     </Link>
+                                    <Button asChild variant="ghost" size="sm" class="table-action-btn table-action-other gap-2">
+                                        <a
+                                            :href="`/activities/${activity.id}/report`"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            @click.stop
+                                            class="inline-flex items-center gap-2"
+                                        >
+                                            <FileText class="h-4 w-4" />
+                                            Report
+                                        </a>
+                                    </Button>
                                     <Link v-if="!isArchivedView && canEdit" :href="`/activities/${activity.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />

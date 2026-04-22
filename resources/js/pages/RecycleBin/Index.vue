@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Calendar, Filter, RefreshCw, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Swal from 'sweetalert2';
@@ -68,6 +68,11 @@ const deletedByFilter = ref(props.filters.deleted_by ? String(props.filters.dele
 const dateFrom = ref(props.filters.date_from || '');
 const dateTo = ref(props.filters.date_to || '');
 
+const page = usePage();
+const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canRestoreRecycleBin = computed(() => permissions.value.includes('restore recycle-bin'));
+const canDeleteRecycleBin = computed(() => permissions.value.includes('delete recycle-bin'));
 const typeOptions = computed(() => [
     { value: 'all', label: 'All Modules' },
     ...props.types,
@@ -314,11 +319,18 @@ const deleteRecord = async (item: RecycleItem) => {
                                 </TableCell>
                                 <TableCell class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Button variant="outline" size="sm" class="gap-2" @click="promptRestore(item)">
+                                        <Button
+                                            v-if="canRestoreRecycleBin"
+                                            variant="outline"
+                                            size="sm"
+                                            class="gap-2"
+                                            @click="promptRestore(item)"
+                                        >
                                             <RefreshCw class="h-4 w-4" />
                                             Restore
                                         </Button>
                                         <Button
+                                            v-if="canDeleteRecycleBin"
                                             variant="ghost"
                                             size="sm"
                                             class="gap-2 text-destructive hover:text-destructive"
@@ -327,6 +339,7 @@ const deleteRecord = async (item: RecycleItem) => {
                                             <Trash2 class="h-4 w-4" />
                                             Delete
                                         </Button>
+                                        <span v-if="!canRestoreRecycleBin && !canDeleteRecycleBin" class="text-xs text-muted-foreground">No actions available</span>
                                     </div>
                                 </TableCell>
                             </TableRow>

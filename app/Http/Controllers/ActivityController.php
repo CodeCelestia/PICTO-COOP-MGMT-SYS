@@ -6,9 +6,11 @@ use App\Models\Activity;
 use App\Models\ActivityFundingSource;
 use App\Models\Cooperative;
 use App\Models\Officer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -95,6 +97,22 @@ class ActivityController extends Controller
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
             'filters' => $request->only(['search', 'status', 'category', 'coop_id', 'per_page']),
         ]);
+    }
+
+    public function report(int $id)
+    {
+        $activity = Activity::withTrashed()
+            ->with(['cooperative', 'responsibleOfficer.member'])
+            ->findOrFail($id);
+
+        $this->enforceCoopScope($activity->coop_id);
+
+        $pdf = Pdf::loadView('reports.activity-report', [
+            'activity' => $activity,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download(Str::slug($activity->title, '-') . '-activity-report.pdf');
     }
 
     public function select(): Response

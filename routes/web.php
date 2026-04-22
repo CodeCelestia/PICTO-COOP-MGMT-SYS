@@ -103,6 +103,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('cooperatives', [CooperativeController::class, 'index'])
         ->middleware('permission:read coop-master-profile')
         ->name('cooperatives.index');
+    Route::get('cooperatives/{id}/report', [CooperativeController::class, 'report'])
+        ->middleware('permission:read coop-master-profile')
+        ->name('cooperatives.report');
     Route::get('cooperatives/create', [CooperativeController::class, 'create'])
         ->middleware('permission:create coop-master-profile')
         ->name('cooperatives.create');
@@ -302,6 +305,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activities', [ActivityController::class, 'index'])
         ->middleware('permission:read activities-&-projects')
         ->name('activities.index');
+    Route::get('activities/{id}/report', [ActivityController::class, 'report'])
+        ->middleware('permission:read activities-&-projects')
+        ->name('activities.report');
     Route::get('activities/create', [ActivityController::class, 'create'])
         ->middleware('permission:create activities-&-projects')
         ->name('activities.create');
@@ -711,15 +717,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->defaults('tab', 'accounts')
         ->name('account-status-history.index');
 
-    // Recycle Bin (Super Admin & Provincial Admin only)
+    // Recycle Bin (permission-controlled: view, restore, delete)
     Route::get('recycle-bin', [RecycleBinController::class, 'index'])
-        ->middleware('role:Super Admin|Provincial Admin')
+        ->middleware('permission:read recycle-bin')
         ->name('recycle-bin.index');
     Route::post('recycle-bin/restore', [RecycleBinController::class, 'restore'])
-        ->middleware('role:Super Admin|Provincial Admin')
+        ->middleware('permission:restore recycle-bin')
         ->name('recycle-bin.restore');
     Route::delete('recycle-bin', [RecycleBinController::class, 'destroy'])
-        ->middleware('role:Super Admin|Provincial Admin')
+        ->middleware('permission:delete recycle-bin')
         ->name('recycle-bin.destroy');
 });
 

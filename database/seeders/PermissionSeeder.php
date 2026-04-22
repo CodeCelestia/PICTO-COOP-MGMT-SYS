@@ -48,6 +48,9 @@ class PermissionSeeder extends Seeder
             'manage-permissions',
             'create user-accounts',
             'assign roles',
+            'read recycle-bin',
+            'restore recycle-bin',
+            'delete recycle-bin',
         ];
 
         foreach ($specialPermissions as $permission) {
@@ -91,9 +94,17 @@ class PermissionSeeder extends Seeder
         // ===== SUPER ADMIN (Full system access) =====
         $superAdmin->syncPermissions(Permission::all());
 
-        // ===== PROVINCIAL ADMIN (All except global policy/permission controls) =====
+        // ===== PROVINCIAL ADMIN (All except global policy/permission controls and user management) =====
         $provincialAdmin->syncPermissions(
-            Permission::whereNotIn('name', ['manage-system-settings', 'manage-permissions'])->get()
+            Permission::whereNotIn('name', [
+                'manage-system-settings',
+                'manage-permissions',
+                'create user-accounts',
+                'read user-accounts',
+                'update user-accounts',
+                'delete user-accounts',
+                'export user-accounts',
+            ])->get()
         );
 
         // ===== COOP ADMIN (Full access within their coop) =====

@@ -54,6 +54,7 @@ const selectedRoleId = ref<number | null>(null);
 const roleSearch = ref('');
 const permissionSearch = ref('');
 const ACCOUNT_ACCESS_MODULE_KEY = '__account_access__';
+const RECYCLE_BIN_MODULE_KEY = 'recycle-bin';
 const ACCOUNT_ACCESS_PERMISSIONS = ['create user-accounts', 'assign roles'];
 const isPermissionExplorerOpen = ref(false);
 const isCreateRoleDialogOpen = ref(false);
@@ -87,7 +88,9 @@ const permissionGroups = computed(() => {
     props.permissions.forEach((permission) => {
         const moduleKey = ACCOUNT_ACCESS_PERMISSIONS.includes(permission.name)
             ? ACCOUNT_ACCESS_MODULE_KEY
-            : (permission.name.split(' ').slice(1).join(' ') || 'general');
+            : permission.name.includes(' recycle-bin')
+                ? RECYCLE_BIN_MODULE_KEY
+                : (permission.name.split(' ').slice(1).join(' ') || 'general');
         if (!groups[moduleKey]) {
             groups[moduleKey] = [];
         }
@@ -155,6 +158,9 @@ const activeModuleTotalCount = computed(() => activeModulePermissions.value.leng
 const formatModuleLabel = (moduleKey: string) => {
     if (moduleKey === ACCOUNT_ACCESS_MODULE_KEY) {
         return 'Account Access';
+    }
+    if (moduleKey === RECYCLE_BIN_MODULE_KEY) {
+        return 'Recycle Bin';
     }
 
     return moduleKey

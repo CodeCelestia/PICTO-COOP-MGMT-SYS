@@ -11,8 +11,10 @@ use App\Models\CommitteeMember;
 use App\Models\Activity;
 use App\Models\Training;
 use App\Models\LoanType;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class CooperativeController extends Controller
@@ -263,6 +265,31 @@ class CooperativeController extends Controller
 
         return redirect()->route('cooperatives.index')
             ->with('success', 'Cooperative restored successfully.');
+    }
+
+    public function report(int $id)
+    {
+        $cooperative = Cooperative::withTrashed()
+            ->with(['types'])
+            ->withCount('members')
+            ->findOrFail($id);
+
+        $user = auth()->user();
+        if (! $this->canViewAllCooperatives() && $user?->coop_id && $cooperative->id !== $user->coop_id) {
+            abort(403);
+        }
+
+        $latestAccreditation = $cooperative->accreditations()
+            ->orderByDesc('date_granted')
+            ->first(['level', 'date_granted']);
+
+        $pdf = Pdf::loadView('reports.cooperative-report', [
+            'cooperative' => $cooperative,
+            'latestAccreditation' => $latestAccreditation,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download(Str::slug($cooperative->name, '-') . '-cooperative-report.pdf');
     }
 
     public function show(Request $request, ?Cooperative $cooperative = null)

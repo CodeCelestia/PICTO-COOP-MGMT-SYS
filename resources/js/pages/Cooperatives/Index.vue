@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Eye, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
+import { Building2, Eye, FileText, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -721,6 +721,18 @@ const getTypePreview = (coop: Cooperative) => {
                                                     Edit
                                                 </Button>
                                             </Link>
+                                            <Button asChild variant="ghost" size="sm" class="table-action-btn table-action-other gap-1">
+                                                <a
+                                                    :href="`/cooperatives/${coop.id}/report`"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    @click.stop
+                                                    class="inline-flex items-center gap-1"
+                                                >
+                                                    <FileText class="h-3 w-3" />
+                                                    Report
+                                                </a>
+                                            </Button>
                                             <Button
                                                 v-if="canDeleteCoop && !isArchivedView"
                                                 @click="deleteCooperative(coop)"

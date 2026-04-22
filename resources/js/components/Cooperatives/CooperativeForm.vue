@@ -324,6 +324,22 @@ const submit = () => {
             <p class="mt-1 text-xs text-muted-foreground">Optional but recommended for loan tier alignment.</p>
             <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
           </div>
+          <div>
+            <Label for="status">Status</Label>
+            <Select v-model="form.status">
+              <SelectTrigger id="status" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.status}">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="Dissolved">Dissolved</SelectItem>
+                <SelectItem value="Suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="mt-1 text-xs text-muted-foreground">Select the cooperative's registration status.</p>
+            <p v-if="form.errors.status" class="mt-1 text-sm text-red-500">{{ form.errors.status }}</p>
+          </div>
           <div class="md:col-span-2">
             <Label for="address">Address <span class="text-red-500">*</span></Label>
             <Textarea id="address" v-model="form.address" required rows="3" placeholder="e.g., 123 Main Street" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.address}" />

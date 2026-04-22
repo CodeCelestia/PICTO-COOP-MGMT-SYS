@@ -39,6 +39,8 @@ class RecycleBinController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()?->can('read recycle-bin'), 403);
+
         $filters = $request->only([
             'search',
             'type',
@@ -182,6 +184,8 @@ class RecycleBinController extends Controller
 
     public function restore(Request $request)
     {
+        abort_unless($request->user()?->can('restore recycle-bin'), 403);
+
         $validated = $request->validate([
             'type' => ['required', 'string'],
             'id' => ['required', 'integer'],
@@ -212,6 +216,8 @@ class RecycleBinController extends Controller
 
     public function destroy(Request $request)
     {
+        abort_unless($request->user()?->can('delete recycle-bin'), 403);
+
         $validated = $request->validate([
             'type' => ['required', 'string'],
             'id' => ['required', 'integer'],

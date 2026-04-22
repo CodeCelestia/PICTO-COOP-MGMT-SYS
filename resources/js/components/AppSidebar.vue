@@ -65,7 +65,7 @@ const canViewFinance = computed(() =>
 const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
-const canViewRecycleBin = computed(() => isSuperAdmin.value || isProvincialAdmin.value);
+const canViewRecycleBin = computed(() => can('read recycle-bin'));
 const isMemberOnly = computed(() => isMember.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
 const { cooperativeLabel } = useCoopLabel();
 
