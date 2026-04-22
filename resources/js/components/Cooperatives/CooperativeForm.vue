@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { usePsgc } from '@/composables/usePsgc';
 
+interface CooperativeAccreditation {
+  id?: number;
+  level: string;
+  date_granted: string;
+  valid_until?: string | null;
+  issuing_body?: string | null;
+  remarks?: string | null;
+}
+
 interface CooperativeData {
   id?: number;
   name?: string;
@@ -25,12 +34,12 @@ interface CooperativeData {
   email?: string | null;
   phone?: string | null;
   status?: 'Active' | 'Inactive' | 'Dissolved' | 'Suspended';
-  accreditation_status?: string | null;
-  accreditation_date?: string | null;
+  accreditations?: CooperativeAccreditation[];
 }
 
 const props = defineProps<{
   cooperative?: CooperativeData;
+  accreditations?: CooperativeAccreditation[];
   cooperativeTypes: Array<{ id: number; name: string }>;
   action: string;
   method: 'post' | 'put';
@@ -102,8 +111,7 @@ const form = useForm({
   email: props.cooperative?.email || '',
   phone: props.cooperative?.phone || '',
   status: props.cooperative?.status || 'Active',
-  accreditation_status: props.cooperative?.accreditation_status || '',
-  accreditation_date: normalizeDateInput(props.cooperative?.accreditation_date),
+  accreditations: props.accreditations ?? props.cooperative?.accreditations ?? [],
 });
 
 const selectedTypeLabels = computed(() => {
@@ -133,6 +141,20 @@ const toggleCoopType = (typeId: string) => {
 
 const clearCoopType = () => {
   form.type_ids = [];
+};
+
+const addAccreditationRow = () => {
+  form.accreditations.push({
+    level: '',
+    date_granted: '',
+    valid_until: '',
+    issuing_body: 'CDA',
+    remarks: '',
+  });
+};
+
+const removeAccreditationRow = (index: number) => {
+  form.accreditations.splice(index, 1);
 };
 
 onMounted(async () => {
@@ -308,7 +330,7 @@ const submit = () => {
             <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
           </div>
           <div>
-            <Label for="classification">Classification</Label>
+            <Label for=""></Label>
             <Select v-model="form.classification">
               <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
                 <SelectValue placeholder="Select classification (optional)" />
@@ -418,17 +440,98 @@ const submit = () => {
       </div>
 
       <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
-        <h2 class="mb-4 text-base font-semibold text-foreground sm:text-lg">Accreditation Information</h2>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Label for="accreditation_status">Accreditation Status</Label>
-            <Input id="accreditation_status" v-model="form.accreditation_status" type="text" placeholder="e.g. Level 1" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.accreditation_status}" />
-            <p v-if="form.errors.accreditation_status" class="mt-1 text-sm text-red-500">{{ form.errors.accreditation_status }}</p>
-          </div>
-          <div>
-            <Label for="accreditation_date">Accreditation Date</Label>
-            <Input id="accreditation_date" v-model="form.accreditation_date" type="date" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.accreditation_date}" />
-            <p v-if="form.errors.accreditation_date" class="mt-1 text-sm text-red-500">{{ form.errors.accreditation_date }}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="text-base font-semibold text-foreground sm:text-lg">Accreditation Builder</h2>
+          <Button type="button" variant="outline" class="gap-2" @click="addAccreditationRow">
+            Add accreditation row
+          </Button>
+        </div>
+
+        <div v-if="form.accreditations.length === 0" class="mt-4 rounded-lg border border-dashed border-border/70 bg-background/80 p-4 text-sm text-muted-foreground">
+          Add one or more accreditation entries before saving the cooperative.
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div
+            v-for="(accreditation, index) in form.accreditations"
+            :key="accreditation.id ?? index"
+            class="rounded-lg border border-border/70 bg-background p-4"
+          >
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <Label :for="`accreditation_level_${index}`">Level <span class="text-red-500">*</span></Label>
+                <Input
+                  :id="`accreditation_level_${index}`"
+                  v-model="form.accreditations[index].level"
+                  type="text"
+                  placeholder="e.g. Level 1"
+                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.level`] }"
+                />
+                <p v-if="form.errors[`accreditations.${index}.level`]" class="mt-1 text-sm text-red-500">
+                  {{ form.errors[`accreditations.${index}.level`] }}
+                </p>
+              </div>
+              <div>
+                <Label :for="`accreditation_date_granted_${index}`">Date Granted <span class="text-red-500">*</span></Label>
+                <Input
+                  :id="`accreditation_date_granted_${index}`"
+                  v-model="form.accreditations[index].date_granted"
+                  type="date"
+                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.date_granted`] }"
+                />
+                <p v-if="form.errors[`accreditations.${index}.date_granted`]" class="mt-1 text-sm text-red-500">
+                  {{ form.errors[`accreditations.${index}.date_granted`] }}
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mt-4">
+              <div>
+                <Label :for="`accreditation_valid_until_${index}`">Valid Until</Label>
+                <Input
+                  :id="`accreditation_valid_until_${index}`"
+                  v-model="form.accreditations[index].valid_until"
+                  type="date"
+                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.valid_until`] }"
+                />
+                <p v-if="form.errors[`accreditations.${index}.valid_until`]" class="mt-1 text-sm text-red-500">
+                  {{ form.errors[`accreditations.${index}.valid_until`] }}
+                </p>
+              </div>
+              <div>
+                <Label :for="`accreditation_issuing_body_${index}`">Issuing Body</Label>
+                <Input
+                  :id="`accreditation_issuing_body_${index}`"
+                  v-model="form.accreditations[index].issuing_body"
+                  type="text"
+                  placeholder="CDA"
+                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.issuing_body`] }"
+                />
+                <p v-if="form.errors[`accreditations.${index}.issuing_body`]" class="mt-1 text-sm text-red-500">
+                  {{ form.errors[`accreditations.${index}.issuing_body`] }}
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <Label :for="`accreditation_remarks_${index}`">Remarks</Label>
+              <Textarea
+                :id="`accreditation_remarks_${index}`"
+                v-model="form.accreditations[index].remarks"
+                rows="2"
+                placeholder="Optional remarks"
+                :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.remarks`] }"
+              />
+              <p v-if="form.errors[`accreditations.${index}.remarks`]" class="mt-1 text-sm text-red-500">
+                {{ form.errors[`accreditations.${index}.remarks`] }}
+              </p>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <Button type="button" variant="outline" size="sm" class="gap-2" @click="removeAccreditationRow(index)">
+                Remove
+              </Button>
+            </div>
           </div>
         </div>
       </div>

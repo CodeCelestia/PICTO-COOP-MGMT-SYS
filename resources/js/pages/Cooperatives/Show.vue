@@ -184,25 +184,7 @@ const canEditCoop = computed(() => permissions.value.includes('update coop-maste
 const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
-const canManageAccreditations = computed(() => permissions.value.includes('update coop-master-profile'));
 const activeTab = ref('profile');
-const editingAccreditationId = ref<number | null>(null);
-
-const addAccreditationForm = useForm({
-    level: '',
-    date_granted: '',
-    valid_until: '',
-    issuing_body: 'CDA',
-    remarks: '',
-});
-
-const editAccreditationForm = useForm({
-    level: '',
-    date_granted: '',
-    valid_until: '',
-    issuing_body: 'CDA',
-    remarks: '',
-});
 
 const addLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
@@ -306,50 +288,6 @@ const formatFullAddress = (coop: Cooperative) => {
 };
 
 const accreditations = computed(() => props.cooperative.accreditations || []);
-
-const submitAddAccreditation = () => {
-    addAccreditationForm.post(`/cooperatives/${props.cooperative.id}/accreditations`, {
-        preserveScroll: true,
-        onSuccess: () => {
-            addAccreditationForm.reset('level', 'date_granted', 'valid_until', 'issuing_body', 'remarks');
-            addAccreditationForm.issuing_body = 'CDA';
-        },
-    });
-};
-
-const startEditAccreditation = (accreditation: Accreditation) => {
-    editingAccreditationId.value = accreditation.id;
-    editAccreditationForm.level = accreditation.level;
-    editAccreditationForm.date_granted = accreditation.date_granted;
-    editAccreditationForm.valid_until = accreditation.valid_until || '';
-    editAccreditationForm.issuing_body = accreditation.issuing_body || 'CDA';
-    editAccreditationForm.remarks = accreditation.remarks || '';
-};
-
-const cancelEditAccreditation = () => {
-    editingAccreditationId.value = null;
-    editAccreditationForm.reset();
-    editAccreditationForm.clearErrors();
-};
-
-const submitEditAccreditation = (accreditationId: number) => {
-    editAccreditationForm.put(`/cooperatives/${props.cooperative.id}/accreditations/${accreditationId}`, {
-        preserveScroll: true,
-        onSuccess: () => {
-            cancelEditAccreditation();
-        },
-    });
-};
-
-const deleteAccreditation = (accreditationId: number) => {
-    if (!window.confirm('Are you sure you want to delete this accreditation record?')) {
-        return;
-    }
-
-    router.delete(`/cooperatives/${props.cooperative.id}/accreditations/${accreditationId}`, {
-        preserveScroll: true,
-    });
-};
 
 const startEditLoanType = (loanType: { id: number; name: string; classification: 'micro' | 'small' | 'medium' | 'large' | null; description: string | null; is_active: boolean }) => {
     editingLoanTypeId.value = loanType.id;
@@ -537,41 +475,7 @@ const statusBadgeClass = computed(() => {
                             </section>
 
                             <section class="rounded-xl border border-border bg-background p-5 shadow-sm xl:col-span-2">
-                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Accreditations</h3>
-                                    <Button v-if="canManageAccreditations" size="sm" variant="outline" @click="submitAddAccreditation" :disabled="addAccreditationForm.processing">Add Accreditation</Button>
-                                </div>
-
-                                <form v-if="canManageAccreditations" class="mt-4 grid gap-3 rounded-lg border border-border/70 bg-muted/30 p-4 md:grid-cols-2" @submit.prevent="submitAddAccreditation">
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium">Level</label>
-                                        <input v-model="addAccreditationForm.level" type="text" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="e.g., Level 1" />
-                                        <p v-if="addAccreditationForm.errors.level" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.level }}</p>
-                                    </div>
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium">Date Granted</label>
-                                        <input v-model="addAccreditationForm.date_granted" type="date" class="w-full rounded-md border px-3 py-2 text-sm" />
-                                        <p v-if="addAccreditationForm.errors.date_granted" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.date_granted }}</p>
-                                    </div>
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium">Valid Until</label>
-                                        <input v-model="addAccreditationForm.valid_until" type="date" class="w-full rounded-md border px-3 py-2 text-sm" />
-                                        <p v-if="addAccreditationForm.errors.valid_until" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.valid_until }}</p>
-                                    </div>
-                                    <div>
-                                        <label class="mb-1 block text-sm font-medium">Issuing Body</label>
-                                        <input v-model="addAccreditationForm.issuing_body" type="text" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="CDA" />
-                                        <p v-if="addAccreditationForm.errors.issuing_body" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.issuing_body }}</p>
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="mb-1 block text-sm font-medium">Remarks</label>
-                                        <textarea v-model="addAccreditationForm.remarks" rows="2" class="w-full rounded-md border px-3 py-2 text-sm" placeholder="Optional remarks"></textarea>
-                                        <p v-if="addAccreditationForm.errors.remarks" class="mt-1 text-xs text-red-600">{{ addAccreditationForm.errors.remarks }}</p>
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <Button type="submit" size="sm" :disabled="addAccreditationForm.processing">Save Accreditation</Button>
-                                    </div>
-                                </form>
+                                <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Accreditations</h3>
 
                                 <div class="mt-4 overflow-hidden rounded-lg border border-border/70">
                                     <table class="w-full text-sm">
@@ -582,42 +486,20 @@ const statusBadgeClass = computed(() => {
                                                 <th class="px-3 py-2 text-left">Valid Until</th>
                                                 <th class="px-3 py-2 text-left">Issuing Body</th>
                                                 <th class="px-3 py-2 text-left">Remarks</th>
-                                                <th v-if="canManageAccreditations" class="px-3 py-2 text-left">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr v-if="accreditations.length === 0">
-                                                <td class="px-3 py-4 text-center text-muted-foreground" :colspan="canManageAccreditations ? 6 : 5">
+                                                <td class="px-3 py-4 text-center text-muted-foreground" colspan="5">
                                                     No accreditation records yet.
                                                 </td>
                                             </tr>
                                             <tr v-for="accreditation in accreditations" :key="accreditation.id" class="border-t">
-                                                <template v-if="editingAccreditationId === accreditation.id">
-                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.level" type="text" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
-                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.date_granted" type="date" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
-                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.valid_until" type="date" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
-                                                    <td class="px-3 py-2"><input v-model="editAccreditationForm.issuing_body" type="text" class="w-full rounded-md border px-2 py-1 text-sm" /></td>
-                                                    <td class="px-3 py-2"><textarea v-model="editAccreditationForm.remarks" rows="2" class="w-full rounded-md border px-2 py-1 text-sm"></textarea></td>
-                                                    <td class="px-3 py-2">
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <Button size="sm" @click="submitEditAccreditation(accreditation.id)" :disabled="editAccreditationForm.processing">Save</Button>
-                                                            <Button size="sm" variant="outline" @click="cancelEditAccreditation">Cancel</Button>
-                                                        </div>
-                                                    </td>
-                                                </template>
-                                                <template v-else>
-                                                    <td class="px-3 py-2">{{ accreditation.level }}</td>
-                                                    <td class="px-3 py-2">{{ formatDate(accreditation.date_granted) }}</td>
-                                                    <td class="px-3 py-2">{{ formatDate(accreditation.valid_until) }}</td>
-                                                    <td class="px-3 py-2">{{ accreditation.issuing_body || 'CDA' }}</td>
-                                                    <td class="px-3 py-2">{{ accreditation.remarks || 'N/A' }}</td>
-                                                    <td v-if="canManageAccreditations" class="px-3 py-2">
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <Button size="sm" variant="outline" @click="startEditAccreditation(accreditation)">Edit</Button>
-                                                            <Button size="sm" variant="destructive" @click="deleteAccreditation(accreditation.id)">Delete</Button>
-                                                        </div>
-                                                    </td>
-                                                </template>
+                                                <td class="px-3 py-2">{{ accreditation.level }}</td>
+                                                <td class="px-3 py-2">{{ formatDate(accreditation.date_granted) }}</td>
+                                                <td class="px-3 py-2">{{ formatDate(accreditation.valid_until) }}</td>
+                                                <td class="px-3 py-2">{{ accreditation.issuing_body || 'CDA' }}</td>
+                                                <td class="px-3 py-2">{{ accreditation.remarks || 'N/A' }}</td>
                                             </tr>
                                         </tbody>
                                     </table>

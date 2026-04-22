@@ -30,6 +30,14 @@ interface Cooperative {
     status: 'Active' | 'Inactive' | 'Dissolved' | 'Suspended';
     accreditation_status: string | null;
     accreditation_date: string | null;
+    accreditations?: Array<{
+        id?: number;
+        level: string;
+        date_granted: string;
+        valid_until?: string | null;
+        issuing_body?: string | null;
+        remarks?: string | null;
+    }>;
 }
 
 interface CooperativeStatusHistory {
@@ -85,6 +93,7 @@ const actionUrl = computed(() => `/cooperatives/${props.cooperative.id}`);
 
             <CooperativeForm
                 :cooperative='props.cooperative'
+                :accreditations='props.cooperative.accreditations'
                 :action='actionUrl'
                 method='put'
                 :cooperativeTypes='props.cooperativeTypes'

@@ -75,7 +75,12 @@ class CooperativeController extends Controller
         $perPage = (int) $request->input('per_page', 20);
         $perPage = max(1, min($perPage, 500));
 
-        $cooperatives = $query->with('types')->withCount('members')->orderBy('name')->paginate($perPage)->withQueryString();
+        $cooperatives = $query->with([
+            'types',
+            'accreditations' => function ($query) {
+                $query->orderByDesc('date_granted');
+            },
+        ])->withCount('members')->orderBy('name')->paginate($perPage)->withQueryString();
 
         $cooperatives->getCollection()->transform(function ($cooperative) {
             $latestAccreditation = $cooperative->accreditations()
@@ -127,13 +132,32 @@ class CooperativeController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
+            'accreditations' => 'nullable|array',
+            'accreditations.*.level' => 'required_with:accreditations|string|max:255',
+            'accreditations.*.date_granted' => 'required_with:accreditations|date',
+            'accreditations.*.valid_until' => 'nullable|date',
+            'accreditations.*.issuing_body' => 'nullable|string|max:255',
+            'accreditations.*.remarks' => 'nullable|string|max:500',
         ]);
 
         $typeIds = $validated['type_ids'];
         unset($validated['type_ids']);
 
+        $accreditations = $validated['accreditations'] ?? [];
+        unset($validated['accreditations']);
+
         $cooperative = Cooperative::create($validated);
         $cooperative->types()->sync($typeIds);
+
+        foreach ($accreditations as $accreditation) {
+            $cooperative->accreditations()->create([
+                'level' => $accreditation['level'],
+                'date_granted' => $accreditation['date_granted'],
+                'valid_until' => $accreditation['valid_until'] ?? null,
+                'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
+                'remarks' => $accreditation['remarks'] ?? null,
+            ]);
+        }
 
         CooperativeStatusHistory::create([
             'coop_id' => $cooperative->id,
@@ -158,7 +182,12 @@ class CooperativeController extends Controller
         }
 
         return Inertia::render('Cooperatives/Edit', [
-            'cooperative' => $cooperative->load('types'),
+            'cooperative' => $cooperative->load([
+                'types',
+                'accreditations' => function ($query) {
+                    $query->orderByDesc('date_granted');
+                },
+            ]),
             'cooperativeTypes' => CooperativeType::orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'statusHistory' => $cooperative->statusHistory()
                 ->latest('changed_at')
@@ -204,6 +233,13 @@ class CooperativeController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
+            'accreditations' => 'nullable|array',
+            'accreditations.*.id' => 'nullable|integer|exists:accreditations,id',
+            'accreditations.*.level' => 'required_with:accreditations|string|max:255',
+            'accreditations.*.date_granted' => 'required_with:accreditations|date',
+            'accreditations.*.valid_until' => 'nullable|date',
+            'accreditations.*.issuing_body' => 'nullable|string|max:255',
+            'accreditations.*.remarks' => 'nullable|string|max:500',
             'change_reason' => 'nullable|string|max:500',
             'status_remarks' => 'nullable|string|max:500',
         ]);
@@ -225,6 +261,44 @@ class CooperativeController extends Controller
 
         $cooperative->update($validated);
         $cooperative->types()->sync($typeIds);
+
+        $submittedAccreditations = $request->input('accreditations', []);
+        $existingIds = $cooperative->accreditations()->pluck('id')->toArray();
+        $submittedIds = array_filter(array_map(fn ($item) => $item['id'] ?? null, $submittedAccreditations));
+
+        $idsToDelete = array_diff($existingIds, $submittedIds);
+        if (!empty($idsToDelete)) {
+            $cooperative->accreditations()->whereIn('id', $idsToDelete)->delete();
+        }
+
+        foreach ($submittedAccreditations as $accreditation) {
+            if (!empty($accreditation['id'])) {
+                $existing = $cooperative->accreditations()->withTrashed()->find($accreditation['id']);
+                if ($existing) {
+                    $existing->update([
+                        'level' => $accreditation['level'],
+                        'date_granted' => $accreditation['date_granted'],
+                        'valid_until' => $accreditation['valid_until'] ?? null,
+                        'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
+                        'remarks' => $accreditation['remarks'] ?? null,
+                    ]);
+
+                    if ($existing->trashed()) {
+                        $existing->restore();
+                    }
+                }
+
+                continue;
+            }
+
+            $cooperative->accreditations()->create([
+                'level' => $accreditation['level'],
+                'date_granted' => $accreditation['date_granted'],
+                'valid_until' => $accreditation['valid_until'] ?? null,
+                'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
+                'remarks' => $accreditation['remarks'] ?? null,
+            ]);
+        }
 
         if ($previousStatus !== $newStatus) {
             CooperativeStatusHistory::create([
