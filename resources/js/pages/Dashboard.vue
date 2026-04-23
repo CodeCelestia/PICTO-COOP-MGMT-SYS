@@ -5,6 +5,7 @@ import {
     TrendingUp, 
     FileText,
     Activity,
+    GraduationCap,
     Shield,
     UserCog,
     DollarSign
@@ -131,6 +132,7 @@ interface SuperAdminStats {
     stats: {
         totalUsers: number;
         totalCooperatives: number;
+        activeCooperatives: number;
         totalMembers: number;
         totalActivities: number;
         totalTrainings: number;
@@ -243,16 +245,9 @@ const summaryCards = computed<SummaryCard[]>(() => {
     if (props.isSuperAdmin && props.superAdminStats) {
         return [
             {
-                title: 'Total Users',
-                value: formatNumber(props.superAdminStats.stats.totalUsers),
-                helper: 'All registered accounts',
-                icon: Users,
-                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
-            },
-            {
-                title: cooperativeLabel.value,
-                value: formatNumber(props.superAdminStats.stats.totalCooperatives),
-                helper: `Active ${cooperativeLabelLower.value}`,
+                title: 'Active Cooperatives',
+                value: formatNumber(props.superAdminStats.stats.activeCooperatives),
+                helper: 'Status: Active only',
                 icon: FileText,
                 accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
             },
@@ -264,11 +259,18 @@ const summaryCards = computed<SummaryCard[]>(() => {
                 accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
             },
             {
-                title: 'Activities',
+                title: 'Total Activities',
                 value: formatNumber(props.superAdminStats.stats.totalActivities),
                 helper: 'System-wide projects',
                 icon: Activity,
                 accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+            },
+            {
+                title: 'Total Trainings',
+                value: formatNumber(props.superAdminStats.stats.totalTrainings),
+                helper: 'Capacity building records',
+                icon: GraduationCap,
+                accent: { bg: 'bg-indigo-100/70', text: 'text-indigo-700', ring: 'ring-indigo-200/60' },
             },
         ];
     }
@@ -290,14 +292,14 @@ const summaryCards = computed<SummaryCard[]>(() => {
                 accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
             },
             {
-                title: 'Activities',
+                title: 'Total Activities',
                 value: formatNumber(props.coopStats.totalActivities),
                 helper: 'Planned and ongoing',
                 icon: FileText,
                 accent: { bg: 'bg-indigo-100/70', text: 'text-indigo-700', ring: 'ring-indigo-200/60' },
             },
             {
-                title: 'Trainings',
+                title: 'Total Trainings',
                 value: formatNumber(props.coopStats.totalTrainings),
                 helper: 'Capacity building',
                 icon: Activity,
@@ -308,13 +310,6 @@ const summaryCards = computed<SummaryCard[]>(() => {
 
     if (props.stats) {
         return [
-            {
-                title: 'Total Users',
-                value: formatNumber(props.stats.totalUsers),
-                helper: 'All registered accounts',
-                icon: Users,
-                accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
-            },
             {
                 title: 'Users with Roles',
                 value: formatNumber(props.stats.usersWithRoles),

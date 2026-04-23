@@ -286,12 +286,6 @@ const bulkDeleteActivities = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link href="/activity-participants">
-                        <Button variant="outline" class="h-9 gap-2">
-                            <Users class="h-4 w-4" />
-                            Participants
-                        </Button>
-                    </Link>
                     <Link v-if="canCreate" href="/activities/create">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />

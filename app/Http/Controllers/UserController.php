@@ -51,7 +51,7 @@ class UserController extends Controller
         });
 
         $roles = Role::orderBy('level')->get();
-        $cooperatives = Cooperative::select('id', 'name')->orderBy('name')->get();
+        $cooperatives = Cooperative::select('id', 'name', 'classification')->orderBy('name')->get();
 
         return Inertia::render('Users/Index', [
             'users' => $users,

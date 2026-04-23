@@ -52,6 +52,8 @@ const CREATE_CHILD_PATH_PREFIXES = ['/activities', '/trainings', '/finance'];
 
 const isCreateOpen = ref(false);
 const isCreateFlyoutOpen = ref(false);
+const isSidebarCollapsed = computed(() => state.value === 'collapsed' && !isMobile.value);
+let createFlyoutCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
 const isCreateChildItem = (item: NavItem) => {
     const url = toUrl(item.href);
@@ -97,6 +99,17 @@ watch(isCreateOpen, (isOpen) => {
     persistCreateState(isOpen);
 });
 
+watch(isSidebarCollapsed, (collapsed) => {
+    if (!collapsed) {
+        if (createFlyoutCloseTimer) {
+            clearTimeout(createFlyoutCloseTimer);
+            createFlyoutCloseTimer = null;
+        }
+
+        isCreateFlyoutOpen.value = false;
+    }
+});
+
 const toggleCreateMenu = () => {
     if (!createChildItems.value.length) {
         return;
@@ -106,7 +119,7 @@ const toggleCreateMenu = () => {
 };
 
 const handleCreateButtonClick = () => {
-    if (state.value === 'collapsed') {
+    if (isSidebarCollapsed.value) {
         return;
     }
 
@@ -114,19 +127,31 @@ const handleCreateButtonClick = () => {
 };
 
 const openCreateFlyout = () => {
-    if (state.value !== 'collapsed' || isMobile.value || !createChildItems.value.length) {
+    if (!isSidebarCollapsed.value || !createChildItems.value.length) {
         return;
+    }
+
+    if (createFlyoutCloseTimer) {
+        clearTimeout(createFlyoutCloseTimer);
+        createFlyoutCloseTimer = null;
     }
 
     isCreateFlyoutOpen.value = true;
 };
 
 const closeCreateFlyout = () => {
-    if (state.value !== 'collapsed' || isMobile.value) {
+    if (!isSidebarCollapsed.value) {
         return;
     }
 
-    isCreateFlyoutOpen.value = false;
+    if (createFlyoutCloseTimer) {
+        clearTimeout(createFlyoutCloseTimer);
+    }
+
+    createFlyoutCloseTimer = setTimeout(() => {
+        isCreateFlyoutOpen.value = false;
+        createFlyoutCloseTimer = null;
+    }, 120);
 };
 
 const shouldRenderCreateMenuAtIndex = (items: NavItem[], index: number) => {
@@ -297,79 +322,95 @@ function isItemActive(item: NavItem) {
                         :key="`${section.id}:${item.title}:${getHrefKey(item.href)}`"
                     >
                         <template v-if="section.id === 'management' && shouldRenderCreateMenuAtIndex(section.items, index)">
-                            <DropdownMenu v-model:open="isCreateFlyoutOpen">
-                                <DropdownMenuTrigger as-child>
-                                    <SidebarMenuButton
-                                        size="lg"
-                                        :tooltip="state === 'collapsed' ? undefined : 'Create'"
-                                        :is-active="false"
-                                        class="[&>svg]:size-5"
-                                        @click="handleCreateButtonClick"
+                            <template v-if="isSidebarCollapsed">
+                                <DropdownMenu v-model:open="isCreateFlyoutOpen" :modal="false">
+                                    <DropdownMenuTrigger as-child>
+                                        <SidebarMenuButton
+                                            size="lg"
+                                            tooltip="Create"
+                                            :is-active="hasActiveCreateChild"
+                                            class="justify-center [&>svg]:size-5"
+                                            @mouseenter="openCreateFlyout"
+                                            @mouseleave="closeCreateFlyout"
+                                        >
+                                            <Plus />
+                                        </SidebarMenuButton>
+                                    </DropdownMenuTrigger>
+
+                                    <DropdownMenuContent
+                                        v-if="createChildItems.length"
+                                        side="right"
+                                        align="start"
+                                        :side-offset="10"
+                                        class="w-72"
                                         @mouseenter="openCreateFlyout"
                                         @mouseleave="closeCreateFlyout"
+                                        @click.stop
                                     >
-                                        <Plus />
-                                        <span class="group-data-[collapsible=icon]:hidden">Create</span>
-                                        <ChevronDown
-                                            class="ml-auto transition-transform duration-200 group-data-[collapsible=icon]:hidden"
-                                            :class="isCreateOpen ? 'rotate-180' : ''"
-                                        />
-                                    </SidebarMenuButton>
-                                </DropdownMenuTrigger>
+                                        <DropdownMenuLabel class="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            Create
+                                        </DropdownMenuLabel>
 
-                                <DropdownMenuContent
-                                    v-if="state === 'collapsed' && !isMobile && createChildItems.length"
-                                    side="right"
-                                    align="start"
-                                    :side-offset="10"
-                                    class="w-72"
-                                    @mouseenter="openCreateFlyout"
-                                    @mouseleave="closeCreateFlyout"
-                                >
-                                    <DropdownMenuLabel class="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                        Create
-                                    </DropdownMenuLabel>
-
-                                    <DropdownMenuItem
-                                        v-for="createItem in createChildItems"
-                                        :key="`create-flyout:${getHrefKey(createItem.href)}`"
-                                        class="text-base [&_svg]:size-5"
-                                        as-child
-                                    >
-                                        <Link
-                                            :href="createItem.href"
-                                            prefetch
-                                            :preserve-state="false"
-                                            :preserve-scroll="false"
-                                            class="flex items-center gap-2"
+                                        <DropdownMenuItem
+                                            v-for="createItem in createChildItems"
+                                            :key="`create-flyout:${getHrefKey(createItem.href)}`"
+                                            class="text-base [&_svg]:size-5"
+                                            as-child
+                                            @click.stop
                                         >
-                                            <component :is="createItem.icon" />
-                                            <span>{{ createItem.title }}</span>
-                                        </Link>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-
-                            <transition name="create-dropdown">
-                                <SidebarMenuSub v-if="isCreateOpen && state !== 'collapsed' && createChildItems.length" class="mt-1 gap-3">
-                                    <SidebarMenuSubItem
-                                        v-for="createItem in createChildItems"
-                                        :key="`create-sub:${getHrefKey(createItem.href)}`"
-                                    >
-                                        <SidebarMenuButton as-child :is-active="isItemActive(createItem)" class="h-8 text-base [&>svg]:size-5">
                                             <Link
                                                 :href="createItem.href"
                                                 prefetch
                                                 :preserve-state="false"
                                                 :preserve-scroll="false"
+                                                class="flex items-center gap-2"
+                                                @click.stop
                                             >
                                                 <component :is="createItem.icon" />
                                                 <span>{{ createItem.title }}</span>
                                             </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuSubItem>
-                                </SidebarMenuSub>
-                            </transition>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </template>
+
+                            <template v-else>
+                                <SidebarMenuButton
+                                    size="lg"
+                                    tooltip="Create"
+                                    :is-active="hasActiveCreateChild"
+                                    class="[&>svg]:size-5"
+                                    @click="handleCreateButtonClick"
+                                >
+                                    <Plus />
+                                    <span>Create</span>
+                                    <ChevronDown
+                                        class="ml-auto transition-transform duration-200"
+                                        :class="isCreateOpen ? 'rotate-180' : ''"
+                                    />
+                                </SidebarMenuButton>
+
+                                <transition name="create-dropdown">
+                                    <SidebarMenuSub v-if="isCreateOpen && createChildItems.length" class="mt-1 gap-3">
+                                        <SidebarMenuSubItem
+                                            v-for="createItem in createChildItems"
+                                            :key="`create-sub:${getHrefKey(createItem.href)}`"
+                                        >
+                                            <SidebarMenuButton as-child :is-active="isItemActive(createItem)" class="h-8 text-base [&>svg]:size-5">
+                                                <Link
+                                                    :href="createItem.href"
+                                                    prefetch
+                                                    :preserve-state="false"
+                                                    :preserve-scroll="false"
+                                                >
+                                                    <component :is="createItem.icon" />
+                                                    <span>{{ createItem.title }}</span>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuSubItem>
+                                    </SidebarMenuSub>
+                                </transition>
+                            </template>
                         </template>
 
                         <template v-else-if="section.id === 'management' && shouldSkipCreateChildAtIndex(section.items, index)" />

@@ -72,6 +72,7 @@ interface User {
 interface Cooperative {
     id: number;
     name: string;
+    classification?: string | null;
 }
 
 const props = defineProps<{
@@ -88,6 +89,7 @@ const canUpdateUsers = computed(() => permissions.value.includes('update user-ac
 const canDeleteUsers = computed(() => permissions.value.includes('delete user-accounts'));
 const canManagePermissions = computed(() => permissions.value.includes('manage-permissions'));
 const showCoopSelector = computed(() => props.cooperatives.length > 0);
+const totalUsers = computed(() => props.users.length);
 
 const isAssignDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
@@ -112,6 +114,7 @@ const isCreateDialogOpen = ref(false);
 const isCoopPickerOpen = ref(false);
 const coopPickerSearch = ref('');
 const coopPickerFilter = ref<'all' | 'a-m' | 'n-z'>('all');
+const coopPickerClassification = ref('all');
 const createForm = useForm({
     name: '',
     email: '',
@@ -320,6 +323,7 @@ const openCreateDialog = () => {
     createForm.role_ids = [];
     coopPickerSearch.value = '';
     coopPickerFilter.value = 'all';
+    coopPickerClassification.value = 'all';
     isCoopPickerOpen.value = false;
     isCreateDialogOpen.value = true;
 };
@@ -333,10 +337,14 @@ const filteredCooperatives = computed(() => {
 
     return sortedCooperatives.value.filter((coop) => {
         const name = coop.name.toLowerCase();
+        const classification = String(coop.classification || '').trim().toLowerCase();
         const firstLetter = name.charAt(0);
         const matchesSearch = search === '' || name.includes(search) || String(coop.id).includes(search);
+        const matchesClassification = coopPickerClassification.value === 'all'
+            ? true
+            : classification === coopPickerClassification.value;
 
-        if (!matchesSearch) {
+        if (!matchesSearch || !matchesClassification) {
             return false;
         }
 
@@ -351,6 +359,29 @@ const filteredCooperatives = computed(() => {
         return true;
     });
 });
+
+const cooperativeClassifications = computed(() => {
+    const values = new Set<string>();
+
+    props.cooperatives.forEach((coop) => {
+        const classification = String(coop.classification || '').trim().toLowerCase();
+        if (classification) {
+            values.add(classification);
+        }
+    });
+
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+});
+
+const formatClassificationLabel = (value: string | null | undefined) => {
+    const normalized = String(value || '').trim().toLowerCase();
+
+    if (!normalized) {
+        return 'Unspecified';
+    }
+
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
 
 const selectedCreateCooperative = computed(() => {
     const coopId = Number(createForm.coop_id);
@@ -495,6 +526,25 @@ const toggleRole = (roleId: number) => {
                         </div>
                     </div>
                 </CardContent>
+            </Card>
+
+            <Card class="group gap-0 rounded-2xl border border-border bg-card p-5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="rounded-xl bg-muted/70 p-3 ring-1 ring-border/70 transition-colors">
+                        <Users class="h-5 w-5 text-foreground" />
+                    </div>
+                    <Badge class="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        All registered accounts
+                    </Badge>
+                </div>
+                <div class="mt-4">
+                    <h3 class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        Total Users
+                    </h3>
+                    <p class="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+                        {{ totalUsers }}
+                    </p>
+                </div>
             </Card>
 
             <Card class="overflow-hidden border-border/80 bg-card shadow-sm">
@@ -1067,7 +1117,7 @@ const toggleRole = (roleId: number) => {
             </Dialog>
 
             <Dialog v-model:open="isCoopPickerOpen">
-                <DialogContent class="w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogContent class="w-full max-w-5xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Choose Cooperative</DialogTitle>
                         <DialogDescription>
@@ -1076,8 +1126,8 @@ const toggleRole = (roleId: number) => {
                     </DialogHeader>
 
                     <div class="grid gap-4 py-2">
-                        <div class="grid gap-3 sm:grid-cols-3">
-                            <div class="grid gap-2 sm:col-span-2">
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <div class="grid gap-2">
                                 <Label for="coop_search">Search</Label>
                                 <div class="relative">
                                     <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1103,6 +1153,25 @@ const toggleRole = (roleId: number) => {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            <div class="grid gap-2">
+                                <Label for="coop_classification">Classification</Label>
+                                <Select v-model="coopPickerClassification">
+                                    <SelectTrigger id="coop_classification">
+                                        <SelectValue placeholder="All classifications" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All classifications</SelectItem>
+                                        <SelectItem
+                                            v-for="classification in cooperativeClassifications"
+                                            :key="classification"
+                                            :value="classification"
+                                        >
+                                            {{ formatClassificationLabel(classification) }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div class="max-h-80 overflow-y-auto rounded-md border border-border">
@@ -1110,25 +1179,31 @@ const toggleRole = (roleId: number) => {
                                 {{ noCooperativesFoundLabel }}
                             </div>
 
-                            <button
-                                v-for="coop in filteredCooperatives"
-                                :key="coop.id"
-                                type="button"
-                                class="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition hover:bg-muted/50 last:border-b-0"
-                                @click="selectCooperativeForCreate(coop)"
-                            >
-                                <div>
-                                    <div class="font-medium text-foreground">{{ coop.name }}</div>
-                                    <div class="text-xs text-muted-foreground">Cooperative ID: {{ coop.id }}</div>
-                                </div>
-                                <div class="flex items-center gap-2 text-xs font-medium text-primary">
-                                    <Check
-                                        v-if="selectedCreateCooperative?.id === coop.id"
-                                        class="h-4 w-4"
-                                    />
-                                    <span>{{ selectedCreateCooperative?.id === coop.id ? 'Selected' : 'Select' }}</span>
-                                </div>
-                            </button>
+                            <div class="grid gap-0 md:grid-cols-2">
+                                <button
+                                    v-for="coop in filteredCooperatives"
+                                    :key="coop.id"
+                                    type="button"
+                                    class="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition hover:bg-muted/50 md:border-r md:[&:nth-child(2n)]:border-r-0"
+                                    @click="selectCooperativeForCreate(coop)"
+                                >
+                                    <div>
+                                        <div class="font-medium text-foreground">{{ coop.name }}</div>
+                                        <div class="text-xs text-muted-foreground">
+                                            Cooperative ID: {{ coop.id }}
+                                            <span class="mx-1">•</span>
+                                            Classification: {{ formatClassificationLabel(coop.classification) }}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs font-medium text-primary">
+                                        <Check
+                                            v-if="selectedCreateCooperative?.id === coop.id"
+                                            class="h-4 w-4"
+                                        />
+                                        <span>{{ selectedCreateCooperative?.id === coop.id ? 'Selected' : 'Select' }}</span>
+                                    </div>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

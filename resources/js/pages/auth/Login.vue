@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Mail, Lock } from 'lucide-vue-next';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -19,48 +18,14 @@ defineProps<{
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
-
-const philippineDate = ref('');
-const philippineTime = ref('');
-let philippineClock: ReturnType<typeof setInterval> | null = null;
-
-const updatePhilippineClock = () => {
-    const now = new Date();
-    philippineDate.value = now.toLocaleDateString('en-PH', {
-        timeZone: 'Asia/Manila',
-        weekday: 'long',
-        month: 'long',
-        day: '2-digit',
-        year: 'numeric',
-    });
-    philippineTime.value = now.toLocaleTimeString('en-PH', {
-        timeZone: 'Asia/Manila',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-    });
-};
-
-onMounted(() => {
-    updatePhilippineClock();
-    philippineClock = setInterval(updatePhilippineClock, 1000);
-});
-
-onBeforeUnmount(() => {
-    if (philippineClock) {
-        clearInterval(philippineClock);
-        philippineClock = null;
-    }
-});
 </script>
 
 <template>
     <AuthSplitCard
         title="Coop SDN Management Information System"
         :show-project-logo="true"
-        :title-date="philippineDate"
-        :title-time="philippineTime"
+        title-meta="Welcome to the Coop SDN Management Information System"
+        description="Coop SDN-MIS is a cooperative management information system designed for efficient operations, transparent record-keeping, and better service delivery across cooperative programs."
     >
         <Head title="Login">
             <link rel="preconnect" href="https://fonts.googleapis.com" />

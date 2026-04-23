@@ -473,6 +473,9 @@ class DashboardController extends Controller
     {
         $totalUsers = User::count();
         $totalCooperatives = Cooperative::count();
+        $activeCooperatives = Cooperative::query()
+            ->whereRaw("LOWER(TRIM(status)) = ?", ['active'])
+            ->count();
         $totalMembers = Member::count();
         $totalActivities = Activity::count();
         $totalTrainings = Training::count();
@@ -562,6 +565,7 @@ class DashboardController extends Controller
             'stats' => [
                 'totalUsers' => $totalUsers,
                 'totalCooperatives' => $totalCooperatives,
+                'activeCooperatives' => $activeCooperatives,
                 'totalMembers' => $totalMembers,
                 'totalActivities' => $totalActivities,
                 'totalTrainings' => $totalTrainings,
