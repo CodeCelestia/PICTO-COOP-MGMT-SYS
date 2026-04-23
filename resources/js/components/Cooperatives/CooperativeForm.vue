@@ -14,9 +14,9 @@ interface CooperativeAccreditation {
   id?: number;
   level: string;
   date_granted: string;
-  valid_until?: string | null;
-  issuing_body?: string | null;
-  remarks?: string | null;
+  valid_until?: string;
+  issuing_body?: string;
+  remarks?: string;
 }
 
 interface CooperativeData {
@@ -330,20 +330,20 @@ const submit = () => {
             <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
           </div>
           <div>
-            <Label for=""></Label>
+            <Label for="classification">Classification</Label>
             <Select v-model="form.classification">
               <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
                 <SelectValue placeholder="Select classification (optional)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
-                <SelectItem value="micro">Micro - loans up to P10,000</SelectItem>
-                <SelectItem value="small">Small - loans up to P50,000</SelectItem>
-                <SelectItem value="medium">Medium - loans up to P500,000</SelectItem>
-                <SelectItem value="large">Large - loans above P500,000</SelectItem>
+                <SelectItem value="micro">Micro</SelectItem>
+                <SelectItem value="small">Small</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="large">Large</SelectItem>
               </SelectContent>
             </Select>
-            <p class="mt-1 text-xs text-muted-foreground">Optional but recommended for loan tier alignment.</p>
+            <p class="mt-1 text-xs text-muted-foreground">Cooperative size classification.</p>
             <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
           </div>
           <div>

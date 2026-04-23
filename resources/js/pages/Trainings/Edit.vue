@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { GraduationCap, Save, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { GraduationCap, Save, X, Search } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,15 @@ import AppLayout from '@/layouts/AppLayout.vue';
 interface Cooperative {
     id: number;
     name: string;
+}
+
+interface Member {
+    id: number;
+    name: string;
+    coop_id: number;
+    coop_name: string;
+    role: string;
+    status: string;
 }
 
 interface Training {
@@ -40,6 +49,8 @@ interface Training {
 interface Props {
     training: Training;
     cooperatives: Cooperative[];
+    members: Member[];
+    selected_member_ids: number[];
 }
 
 const props = defineProps<Props>();
@@ -52,6 +63,7 @@ const canUpdateTraining = computed(() => permissions.value.includes('update trai
 
 const form = useForm({
     coop_id: props.training.coop_id.toString(),
+    member_ids: [...new Set(props.selected_member_ids || [])],
     title: props.training.title,
     date_conducted: props.training.date_conducted || '',
     facilitator: props.training.facilitator || '',
@@ -67,6 +79,57 @@ const form = useForm({
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'];
+const memberSearch = ref('');
+
+const availableMembers = computed(() => {
+    const selectedCoopId = Number(form.coop_id);
+
+    if (!selectedCoopId) {
+        return props.members;
+    }
+
+    return props.members.filter((member) => member.coop_id === selectedCoopId);
+});
+
+const filteredMembers = computed(() => {
+    const searchTerm = memberSearch.value.trim().toLowerCase();
+
+    if (!searchTerm) {
+        return availableMembers.value;
+    }
+
+    return availableMembers.value.filter((member) =>
+        member.name.toLowerCase().includes(searchTerm)
+    );
+});
+
+const selectedMembers = computed(() => {
+    return props.members.filter((member) => form.member_ids.includes(member.id));
+});
+
+const isMemberSelected = (memberId: number) => form.member_ids.includes(memberId);
+
+const toggleMemberSelection = (memberId: number) => {
+    const index = form.member_ids.findIndex((id) => id === memberId);
+
+    if (index === -1) {
+        form.member_ids.push(memberId);
+    } else {
+        form.member_ids.splice(index, 1);
+    }
+};
+
+const removeSelectedMember = (memberId: number) => {
+    form.member_ids = form.member_ids.filter((id) => id !== memberId);
+};
+
+watch(() => form.coop_id, (newCoopId) => {
+    const selectedCoopId = Number(newCoopId);
+    form.member_ids = form.member_ids.filter((memberId) => {
+        const member = props.members.find((item) => item.id === memberId);
+        return member ? member.coop_id === selectedCoopId : false;
+    });
+});
 
 const submit = () => {
     if (!canUpdateTraining.value) return;
@@ -219,6 +282,97 @@ const cancel = () => {
                                 <p v-if="form.errors.follow_up_remarks" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.follow_up_remarks }}
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-border pt-6">
+                        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                            <GraduationCap class="h-5 w-5" />
+                            Participants
+                        </h2>
+
+                        <div class="mb-4 grid gap-4 md:grid-cols-[minmax(280px,1fr)_240px]">
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-foreground/80">Search members</label>
+                                <div class="relative">
+                                    <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        v-model="memberSearch"
+                                        placeholder="Search by member name"
+                                        class="pl-9"
+                                    />
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-sm font-medium text-foreground/80">Selected cooperative</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ cooperatives.find((coop) => coop.id.toString() === form.coop_id)?.name || 'All members' }}
+                                </p>
+                                <p v-if="form.errors.member_ids" class="text-sm text-red-500">
+                                    {{ form.errors.member_ids }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-border bg-muted p-4">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-border text-left text-sm">
+                                    <thead class="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground">
+                                        <tr>
+                                            <th class="w-12 px-3 py-3"><span class="sr-only">Select</span></th>
+                                            <th class="px-3 py-3">Name</th>
+                                            <th class="px-3 py-3">Cooperative</th>
+                                            <th class="px-3 py-3">Role</th>
+                                            <th class="px-3 py-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-border bg-card">
+                                        <tr v-if="filteredMembers.length === 0">
+                                            <td :colspan="5" class="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                No members found for the selected cooperative.
+                                            </td>
+                                        </tr>
+                                        <tr v-for="member in filteredMembers" :key="member.id">
+                                            <td class="px-3 py-3">
+                                                <Checkbox
+                                                    :model-value="isMemberSelected(member.id)"
+                                                    @update:model-value="() => toggleMemberSelection(member.id)"
+                                                    :aria-label="`Select ${member.name}`"
+                                                />
+                                            </td>
+                                            <td class="px-3 py-3 font-medium text-foreground">{{ member.name }}</td>
+                                            <td class="px-3 py-3 text-sm text-muted-foreground">{{ member.coop_name }}</td>
+                                            <td class="px-3 py-3 text-sm text-muted-foreground">{{ member.role }}</td>
+                                            <td class="px-3 py-3 text-sm text-muted-foreground">{{ member.status }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-4 rounded-md border border-border bg-card p-4">
+                                <div class="mb-3 flex items-center justify-between">
+                                    <p class="text-sm font-semibold text-foreground">Selected Participants</p>
+                                    <p class="text-sm text-muted-foreground">{{ selectedMembers.length }} selected</p>
+                                </div>
+                                <div v-if="selectedMembers.length === 0" class="text-sm text-muted-foreground">
+                                    No participants selected yet.
+                                </div>
+                                <div v-else class="grid gap-2">
+                                    <div
+                                        v-for="member in selectedMembers"
+                                        :key="member.id"
+                                        class="flex items-center justify-between rounded-md border border-border px-3 py-2 bg-white"
+                                    >
+                                        <div>
+                                            <p class="font-medium text-foreground">{{ member.name }}</p>
+                                            <p class="text-xs text-muted-foreground">{{ member.coop_name }} · {{ member.role }}</p>
+                                        </div>
+                                        <Button size="sm" variant="ghost" class="h-8 w-8 p-0" @click="removeSelectedMember(member.id)">
+                                            <X class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

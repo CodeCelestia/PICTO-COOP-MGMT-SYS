@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cooperative;
+use App\Models\Member;
 use App\Models\Training;
+use App\Models\TrainingParticipant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -44,6 +46,35 @@ class TrainingController extends Controller
         if (($this->isCoopAdmin() || $this->isOfficer()) && $user?->coop_id && $coopId !== $user->coop_id) {
             abort(403);
         }
+    }
+
+    private function buildMembersQuery()
+    {
+        $user = auth()->user();
+
+        $membersQuery = Member::with(['cooperative:id,name', 'roles:id,name'])
+            ->select('id', 'first_name', 'last_name', 'coop_id', 'membership_status')
+            ->orderBy('last_name');
+
+        if ($this->isCoopAdmin() && $user?->coop_id) {
+            $membersQuery->where('coop_id', $user->coop_id);
+        }
+
+        return $membersQuery;
+    }
+
+    private function mapMembers($members)
+    {
+        return $members->map(function (Member $member) {
+            return [
+                'id' => $member->id,
+                'name' => $member->full_name,
+                'coop_id' => $member->coop_id,
+                'coop_name' => $member->cooperative?->name ?? '',
+                'status' => $member->membership_status ?? 'Active',
+                'role' => $member->roles->pluck('name')->filter()->join(', ') ?: 'Member',
+            ];
+        });
     }
 
     public function index(Request $request): Response
@@ -118,6 +149,7 @@ class TrainingController extends Controller
 
         return Inertia::render('Trainings/Create', [
             'cooperatives' => $cooperativesQuery->get(),
+            'members' => $this->mapMembers($this->buildMembersQuery()->get()),
         ]);
     }
 
@@ -138,6 +170,8 @@ class TrainingController extends Controller
             'coop_ids.*' => $this->isCoopAdmin() && $coopId
                 ? ['integer', 'exists:cooperatives,id', Rule::in([$coopId])]
                 : ['integer', 'exists:cooperatives,id'],
+            'member_ids' => ['nullable', 'array'],
+            'member_ids.*' => ['integer', 'exists:members,id'],
             'title' => ['required', 'string', 'max:255'],
             'date_conducted' => ['nullable', 'date'],
             'facilitator' => ['nullable', 'string', 'max:255'],
@@ -173,7 +207,25 @@ class TrainingController extends Controller
             $validated['follow_up_date'] = null;
         }
 
-        unset($validated['coop_ids']);
+        $memberIds = collect($validated['member_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $members = Member::whereIn('id', $memberIds)->get(['id', 'coop_id']);
+        $membersByCoop = $members->groupBy('coop_id')->map(fn ($group) => $group->pluck('id'));
+
+        $invalidMemberIds = $memberIds->diff($members->pluck('id'));
+        if ($invalidMemberIds->isNotEmpty()) {
+            return back()->withErrors([
+                'member_ids' => 'One or more selected members are invalid.',
+            ])->withInput();
+        }
+
+        $selectedMemberIds = $memberIds;
+
+        unset($validated['coop_ids'], $validated['member_ids']);
 
         $createdCount = 0;
 
@@ -183,8 +235,15 @@ class TrainingController extends Controller
             $payload = $validated;
             $payload['coop_id'] = (int) $selectedCoopId;
 
-            Training::create($payload);
+            $training = Training::create($payload);
             $createdCount++;
+
+            foreach ($membersByCoop->get($selectedCoopId, collect()) as $memberId) {
+                TrainingParticipant::firstOrCreate([
+                    'training_id' => $training->id,
+                    'member_id' => $memberId,
+                ]);
+            }
         }
 
         $successMessage = $createdCount > 1
@@ -210,9 +269,14 @@ class TrainingController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
+        $training->load('cooperative', 'participants.member.roles', 'participants.member.cooperative');
+        $selectedMemberIds = $training->participants->pluck('member_id')->toArray();
+
         return Inertia::render('Trainings/Edit', [
-            'training' => $training->load('cooperative'),
+            'training' => $training,
             'cooperatives' => $cooperativesQuery->get(),
+            'members' => $this->mapMembers($this->buildMembersQuery()->get()),
+            'selected_member_ids' => $selectedMemberIds,
         ]);
     }
 
@@ -229,6 +293,8 @@ class TrainingController extends Controller
             'coop_id' => $this->isCoopAdmin() && $coopId
                 ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
                 : ['required', 'exists:cooperatives,id'],
+            'member_ids' => ['nullable', 'array'],
+            'member_ids.*' => ['integer', 'exists:members,id'],
             'title' => ['required', 'string', 'max:255'],
             'date_conducted' => ['nullable', 'date'],
             'facilitator' => ['nullable', 'string', 'max:255'],
@@ -251,9 +317,42 @@ class TrainingController extends Controller
             $validated['follow_up_date'] = null;
         }
 
+        $selectedMemberIds = collect($validated['member_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $memberIdsForCoop = Member::whereIn('id', $selectedMemberIds)
+            ->where('coop_id', $training->coop_id)
+            ->pluck('id');
+
+        if ($selectedMemberIds->diff($memberIdsForCoop)->isNotEmpty()) {
+            return back()->withErrors([
+                'member_ids' => 'Selected members must belong to this cooperative.',
+            ])->withInput();
+        }
+
+        unset($validated['member_ids']);
+
         $this->enforceCoopScope((int) $validated['coop_id']);
 
         $training->update($validated);
+
+        $existingMemberIds = $training->participants()->pluck('member_id');
+        $memberIdsToAdd = $memberIdsForCoop->diff($existingMemberIds);
+        $memberIdsToRemove = $existingMemberIds->diff($memberIdsForCoop);
+
+        foreach ($memberIdsToAdd as $memberId) {
+            TrainingParticipant::firstOrCreate([
+                'training_id' => $training->id,
+                'member_id' => $memberId,
+            ]);
+        }
+
+        if ($memberIdsToRemove->isNotEmpty()) {
+            $training->participants()->whereIn('member_id', $memberIdsToRemove)->delete();
+        }
 
         return redirect()->route('trainings.index')
             ->with('success', 'Training record updated successfully.');
