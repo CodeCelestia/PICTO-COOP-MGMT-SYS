@@ -19,7 +19,7 @@ return new class extends Migration
             $table->enum('category', ['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other']);
             $table->date('date_started')->nullable();
             $table->date('date_ended')->nullable();
-            $table->enum('status', ['Planned', 'In Progress', 'Completed', 'Cancelled'])->default('Planned');
+            $table->enum('status', ['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'])->default('Planned');
             $table->foreignId('responsible_officer_id')->nullable()->constrained('officers')->nullOnDelete();
             $table->string('funding_source')->nullable();
             $table->decimal('budget', 15, 2)->nullable();

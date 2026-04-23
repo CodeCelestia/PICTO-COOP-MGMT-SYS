@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Eye, FileText, Filter, Pencil, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-vue-next';
+import { Building2, Eye, FileText, Filter, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,22 +105,14 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
-const canRestore = computed(() => {
-    const roles = page.props.auth?.roles ?? [];
-    return (
-        roles.includes('Super Admin') ||
-        roles.includes('Provincial Admin')
-    );
-});
 const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
 const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
 const canDeleteCoop = computed(() => permissions.value.includes('delete coop-master-profile'));
-const canBulkDelete = computed(() => canDeleteCoop.value && !isArchivedView.value && !isCoopAdminOnly.value);
+const canBulkDelete = computed(() => canDeleteCoop.value && !isCoopAdminOnly.value);
 const showActions = computed(() => canEditCoop.value || canDeleteCoop.value || canViewAllCoops.value);
 const isCoopAdminOnly = computed(() => !canViewAllCoops.value);
 const coopProfile = computed(() => props.cooperatives.data[0] || null);
-const isArchivedView = computed(() => props.filters?.status === 'Archived');
 
 const coopTypes = computed(() => props.cooperativeTypes.map((type) => type.name));
 
@@ -254,19 +246,6 @@ const goToCooperative = (cooperative: Cooperative) => {
     router.get(`/cooperatives/${cooperative.id}`);
 };
 
-const restoreCooperative = async (cooperative: Cooperative) => {
-    const confirmed = await confirmAction({
-        title: 'Restore cooperative?',
-        text: `Restore ${cooperative.name} to active records?`,
-        confirmButtonText: 'Restore',
-    });
-
-    if (!confirmed) return;
-
-    router.post(`/cooperatives/${cooperative.id}/restore`, {}, {
-        preserveScroll: true,
-    });
-};
 
 const getStatusBadgeColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -422,7 +401,6 @@ const getTypePreview = (coop: Cooperative) => {
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Dissolved">Dissolved</SelectItem>
-                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -734,7 +712,7 @@ const getTypePreview = (coop: Cooperative) => {
                                                 </a>
                                             </Button>
                                             <Button
-                                                v-if="canDeleteCoop && !isArchivedView"
+                                                v-if="canDeleteCoop"
                                                 @click="deleteCooperative(coop)"
                                                 @click.stop
                                                 variant="ghost"
@@ -743,17 +721,6 @@ const getTypePreview = (coop: Cooperative) => {
                                             >
                                                 <Trash2 class="h-3 w-3" />
                                                 Delete
-                                            </Button>
-                                            <Button
-                                                v-if="canRestore && isArchivedView"
-                                                @click="restoreCooperative(coop)"
-                                                @click.stop
-                                                variant="ghost"
-                                                size="sm"
-                                                class="table-action-btn table-action-other gap-1 text-emerald-600 hover:text-emerald-700"
-                                            >
-                                                <RotateCcw class="h-3 w-3" />
-                                                Restore
                                             </Button>
                                         </div>
                                     </TableCell>

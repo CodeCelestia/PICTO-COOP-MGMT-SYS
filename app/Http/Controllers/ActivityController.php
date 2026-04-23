@@ -73,9 +73,7 @@ class ActivityController extends Controller
             });
         }
 
-        if ($request->input('status') === 'Archived') {
-            $query->onlyTrashed();
-        } elseif ($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -182,7 +180,7 @@ class ActivityController extends Controller
             'category' => ['required', Rule::in(['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'])],
             'date_started' => ['nullable', 'date'],
             'date_ended' => ['nullable', 'date', 'after_or_equal:date_started'],
-            'status' => ['required', Rule::in(['Planned', 'In Progress', 'Completed', 'Cancelled'])],
+            'status' => ['required', Rule::in(['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'])],
             'responsible_officer_id' => ['nullable', 'exists:officers,id'],
             'funding_source' => ['nullable', 'string', 'max:255'],
             'budget' => ['nullable', 'numeric', 'min:0'],
@@ -357,7 +355,7 @@ class ActivityController extends Controller
             'category' => ['required', Rule::in(['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'])],
             'date_started' => ['nullable', 'date'],
             'date_ended' => ['nullable', 'date', 'after_or_equal:date_started'],
-            'status' => ['required', Rule::in(['Planned', 'In Progress', 'Completed', 'Cancelled'])],
+            'status' => ['required', Rule::in(['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'])],
             'responsible_officer_id' => ['nullable', 'exists:officers,id'],
             'funding_source' => ['nullable', 'string', 'max:255'],
             'budget' => ['nullable', 'numeric', 'min:0'],

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, RotateCcw, Users, Eye, FileText } from 'lucide-vue-next';
+import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, Users, Eye, FileText } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -92,13 +92,6 @@ const showCoopFilter = computed(() => !lockedCoopId.value);
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
-const canRestore = computed(() => {
-    const roles = page.props.auth?.roles ?? [];
-    return (
-        roles.includes('Super Admin') ||
-        roles.includes('Provincial Admin')
-    );
-});
 const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
 const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
@@ -113,8 +106,7 @@ const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
 const category = ref(props.filters.category || 'all');
-const isArchivedView = computed(() => props.filters?.status === 'Archived');
-const canBulkDelete = computed(() => canDelete.value && !isArchivedView.value);
+const canBulkDelete = computed(() => canDelete.value);
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -138,7 +130,7 @@ const resolvedCoopId = () => {
     return coopId.value === 'all' ? '' : coopId.value;
 };
 
-const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
+const statusOptions = ['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'];
 const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'];
 
 const buildQuery = (pageNumber?: number) => {
@@ -197,20 +189,6 @@ const deleteActivity = async (activity: Activity) => {
     });
 };
 
-const restoreActivity = async (activity: Activity) => {
-    if (!canRestore.value) return;
-    const confirmed = await confirmAction({
-        title: 'Restore activity?',
-        text: `Restore ${activity.title} to active records?`,
-        confirmButtonText: 'Restore',
-    });
-
-    if (!confirmed) return;
-
-    router.post(`/activities/${activity.id}/restore`, {}, {
-        preserveScroll: true,
-    });
-};
 
 const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
@@ -354,7 +332,6 @@ const bulkDeleteActivities = async () => {
                                     <SelectItem v-for="option in statusOptions" :key="option" :value="option">
                                         {{ option }}
                                     </SelectItem>
-                                    <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -486,14 +463,14 @@ const bulkDeleteActivities = async () => {
                                             Report
                                         </a>
                                     </Button>
-                                    <Link v-if="!isArchivedView && canEdit" :href="`/activities/${activity.id}/edit`">
+                                    <Link v-if="canEdit" :href="`/activities/${activity.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="!isArchivedView && canDelete"
+                                        v-if="canDelete"
                                         @click="deleteActivity(activity)"
                                         variant="ghost"
                                         size="sm"
@@ -501,16 +478,6 @@ const bulkDeleteActivities = async () => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
-                                    </Button>
-                                    <Button
-                                        v-if="isArchivedView && canRestore"
-                                        @click="restoreActivity(activity)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-other gap-2 text-emerald-700 hover:text-emerald-800"
-                                    >
-                                        <RotateCcw class="h-4 w-4" />
-                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

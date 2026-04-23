@@ -119,7 +119,7 @@ const resolvedCoopId = () => {
     return coopId.value === 'all' ? '' : coopId.value;
 };
 
-const statusOptions = ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'];
+const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 
 const buildQuery = (pageNumber?: number) => {

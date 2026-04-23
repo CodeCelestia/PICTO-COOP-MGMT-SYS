@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Users, Plus, Pencil, Trash2, Search, RotateCcw } from 'lucide-vue-next';
+import { Users, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -55,24 +55,16 @@ const hasCoopLock = computed(() => Boolean(props.lockCoopId));
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
-const canRestore = computed(() => {
-    const roles = page.props.auth?.roles ?? [];
-    return (
-        roles.includes('Super Admin') ||
-        roles.includes('Provincial Admin')
-    );
-});
 const { allCooperativesLabel } = useCoopLabel();
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 const canEditOfficer = computed(() => permissions.value.includes('update officers-&-committees'));
 const canDeleteOfficer = computed(() => permissions.value.includes('delete officers-&-committees'));
-const canBulkDelete = computed(() => canDeleteOfficer.value && !isArchivedView.value);
+const canBulkDelete = computed(() => canDeleteOfficer.value);
 const showActions = computed(() => canEditOfficer.value || canDeleteOfficer.value);
 
 const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || props.lockCoopId || 'all');
 const status = ref(props.filters.status || 'all');
-const isArchivedView = computed(() => props.filters?.status === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.officers.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -133,20 +125,6 @@ const deleteOfficer = async (officer: Officer) => {
     });
 };
 
-const restoreOfficer = async (officer: Officer) => {
-    if (!canRestore.value) return;
-    const confirmed = await confirmAction({
-        title: 'Restore officer record?',
-        text: `Restore ${officer.member.full_name} to active records?`,
-        confirmButtonText: 'Restore',
-    });
-
-    if (!confirmed) return;
-
-    router.post(`/officers/${officer.id}/restore`, {}, {
-        preserveScroll: true,
-    });
-};
 
 const formatTerm = (start: string | null, end: string | null) => {
     if (!start && !end) return 'N/A';
@@ -257,7 +235,6 @@ const bulkDeleteOfficers = async () => {
                                 <SelectItem value="Retired">Retired</SelectItem>
                                 <SelectItem value="Removed">Removed</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
-                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -350,14 +327,14 @@ const bulkDeleteOfficers = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ officer.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="!isArchivedView && canEditOfficer" :href="`/officers/${officer.id}/edit`">
+                                    <Link v-if="canEditOfficer" :href="`/officers/${officer.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="!isArchivedView && canDeleteOfficer"
+                                        v-if="canDeleteOfficer"
                                         @click="deleteOfficer(officer)"
                                         variant="ghost"
                                         size="sm"
@@ -365,16 +342,6 @@ const bulkDeleteOfficers = async () => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
-                                    </Button>
-                                    <Button
-                                        v-if="isArchivedView && canRestore"
-                                        @click="restoreOfficer(officer)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-other gap-2 text-emerald-700 hover:text-emerald-800"
-                                    >
-                                        <RotateCcw class="h-4 w-4" />
-                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

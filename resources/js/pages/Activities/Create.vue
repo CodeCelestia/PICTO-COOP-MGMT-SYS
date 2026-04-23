@@ -83,7 +83,7 @@ const form = useForm({
 });
 
 const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'];
-const statusOptions = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
+const statusOptions = ['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'];
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
 const maxFundingSourceFiles = 3;

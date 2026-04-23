@@ -78,7 +78,7 @@ const form = useForm({
 });
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
-const statusOptions = ['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'];
+const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
 const memberSearch = ref('');
 
 const availableMembers = computed(() => {

@@ -63,13 +63,6 @@ interface Props {
 
 const props = defineProps<Props>();
 const page = usePage();
-const canRestore = computed(() => {
-    const roles = page.props.auth?.roles ?? [];
-    return (
-        roles.includes('Super Admin') ||
-        roles.includes('Provincial Admin')
-    );
-});
 const {
     availableCooperativesLabel,
     cooperativeLabelLower,
@@ -286,7 +279,6 @@ const formatDate = (date: string | null) => {
                                     <SelectItem value="Inactive">Inactive</SelectItem>
                                     <SelectItem value="Suspended">Suspended</SelectItem>
                                     <SelectItem value="Dissolved">Dissolved</SelectItem>
-                                    <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

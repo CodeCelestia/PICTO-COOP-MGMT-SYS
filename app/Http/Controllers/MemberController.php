@@ -36,9 +36,7 @@ class MemberController extends Controller
             });
         }
 
-        if ($request->input('status') === 'Archived') {
-            $query->onlyTrashed();
-        } elseif ($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -221,9 +219,7 @@ class MemberController extends Controller
         }
 
         // Filter by membership status
-        if ($request->input('membership_status') === 'Archived') {
-            $query->onlyTrashed();
-        } elseif ($request->filled('membership_status')) {
+        if ($request->filled('membership_status')) {
             $query->where('membership_status', $request->membership_status);
         }
 
@@ -305,9 +301,7 @@ class MemberController extends Controller
             });
         }
 
-        if ($memberStatus === 'Archived') {
-            $membersQuery->onlyTrashed();
-        } elseif ($memberStatus) {
+        if ($memberStatus) {
             $membersQuery->where('membership_status', $memberStatus);
         }
 
@@ -353,9 +347,7 @@ class MemberController extends Controller
             });
         }
 
-        if ($activityStatus === 'Archived') {
-            $activitiesQuery->onlyTrashed();
-        } elseif ($activityStatus) {
+        if ($activityStatus) {
             $activitiesQuery->where('status', $activityStatus);
         }
 

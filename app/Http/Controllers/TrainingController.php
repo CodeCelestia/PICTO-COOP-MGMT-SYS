@@ -182,7 +182,7 @@ class TrainingController extends Controller
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_remarks' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'])],
+            'status' => ['required', Rule::in(['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
         $selectedCoopIds = collect($validated['coop_ids'] ?? [])
@@ -305,7 +305,7 @@ class TrainingController extends Controller
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_remarks' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(['Planned', 'Completed', 'Cancelled', 'Follow-Up Pending'])],
+            'status' => ['required', Rule::in(['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
         if ($this->isCoopAdmin() && $coopId) {

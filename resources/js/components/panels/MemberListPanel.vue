@@ -61,25 +61,17 @@ const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
-const canRestore = computed(() => {
-    const roles = page.props.auth?.roles ?? [];
-    return (
-        roles.includes('Super Admin') ||
-        roles.includes('Provincial Admin')
-    );
-});
 const canViewMember = computed(() => permissions.value.includes('read members-profile'));
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
 const canDeleteMember = computed(() => permissions.value.includes('delete members-profile'));
 const canCreateUserAccounts = computed(() => permissions.value.includes('create user-accounts'));
 const canReadMemberLoans = computed(() => permissions.value.includes('read finance-member-loans'));
-const canBulkDelete = computed(() => canDeleteMember.value && !isArchivedView.value);
+const canBulkDelete = computed(() => canDeleteMember.value);
 const showActions = computed(() => canViewMember.value || canEditMember.value || canReadMemberLoans.value || canCreateUserAccounts.value || canDeleteMember.value);
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
-const isArchivedView = computed(() => props.filters?.membership_status === 'Archived');
 const presetPageSizes = ['5', '15', '30'];
 const initialPerPageRaw = props.filters.per_page || String(props.members.per_page || 15);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
@@ -136,20 +128,6 @@ const deleteMember = async (member: Member) => {
     });
 };
 
-const restoreMember = async (member: Member) => {
-    if (!canRestore.value) return;
-    const confirmed = await confirmAction({
-        title: 'Restore member?',
-        text: `Restore ${member.full_name} to active records?`,
-        confirmButtonText: 'Restore',
-    });
-
-    if (!confirmed) return;
-
-    router.post(`/members/${member.id}/restore`, {}, {
-        preserveScroll: true,
-    });
-};
 
 const getStatusBadgeColor = (status: string | null) => {
     if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -333,7 +311,6 @@ const submitCreateAccount = () => {
                                 <SelectItem value="Suspended">Suspended</SelectItem>
                                 <SelectItem value="Resigned">Resigned</SelectItem>
                                 <SelectItem value="Deceased">Deceased</SelectItem>
-                                <SelectItem v-if="canRestore" value="Archived">Archived</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -485,7 +462,7 @@ const submitCreateAccount = () => {
                                         </Button>
                                     </Link>
                                     <Button
-                                        v-if="canDeleteMember && !isArchivedView"
+                                        v-if="canDeleteMember"
                                         @click="deleteMember(member)"
                                         variant="ghost"
                                         size="sm"
@@ -494,16 +471,6 @@ const submitCreateAccount = () => {
                                     >
                                         <Trash2 class="h-4 w-4" />
                                         Delete
-                                    </Button>
-                                    <Button
-                                        v-if="canRestore && isArchivedView"
-                                        @click="restoreMember(member)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-other gap-1.5 text-emerald-700 hover:text-emerald-800"
-                                        title="Restore member"
-                                    >
-                                        Restore
                                     </Button>
                                 </div>
                             </TableCell>

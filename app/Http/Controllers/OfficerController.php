@@ -70,9 +70,7 @@ class OfficerController extends Controller
             });
         }
 
-        if ($request->input('status') === 'Archived') {
-            $query->onlyTrashed();
-        } elseif ($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 

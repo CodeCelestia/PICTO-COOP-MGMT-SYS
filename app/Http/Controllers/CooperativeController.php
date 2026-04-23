@@ -46,9 +46,7 @@ class CooperativeController extends Controller
         }
 
         // Status filter
-        if ($request->input('status') === 'Archived') {
-            $query->onlyTrashed();
-        } elseif ($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -414,9 +412,7 @@ class CooperativeController extends Controller
             });
         }
 
-        if ($memberStatus === 'Archived') {
-            $membersQuery->onlyTrashed();
-        } elseif ($memberStatus) {
+        if ($memberStatus) {
             $membersQuery->where('membership_status', $memberStatus);
         }
 
@@ -437,9 +433,7 @@ class CooperativeController extends Controller
             });
         }
 
-        if ($officerStatus === 'Archived') {
-            $officersQuery->onlyTrashed();
-        } elseif ($officerStatus) {
+        if ($officerStatus) {
             $officersQuery->where('status', $officerStatus);
         }
 
@@ -484,9 +478,7 @@ class CooperativeController extends Controller
             });
         }
 
-        if ($activityStatus === 'Archived') {
-            $activitiesQuery->onlyTrashed();
-        } elseif ($activityStatus) {
+        if ($activityStatus) {
             $activitiesQuery->where('status', $activityStatus);
         }
 
