@@ -68,6 +68,26 @@ const form = useForm({
     role_ids: [] as number[],
 });
 
+const primaryLivelihoodTags = ref<string[]>([]);
+const newPrimaryLivelihood = ref('');
+
+const addPrimaryLivelihood = () => {
+    const value = newPrimaryLivelihood.value.trim();
+    if (!value) return;
+    if (!primaryLivelihoodTags.value.includes(value)) {
+        primaryLivelihoodTags.value.push(value);
+    }
+    newPrimaryLivelihood.value = '';
+};
+
+const removePrimaryLivelihood = (index: number) => {
+    primaryLivelihoodTags.value.splice(index, 1);
+};
+
+watch(primaryLivelihoodTags, (tags) => {
+    form.primary_livelihood = tags.join(', ');
+}, { deep: true });
+
 onMounted(() => {
     fetchRegions();
 });
@@ -463,15 +483,37 @@ const toggleRole = (roleId: number) => {
                                 </p>
                             </div>
 
-                            <div class="md:col-span-2">
+                            <div class="md:col-span-2 space-y-3">
                                 <Label for="primary_livelihood">Primary Livelihood</Label>
-                                <Input
-                                    id="primary_livelihood"
-                                    v-model="form.primary_livelihood"
-                                    type="text"
-                                    placeholder="e.g., Rice farming, Fish vending, etc."
-                                    :class="{ 'border-red-500': form.errors.primary_livelihood }"
-                                />
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start">
+                                    <Input
+                                        id="primary_livelihood"
+                                        v-model="newPrimaryLivelihood"
+                                        type="text"
+                                        placeholder="e.g., Rice farming, Fish vending, etc."
+                                        :class="{ 'border-red-500': form.errors.primary_livelihood }"
+                                        @keyup.enter.prevent="addPrimaryLivelihood"
+                                    />
+                                    <Button type="button" class="h-11 shrink-0" @click="addPrimaryLivelihood">
+                                        Add
+                                    </Button>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <Badge
+                                        v-for="(tag, index) in primaryLivelihoodTags"
+                                        :key="`${tag}-${index}`"
+                                        class="inline-flex items-center gap-2 rounded-full px-3 py-1"
+                                    >
+                                        <span>{{ tag }}</span>
+                                        <button
+                                            type="button"
+                                            class="rounded-full p-1 transition hover:bg-slate-200 dark:hover:bg-slate-700"
+                                            @click="removePrimaryLivelihood(index)"
+                                        >
+                                            <X class="h-3.5 w-3.5" />
+                                        </button>
+                                    </Badge>
+                                </div>
                                 <p v-if="form.errors.primary_livelihood" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.primary_livelihood }}
                                 </p>
