@@ -10,6 +10,7 @@ interface Cooperative {
 interface Training {
     id: number;
     coop_id: number;
+    cooperatives_participating_count?: number;
     title: string;
     date_conducted: string | null;
     facilitator: string | null;

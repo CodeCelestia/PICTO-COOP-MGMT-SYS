@@ -17,6 +17,7 @@ interface Officer {
 interface Activity {
     id: number;
     coop_id: number;
+    cooperatives_participating_count?: number;
     title: string;
     description: string | null;
     category: string;

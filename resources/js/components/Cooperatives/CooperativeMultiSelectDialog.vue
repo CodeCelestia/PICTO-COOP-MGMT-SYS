@@ -92,13 +92,9 @@ const regionOptions = computed(() => {
     return Array.from(new Set(regions)).sort((a, b) => a.localeCompare(b));
 });
 
-const classificationOptions = computed(() => {
-    const classifications = sortedCooperatives.value
-        .map((coop) => (coop.classification || '').trim())
-        .filter(Boolean);
+const staticClassifications = ['micro', 'small', 'medium', 'large'];
 
-    return Array.from(new Set(classifications)).sort((a, b) => a.localeCompare(b));
-});
+const classificationOptions = computed(() => staticClassifications);
 
 const filteredCooperatives = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
@@ -224,7 +220,7 @@ const regionBadgeClass =
 
 <template>
     <Dialog :open="open" @update:open="(value) => emit('update:open', value)">
-        <DialogContent class="w-full max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogContent class="w-full max-w-5xl max-h-[85vh] overflow-hidden">
             <DialogHeader>
                 <DialogTitle>{{ title }}</DialogTitle>
                 <DialogDescription>
@@ -233,8 +229,8 @@ const regionBadgeClass =
             </DialogHeader>
 
             <div class="grid gap-4 py-2">
-<div class="grid gap-3 sm:grid-cols-5">
-                    <div class="grid gap-2 sm:col-span-2">
+                <div class="grid gap-3">
+                    <div class="grid gap-2">
                         <Label for="coop_search">Search</Label>
                         <div class="relative">
                             <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -247,49 +243,51 @@ const regionBadgeClass =
                         </div>
                     </div>
 
-                    <div class="grid gap-2">
-                        <Label for="coop_status_filter">Status</Label>
-                        <Select v-model="statusFilter">
-                            <SelectTrigger id="coop_status_filter">
-                                <SelectValue placeholder="All status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All status</SelectItem>
-                                <SelectItem v-for="status in statusOptions" :key="status" :value="status">
-                                    {{ status }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="grid gap-2">
+                            <Label for="coop_status_filter">Status</Label>
+                            <Select v-model="statusFilter">
+                                <SelectTrigger id="coop_status_filter">
+                                    <SelectValue placeholder="All status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All status</SelectItem>
+                                    <SelectItem v-for="status in statusOptions" :key="status" :value="status">
+                                        {{ status }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                    <div class="grid gap-2">
-                        <Label for="coop_classification_filter">Classification</Label>
-                        <Select v-model="classificationFilter">
-                            <SelectTrigger id="coop_classification_filter">
-                                <SelectValue placeholder="All classifications" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All classifications</SelectItem>
-                                <SelectItem v-for="classification in classificationOptions" :key="classification" :value="classification">
-                                    {{ classification.charAt(0).toUpperCase() + classification.slice(1) }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                        <div class="grid gap-2">
+                            <Label for="coop_classification_filter">Classification</Label>
+                            <Select v-model="classificationFilter">
+                                <SelectTrigger id="coop_classification_filter">
+                                    <SelectValue placeholder="All classifications" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All classifications</SelectItem>
+                                    <SelectItem v-for="classification in classificationOptions" :key="classification" :value="classification">
+                                        {{ classification.charAt(0).toUpperCase() + classification.slice(1) }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                    <div class="grid gap-2">
-                        <Label for="coop_region_filter">Region</Label>
-                        <Select v-model="regionFilter">
-                            <SelectTrigger id="coop_region_filter">
-                                <SelectValue placeholder="All regions" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All regions</SelectItem>
-                                <SelectItem v-for="region in regionOptions" :key="region" :value="region">
-                                    {{ region }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div class="grid gap-2">
+                            <Label for="coop_region_filter">Region</Label>
+                            <Select v-model="regionFilter">
+                                <SelectTrigger id="coop_region_filter">
+                                    <SelectValue placeholder="All regions" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All regions</SelectItem>
+                                    <SelectItem v-for="region in regionOptions" :key="region" :value="region">
+                                        {{ region }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
 
@@ -335,7 +333,7 @@ const regionBadgeClass =
                                         {{ coop.status }}
                                     </Badge>
                                     <Badge v-if="coop.classification" :class="getClassificationBadgeClass(coop.classification)">
-                                        {{ coop.classification?.charAt(0).toUpperCase() + coop.classification?.slice(1) }}
+                                        {{ coop.classification?.charAt(0).toUpperCase() + coop.classification?.slice(1).toLowerCase() }}
                                     </Badge>
                                     <Badge v-if="coop.region" :class="regionBadgeClass">
                                         {{ coop.region }}

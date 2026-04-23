@@ -308,6 +308,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activities/{id}/report', [ActivityController::class, 'report'])
         ->middleware('permission:read activities-&-projects')
         ->name('activities.report');
+    Route::get('activities/{activity}/cooperatives-participating', [ActivityController::class, 'cooperativesParticipating'])
+        ->middleware('permission:read activities-&-projects')
+        ->name('activities.cooperatives-participating');
+    Route::get('activities/{activity}/cooperatives/{cooperative}/participants', [ActivityController::class, 'participantsByCooperative'])
+        ->middleware('permission:read activities-&-projects')
+        ->name('activities.cooperative-participants');
     Route::get('activities/create', [ActivityController::class, 'create'])
         ->middleware('permission:create activities-&-projects')
         ->name('activities.create');
@@ -385,6 +391,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('trainings/{training}/edit', [TrainingController::class, 'edit'])
         ->middleware('permission:update training-&-capacity')
         ->name('trainings.edit');
+    Route::get('trainings/{training}/cooperatives-participating', [TrainingController::class, 'cooperativesParticipating'])
+        ->middleware('permission:read training-&-capacity')
+        ->name('trainings.cooperatives-participating');
+    Route::get('trainings/{training}/cooperatives/{cooperative}/participants', [TrainingController::class, 'participantsByCooperative'])
+        ->middleware('permission:read training-&-capacity')
+        ->name('trainings.cooperative-participants');
     Route::put('trainings/{training}', [TrainingController::class, 'update'])
         ->middleware('permission:update training-&-capacity')
         ->name('trainings.update');

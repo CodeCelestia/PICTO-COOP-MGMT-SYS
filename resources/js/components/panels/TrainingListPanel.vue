@@ -40,6 +40,8 @@ interface Cooperative {
 interface Training {
     id: number;
     coop_id: number;
+    cooperatives_count?: number;
+    cooperatives_participating_count?: number;
     title: string;
     date_conducted: string | null;
     facilitator: string | null;
@@ -77,6 +79,7 @@ const baseUrl = computed(() => props.baseUrl || '/trainings');
 const queryPrefix = computed(() => props.queryPrefix || '');
 const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 const lockedCoopId = computed(() => props.lockCoopId || '');
+const isSidebarCreateView = computed(() => !lockedCoopId.value);
 const showCoopFilter = computed(() => !lockedCoopId.value);
 
 const page = usePage();
@@ -86,7 +89,7 @@ const canCreate = computed(() => permissions.value.includes('create training-&-c
 const canEdit = computed(() => permissions.value.includes('update training-&-capacity'));
 const canDelete = computed(() => permissions.value.includes('delete training-&-capacity'));
 const canBulkDelete = computed(() => canDelete.value);
-const showParticipantActionInRows = computed(() => props.showParticipantActionInRows || false);
+const showParticipantActionInRows = computed(() => isSidebarCreateView.value || props.showParticipantActionInRows || false);
 const showViewActionInRows = computed(() => props.showViewActionInRows || false);
 const showActions = computed(() => showViewActionInRows.value || showParticipantActionInRows.value || canEdit.value || canDelete.value);
 const isViewDialogOpen = ref(false);
@@ -177,6 +180,26 @@ const formatDate = (date: string | null) => {
         month: 'short',
         day: 'numeric',
     });
+};
+
+const cooperativesParticipatingCount = (training: Training) => {
+    return Number(training.cooperatives_count ?? training.cooperatives_participating_count ?? 0);
+};
+
+const cooperativeCountBadgeClass = (count: number) => {
+    if (count === 0) {
+        return 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
+    }
+
+    return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200';
+};
+
+const participantsHref = (training: Training) => {
+    if (isSidebarCreateView.value) {
+        return `/trainings/${training.id}/cooperatives-participating`;
+    }
+
+    return `/training-participants?training_id=${training.id}&coop_id=${training.coop_id}`;
 };
 
 const openViewDialog = (training: Training) => {
@@ -355,7 +378,7 @@ const bulkDeleteTrainings = async () => {
                                 />
                             </TableHead>
                             <TableHead>Training</TableHead>
-                            <TableHead>Cooperative</TableHead>
+                            <TableHead>{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Target Group</TableHead>
                             <TableHead>Status</TableHead>
@@ -387,7 +410,15 @@ const bulkDeleteTrainings = async () => {
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ training.cooperative.name }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">
+                                <span
+                                    v-if="isSidebarCreateView"
+                                    :class="['inline-flex min-w-10 items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold', cooperativeCountBadgeClass(cooperativesParticipatingCount(training))]"
+                                >
+                                    {{ cooperativesParticipatingCount(training) }}
+                                </span>
+                                <span v-else>{{ training.cooperative.name }}</span>
+                            </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ formatDate(training.date_conducted) }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ training.target_group }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ training.status }}</TableCell>
@@ -403,7 +434,7 @@ const bulkDeleteTrainings = async () => {
                                         <Eye class="h-4 w-4" />
                                         View
                                     </Button>
-                                    <Link v-if="showParticipantActionInRows" :href="`/training-participants?training_id=${training.id}&coop_id=${training.coop_id}`">
+                                    <Link v-if="showParticipantActionInRows" :href="participantsHref(training)">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                             <Users class="h-4 w-4" />
                                             Participants

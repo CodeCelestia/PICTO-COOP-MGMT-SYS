@@ -8,12 +8,31 @@ use App\Models\Training;
 use App\Models\TrainingParticipant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TrainingController extends Controller
 {
+    private function resolveGroupedTrainingIds(Training $training): Collection
+    {
+        return Training::query()
+            ->where('title', $training->title)
+            ->where('date_conducted', $training->date_conducted)
+            ->where('facilitator', $training->facilitator)
+            ->where('skills_targeted', $training->skills_targeted)
+            ->where('venue', $training->venue)
+            ->where('target_group', $training->target_group)
+            ->where('no_of_participants', $training->no_of_participants)
+            ->where('follow_up_needed', $training->follow_up_needed)
+            ->where('follow_up_date', $training->follow_up_date)
+            ->where('follow_up_remarks', $training->follow_up_remarks)
+            ->where('status', $training->status)
+            ->pluck('id');
+    }
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -80,15 +99,15 @@ class TrainingController extends Controller
     public function index(Request $request): Response
     {
         $user = auth()->user();
-        $query = Training::with('cooperative');
+        $baseQuery = Training::query();
 
         if (($this->isCoopAdmin() || $this->isOfficer()) && $user?->coop_id) {
-            $query->where('coop_id', $user->coop_id);
+            $baseQuery->where('coop_id', $user->coop_id);
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+            $baseQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhere('facilitator', 'like', "%{$search}%")
                     ->orWhere('venue', 'like', "%{$search}%");
@@ -96,21 +115,46 @@ class TrainingController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $baseQuery->where('status', $request->status);
         }
 
         if ($request->filled('target_group')) {
-            $query->where('target_group', $request->target_group);
+            $baseQuery->where('target_group', $request->target_group);
         }
 
         if ($request->filled('coop_id') && !$this->isCoopAdmin()) {
-            $query->where('coop_id', $request->coop_id);
+            $baseQuery->where('coop_id', $request->coop_id);
         }
+
+        $groupColumns = [
+            'title',
+            'date_conducted',
+            'facilitator',
+            'skills_targeted',
+            'venue',
+            'target_group',
+            'no_of_participants',
+            'follow_up_needed',
+            'follow_up_date',
+            'follow_up_remarks',
+            'status',
+        ];
+
+        $groupedQuery = (clone $baseQuery)
+            ->selectRaw('MAX(id) as id, COUNT(DISTINCT coop_id) as cooperatives_count')
+            ->groupBy($groupColumns);
+
+        $query = Training::with('cooperative')
+            ->joinSub($groupedQuery, 'training_groups', function ($join) {
+                $join->on('trainings.id', '=', 'training_groups.id');
+            })
+            ->addSelect('trainings.*')
+            ->addSelect(DB::raw('training_groups.cooperatives_count as cooperatives_count'));
 
         $perPage = (int) $request->input('per_page', 15);
         $perPage = max(1, min($perPage, 500));
 
-        $trainings = $query->latest()->paginate($perPage)->withQueryString();
+        $trainings = $query->orderByDesc('trainings.created_at')->paginate($perPage)->withQueryString();
 
         $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region')->orderBy('name');
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -121,6 +165,71 @@ class TrainingController extends Controller
             'trainings' => $trainings,
             'cooperatives' => $cooperativesQuery->get(),
             'filters' => $request->only(['search', 'status', 'target_group', 'coop_id', 'per_page']),
+        ]);
+    }
+
+    public function cooperativesParticipating(Training $training): Response
+    {
+        $this->enforceCoopScope($training->coop_id);
+
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+
+        $allCoopIds = Training::query()
+            ->whereIn('id', $linkedTrainingIds)
+            ->whereNotNull('coop_id')
+            ->distinct()
+            ->pluck('coop_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $cooperatives = Cooperative::query()
+            ->select('id', 'name', 'classification', 'status')
+            ->whereIn('id', $allCoopIds)
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Trainings/CooperativesParticipating', [
+            'training' => [
+                'id' => $training->id,
+                'title' => $training->title,
+            ],
+            'cooperatives' => $cooperatives,
+        ]);
+    }
+
+    public function participantsByCooperative(Training $training, Cooperative $cooperative): Response
+    {
+        $this->enforceCoopScope($training->coop_id);
+
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+
+        $isParticipating = Training::query()
+            ->whereIn('id', $linkedTrainingIds)
+            ->where('coop_id', $cooperative->id)
+            ->exists();
+
+        if (! $isParticipating) {
+            abort(404);
+        }
+
+        $participants = TrainingParticipant::query()
+            ->with(['member:id,first_name,last_name,email,phone,coop_id'])
+            ->whereIn('training_id', $linkedTrainingIds)
+            ->whereHas('member', fn ($query) => $query->where('coop_id', $cooperative->id))
+            ->latest()
+            ->get();
+
+        return Inertia::render('Trainings/ParticipantsByCooperative', [
+            'training' => [
+                'id' => $training->id,
+                'title' => $training->title,
+            ],
+            'cooperative' => [
+                'id' => $cooperative->id,
+                'name' => $cooperative->name,
+            ],
+            'participants' => $participants,
         ]);
     }
 

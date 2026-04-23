@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\ActivityFundingSource;
+use App\Models\ActivityParticipant;
 use App\Models\Cooperative;
+use App\Models\Member;
 use App\Models\Officer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -17,6 +21,30 @@ use Inertia\Response;
 
 class ActivityController extends Controller
 {
+    private function resolveGroupedActivityIds(Activity $activity): Collection
+    {
+        return Activity::query()
+            ->where('title', $activity->title)
+            ->where('description', $activity->description)
+            ->where('category', $activity->category)
+            ->where('date_started', $activity->date_started)
+            ->where('date_ended', $activity->date_ended)
+            ->where('status', $activity->status)
+            ->where('responsible_officer_id', $activity->responsible_officer_id)
+            ->where('funding_source', $activity->funding_source)
+            ->where('budget', $activity->budget)
+            ->where('actual_expense', $activity->actual_expense)
+            ->where('target_member_beneficiaries', $activity->target_member_beneficiaries)
+            ->where('target_community_beneficiaries', $activity->target_community_beneficiaries)
+            ->where('actual_member_beneficiaries', $activity->actual_member_beneficiaries)
+            ->where('actual_community_beneficiaries', $activity->actual_community_beneficiaries)
+            ->where('implementing_partner', $activity->implementing_partner)
+            ->where('outcomes', $activity->outcomes)
+            ->where('outcomes_attachment_path', $activity->outcomes_attachment_path)
+            ->where('remarks', $activity->remarks)
+            ->pluck('id');
+    }
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -57,15 +85,15 @@ class ActivityController extends Controller
     public function index(Request $request): Response
     {
         $user = auth()->user();
-        $query = Activity::with(['cooperative', 'responsibleOfficer.member']);
+        $baseQuery = Activity::query();
 
         if (($this->isCoopAdmin() || $this->isOfficer()) && $user?->coop_id) {
-            $query->where('coop_id', $user->coop_id);
+            $baseQuery->where('coop_id', $user->coop_id);
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function ($q) use ($search) {
+            $baseQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
                     ->orWhere('funding_source', 'like', "%{$search}%")
@@ -74,26 +102,123 @@ class ActivityController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $baseQuery->where('status', $request->status);
         }
 
         if ($request->filled('category')) {
-            $query->where('category', $request->category);
+            $baseQuery->where('category', $request->category);
         }
 
         if ($request->filled('coop_id') && !$this->isCoopAdmin()) {
-            $query->where('coop_id', $request->coop_id);
+            $baseQuery->where('coop_id', $request->coop_id);
         }
+
+        $groupColumns = [
+            'title',
+            'description',
+            'category',
+            'date_started',
+            'date_ended',
+            'status',
+            'responsible_officer_id',
+            'funding_source',
+            'budget',
+            'actual_expense',
+            'target_member_beneficiaries',
+            'target_community_beneficiaries',
+            'actual_member_beneficiaries',
+            'actual_community_beneficiaries',
+            'implementing_partner',
+            'outcomes',
+            'outcomes_attachment_path',
+            'remarks',
+        ];
+
+        $groupedQuery = (clone $baseQuery)
+            ->selectRaw('MAX(id) as id, COUNT(DISTINCT coop_id) as cooperatives_count')
+            ->groupBy($groupColumns);
+
+        $query = Activity::with(['cooperative', 'responsibleOfficer.member'])
+            ->joinSub($groupedQuery, 'activity_groups', function ($join) {
+                $join->on('activities.id', '=', 'activity_groups.id');
+            })
+            ->addSelect('activities.*')
+            ->addSelect(DB::raw('activity_groups.cooperatives_count as cooperatives_count'));
 
         $perPage = (int) $request->input('per_page', 15);
         $perPage = max(1, min($perPage, 500));
 
-        $activities = $query->latest()->paginate($perPage)->withQueryString();
+        $activities = $query->orderByDesc('activities.created_at')->paginate($perPage)->withQueryString();
 
         return Inertia::render('Activities/Index', [
             'activities' => $activities,
             'cooperatives' => Cooperative::select('id', 'name')->orderBy('name')->get(),
             'filters' => $request->only(['search', 'status', 'category', 'coop_id', 'per_page']),
+        ]);
+    }
+
+    public function cooperativesParticipating(Activity $activity): Response
+    {
+        $this->enforceCoopScope($activity->coop_id);
+
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+
+        $allCoopIds = Activity::query()
+            ->whereIn('id', $linkedActivityIds)
+            ->whereNotNull('coop_id')
+            ->distinct()
+            ->pluck('coop_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $cooperatives = Cooperative::query()
+            ->select('id', 'name', 'classification', 'status')
+            ->whereIn('id', $allCoopIds)
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Activities/CooperativesParticipating', [
+            'activity' => [
+                'id' => $activity->id,
+                'title' => $activity->title,
+            ],
+            'cooperatives' => $cooperatives,
+        ]);
+    }
+
+    public function participantsByCooperative(Activity $activity, Cooperative $cooperative): Response
+    {
+        $this->enforceCoopScope($activity->coop_id);
+
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+
+        $isParticipating = Activity::query()
+            ->whereIn('id', $linkedActivityIds)
+            ->where('coop_id', $cooperative->id)
+            ->exists();
+
+        if (! $isParticipating) {
+            abort(404);
+        }
+
+        $participants = ActivityParticipant::query()
+            ->with(['member:id,first_name,last_name,email,phone,coop_id'])
+            ->whereIn('activity_id', $linkedActivityIds)
+            ->whereHas('member', fn ($query) => $query->where('coop_id', $cooperative->id))
+            ->latest()
+            ->get();
+
+        return Inertia::render('Activities/ParticipantsByCooperative', [
+            'activity' => [
+                'id' => $activity->id,
+                'title' => $activity->title,
+            ],
+            'cooperative' => [
+                'id' => $cooperative->id,
+                'name' => $cooperative->name,
+            ],
+            'participants' => $participants,
         ]);
     }
 
