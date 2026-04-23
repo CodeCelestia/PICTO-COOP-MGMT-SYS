@@ -135,7 +135,7 @@ class ActivityController extends Controller
         }
 
         $user = auth()->user();
-        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region', 'classification')->orderBy('name');
         $officersQuery = Officer::with('member:id,first_name,last_name')
             ->select('id', 'member_id', 'coop_id')
             ->orderBy('id');

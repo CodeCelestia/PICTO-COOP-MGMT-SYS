@@ -1184,7 +1184,7 @@ const toggleRole = (roleId: number) => {
                                     v-for="coop in filteredCooperatives"
                                     :key="coop.id"
                                     type="button"
-                                    class="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition hover:bg-muted/50 md:border-r md:[&:nth-child(2n)]:border-r-0"
+                                    class="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition hover:bg-muted/50 md:border-r md:nth-[2n]:border-r-0"
                                     @click="selectCooperativeForCreate(coop)"
                                 >
                                     <div>

@@ -24,6 +24,7 @@ interface Cooperative {
     registration_number?: string | null;
     status?: string | null;
     region?: string | null;
+    classification?: string | null;
 }
 
 interface OfficerOption {

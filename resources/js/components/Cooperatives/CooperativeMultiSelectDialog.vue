@@ -29,6 +29,7 @@ interface CooperativeOption {
     registration_number?: string | null;
     status?: string | null;
     region?: string | null;
+    classification?: string | null;
 }
 
 interface Props {
@@ -56,6 +57,7 @@ const emit = defineEmits<{
 const searchQuery = ref('');
 const statusFilter = ref('all');
 const regionFilter = ref('all');
+const classificationFilter = ref('all');
 const draftSelectedIds = ref<string[]>([]);
 
 const normalizeId = (id: string | number) => String(id);
@@ -67,6 +69,7 @@ watch(() => props.open, (isOpen) => {
     searchQuery.value = '';
     statusFilter.value = 'all';
     regionFilter.value = 'all';
+    classificationFilter.value = 'all';
 });
 
 const sortedCooperatives = computed(() =>
@@ -89,6 +92,14 @@ const regionOptions = computed(() => {
     return Array.from(new Set(regions)).sort((a, b) => a.localeCompare(b));
 });
 
+const classificationOptions = computed(() => {
+    const classifications = sortedCooperatives.value
+        .map((coop) => (coop.classification || '').trim())
+        .filter(Boolean);
+
+    return Array.from(new Set(classifications)).sort((a, b) => a.localeCompare(b));
+});
+
 const filteredCooperatives = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
 
@@ -104,6 +115,13 @@ const filteredCooperatives = computed(() => {
 
         const matchesStatus = statusFilter.value === 'all' || (coop.status || '') === statusFilter.value;
         if (!matchesStatus) {
+            return false;
+        }
+
+        const matchesClassification = classificationFilter.value === 'all'
+            || String(coop.classification || '') === classificationFilter.value;
+
+        if (!matchesClassification) {
             return false;
         }
 
@@ -178,6 +196,28 @@ const getStatusBadgeClass = (status: string | null | undefined) => {
     return 'rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-200';
 };
 
+const getClassificationBadgeClass = (classification: string | null | undefined) => {
+    const normalized = String(classification || '').trim().toLowerCase();
+
+    if (normalized === 'micro') {
+        return 'rounded-full border border-purple-200 bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-200';
+    }
+
+    if (normalized === 'small') {
+        return 'rounded-full border border-indigo-200 bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:border-indigo-500/50 dark:bg-indigo-500/20 dark:text-indigo-200';
+    }
+
+    if (normalized === 'medium') {
+        return 'rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-500/50 dark:bg-amber-500/20 dark:text-amber-200';
+    }
+
+    if (normalized === 'large') {
+        return 'rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-200';
+    }
+
+    return 'rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-200';
+};
+
 const regionBadgeClass =
     'rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-300';
 </script>
@@ -193,7 +233,7 @@ const regionBadgeClass =
             </DialogHeader>
 
             <div class="grid gap-4 py-2">
-                <div class="grid gap-3 sm:grid-cols-4">
+<div class="grid gap-3 sm:grid-cols-5">
                     <div class="grid gap-2 sm:col-span-2">
                         <Label for="coop_search">Search</Label>
                         <div class="relative">
@@ -217,6 +257,21 @@ const regionBadgeClass =
                                 <SelectItem value="all">All status</SelectItem>
                                 <SelectItem v-for="status in statusOptions" :key="status" :value="status">
                                     {{ status }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="coop_classification_filter">Classification</Label>
+                        <Select v-model="classificationFilter">
+                            <SelectTrigger id="coop_classification_filter">
+                                <SelectValue placeholder="All classifications" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All classifications</SelectItem>
+                                <SelectItem v-for="classification in classificationOptions" :key="classification" :value="classification">
+                                    {{ classification.charAt(0).toUpperCase() + classification.slice(1) }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -278,6 +333,9 @@ const regionBadgeClass =
                                 <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                     <Badge v-if="coop.status" :class="getStatusBadgeClass(coop.status)">
                                         {{ coop.status }}
+                                    </Badge>
+                                    <Badge v-if="coop.classification" :class="getClassificationBadgeClass(coop.classification)">
+                                        {{ coop.classification?.charAt(0).toUpperCase() + coop.classification?.slice(1) }}
                                     </Badge>
                                     <Badge v-if="coop.region" :class="regionBadgeClass">
                                         {{ coop.region }}
