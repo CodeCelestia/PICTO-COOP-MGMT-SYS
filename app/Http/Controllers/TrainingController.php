@@ -243,7 +243,7 @@ class TrainingController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
@@ -256,9 +256,22 @@ class TrainingController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
+        $cooperatives = $cooperativesQuery->get();
+        $requestedCoopId = (int) $request->input('coop_id');
+        $isCooperativeContext = $request->boolean('coop_context') && $requestedCoopId > 0;
+        $contextCooperativeId = null;
+
+        if ($isCooperativeContext && $cooperatives->contains('id', $requestedCoopId)) {
+            $contextCooperativeId = $requestedCoopId;
+        } else {
+            $isCooperativeContext = false;
+        }
+
         return Inertia::render('Trainings/Create', [
-            'cooperatives' => $cooperativesQuery->get(),
+            'cooperatives' => $cooperatives,
             'members' => $this->mapMembers($this->buildMembersQuery()->get()),
+            'isCooperativeContext' => $isCooperativeContext,
+            'contextCooperativeId' => $contextCooperativeId,
         ]);
     }
 

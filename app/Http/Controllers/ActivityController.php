@@ -38,6 +38,7 @@ class ActivityController extends Controller
             ->where('target_community_beneficiaries', $activity->target_community_beneficiaries)
             ->where('actual_member_beneficiaries', $activity->actual_member_beneficiaries)
             ->where('actual_community_beneficiaries', $activity->actual_community_beneficiaries)
+            ->where('venue', $activity->venue)
             ->where('implementing_partner', $activity->implementing_partner)
             ->where('outcomes', $activity->outcomes)
             ->where('outcomes_attachment_path', $activity->outcomes_attachment_path)
@@ -128,6 +129,7 @@ class ActivityController extends Controller
             'target_community_beneficiaries',
             'actual_member_beneficiaries',
             'actual_community_beneficiaries',
+            'venue',
             'implementing_partner',
             'outcomes',
             'outcomes_attachment_path',
@@ -251,7 +253,7 @@ class ActivityController extends Controller
     /**
      * Show the form for creating a new activity.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
@@ -268,8 +270,19 @@ class ActivityController extends Controller
             $officersQuery->where('coop_id', $user->coop_id);
         }
 
+        $cooperatives = $cooperativesQuery->get();
+        $requestedCoopId = (int) $request->input('coop_id');
+        $isCooperativeContext = $request->boolean('coop_context') && $requestedCoopId > 0;
+        $contextCooperativeId = null;
+
+        if ($isCooperativeContext && $cooperatives->contains('id', $requestedCoopId)) {
+            $contextCooperativeId = $requestedCoopId;
+        } else {
+            $isCooperativeContext = false;
+        }
+
         return Inertia::render('Activities/Create', [
-            'cooperatives' => $cooperativesQuery->get(),
+            'cooperatives' => $cooperatives,
             'officers' => $officersQuery->get()->map(function ($officer) {
                 return [
                     'id' => $officer->id,
@@ -277,6 +290,8 @@ class ActivityController extends Controller
                     'coop_id' => $officer->coop_id,
                 ];
             }),
+            'isCooperativeContext' => $isCooperativeContext,
+            'contextCooperativeId' => $contextCooperativeId,
         ]);
     }
 
@@ -314,9 +329,10 @@ class ActivityController extends Controller
             'target_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'actual_member_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'actual_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
+            'venue' => ['nullable', 'string', 'max:255'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
-            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
@@ -327,7 +343,7 @@ class ActivityController extends Controller
             'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'funding_sources.*.remarks' => ['nullable', 'string'],
             'funding_sources.*.attachments' => ['nullable', 'array', 'max:3'],
-            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'funding_sources.*.attachments_removed' => ['nullable', 'array'],
             'funding_sources.*.attachments_removed.*' => ['string'],
         ]);
@@ -489,9 +505,10 @@ class ActivityController extends Controller
             'target_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'actual_member_beneficiaries' => ['nullable', 'integer', 'min:0'],
             'actual_community_beneficiaries' => ['nullable', 'integer', 'min:0'],
+            'venue' => ['nullable', 'string', 'max:255'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
-            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'outcomes_attachment_removed' => ['nullable', 'boolean'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
@@ -504,7 +521,7 @@ class ActivityController extends Controller
             'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'funding_sources.*.remarks' => ['nullable', 'string'],
             'funding_sources.*.attachments' => ['nullable', 'array', 'max:3'],
-            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,jpg,jpeg,png'],
+            'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'funding_sources.*.attachments_removed' => ['nullable', 'array'],
             'funding_sources.*.attachments_removed.*' => ['string'],
         ]);

@@ -55,6 +55,7 @@ interface Activity {
     date_started: string | null;
     date_ended: string | null;
     status: string;
+    venue: string | null;
     responsible_officer_id: number | null;
     funding_source: string | null;
     cooperative: Cooperative;
@@ -287,7 +288,7 @@ const bulkDeleteActivities = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreate" href="/activities/create">
+                    <Link v-if="canCreate" :href="lockedCoopId ? `/activities/create?coop_id=${lockedCoopId}&coop_context=1` : '/activities/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Activity
@@ -412,6 +413,7 @@ const bulkDeleteActivities = async () => {
                             <TableHead>Activity</TableHead>
                             <TableHead>{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
                             <TableHead>Category</TableHead>
+                            <TableHead>Venue</TableHead>
                             <TableHead>Dates</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Responsible</TableHead>
@@ -420,7 +422,7 @@ const bulkDeleteActivities = async () => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="activities.data.length === 0">
-                            <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="text-center text-muted-foreground">
+                            <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="text-center text-muted-foreground">
                                 No activities found.
                             </TableCell>
                         </TableRow>
@@ -453,6 +455,7 @@ const bulkDeleteActivities = async () => {
                                 <span v-else>{{ activity.cooperative.name }}</span>
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.category }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ activity.venue || 'N/A' }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">
                                 {{ formatDateRange(activity.date_started, activity.date_ended) }}
                             </TableCell>
@@ -577,6 +580,10 @@ const bulkDeleteActivities = async () => {
                     <div class="space-y-1 sm:col-span-2">
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funding Source</p>
                         <p class="text-foreground">{{ selectedActivity.funding_source || 'N/A' }}</p>
+                    </div>
+                    <div class="space-y-1 sm:col-span-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Venue</p>
+                        <p class="text-foreground">{{ selectedActivity.venue || 'N/A' }}</p>
                     </div>
                     <div class="space-y-1 sm:col-span-2">
                         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>

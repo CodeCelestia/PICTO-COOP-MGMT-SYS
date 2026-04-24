@@ -255,7 +255,7 @@ const bulkDeleteTrainings = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreate" href="/trainings/create">
+                    <Link v-if="canCreate" :href="lockedCoopId ? `/trainings/create?coop_id=${lockedCoopId}&coop_context=1` : '/trainings/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Training

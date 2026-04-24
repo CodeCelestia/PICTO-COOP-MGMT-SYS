@@ -67,6 +67,9 @@ const isCoopScoped = computed(() => Boolean(page.props.auth?.user?.coop_id) && !
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
 const backToListHref = computed(() => (isCoopScoped.value ? '/cooperatives/my?tab=members' : '/members'));
 const { isAppBackgroundVisible } = useAppBackgroundPreference();
+const goBack = () => {
+    window.history.back();
+};
 
 const tabs: LiftedTab[] = [
     { id: 'profile', label: 'Member Profile', icon: IdCard },
@@ -154,12 +157,10 @@ const memberInfoPanelClass = computed(() =>
                         <p class="mt-1 text-sm text-muted-foreground">Profile, services, activities, and training history in one view.</p>
                     </div>
                     <div class="flex shrink-0 flex-wrap items-center gap-2">
-                        <Link :href="backToListHref">
-                            <Button variant="outline" size="sm" class="gap-2">
-                                <ArrowLeft class="h-4 w-4" />
-                                Back to list
-                            </Button>
-                        </Link>
+                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
+                            <ArrowLeft class="h-4 w-4" />
+                            Back
+                        </Button>
                         <Link v-if="canEditMember" :href="`/members/${props.member.id}/edit`">
                             <Button size="sm" class="gap-2">
                                 <Pencil class="h-4 w-4" />

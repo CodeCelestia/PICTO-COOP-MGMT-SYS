@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $target_community_beneficiaries
  * @property int|null $actual_member_beneficiaries
  * @property int|null $actual_community_beneficiaries
+ * @property string|null $venue
  * @property string|null $implementing_partner
  * @property string|null $outcomes
  * @property string|null $outcomes_attachment_path
@@ -51,6 +52,7 @@ class Activity extends Model
         'target_community_beneficiaries',
         'actual_member_beneficiaries',
         'actual_community_beneficiaries',
+        'venue',
         'implementing_partner',
         'outcomes',
         'outcomes_attachment_path',

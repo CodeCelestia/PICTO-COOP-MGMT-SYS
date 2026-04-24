@@ -220,7 +220,7 @@ const regionBadgeClass =
 
 <template>
     <Dialog :open="open" @update:open="(value) => emit('update:open', value)">
-        <DialogContent class="w-full max-w-5xl max-h-[85vh] overflow-hidden">
+        <DialogContent class="w-full max-w-6xl sm:max-w-6xl md:max-w-6xl max-h-[85vh] overflow-hidden">
             <DialogHeader>
                 <DialogTitle>{{ title }}</DialogTitle>
                 <DialogDescription>
@@ -243,11 +243,11 @@ const regionBadgeClass =
                         </div>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-3">
-                        <div class="grid gap-2">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="grid gap-2 min-w-0">
                             <Label for="coop_status_filter">Status</Label>
                             <Select v-model="statusFilter">
-                                <SelectTrigger id="coop_status_filter">
+                                <SelectTrigger id="coop_status_filter" class="w-full truncate">
                                     <SelectValue placeholder="All status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -259,10 +259,10 @@ const regionBadgeClass =
                             </Select>
                         </div>
 
-                        <div class="grid gap-2">
+                        <div class="grid gap-2 min-w-0">
                             <Label for="coop_classification_filter">Classification</Label>
                             <Select v-model="classificationFilter">
-                                <SelectTrigger id="coop_classification_filter">
+                                <SelectTrigger id="coop_classification_filter" class="w-full truncate">
                                     <SelectValue placeholder="All classifications" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -274,10 +274,10 @@ const regionBadgeClass =
                             </Select>
                         </div>
 
-                        <div class="grid gap-2">
+                        <div class="grid gap-2 min-w-0">
                             <Label for="coop_region_filter">Region</Label>
                             <Select v-model="regionFilter">
-                                <SelectTrigger id="coop_region_filter">
+                                <SelectTrigger id="coop_region_filter" class="w-full truncate">
                                     <SelectValue placeholder="All regions" />
                                 </SelectTrigger>
                                 <SelectContent>
