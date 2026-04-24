@@ -9,11 +9,14 @@ use App\Models\SavingsTransaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SavingsController extends Controller
 {
+    use LogsActivityWithChanges;
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -116,6 +119,14 @@ class SavingsController extends Controller
             return $savings;
         });
 
+        $this->logDetailedActivity(
+            'created',
+            $savings,
+            [],
+            $savings->fresh()->getAttributes(),
+            'Savings'
+        );
+
         return redirect()->route('finance.savings.show', $savings)
             ->with('success', 'Savings account created successfully.');
     }
@@ -159,7 +170,16 @@ class SavingsController extends Controller
             'account_status' => ['required', 'in:Active,Dormant,Closed'],
         ]);
 
+        $oldValues = $savings->getAttributes();
         $savings->update($validated);
+
+        $this->logDetailedActivity(
+            'updated',
+            $savings,
+            $oldValues,
+            $savings->fresh()->getAttributes(),
+            'Savings'
+        );
 
         return redirect()->route('finance.savings.show', $savings)
             ->with('success', 'Savings account updated successfully.');
@@ -173,10 +193,19 @@ class SavingsController extends Controller
 
         $this->enforceSavingsAccess($savings, $request->user());
 
+        $oldValues = $savings->getAttributes();
         $savings->update([
             'account_status' => 'Closed',
             'closed_at' => now()->toDateString(),
         ]);
+
+        $this->logDetailedActivity(
+            'deleted',
+            $savings,
+            $oldValues,
+            $savings->fresh()->getAttributes(),
+            'Savings'
+        );
 
         return redirect()->route('finance.savings.index')
             ->with('success', 'Savings account closed successfully.');

@@ -11,6 +11,7 @@ use App\Models\CommitteeMember;
 use App\Models\Activity;
 use App\Models\Training;
 use App\Models\LoanType;
+use App\Traits\LogsActivityWithChanges;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -19,6 +20,8 @@ use Inertia\Inertia;
 
 class CooperativeController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function canViewAllCooperatives(): bool
     {
         $user = auth()->user();
@@ -144,6 +147,7 @@ class CooperativeController extends Controller
         $accreditations = $validated['accreditations'] ?? [];
         unset($validated['accreditations']);
 
+        $oldValues = [];
         $cooperative = Cooperative::create($validated);
         $cooperative->types()->sync($typeIds);
 
@@ -166,6 +170,14 @@ class CooperativeController extends Controller
             'changed_at' => now(),
             'remarks' => 'Initial cooperative status set during creation.',
         ]);
+
+        $this->logDetailedActivity(
+            'created',
+            $cooperative,
+            [],
+            $cooperative->fresh()->getAttributes(),
+            'Cooperatives'
+        );
 
         return redirect()->route('cooperatives.index')
             ->with('success', 'Cooperative created successfully.');
@@ -251,6 +263,7 @@ class CooperativeController extends Controller
         $typeIds = $validated['type_ids'];
         unset($validated['type_ids']);
 
+        $oldValues = $cooperative->getAttributes();
         $previousStatus = $cooperative->status;
         $newStatus = $validated['status'];
         $changeReason = $validated['change_reason'] ?? null;
@@ -310,6 +323,14 @@ class CooperativeController extends Controller
             ]);
         }
 
+        $this->logDetailedActivity(
+            'updated',
+            $cooperative,
+            $oldValues,
+            $cooperative->fresh()->getAttributes(),
+            'Cooperatives'
+        );
+
         return redirect()->route('cooperatives.index')
             ->with('success', 'Cooperative updated successfully.');
     }
@@ -320,7 +341,16 @@ class CooperativeController extends Controller
             abort(403, 'You do not have permission to delete cooperative profiles.');
         }
 
+        $oldValues = $cooperative->getAttributes();
         $cooperative->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $cooperative,
+            $oldValues,
+            [],
+            'Cooperatives'
+        );
 
         return redirect()->route('cooperatives.index')
             ->with('success', 'Cooperative deleted successfully.');

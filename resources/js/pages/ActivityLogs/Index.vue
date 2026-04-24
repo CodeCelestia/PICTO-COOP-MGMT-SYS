@@ -46,11 +46,15 @@ interface ActivityItem {
     changed_at: string | null;
     old_value: Record<string, unknown> | null;
     new_value: Record<string, unknown> | null;
+    changes?: Record<string, { old: unknown; new: unknown }>;
     description: string;
     event: string;
     subject_type: string;
     subject_id: number;
     causer: Causer | null;
+    ip_address?: string | null;
+    user_name?: string | null;
+    module_name?: string | null;
     properties: {
         attributes?: Record<string, unknown>;
         old?: Record<string, unknown>;
@@ -570,18 +574,43 @@ const activeTotal = computed(() => {
                                                         <p class="text-sm text-muted-foreground">{{ activity.description }}</p>
                                                     </div>
 
-                                                    <div class="grid gap-4 md:grid-cols-2">
-                                                        <div>
-                                                            <h4 class="mb-2 text-sm font-semibold">Old Value:</h4>
-                                                            <div class="rounded-md border border-red-200 bg-red-100/40 p-3 text-sm dark:border-red-500/40 dark:bg-red-500/10">
-                                                                <pre class="text-xs">{{ JSON.stringify(activity.old_value || {}, null, 2) }}</pre>
+                                                    <div class="grid gap-4 md:grid-cols-2 mb-4">
+                                                        <div class="rounded-md border border-border bg-card p-3 text-sm">
+                                                            <div class="font-semibold text-foreground mb-2">User Information</div>
+                                                            <div class="space-y-1 text-xs text-muted-foreground">
+                                                                <div><strong>Name:</strong> {{ activity.user_name || activity.changed_by || 'System' }}</div>
+                                                                <div><strong>Email:</strong> {{ activity.causer?.email || 'N/A' }}</div>
+                                                                <div><strong>IP Address:</strong> <code class="bg-muted p-1 rounded">{{ activity.ip_address || 'N/A' }}</code></div>
                                                             </div>
                                                         </div>
-                                                        <div>
-                                                            <h4 class="mb-2 text-sm font-semibold">New Value:</h4>
-                                                            <div class="rounded-md border border-green-200 bg-green-100/40 p-3 text-sm dark:border-green-500/40 dark:bg-green-500/10">
-                                                                <pre class="text-xs">{{ JSON.stringify(activity.new_value || {}, null, 2) }}</pre>
+                                                        <div class="rounded-md border border-border bg-card p-3 text-sm">
+                                                            <div class="font-semibold text-foreground mb-2">Action Details</div>
+                                                            <div class="space-y-1 text-xs text-muted-foreground">
+                                                                <div><strong>Module:</strong> {{ activity.module_name || activity.subject_type || 'N/A' }}</div>
+                                                                <div><strong>Action:</strong> {{ activity.action }}</div>
+                                                                <div><strong>Record ID:</strong> {{ activity.record_id ?? 'N/A' }}</div>
+                                                                <div><strong>Timestamp:</strong> {{ activity.created_at_full }}</div>
                                                             </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <h4 class="mb-2 text-sm font-semibold">Field Changes:</h4>
+                                                        <div class="space-y-3 rounded-md border border-border bg-card p-3 text-sm">
+                                                            <template v-if="activity.changes && typeof activity.changes === 'object' && Object.keys(activity.changes).length > 0">
+                                                                <div v-for="(change, field) in activity.changes" :key="field" class="rounded-md border border-muted p-3">
+                                                                    <div class="font-medium text-foreground">{{ field }}</div>
+                                                                    <div class="mt-1 text-xs text-muted-foreground">
+                                                                        Old: <span class="font-mono">{{ change.old === null ? 'null' : change.old }}</span>
+                                                                    </div>
+                                                                    <div class="text-xs text-muted-foreground">
+                                                                        New: <span class="font-mono">{{ change.new === null ? 'null' : change.new }}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </template>
+                                                            <template v-else>
+                                                                <div class="text-xs text-muted-foreground">No field-level changes available.</div>
+                                                            </template>
                                                         </div>
                                                     </div>
                                                 </div>

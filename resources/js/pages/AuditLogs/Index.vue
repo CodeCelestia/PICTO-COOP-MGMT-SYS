@@ -35,6 +35,14 @@ interface Causer {
 
 interface Activity {
     id: number;
+    table_name?: string | null;
+    record_id?: number | null;
+    action?: string;
+    changed_by?: string;
+    ip_address?: string | null;
+    user_name?: string | null;
+    module_name?: string | null;
+    changes?: Record<string, { old: unknown; new: unknown }>;
     description: string;
     event: string;
     subject_type: string;
@@ -262,19 +270,57 @@ const getSubjectIcon = (subjectType: string) => {
                                     <TableRow v-if="expandedRow === activity.id" class="bg-muted/30">
                                         <TableCell colspan="6" class="p-6">
                                             <div class="space-y-4">
-                                                <!-- Old Values -->
-                                                <div v-if="activity.properties.old && Object.keys(activity.properties.old).length > 0">
-                                                    <h4 class="mb-2 font-semibold text-sm">Previous Values:</h4>
-                                                    <div class="rounded-md bg-red-50 p-3 text-sm">
-                                                        <pre class="text-xs">{{ JSON.stringify(activity.properties.old, null, 2) }}</pre>
+                                                <div class="grid gap-4 md:grid-cols-2 mb-4">
+                                                    <div class="rounded-md border border-border bg-card p-3 text-sm">
+                                                        <div class="font-semibold text-foreground mb-2">User Information</div>
+                                                        <div class="space-y-1 text-xs text-muted-foreground">
+                                                            <div><strong>Name:</strong> {{ activity.user_name || activity.changed_by || 'System' }}</div>
+                                                            <div><strong>Email:</strong> {{ activity.causer?.email || 'N/A' }}</div>
+                                                            <div><strong>IP Address:</strong> <code class="bg-muted p-1 rounded">{{ activity.ip_address || 'N/A' }}</code></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="rounded-md border border-border bg-card p-3 text-sm">
+                                                        <div class="font-semibold text-foreground mb-2">Action Details</div>
+                                                        <div class="space-y-1 text-xs text-muted-foreground">
+                                                            <div><strong>Module:</strong> {{ activity.module_name || activity.subject_type || 'N/A' }}</div>
+                                                            <div><strong>Action:</strong> {{ activity.action || activity.event }}</div>
+                                                            <div><strong>Record ID:</strong> {{ activity.record_id ?? 'N/A' }}</div>
+                                                            <div><strong>Timestamp:</strong> {{ activity.created_at_full }}</div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <!-- New Values -->
-                                                <div v-if="activity.properties.attributes && Object.keys(activity.properties.attributes).length > 0">
-                                                    <h4 class="mb-2 font-semibold text-sm">New Values:</h4>
-                                                    <div class="rounded-md bg-green-50 p-3 text-sm">
-                                                        <pre class="text-xs">{{ JSON.stringify(activity.properties.attributes, null, 2) }}</pre>
+                                                <div>
+                                                    <h4 class="mb-2 font-semibold text-sm">
+                                                        {{ activity.event === 'created' ? 'Fields Created:' : activity.event === 'deleted' ? 'Fields Deleted:' : 'Field Changes:' }}
+                                                    </h4>
+                                                    <div class="space-y-3 rounded-md border border-border bg-card p-3 text-sm">
+                                                        <template v-if="activity.changes && Object.keys(activity.changes).length > 0">
+                                                            <div v-for="(change, field) in activity.changes" :key="field" class="rounded-md border border-muted p-3">
+                                                                <div class="font-medium text-foreground">{{ field }}</div>
+                                                                <template v-if="activity.event === 'created'">
+                                                                    <div class="mt-1 text-xs text-muted-foreground">
+                                                                        Value: <span class="font-mono text-xs bg-green-500/10 px-2 py-1 rounded">{{ change?.new === null ? 'null' : change?.new }}</span>
+                                                                    </div>
+                                                                </template>
+                                                                <template v-else-if="activity.event === 'deleted'">
+                                                                    <div class="mt-1 text-xs text-muted-foreground">
+                                                                        Was: <span class="font-mono text-xs bg-red-500/10 px-2 py-1 rounded">{{ change?.old === null ? 'null' : change?.old }}</span>
+                                                                    </div>
+                                                                </template>
+                                                                <template v-else>
+                                                                    <div class="mt-1 text-xs text-muted-foreground">
+                                                                        Old: <span class="font-mono text-xs bg-red-500/10 px-2 py-1 rounded">{{ change?.old === null ? 'null' : change?.old }}</span>
+                                                                    </div>
+                                                                    <div class="text-xs text-muted-foreground">
+                                                                        New: <span class="font-mono text-xs bg-green-500/10 px-2 py-1 rounded">{{ change?.new === null ? 'null' : change?.new }}</span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template v-else>
+                                                            <div class="text-xs text-muted-foreground">No changes recorded for this action.</div>
+                                                        </template>
                                                     </div>
                                                 </div>
                                             </div>

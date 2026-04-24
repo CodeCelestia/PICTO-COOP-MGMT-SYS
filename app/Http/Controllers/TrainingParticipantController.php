@@ -10,11 +10,14 @@ use App\Models\TrainingParticipant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TrainingParticipantController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -197,7 +200,15 @@ class TrainingParticipantController extends Controller
             }
         }
 
-        TrainingParticipant::create($validated);
+        $participant = TrainingParticipant::create($validated);
+
+        $this->logDetailedActivity(
+            'created',
+            $participant,
+            [],
+            $participant->fresh()->getAttributes(),
+            'Training Participants'
+        );
 
         return redirect()->route('training-participants.index')
             ->with('success', 'Training participant added successfully.');
@@ -301,7 +312,16 @@ class TrainingParticipantController extends Controller
         $trainingParticipant->load('training');
         $this->enforceCoopScope($trainingParticipant->training->coop_id);
 
+        $oldValues = $trainingParticipant->getAttributes();
         $trainingParticipant->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $trainingParticipant,
+            $oldValues,
+            [],
+            'Training Participants'
+        );
 
         return redirect()->route('training-participants.index')
             ->with('success', 'Training participant removed successfully.');

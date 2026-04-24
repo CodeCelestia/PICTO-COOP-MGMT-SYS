@@ -16,11 +16,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ActivityController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function resolveGroupedActivityIds(Activity $activity): Collection
     {
         return Activity::query()
@@ -427,6 +430,14 @@ class ActivityController extends Controller
                     'attachment_names' => $source['attachment_names'] ?? null,
                 ]);
             }
+
+            $this->logDetailedActivity(
+                'created',
+                $activity,
+                [],
+                $activity->fresh()->getAttributes(),
+                'Activities'
+            );
         }
 
         $successMessage = $createdCount > 1
@@ -539,6 +550,8 @@ class ActivityController extends Controller
             }
         }
 
+        $oldValues = $activity->getAttributes();
+
         if ($request->hasFile('outcomes_attachment')) {
             if (!empty($activity->outcomes_attachment_path)) {
                 Storage::disk('public')->delete($activity->outcomes_attachment_path);
@@ -568,6 +581,14 @@ class ActivityController extends Controller
         unset($validated['funding_sources']);
 
         $activity->update($validated);
+
+        $this->logDetailedActivity(
+            'updated',
+            $activity,
+            $oldValues,
+            $activity->fresh()->getAttributes(),
+            'Activities'
+        );
 
         $incomingIds = collect($fundingSources)
             ->pluck('id')
@@ -651,7 +672,16 @@ class ActivityController extends Controller
 
         $this->enforceCoopScope($activity->coop_id);
 
+        $oldValues = $activity->getAttributes();
         $activity->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $activity,
+            $oldValues,
+            [],
+            'Activities'
+        );
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity deleted successfully.');

@@ -10,12 +10,16 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use App\Traits\LogsActivityWithChanges;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class OfficerController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -188,6 +192,14 @@ class OfficerController extends Controller
         DB::transaction(function () use ($validated, $reason, $electionYear) {
             $officer = Officer::create($validated);
             $this->logTermHistory($officer, $validated, $reason ?: 'Initial appointment', $electionYear);
+
+            $this->logDetailedActivity(
+                'created',
+                $officer,
+                [],
+                $officer->fresh()->getAttributes(),
+                'Officers'
+            );
         });
 
         return redirect()->route('officers.index')
@@ -300,6 +312,8 @@ class OfficerController extends Controller
         $electionYear = $validated['election_year'] ?? null;
         unset($validated['reason_for_change'], $validated['election_year']);
 
+        $oldValues = $officer->getAttributes();
+
         $historySnapshot = array_intersect_key($validated, array_flip([
             'member_id',
             'coop_id',
@@ -329,6 +343,14 @@ class OfficerController extends Controller
                     $electionYear
                 );
             }
+
+            $this->logDetailedActivity(
+                'updated',
+                $officer,
+                $oldValues,
+                $officer->fresh()->getAttributes(),
+                'Officers'
+            );
         });
 
         return redirect()->route('officers.index')
@@ -346,7 +368,16 @@ class OfficerController extends Controller
 
         $this->enforceCoopScope($officer->coop_id);
 
+        $oldValues = $officer->getAttributes();
         $officer->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $officer,
+            $oldValues,
+            [],
+            'Officers'
+        );
 
         return redirect()->route('officers.index')
             ->with('success', 'Officer deleted successfully.');

@@ -9,11 +9,14 @@ use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ActivityParticipantController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -168,7 +171,15 @@ class ActivityParticipantController extends Controller
 
         $validated['is_beneficiary'] = (bool) ($validated['is_beneficiary'] ?? false);
 
-        ActivityParticipant::create($validated);
+        $participant = ActivityParticipant::create($validated);
+
+        $this->logDetailedActivity(
+            'created',
+            $participant,
+            [],
+            $participant->fresh()->getAttributes(),
+            'Activity Participants'
+        );
 
         return redirect()->route('activity-participants.index')
             ->with('success', 'Activity participant added successfully.');
@@ -264,7 +275,16 @@ class ActivityParticipantController extends Controller
         $activityParticipant->load('activity');
         $this->enforceCoopScope($activityParticipant->activity->coop_id);
 
+        $oldValues = $activityParticipant->getAttributes();
         $activityParticipant->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $activityParticipant,
+            $oldValues,
+            [],
+            'Activity Participants'
+        );
 
         return redirect()->route('activity-participants.index')
             ->with('success', 'Activity participant removed successfully.');

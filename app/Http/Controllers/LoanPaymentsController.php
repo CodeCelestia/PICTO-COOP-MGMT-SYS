@@ -8,9 +8,12 @@ use App\Models\MemberLoan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivityWithChanges;
 
 class LoanPaymentsController extends Controller
 {
+    use LogsActivityWithChanges;
+
     public function store(Request $request, MemberLoan $loan): RedirectResponse
     {
         $user = $request->user();
@@ -30,7 +33,9 @@ class LoanPaymentsController extends Controller
         ]);
 
         DB::transaction(function () use ($loan, $validated, $user) {
-            $loan->loadMissing(['member:id,first_name,last_name', 'loanType:id,name']);
+            $oldValues = $loan->getAttributes();
+
+        $loan->loadMissing(['member:id,first_name,last_name', 'loanType:id,name']);
 
             $schedule = $loan->payments()
                 ->whereNotNull('payment_number')
@@ -81,6 +86,14 @@ class LoanPaymentsController extends Controller
                 $loan->update(['status' => 'Completed']);
             }
         });
+
+        $this->logDetailedActivity(
+            'payment_recorded',
+            $loan,
+            $oldValues,
+            $loan->fresh()->getAttributes(),
+            'Loan Payments'
+        );
 
         return back()->with('success', 'Loan payment recorded successfully.');
     }

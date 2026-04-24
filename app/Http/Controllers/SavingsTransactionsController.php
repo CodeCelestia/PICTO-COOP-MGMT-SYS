@@ -8,9 +8,12 @@ use App\Models\SavingsTransaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivityWithChanges;
 
 class SavingsTransactionsController extends Controller
 {
+    use LogsActivityWithChanges;
+
     public function store(Request $request, MemberSavings $savings): RedirectResponse
     {
         $user = $request->user();
@@ -28,6 +31,8 @@ class SavingsTransactionsController extends Controller
         if ($validated['type'] === 'Withdrawal' && (float) $validated['amount'] > (float) $savings->current_balance) {
             return back()->withErrors(['amount' => 'Insufficient balance for withdrawal.']);
         }
+
+        $oldValues = $savings->getAttributes();
 
         DB::transaction(function () use ($validated, $savings, $user) {
             $newBalance = $validated['type'] === 'Deposit'
@@ -58,6 +63,14 @@ class SavingsTransactionsController extends Controller
                 'recorded_by' => $user?->name,
             ]);
         });
+
+        $this->logDetailedActivity(
+            'transaction_recorded',
+            $savings,
+            $oldValues,
+            $savings->fresh()->getAttributes(),
+            'Savings Transactions'
+        );
 
         return back()->with('success', 'Savings transaction recorded successfully.');
     }

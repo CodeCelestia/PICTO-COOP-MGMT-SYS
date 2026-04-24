@@ -11,11 +11,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LoansController extends Controller
 {
+    use LogsActivityWithChanges;
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -226,6 +229,14 @@ class LoansController extends Controller
             return $loan;
         });
 
+        $this->logDetailedActivity(
+            'created',
+            $loan,
+            [],
+            $loan->fresh()->getAttributes(),
+            'Loans'
+        );
+
         return redirect()
             ->route('finance.loans.show', $loan)
             ->with('success', 'Loan application created successfully.');
@@ -280,7 +291,16 @@ class LoansController extends Controller
             'status' => ['required', 'in:Pending,Approved,Active,Completed,Defaulted,Rejected'],
         ]);
 
+        $oldValues = $loan->getAttributes();
         $loan->update($validated);
+
+        $this->logDetailedActivity(
+            'updated',
+            $loan,
+            $oldValues,
+            $loan->fresh()->getAttributes(),
+            'Loans'
+        );
 
         return redirect()->route('finance.loans.show', $loan)
             ->with('success', 'Loan updated successfully.');
@@ -294,7 +314,16 @@ class LoansController extends Controller
 
         $this->enforceLoanAccess($loan, $request->user());
 
+        $oldValues = $loan->getAttributes();
         $loan->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $loan,
+            $oldValues,
+            [],
+            'Loans'
+        );
 
         return redirect()->route('finance.loans.index')
             ->with('success', 'Loan deleted successfully.');
@@ -312,12 +341,22 @@ class LoansController extends Controller
             return back()->withErrors(['error' => 'Only pending or rejected loans can be approved.']);
         }
 
+        $oldValues = $loan->getAttributes();
+
         $loan->update([
             'status' => 'Approved',
             'approved_by' => $request->user()?->id,
             'approved_at' => now(),
             'remarks' => $request->input('remarks'),
         ]);
+
+        $this->logDetailedActivity(
+            'approved',
+            $loan,
+            $oldValues,
+            $loan->fresh()->getAttributes(),
+            'Loans'
+        );
 
         return back()->with('success', 'Loan approved successfully.');
     }
@@ -339,6 +378,8 @@ class LoansController extends Controller
             'disbursement_method' => ['required', 'in:check,cash,bank_transfer'],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        $oldValues = $loan->getAttributes();
 
         DB::transaction(function () use ($loan, $validated, $request) {
             $loan->loadMissing(['member:id,first_name,last_name', 'loanType:id,name']);
@@ -363,6 +404,14 @@ class LoansController extends Controller
                 'recorded_by' => $request->user()?->name,
             ]);
         });
+
+        $this->logDetailedActivity(
+            'disbursed',
+            $loan,
+            $oldValues,
+            $loan->fresh()->getAttributes(),
+            'Loans'
+        );
 
         return back()->with('success', 'Loan disbursed successfully.');
     }

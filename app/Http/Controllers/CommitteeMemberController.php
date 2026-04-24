@@ -8,11 +8,14 @@ use App\Models\Member;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CommitteeMemberController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function isCoopAdmin(): bool
     {
         $user = auth()->user();
@@ -164,7 +167,15 @@ class CommitteeMemberController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not have the Committee Member role.']);
         }
 
-        CommitteeMember::create($validated);
+        $committeeMember = CommitteeMember::create($validated);
+
+        $this->logDetailedActivity(
+            'created',
+            $committeeMember,
+            [],
+            $committeeMember->fresh()->getAttributes(),
+            'Committee Members'
+        );
 
         return redirect()->route('committee-members.index')
             ->with('success', 'Committee member added successfully.');
@@ -253,7 +264,16 @@ class CommitteeMemberController extends Controller
             return back()->withErrors(['member_id' => 'Selected member does not have the Committee Member role.']);
         }
 
+        $oldValues = $committeeMember->getAttributes();
         $committeeMember->update($validated);
+
+        $this->logDetailedActivity(
+            'updated',
+            $committeeMember,
+            $oldValues,
+            $committeeMember->fresh()->getAttributes(),
+            'Committee Members'
+        );
 
         return redirect()->route('committee-members.index')
             ->with('success', 'Committee member updated successfully.');
@@ -270,7 +290,16 @@ class CommitteeMemberController extends Controller
 
         $this->enforceCoopScope($committeeMember->coop_id);
 
+        $oldValues = $committeeMember->getAttributes();
         $committeeMember->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $committeeMember,
+            $oldValues,
+            [],
+            'Committee Members'
+        );
 
         return redirect()->route('committee-members.index')
             ->with('success', 'Committee member removed successfully.');

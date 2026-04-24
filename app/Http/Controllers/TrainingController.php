@@ -11,11 +11,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TrainingController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function resolveGroupedTrainingIds(Training $training): Collection
     {
         return Training::query()
@@ -366,6 +369,14 @@ class TrainingController extends Controller
                     'member_id' => $memberId,
                 ]);
             }
+
+            $this->logDetailedActivity(
+                'created',
+                $training,
+                [],
+                $training->fresh()->getAttributes(),
+                'Trainings'
+            );
         }
 
         $successMessage = $createdCount > 1
@@ -434,6 +445,7 @@ class TrainingController extends Controller
             $validated['coop_id'] = $coopId;
         }
 
+        $oldValues = $training->getAttributes();
         $validated['follow_up_needed'] = (bool) ($validated['follow_up_needed'] ?? false);
         if (!$validated['follow_up_needed']) {
             $validated['follow_up_date'] = null;
@@ -460,6 +472,14 @@ class TrainingController extends Controller
         $this->enforceCoopScope((int) $validated['coop_id']);
 
         $training->update($validated);
+
+        $this->logDetailedActivity(
+            'updated',
+            $training,
+            $oldValues,
+            $training->fresh()->getAttributes(),
+            'Trainings'
+        );
 
         $existingMemberIds = $training->participants()->pluck('member_id');
         $memberIdsToAdd = $memberIdsForCoop->diff($existingMemberIds);
@@ -488,7 +508,16 @@ class TrainingController extends Controller
 
         $this->enforceCoopScope($training->coop_id);
 
+        $oldValues = $training->getAttributes();
         $training->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $training,
+            $oldValues,
+            [],
+            'Trainings'
+        );
 
         return redirect()->route('trainings.index')
             ->with('success', 'Training record deleted successfully.');

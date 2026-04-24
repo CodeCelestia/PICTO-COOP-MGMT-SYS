@@ -12,6 +12,7 @@ use App\Models\MemberSectorHistory;
 use App\Models\MemberServiceAvailed;
 use App\Models\ActivityParticipant;
 use App\Models\User;
+use App\Traits\LogsActivityWithChanges;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,8 @@ use Illuminate\Http\RedirectResponse;
 
 class MemberController extends Controller
 {
+    use LogsActivityWithChanges;
+
     private function cooperativeSelectionData(Request $request): array
     {
         $query = Cooperative::query();
@@ -599,6 +602,14 @@ class MemberController extends Controller
         $member = Member::create($validated);
         $member->roles()->sync($validated['role_ids'] ?? []);
 
+        $this->logDetailedActivity(
+            'created',
+            $member,
+            [],
+            $member->fresh()->getAttributes(),
+            'Members'
+        );
+
         return redirect()->route('members.index')
             ->with('success', 'Member created successfully.');
     }
@@ -859,6 +870,7 @@ class MemberController extends Controller
             'sector',
         ])->toArray();
 
+        $oldValues = $member->getAttributes();
         $previousSector = $member->sector;
         $previousLivelihood = $member->primary_livelihood;
         $newSector = $memberData['sector'] ?? null;
@@ -866,9 +878,17 @@ class MemberController extends Controller
         $sectorChanged = $newSector !== $previousSector;
         $livelihoodChanged = $newLivelihood !== $previousLivelihood;
 
-        DB::transaction(function () use ($member, $memberData, $validated, $sectorChanged, $livelihoodChanged, $previousSector, $previousLivelihood, $newSector, $newLivelihood) {
+        DB::transaction(function () use ($member, $memberData, $validated, $sectorChanged, $livelihoodChanged, $previousSector, $previousLivelihood, $newSector, $newLivelihood, $oldValues) {
             $member->update($memberData);
             $member->roles()->sync($validated['role_ids'] ?? []);
+
+            $this->logDetailedActivity(
+                'updated',
+                $member,
+                $oldValues,
+                $member->fresh()->getAttributes(),
+                'Members'
+            );
 
             $userAccount = $member->user;
             if ($userAccount) {
@@ -911,7 +931,16 @@ class MemberController extends Controller
             abort(403);
         }
 
+        $oldValues = $member->getAttributes();
         $member->delete();
+
+        $this->logDetailedActivity(
+            'deleted',
+            $member,
+            $oldValues,
+            [],
+            'Members'
+        );
 
         return redirect()->route('members.index')
             ->with('success', 'Member deleted successfully.');
