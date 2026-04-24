@@ -2,6 +2,7 @@
 import { router, Link, usePage } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, Users, Eye, FileText } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import FilterPanel from '@/components/FilterPanel.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -29,7 +30,6 @@ import {
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
-import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
 interface Cooperative {
@@ -411,7 +411,7 @@ const bulkDeleteActivities = async () => {
                                 />
                             </TableHead>
                             <TableHead>Activity</TableHead>
-                            <TableHead>{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
+                            <TableHead :class="isSidebarCreateView ? 'text-center' : ''">{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Venue</TableHead>
                             <TableHead>Dates</TableHead>
@@ -445,7 +445,7 @@ const bulkDeleteActivities = async () => {
                                     </div>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">
+                            <TableCell :class="['text-sm text-muted-foreground', isSidebarCreateView ? 'text-center' : '']">
                                 <span
                                     v-if="isSidebarCreateView"
                                     :class="['inline-flex min-w-10 items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold', cooperativeCountBadgeClass(cooperativesParticipatingCount(activity))]"

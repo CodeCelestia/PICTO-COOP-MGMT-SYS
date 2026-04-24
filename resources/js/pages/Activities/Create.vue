@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, ClipboardList, File, FileImage, FileSpreadsheet, FileText, Lock, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
+import { ArrowLeft, ClipboardList, File, FileText, Lock, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,10 +16,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction, notifyError, notifySuccess } from '@/lib/alerts';
-import { useCoopLabel } from '@/composables/useCoopLabel';
 
 interface Cooperative {
     id: number;
@@ -51,7 +50,7 @@ interface FundingSourceFormRow {
     date_released: string;
     status: string;
     remarks: string;
-    attachments: Array<File | null>;
+    attachments: File[];
     is_saved?: boolean;
 }
 
@@ -71,7 +70,6 @@ const page = usePage();
 const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateActivity = computed(() => permissions.value.includes('create activities-&-projects'));
-const { cooperativeLabel } = useCoopLabel();
 const isCooperativeContext = computed(() => Boolean(props.isCooperativeContext && props.contextCooperativeId));
 const lockedCooperativeId = computed(() => {
     if (!isCooperativeContext.value || !props.contextCooperativeId) return '';
@@ -82,8 +80,7 @@ const initialCooperativeIds = computed(() => {
         return [lockedCooperativeId.value];
     }
 
-    const firstCoopId = props.cooperatives[0]?.id;
-    return firstCoopId ? [String(firstCoopId)] : [];
+    return [];
 });
 
 const form = useForm({
@@ -116,10 +113,27 @@ const statusOptions = ['Planned', 'In Progress', 'Completed', 'Archived', 'Cance
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
 const maxFundingSourceFiles = 3;
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const isCooperativeDialogOpen = ref(false);
 const selectedCoopIds = ref<string[]>(form.coop_ids);
+const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
+const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
 const goBack = () => {
     window.history.back();
+};
+
+const showFileSizeError = (fileName: string) => {
+    notifyError(`"${fileName}" exceeds the ${MAX_FILE_SIZE_MB}MB limit. Please upload a smaller file.`);
+};
+
+const isFileTooLarge = (file: File) => {
+    if (file.size <= MAX_FILE_SIZE_BYTES) {
+        return false;
+    }
+
+    showFileSizeError(file.name);
+    return true;
 };
 
 const selectedCooperatives = computed(() => {
@@ -134,7 +148,7 @@ const lockedCooperative = computed(() => {
 const selectedCooperativeSummary = computed(() => {
     const count = selectedCoopIds.value.length;
 
-    if (count === 0) return 'Choose Cooperative(s)';
+    if (count === 0) return 'No cooperatives selected';
     if (count === 1) return selectedCooperatives.value[0]?.name || '1 cooperative selected';
 
     return `${count} cooperatives selected`;
@@ -225,16 +239,42 @@ const addFundingSource = () => {
     });
 };
 
-const addFundingSourceAttachment = (index: number) => {
-    if (form.funding_sources[index].attachments.length >= maxFundingSourceFiles) return;
-    form.funding_sources[index].attachments.push(null);
+const setFundingFileInputRef = (index: number, element: HTMLInputElement | null) => {
+    fundingFileInputRefs.value[index] = element;
 };
 
-const updateFundingSourceAttachment = (event: Event, index: number, fileIndex: number) => {
+const triggerFundingSourceFilePicker = (index: number) => {
+    const source = form.funding_sources[index];
+    if (!source) return;
+
+    if (source.attachments.length >= maxFundingSourceFiles) {
+        return;
+    }
+
+    fundingFileInputRefs.value[index]?.click();
+};
+
+const updateFundingSourceAttachment = (event: Event, index: number) => {
     const input = event.target as HTMLInputElement | null;
-    const nextFile = input?.files?.[0] || null;
-    form.funding_sources[index].attachments[fileIndex] = nextFile;
-    if (nextFile) notifySuccess('File added to funding source.');
+    const nextFile = input?.files?.[0];
+    if (!nextFile) return;
+
+    const source = form.funding_sources[index];
+    if (!source) return;
+
+    if (source.attachments.length >= maxFundingSourceFiles) {
+        input.value = '';
+        return;
+    }
+
+    if (isFileTooLarge(nextFile)) {
+        input.value = '';
+        return;
+    }
+
+    source.attachments.push(nextFile);
+    input.value = '';
+    notifySuccess('File added to funding source.');
 };
 
 const removeFundingSourceAttachment = async (index: number, fileIndex: number) => {
@@ -245,15 +285,6 @@ const removeFundingSourceAttachment = async (index: number, fileIndex: number) =
     });
     if (!ok) return;
     form.funding_sources[index].attachments.splice(fileIndex, 1);
-};
-
-const fileKindFromName = (name: string) => {
-    const extension = name.split('.').pop()?.toLowerCase() || '';
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) return 'image';
-    if (extension === 'pdf') return 'pdf';
-    if (['doc', 'docx'].includes(extension)) return 'word';
-    if (['xls', 'xlsx'].includes(extension)) return 'excel';
-    return 'other';
 };
 
 const formatFileSize = (bytes: number) => {
@@ -318,8 +349,7 @@ const getAttachmentToneClasses = (kind: AttachmentKind) => {
 };
 
 const fundingSourceFiles = (source: FundingSourceFormRow) => source.attachments
-    .map((file, pendingIndex) => (file ? buildFileDisplayItem(file, pendingIndex) : null))
-    .filter((entry): entry is FileDisplayItem => Boolean(entry));
+    .map((file, pendingIndex) => buildFileDisplayItem(file, pendingIndex));
 
 const outcomesAttachment = computed(() => (
     form.outcomes_attachment ? buildFileDisplayItem(form.outcomes_attachment, 0) : null
@@ -328,8 +358,19 @@ const outcomesAttachment = computed(() => (
 const updateOutcomesAttachment = (event: Event) => {
     const input = event.target as HTMLInputElement | null;
     const nextFile = input?.files?.[0] || null;
+
+    if (nextFile && isFileTooLarge(nextFile)) {
+        if (input) input.value = '';
+        return;
+    }
+
     form.outcomes_attachment = nextFile;
+    if (input) input.value = '';
     if (nextFile) notifySuccess('Outcomes attachment added.');
+};
+
+const triggerOutcomesFilePicker = () => {
+    outcomesFileInputRef.value?.click();
 };
 
 const removeOutcomesAttachment = async () => {
@@ -376,7 +417,7 @@ const submit = () => {
             amount_released: source.amount_released || null,
             date_released: source.date_released || null,
             remarks: source.remarks || null,
-            attachments: source.attachments.filter((file): file is File => Boolean(file)),
+            attachments: source.attachments,
         })),
         outcomes_attachment: data.outcomes_attachment || null,
     })).post('/activities', {
@@ -607,7 +648,14 @@ const cancel = () => {
                                     <p class="text-xs text-muted-foreground">PDF, Word, Excel, or image files are supported.</p>
                                 </div>
                             </div>
-                            <Input id="outcomes_attachment" type="file" class="min-w-56 flex-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateOutcomesAttachment" />
+                            <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateOutcomesAttachment" />
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Button type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
+                                    <Plus class="h-3.5 w-3.5" />
+                                    Add File
+                                </Button>
+                                <span class="text-xs text-muted-foreground">Maximum file size: {{ MAX_FILE_SIZE_MB }}MB per file</span>
+                            </div>
                             <div v-if="!outcomesAttachment" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                                 No file added yet. Use the file input above to add a supporting document.
                             </div>
@@ -701,20 +749,23 @@ const cancel = () => {
                                         <div>
                                             <Label class="mb-2 block">Files</Label>
                                             <div class="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
-                                                <div v-if="source.attachments.length === 0" class="flex flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-                                                    <Upload class="h-5 w-5" />
-                                                    <p>No files added yet.</p>
-                                                    <div class="flex flex-wrap items-center justify-center gap-2">
-                                                        <Input type="file" class="min-w-56 flex-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateFundingSourceAttachment($event, index, 0)" />
-                                                        <Button type="button" variant="outline" size="sm" class="gap-1" :disabled="source.attachments.length >= maxFundingSourceFiles" @click="addFundingSourceAttachment(index)">
-                                                            <Plus class="h-3.5 w-3.5" />
-                                                            Add File
-                                                        </Button>
-                                                    </div>
+                                                <input :ref="(el) => setFundingFileInputRef(index, el as HTMLInputElement | null)" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateFundingSourceAttachment($event, index)" />
+
+                                                <div class="mb-3 flex flex-wrap items-center gap-2">
+                                                    <Button v-if="source.attachments.length < maxFundingSourceFiles" type="button" variant="outline" size="sm" class="gap-1" @click="triggerFundingSourceFilePicker(index)">
+                                                        <Plus class="h-3.5 w-3.5" />
+                                                        Add File
+                                                    </Button>
+                                                    <span class="text-xs text-muted-foreground">{{ source.attachments.length }} of {{ maxFundingSourceFiles }} files added</span>
+                                                    <span class="text-xs text-muted-foreground">Maximum file size: {{ MAX_FILE_SIZE_MB }}MB per file</span>
+                                                </div>
+
+                                                <div v-if="source.attachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                                    No files added yet.
                                                 </div>
 
                                                 <div v-else class="space-y-3">
-                                                    <div v-for="(file, fileIndex) in fundingSourceFiles(source)" :key="`${file.name}-${file.pendingIndex}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center">
+                                                    <div v-for="file in fundingSourceFiles(source)" :key="`${file.name}-${file.pendingIndex}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center">
                                                         <div class="flex min-w-0 flex-1 items-center gap-3">
                                                             <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border" :class="getAttachmentToneClasses(file.kind)">
                                                                 <img v-if="file.kind === 'image' && file.previewUrl" :src="file.previewUrl" :alt="file.name" class="h-full w-full object-cover" />
@@ -732,17 +783,6 @@ const cancel = () => {
                                                         <div class="flex items-center gap-2 sm:justify-end">
                                                             <Button type="button" variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="removeFundingSourceAttachment(index, file.pendingIndex)">
                                                                 <X class="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                v-if="fileIndex === source.attachments.length - 1 && source.attachments.length < maxFundingSourceFiles"
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                class="gap-1"
-                                                                @click="addFundingSourceAttachment(index)"
-                                                            >
-                                                                <Plus class="h-3.5 w-3.5" />
-                                                                Add File
                                                             </Button>
                                                         </div>
                                                     </div>

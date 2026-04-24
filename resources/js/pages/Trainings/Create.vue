@@ -19,7 +19,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { notifyError, notifySuccess } from '@/lib/alerts';
-import { useCoopLabel } from '@/composables/useCoopLabel';
 
 interface Cooperative {
     id: number;
@@ -52,7 +51,6 @@ const page = usePage();
 const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateTraining = computed(() => permissions.value.includes('create training-&-capacity'));
-const { cooperativeLabel } = useCoopLabel();
 const isCooperativeContext = computed(() => Boolean(props.isCooperativeContext && props.contextCooperativeId));
 const lockedCooperativeId = computed(() => {
     if (!isCooperativeContext.value || !props.contextCooperativeId) return '';
@@ -63,8 +61,7 @@ const initialCooperativeIds = computed(() => {
         return [lockedCooperativeId.value];
     }
 
-    const firstCoopId = props.cooperatives[0]?.id;
-    return firstCoopId ? [String(firstCoopId)] : [];
+    return [];
 });
 
 const form = useForm({
@@ -104,7 +101,7 @@ const lockedCooperative = computed(() => {
 const selectedCooperativeSummary = computed(() => {
     const count = selectedCoopIds.value.length;
 
-    if (count === 0) return 'Choose Cooperative(s)';
+    if (count === 0) return 'No cooperatives selected';
     if (count === 1) return selectedCooperatives.value[0]?.name || '1 cooperative selected';
 
     return `${count} cooperatives selected`;

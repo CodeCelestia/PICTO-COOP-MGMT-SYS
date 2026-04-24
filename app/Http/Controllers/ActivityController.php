@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Activity;
 use App\Models\ActivityFundingSource;
 use App\Models\ActivityParticipant;
@@ -81,6 +82,15 @@ class ActivityController extends Controller
         if (($this->isCoopAdmin() || $this->isOfficer()) && $user?->coop_id && $coopId !== $user->coop_id) {
             abort(403);
         }
+    }
+
+    private function normalizeDateInput(mixed $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        return Carbon::parse($value)->toDateString();
     }
 
     /**
@@ -451,7 +461,7 @@ class ActivityController extends Controller
     /**
      * Show the form for editing an activity.
      */
-    public function edit(Activity $activity): Response
+    public function edit(Request $request, Activity $activity): Response
     {
         $user = auth()->user();
 
@@ -461,7 +471,7 @@ class ActivityController extends Controller
 
         $this->enforceCoopScope($activity->coop_id);
 
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region', 'classification')->orderBy('name');
         $officersQuery = Officer::with('member:id,first_name,last_name')
             ->select('id', 'member_id', 'coop_id')
             ->orderBy('id');
@@ -471,9 +481,41 @@ class ActivityController extends Controller
             $officersQuery->where('coop_id', $user->coop_id);
         }
 
+        $cooperatives = $cooperativesQuery->get();
+        $requestedCoopId = (int) $request->input('coop_id');
+        $isCooperativeContext = $request->boolean('coop_context') && $requestedCoopId > 0;
+        $contextCooperativeId = null;
+
+        if ($isCooperativeContext && $cooperatives->contains('id', $requestedCoopId)) {
+            $contextCooperativeId = $requestedCoopId;
+        } else {
+            $isCooperativeContext = false;
+        }
+
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+        $assignedCoopIds = Activity::query()
+            ->whereIn('id', $linkedActivityIds)
+            ->whereNotNull('coop_id')
+            ->distinct()
+            ->pluck('coop_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $cooperatives->contains('id', $id))
+            ->values()
+            ->all();
+
+        $activity->load(['cooperative', 'responsibleOfficer.member', 'fundingSources']);
+
         return Inertia::render('Activities/Edit', [
-            'activity' => $activity->load(['cooperative', 'responsibleOfficer.member', 'fundingSources']),
-            'cooperatives' => $cooperativesQuery->get(),
+            'activity' => array_merge($activity->toArray(), [
+                'date_started' => optional($activity->date_started)->format('Y-m-d'),
+                'date_ended' => optional($activity->date_ended)->format('Y-m-d'),
+                'funding_sources' => $activity->fundingSources->map(function ($source) {
+                    return array_merge($source->toArray(), [
+                        'date_released' => optional($source->date_released)->format('Y-m-d'),
+                    ]);
+                })->values()->all(),
+            ]),
+            'cooperatives' => $cooperatives,
             'officers' => $officersQuery->get()->map(function ($officer) {
                 return [
                     'id' => $officer->id,
@@ -481,6 +523,9 @@ class ActivityController extends Controller
                     'coop_id' => $officer->coop_id,
                 ];
             }),
+            'isCooperativeContext' => $isCooperativeContext,
+            'contextCooperativeId' => $contextCooperativeId,
+            'assigned_coop_ids' => $assignedCoopIds,
         ]);
     }
 
@@ -495,13 +540,18 @@ class ActivityController extends Controller
             abort(403);
         }
 
-        $this->enforceCoopScope($activity->coop_id);
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+        $linkedActivities = Activity::query()->whereIn('id', $linkedActivityIds)->get()->keyBy('coop_id');
 
         $coopId = $user?->coop_id;
         $validated = $request->validate([
             'coop_id' => $this->isCoopAdmin() && $coopId
-                ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
-                : ['required', 'exists:cooperatives,id'],
+                ? ['nullable', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['nullable', 'exists:cooperatives,id'],
+            'coop_ids' => ['nullable', 'array'],
+            'coop_ids.*' => $this->isCoopAdmin() && $coopId
+                ? ['integer', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['integer', 'exists:cooperatives,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['required', Rule::in(['Project', 'Outreach', 'Event', 'Livelihood', 'Training', 'Infrastructure', 'Other'])],
@@ -537,21 +587,46 @@ class ActivityController extends Controller
             'funding_sources.*.attachments_removed.*' => ['string'],
         ]);
 
+        $selectedCoopIds = collect($validated['coop_ids'] ?? [])
+            ->merge(!empty($validated['coop_id']) ? [$validated['coop_id']] : [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         if ($this->isCoopAdmin() && $coopId) {
-            $validated['coop_id'] = $coopId;
+            $selectedCoopIds = collect([(int) $coopId]);
         }
 
-        $this->enforceCoopScope((int) $validated['coop_id']);
+        if ($selectedCoopIds->isEmpty()) {
+            return back()->withErrors([
+                'coop_ids' => 'Please select at least one cooperative.',
+            ])->withInput();
+        }
+
+        $selectedCoopIds->each(fn (int $selectedCoopId) => $this->enforceCoopScope($selectedCoopId));
+
+        $validated['date_started'] = $this->normalizeDateInput($validated['date_started'] ?? null);
+        $validated['date_ended'] = $this->normalizeDateInput($validated['date_ended'] ?? null);
+
+        if ($selectedCoopIds->count() > 1) {
+            $validated['responsible_officer_id'] = null;
+        }
 
         if (!empty($validated['responsible_officer_id'])) {
             $officer = Officer::find($validated['responsible_officer_id']);
-            if ($officer && $officer->coop_id !== (int) $validated['coop_id']) {
-                return back()->withErrors(['responsible_officer_id' => 'Selected officer does not belong to this cooperative.']);
+            if ($officer && ! $selectedCoopIds->contains((int) $officer->coop_id)) {
+                return back()->withErrors(['responsible_officer_id' => 'Selected officer does not belong to any selected cooperative.']);
             }
+        }
+
+        if (!empty($validated['responsible_officer_id'])) {
+            $validated['responsible_officer_id'] = (int) $validated['responsible_officer_id'];
         }
 
         $oldValues = $activity->getAttributes();
 
+        $validated['outcomes_attachment_path'] = $activity->outcomes_attachment_path;
         if ($request->hasFile('outcomes_attachment')) {
             if (!empty($activity->outcomes_attachment_path)) {
                 Storage::disk('public')->delete($activity->outcomes_attachment_path);
@@ -578,84 +653,63 @@ class ActivityController extends Controller
                 $fundingSources[$index]['attachment_names'] = $names;
             }
         }
-        unset($validated['funding_sources']);
 
-        $activity->update($validated);
+        unset($validated['funding_sources'], $validated['coop_ids']);
 
-        $this->logDetailedActivity(
-            'updated',
-            $activity,
-            $oldValues,
-            $activity->fresh()->getAttributes(),
-            'Activities'
-        );
+        DB::transaction(function () use ($activity, $validated, $selectedCoopIds, $fundingSources, $linkedActivities, $oldValues) {
+            $updatedCurrentActivity = null;
 
-        $incomingIds = collect($fundingSources)
-            ->pluck('id')
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        ActivityFundingSource::where('activity_id', $activity->id)
-            ->whereNotIn('id', $incomingIds)
-            ->delete();
-
-        foreach ($fundingSources as $source) {
-            $payload = [
-                'coop_id' => $activity->coop_id,
-                'funder_name' => $source['funder_name'],
-                'funder_type' => $source['funder_type'],
-                'amount_allocated' => $source['amount_allocated'] ?? null,
-                'amount_released' => $source['amount_released'] ?? null,
-                'date_released' => $source['date_released'] ?? null,
-                'status' => $source['status'],
-                'remarks' => $source['remarks'] ?? null,
-            ];
-
-            if (array_key_exists('attachment_paths', $source)) {
-                $payload['attachment_paths'] = $source['attachment_paths'];
-                $payload['attachment_names'] = $source['attachment_names'] ?? [];
+            foreach ($linkedActivities as $linkedActivity) {
+                if (! $selectedCoopIds->contains((int) $linkedActivity->coop_id)) {
+                    $linkedActivity->fundingSources()->delete();
+                    $linkedActivity->delete();
+                }
             }
 
-            if (!empty($source['id'])) {
-                $fundingSource = ActivityFundingSource::where('id', (int) $source['id'])
-                    ->where('activity_id', $activity->id)
-                    ->first();
+            foreach ($selectedCoopIds as $selectedCoopId) {
+                $payload = $validated;
+                $payload['coop_id'] = (int) $selectedCoopId;
 
-                if ($fundingSource) {
-                    $attachmentPaths = $fundingSource->attachment_paths ?? [];
-                    $attachmentNames = $fundingSource->attachment_names ?? [];
-
-                    if (!empty($source['attachments_removed'])) {
-                        foreach ($source['attachments_removed'] as $removedPath) {
-                            $index = array_search($removedPath, $attachmentPaths, true);
-                            if ($index !== false) {
-                                Storage::disk('public')->delete($attachmentPaths[$index]);
-                                array_splice($attachmentPaths, $index, 1);
-                                array_splice($attachmentNames, $index, 1);
-                            }
-                        }
+                $linkedActivity = $linkedActivities->get((int) $selectedCoopId);
+                if ($linkedActivity) {
+                    if ($linkedActivity->is($activity)) {
+                        $updatedCurrentActivity = $linkedActivity;
                     }
 
-                    if (!empty($source['attachment_paths'])) {
-                        $attachmentPaths = array_merge($attachmentPaths, $source['attachment_paths']);
-                        $attachmentNames = array_merge($attachmentNames, $source['attachment_names'] ?? []);
-                    }
-
-                    $payload['attachment_paths'] = $attachmentPaths;
-                    $payload['attachment_names'] = $attachmentNames;
-
-                    $fundingSource->update($payload);
-                }
-            } else {
-                if (!empty($source['attachment_paths'])) {
-                    $payload['attachment_paths'] = $source['attachment_paths'];
-                    $payload['attachment_names'] = $source['attachment_names'] ?? [];
+                    $linkedActivity->update($payload);
+                    $linkedActivity->fundingSources()->delete();
+                } else {
+                    $linkedActivity = Activity::create($payload);
                 }
 
-                $activity->fundingSources()->create($payload);
+                foreach ($fundingSources as $source) {
+                    $linkedActivity->fundingSources()->create([
+                        'coop_id' => $linkedActivity->coop_id,
+                        'funder_name' => $source['funder_name'],
+                        'funder_type' => $source['funder_type'],
+                        'amount_allocated' => $source['amount_allocated'] ?? null,
+                        'amount_released' => $source['amount_released'] ?? null,
+                        'date_released' => $source['date_released'] ?? null,
+                        'status' => $source['status'],
+                        'remarks' => $source['remarks'] ?? null,
+                        'attachment_paths' => $source['attachment_paths'] ?? null,
+                        'attachment_names' => $source['attachment_names'] ?? [],
+                    ]);
+                }
+
+                if ($linkedActivity->is($activity)) {
+                    $updatedCurrentActivity = $linkedActivity;
+                }
             }
-        }
+
+            $this->logDetailedActivity(
+                'updated',
+                $updatedCurrentActivity ?? $activity,
+                $oldValues,
+                (($updatedCurrentActivity ?? $activity)->fresh()?->getAttributes()) ?? ($updatedCurrentActivity ?? $activity)->getAttributes(),
+                'Activities'
+            );
+        });
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity updated successfully.');

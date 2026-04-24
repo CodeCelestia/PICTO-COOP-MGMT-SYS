@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Cooperative;
 use App\Models\Member;
 use App\Models\Training;
 use App\Models\TrainingParticipant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -68,6 +70,15 @@ class TrainingController extends Controller
         if (($this->isCoopAdmin() || $this->isOfficer()) && $user?->coop_id && $coopId !== $user->coop_id) {
             abort(403);
         }
+    }
+
+    private function normalizeDateInput(mixed $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        return Carbon::parse($value)->toDateString();
     }
 
     private function buildMembersQuery()
@@ -327,6 +338,9 @@ class TrainingController extends Controller
             ])->withInput();
         }
 
+        $validated['date_conducted'] = $this->normalizeDateInput($validated['date_conducted'] ?? null);
+        $validated['follow_up_date'] = $this->normalizeDateInput($validated['follow_up_date'] ?? null);
+
         $validated['follow_up_needed'] = (bool) ($validated['follow_up_needed'] ?? false);
         if (!$validated['follow_up_needed']) {
             $validated['follow_up_date'] = null;
@@ -339,12 +353,19 @@ class TrainingController extends Controller
             ->values();
 
         $members = Member::whereIn('id', $memberIds)->get(['id', 'coop_id']);
-        $membersByCoop = $members->groupBy('coop_id')->map(fn ($group) => $group->pluck('id'));
+        $membersByCoop = $members->groupBy('coop_id')->map(fn ($group) => $group->pluck('id')->values());
 
         $invalidMemberIds = $memberIds->diff($members->pluck('id'));
         if ($invalidMemberIds->isNotEmpty()) {
             return back()->withErrors([
                 'member_ids' => 'One or more selected members are invalid.',
+            ])->withInput();
+        }
+
+        $invalidSelectedCoopMembers = $members->whereNotIn('coop_id', $selectedCoopIds->all())->pluck('id');
+        if ($invalidSelectedCoopMembers->isNotEmpty()) {
+            return back()->withErrors([
+                'member_ids' => 'Selected members must belong to one of the selected cooperatives.',
             ])->withInput();
         }
 
@@ -354,30 +375,32 @@ class TrainingController extends Controller
 
         $createdCount = 0;
 
-        foreach ($selectedCoopIds as $selectedCoopId) {
-            $this->enforceCoopScope((int) $selectedCoopId);
+        DB::transaction(function () use ($validated, $selectedCoopIds, $membersByCoop, &$createdCount) {
+            foreach ($selectedCoopIds as $selectedCoopId) {
+                $this->enforceCoopScope((int) $selectedCoopId);
 
-            $payload = $validated;
-            $payload['coop_id'] = (int) $selectedCoopId;
+                $payload = $validated;
+                $payload['coop_id'] = (int) $selectedCoopId;
 
-            $training = Training::create($payload);
-            $createdCount++;
+                $training = Training::create($payload);
+                $createdCount++;
 
-            foreach ($membersByCoop->get($selectedCoopId, collect()) as $memberId) {
-                TrainingParticipant::firstOrCreate([
-                    'training_id' => $training->id,
-                    'member_id' => $memberId,
-                ]);
+                foreach ($membersByCoop->get((int) $selectedCoopId, collect()) as $memberId) {
+                    TrainingParticipant::firstOrCreate([
+                        'training_id' => $training->id,
+                        'member_id' => $memberId,
+                    ]);
+                }
+
+                $this->logDetailedActivity(
+                    'created',
+                    $training,
+                    [],
+                    $training->fresh()->getAttributes(),
+                    'Trainings'
+                );
             }
-
-            $this->logDetailedActivity(
-                'created',
-                $training,
-                [],
-                $training->fresh()->getAttributes(),
-                'Trainings'
-            );
-        }
+        });
 
         $successMessage = $createdCount > 1
             ? "Training records created successfully for {$createdCount} cooperatives."
@@ -387,7 +410,7 @@ class TrainingController extends Controller
             ->with('success', $successMessage);
     }
 
-    public function edit(Training $training): Response
+    public function edit(Request $request, Training $training): Response
     {
         $user = auth()->user();
 
@@ -397,19 +420,47 @@ class TrainingController extends Controller
 
         $this->enforceCoopScope($training->coop_id);
 
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'region', 'classification')->orderBy('name');
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);
         }
+
+        $cooperatives = $cooperativesQuery->get();
+        $requestedCoopId = (int) $request->input('coop_id');
+        $isCooperativeContext = $request->boolean('coop_context') && $requestedCoopId > 0;
+        $contextCooperativeId = null;
+
+        if ($isCooperativeContext && $cooperatives->contains('id', $requestedCoopId)) {
+            $contextCooperativeId = $requestedCoopId;
+        } else {
+            $isCooperativeContext = false;
+        }
+
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+        $assignedCoopIds = Training::query()
+            ->whereIn('id', $linkedTrainingIds)
+            ->whereNotNull('coop_id')
+            ->distinct()
+            ->pluck('coop_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $cooperatives->contains('id', $id))
+            ->values()
+            ->all();
 
         $training->load('cooperative', 'participants.member.roles', 'participants.member.cooperative');
         $selectedMemberIds = $training->participants->pluck('member_id')->toArray();
 
         return Inertia::render('Trainings/Edit', [
-            'training' => $training,
-            'cooperatives' => $cooperativesQuery->get(),
+            'training' => array_merge($training->toArray(), [
+                'date_conducted' => optional($training->date_conducted)->format('Y-m-d'),
+                'follow_up_date' => optional($training->follow_up_date)->format('Y-m-d'),
+            ]),
+            'cooperatives' => $cooperatives,
             'members' => $this->mapMembers($this->buildMembersQuery()->get()),
             'selected_member_ids' => $selectedMemberIds,
+            'isCooperativeContext' => $isCooperativeContext,
+            'contextCooperativeId' => $contextCooperativeId,
+            'assigned_coop_ids' => $assignedCoopIds,
         ]);
     }
 
@@ -424,8 +475,12 @@ class TrainingController extends Controller
 
         $validated = $request->validate([
             'coop_id' => $this->isCoopAdmin() && $coopId
-                ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
-                : ['required', 'exists:cooperatives,id'],
+                ? ['nullable', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['nullable', 'exists:cooperatives,id'],
+            'coop_ids' => ['nullable', 'array'],
+            'coop_ids.*' => $this->isCoopAdmin() && $coopId
+                ? ['integer', 'exists:cooperatives,id', Rule::in([$coopId])]
+                : ['integer', 'exists:cooperatives,id'],
             'member_ids' => ['nullable', 'array'],
             'member_ids.*' => ['integer', 'exists:members,id'],
             'title' => ['required', 'string', 'max:255'],
@@ -441,11 +496,28 @@ class TrainingController extends Controller
             'status' => ['required', Rule::in(['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+        $linkedTrainings = Training::query()->whereIn('id', $linkedTrainingIds)->get()->keyBy('coop_id');
+
+        $selectedCoopIds = collect($validated['coop_ids'] ?? [])
+            ->merge(!empty($validated['coop_id']) ? [$validated['coop_id']] : [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         if ($this->isCoopAdmin() && $coopId) {
-            $validated['coop_id'] = $coopId;
+            $selectedCoopIds = collect([(int) $coopId]);
         }
 
-        $oldValues = $training->getAttributes();
+        if ($selectedCoopIds->isEmpty()) {
+            return back()->withErrors([
+                'coop_ids' => 'Please select at least one cooperative.',
+            ])->withInput();
+        }
+
+        $validated['date_conducted'] = $this->normalizeDateInput($validated['date_conducted'] ?? null);
+        $validated['follow_up_date'] = $this->normalizeDateInput($validated['follow_up_date'] ?? null);
         $validated['follow_up_needed'] = (bool) ($validated['follow_up_needed'] ?? false);
         if (!$validated['follow_up_needed']) {
             $validated['follow_up_date'] = null;
@@ -457,44 +529,90 @@ class TrainingController extends Controller
             ->unique()
             ->values();
 
-        $memberIdsForCoop = Member::whereIn('id', $selectedMemberIds)
-            ->where('coop_id', $training->coop_id)
-            ->pluck('id');
+        $members = Member::whereIn('id', $selectedMemberIds)
+            ->get(['id', 'coop_id']);
 
-        if ($selectedMemberIds->diff($memberIdsForCoop)->isNotEmpty()) {
+        $invalidMemberIds = $selectedMemberIds->diff($members->pluck('id'));
+        if ($invalidMemberIds->isNotEmpty()) {
             return back()->withErrors([
-                'member_ids' => 'Selected members must belong to this cooperative.',
+                'member_ids' => 'One or more selected members are invalid.',
             ])->withInput();
         }
 
-        unset($validated['member_ids']);
-
-        $this->enforceCoopScope((int) $validated['coop_id']);
-
-        $training->update($validated);
-
-        $this->logDetailedActivity(
-            'updated',
-            $training,
-            $oldValues,
-            $training->fresh()->getAttributes(),
-            'Trainings'
-        );
-
-        $existingMemberIds = $training->participants()->pluck('member_id');
-        $memberIdsToAdd = $memberIdsForCoop->diff($existingMemberIds);
-        $memberIdsToRemove = $existingMemberIds->diff($memberIdsForCoop);
-
-        foreach ($memberIdsToAdd as $memberId) {
-            TrainingParticipant::firstOrCreate([
-                'training_id' => $training->id,
-                'member_id' => $memberId,
-            ]);
+        $invalidSelectedCoopMembers = $members->whereNotIn('coop_id', $selectedCoopIds->all())->pluck('id');
+        if ($invalidSelectedCoopMembers->isNotEmpty()) {
+            return back()->withErrors([
+                'member_ids' => 'Selected members must belong to one of the selected cooperatives.',
+            ])->withInput();
         }
 
-        if ($memberIdsToRemove->isNotEmpty()) {
-            $training->participants()->whereIn('member_id', $memberIdsToRemove)->delete();
-        }
+        $membersByCoop = $members->groupBy('coop_id')->map(fn ($group) => $group->pluck('id')->values());
+
+        $oldValues = $training->getAttributes();
+        $sharedPayload = Arr::only($validated, [
+            'title',
+            'date_conducted',
+            'facilitator',
+            'skills_targeted',
+            'venue',
+            'target_group',
+            'no_of_participants',
+            'follow_up_needed',
+            'follow_up_date',
+            'follow_up_remarks',
+            'status',
+        ]);
+
+        unset($validated['member_ids'], $validated['coop_ids']);
+
+        DB::transaction(function () use ($training, $selectedCoopIds, $membersByCoop, $sharedPayload, $linkedTrainings, $oldValues) {
+            $updatedCurrentTraining = null;
+
+            foreach ($linkedTrainings as $linkedTraining) {
+                if (! $selectedCoopIds->contains((int) $linkedTraining->coop_id)) {
+                    $linkedTraining->participants()->delete();
+                    $linkedTraining->delete();
+                }
+            }
+
+            foreach ($selectedCoopIds as $selectedCoopId) {
+                $this->enforceCoopScope((int) $selectedCoopId);
+
+                $payload = $sharedPayload;
+                $payload['coop_id'] = (int) $selectedCoopId;
+
+                $linkedTraining = $linkedTrainings->get((int) $selectedCoopId);
+                if ($linkedTraining) {
+                    if ($linkedTraining->is($training)) {
+                        $updatedCurrentTraining = $linkedTraining;
+                    }
+
+                    $linkedTraining->update($payload);
+                    $linkedTraining->participants()->delete();
+                } else {
+                    $linkedTraining = Training::create($payload);
+                }
+
+                foreach ($membersByCoop->get((int) $selectedCoopId, collect()) as $memberId) {
+                    TrainingParticipant::firstOrCreate([
+                        'training_id' => $linkedTraining->id,
+                        'member_id' => $memberId,
+                    ]);
+                }
+
+                if ($linkedTraining->is($training)) {
+                    $updatedCurrentTraining = $linkedTraining;
+                }
+            }
+
+            $this->logDetailedActivity(
+                'updated',
+                $updatedCurrentTraining ?? $training,
+                $oldValues,
+                (($updatedCurrentTraining ?? $training)->fresh()?->getAttributes()) ?? ($updatedCurrentTraining ?? $training)->getAttributes(),
+                'Trainings'
+            );
+        });
 
         return redirect()->route('trainings.index')
             ->with('success', 'Training record updated successfully.');
