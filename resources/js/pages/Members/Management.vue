@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
-import MemberListPanel from '@/components/panels/MemberListPanel.vue';
+import CooperativeMemberListPanel from '@/components/panels/CooperativeMemberListPanel.vue';
 import ServiceAvailedListPanel from '@/components/panels/ServiceAvailedListPanel.vue';
 import type { Member } from '@/types/models';
 import type { BreadcrumbItem } from '@/types';
@@ -43,8 +43,10 @@ const props = defineProps<{
     memberFilters: {
         search?: string;
         membership_status?: string;
+        membership_type?: string;
         per_page?: string;
     };
+    membershipTypes: string[];
     services: ServiceAvailed[];
     cooperatives: CooperativeSummary[];
 }>();
@@ -136,9 +138,10 @@ watch(
                     <LiftedTabs v-model="activeTab" :tabs="tabs" />
 
                     <div v-show="activeTab === 'members'" class="space-y-4">
-                        <MemberListPanel
+                        <CooperativeMemberListPanel
                             :members="members"
                             :filters="memberFilters"
+                            :membership-types="membershipTypes"
                             :base-url="`${managementBasePath}?tab=members`"
                             query-prefix="members_"
                         />

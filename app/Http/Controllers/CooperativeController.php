@@ -73,7 +73,7 @@ class CooperativeController extends Controller
             $query->where('city_municipality', $request->municipality);
         }
 
-        $perPage = (int) $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 10);
         $perPage = max(1, min($perPage, 500));
 
         $cooperatives = $query->with([
@@ -423,6 +423,7 @@ class CooperativeController extends Controller
 
         $memberSearch = $request->input('members_search');
         $memberStatus = $request->input('members_membership_status');
+        $memberType = $request->input('members_membership_type');
         $memberPerPage = (int) $request->input('members_per_page', 15);
         $memberPerPage = max(1, min($memberPerPage, 500));
 
@@ -446,11 +447,23 @@ class CooperativeController extends Controller
             $membersQuery->where('membership_status', $memberStatus);
         }
 
-        $members = $membersQuery->latest()->paginate($memberPerPage)->withQueryString();
+        if ($memberType) {
+            $membersQuery->where('membership_type', $memberType);
+        }
+
+        $members = $membersQuery->orderBy('last_name')->orderBy('first_name')->paginate($memberPerPage)->withQueryString();
+
+        $membershipTypes = Member::query()
+            ->where('coop_id', $cooperative->id)
+            ->whereNotNull('membership_type')
+            ->distinct()
+            ->orderBy('membership_type')
+            ->pluck('membership_type')
+            ->values();
 
         $officerSearch = $request->input('officers_search');
         $officerStatus = $request->input('officers_status');
-        $officerPerPage = (int) $request->input('officers_per_page', 15);
+        $officerPerPage = (int) $request->input('officers_per_page', 10);
         $officerPerPage = max(1, min($officerPerPage, 500));
 
         $officersQuery = Officer::with(['member', 'cooperative'])
@@ -471,7 +484,7 @@ class CooperativeController extends Controller
 
         $committeeSearch = $request->input('committees_search');
         $committeeStatus = $request->input('committees_status');
-        $committeePerPage = (int) $request->input('committees_per_page', 15);
+        $committeePerPage = (int) $request->input('committees_per_page', 10);
         $committeePerPage = max(1, min($committeePerPage, 500));
 
         $committeeQuery = CommitteeMember::with(['member', 'cooperative'])
@@ -561,8 +574,10 @@ class CooperativeController extends Controller
             'memberFilters' => [
                 'search' => $memberSearch,
                 'membership_status' => $memberStatus,
+                'membership_type' => $memberType,
                 'per_page' => $request->input('members_per_page'),
             ],
+            'membershipTypes' => $membershipTypes,
             'officers' => $officers,
             'officerFilters' => [
                 'search' => $officerSearch,

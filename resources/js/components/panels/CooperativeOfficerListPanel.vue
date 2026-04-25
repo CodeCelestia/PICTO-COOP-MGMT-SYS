@@ -5,8 +5,6 @@ import {
     ChevronsRight,
     ChevronLeft,
     ChevronRight,
-    GraduationCap,
-    Eye,
     Loader2,
     Pencil,
     Plus,
@@ -21,13 +19,6 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -53,86 +44,60 @@ import {
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
 import { confirmAction } from '@/lib/alerts';
-
-interface Cooperative {
-    id: number;
-    name: string;
-}
-
-interface Training {
-    id: number;
-    coop_id: number;
-    cooperatives_count?: number;
-    cooperatives_participating_count?: number;
-    title: string;
-    date_conducted: string | null;
-    facilitator: string | null;
-    target_group: string;
-    status: string;
-    cooperative: Cooperative;
-}
+import type { CooperativeSummary, Officer } from '@/types/models';
 
 interface Props {
-    trainings: {
-        data: Training[];
+    officers: {
+        data: Officer[];
         current_page: number;
         last_page: number;
         per_page: number;
         total: number;
     };
-    cooperatives: Cooperative[];
+    cooperatives: CooperativeSummary[];
     filters: {
         search?: string;
-        status?: string;
-        target_group?: string;
         coop_id?: string;
+        status?: string;
         per_page?: string;
     };
     baseUrl?: string;
     queryPrefix?: string;
     lockCoopId?: string;
-    showParticipantActionInRows?: boolean;
-    showViewActionInRows?: boolean;
 }
 
 const props = defineProps<Props>();
 
-const baseUrl = computed(() => props.baseUrl || '/trainings');
+const baseUrl = computed(() => props.baseUrl || '/officers');
 const queryPrefix = computed(() => props.queryPrefix || '');
 const queryKey = (key: string) => `${queryPrefix.value}${key}`;
-const lockedCoopId = computed(() => props.lockCoopId || '');
-const isSidebarCreateView = computed(() => !lockedCoopId.value);
-const showCoopFilter = computed(() => !lockedCoopId.value);
+const hasCoopLock = computed(() => Boolean(props.lockCoopId));
+const showCoopFilter = computed(() => !hasCoopLock.value);
 
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
-const canCreate = computed(() => permissions.value.includes('create training-&-capacity'));
-const canEdit = computed(() => permissions.value.includes('update training-&-capacity'));
-const canDelete = computed(() => permissions.value.includes('delete training-&-capacity'));
-const canBulkDelete = computed(() => canDelete.value);
-const showParticipantActionInRows = computed(() => isSidebarCreateView.value || props.showParticipantActionInRows || false);
-const showViewActionInRows = computed(() => props.showViewActionInRows || false);
-const showActions = computed(() => showViewActionInRows.value || showParticipantActionInRows.value || canEdit.value || canDelete.value);
-const isViewDialogOpen = ref(false);
-const selectedTraining = ref<Training | null>(null);
+const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
+const canEditOfficer = computed(() => permissions.value.includes('update officers-&-committees'));
+const canDeleteOfficer = computed(() => permissions.value.includes('delete officers-&-committees'));
+const canBulkDelete = computed(() => canDeleteOfficer.value);
+const showActions = computed(() => canEditOfficer.value || canDeleteOfficer.value);
 
 const search = ref(props.filters.search || '');
+const coopId = ref(props.filters.coop_id || props.lockCoopId || 'all');
 const status = ref(props.filters.status || 'all');
-const targetGroup = ref(props.filters.target_group || 'all');
-const coopId = ref(props.filters.coop_id || 'all');
 const presetPageSizes = ['10', '25', '50', '100'];
-const initialPerPageRaw = props.filters.per_page || String(props.trainings.per_page || 10);
+const initialPerPageRaw = props.filters.per_page || String(props.officers.per_page || 10);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : '10');
 const filtersVisible = ref(true);
 const isLoading = ref(false);
 const SEARCH_DEBOUNCE_MS = 300;
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-const currentPage = computed(() => props.trainings.current_page || 1);
-const totalPages = computed(() => Math.max(props.trainings.last_page || 1, 1));
-const showingFrom = computed(() => (props.trainings.total ? (currentPage.value - 1) * props.trainings.per_page + 1 : 0));
-const showingTo = computed(() => (props.trainings.total ? Math.min(currentPage.value * props.trainings.per_page, props.trainings.total) : 0));
+const currentPage = computed(() => props.officers.current_page || 1);
+const totalPages = computed(() => Math.max(props.officers.last_page || 1, 1));
+const showingFrom = computed(() => (props.officers.total ? (currentPage.value - 1) * props.officers.per_page + 1 : 0));
+const showingTo = computed(() => (props.officers.total ? Math.min(currentPage.value * props.officers.per_page, props.officers.total) : 0));
 
 const clearSearchTimer = () => {
     if (searchDebounceTimer) {
@@ -144,8 +109,7 @@ const clearSearchTimer = () => {
 const hasActiveFilters = computed(() => (
     search.value.trim() !== ''
     || status.value !== 'all'
-    || targetGroup.value !== 'all'
-    || coopId.value !== 'all'
+    || (showCoopFilter.value && coopId.value !== 'all')
     || perPage.value !== '10'
 ));
 
@@ -168,28 +132,15 @@ const paginationItems = computed<Array<number | string>>(() => {
     return [1, 'ellipsis-left', current - 1, current, current + 1, 'ellipsis-right', total];
 });
 
-if (lockedCoopId.value) {
-    coopId.value = lockedCoopId.value;
-}
-
-const resolvedPerPage = () => {
-    return perPage.value;
-};
-
-const resolvedCoopId = () => {
-    if (lockedCoopId.value) return lockedCoopId.value;
-    return coopId.value === 'all' ? '' : coopId.value;
-};
-
-const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
-const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
+const resolvedPerPage = () => perPage.value;
 
 const buildQuery = (pageNumber?: number) => {
+    const coopValue = hasCoopLock.value ? props.lockCoopId : coopId.value;
+
     const query: Record<string, string> = {
         [queryKey('search')]: search.value,
+        [queryKey('coop_id')]: coopValue === 'all' ? '' : String(coopValue || ''),
         [queryKey('status')]: status.value === 'all' ? '' : status.value,
-        [queryKey('target_group')]: targetGroup.value === 'all' ? '' : targetGroup.value,
-        [queryKey('coop_id')]: resolvedCoopId(),
         [queryKey('per_page')]: resolvedPerPage(),
     };
 
@@ -218,7 +169,7 @@ watch(search, () => {
     }, SEARCH_DEBOUNCE_MS);
 });
 
-watch([status, targetGroup, coopId, perPage], () => {
+watch([coopId, status, perPage], () => {
     clearSearchTimer();
     applyFilters();
 });
@@ -226,9 +177,8 @@ watch([status, targetGroup, coopId, perPage], () => {
 const resetFilters = () => {
     clearSearchTimer();
     search.value = '';
+    coopId.value = props.lockCoopId || 'all';
     status.value = 'all';
-    targetGroup.value = 'all';
-    coopId.value = lockedCoopId.value || 'all';
     perPage.value = '10';
     applyFilters();
 };
@@ -250,56 +200,28 @@ onUnmounted(() => {
     clearSearchTimer();
 });
 
-const deleteTraining = async (training: Training) => {
-    if (!canDelete.value) return;
+const deleteOfficer = async (officer: Officer) => {
+    if (!canDeleteOfficer.value) return;
     const confirmed = await confirmAction({
-        title: 'Delete training?',
+        title: 'Delete officer record?',
         text: 'This action cannot be undone.',
         confirmButtonText: 'Delete',
     });
 
     if (!confirmed) return;
 
-    router.delete(`/trainings/${training.id}`, {
+    router.delete(`/officers/${officer.id}`, {
         preserveScroll: true,
     });
 };
 
-const formatDate = (date: string | null) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
+const formatTerm = (start: string | null, end: string | null) => {
+    if (!start && !end) return 'N/A';
+    if (start && end) return `${start} - ${end}`;
+    return start || end || 'N/A';
 };
 
-const cooperativesParticipatingCount = (training: Training) => {
-    return Number(training.cooperatives_count ?? training.cooperatives_participating_count ?? 0);
-};
-
-const cooperativeCountBadgeClass = (count: number) => {
-    if (count === 0) {
-        return 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
-    }
-
-    return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200';
-};
-
-const participantsHref = (training: Training) => {
-    if (isSidebarCreateView.value) {
-        return `/trainings/${training.id}/cooperatives-participating`;
-    }
-
-    return `/training-participants?training_id=${training.id}&coop_id=${training.coop_id}`;
-};
-
-const openViewDialog = (training: Training) => {
-    selectedTraining.value = training;
-    isViewDialogOpen.value = true;
-};
-
-const visibleTrainings = computed(() => props.trainings.data);
+const visibleOfficers = computed(() => props.officers.data);
 
 const {
     allVisibleSelected,
@@ -309,40 +231,40 @@ const {
     selectedIds,
     toggleAll,
     toggleOne,
-} = useBulkSelection(visibleTrainings);
+} = useBulkSelection(visibleOfficers);
 
-const bulkDeleteTrainings = async () => {
+const bulkDeleteOfficers = async () => {
     if (!selectedCount.value || !canBulkDelete.value) return;
 
     const confirmed = await confirmAction({
-        title: 'Delete selected trainings?',
-        text: `Delete ${selectedCount.value} selected training record(s)? This action cannot be undone.`,
+        title: 'Delete selected officer records?',
+        text: `Delete ${selectedCount.value} selected officer record(s)? This action cannot be undone.`,
         confirmButtonText: 'Delete selected',
     });
 
     if (!confirmed) return;
 
     const idsToDelete = [...selectedIds.value];
-    await runBulkDelete(idsToDelete, (id) => `/trainings/${id}`);
+    await runBulkDelete(idsToDelete, (id) => `/officers/${id}`);
     clearSelection();
 };
 </script>
 
 <template>
-    <div class="space-y-6 p-4 sm:p-6">
+    <div class="space-y-6">
         <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Training & Capacity Building</h1>
-                        <Badge variant="secondary">{{ trainings.total }} records</Badge>
+                        <h2 class="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Officers</h2>
+                        <Badge variant="secondary">{{ officers.total }} records</Badge>
                     </div>
-                    <p class="text-sm text-muted-foreground">Track training programs and capacity building</p>
+                    <p class="text-sm text-muted-foreground">Manage officer assignments and committees</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 self-start">
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
                         <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
-                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteTrainings">
+                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteOfficers">
                             <Trash2 class="h-3.5 w-3.5" />
                             Delete Selected
                         </Button>
@@ -351,7 +273,6 @@ const bulkDeleteTrainings = async () => {
                         </Button>
                     </div>
                     <Button
-                        v-if="showCoopFilter"
                         type="button"
                         variant="outline"
                         class="gap-2"
@@ -360,10 +281,10 @@ const bulkDeleteTrainings = async () => {
                         <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
                         {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
                     </Button>
-                    <Link v-if="canCreate" :href="lockedCoopId ? `/trainings/create?coop_id=${lockedCoopId}&coop_context=1` : '/trainings/create'">
+                    <Link v-if="canCreateOfficer" href="/officers/create">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
-                            Add Training
+                            Add Officer
                         </Button>
                     </Link>
                 </div>
@@ -377,7 +298,7 @@ const bulkDeleteTrainings = async () => {
                 leave-from-class="opacity-100 translate-y-0"
                 leave-to-class="opacity-0 -translate-y-2"
             >
-                <div v-if="showCoopFilter && filtersVisible" class="mt-6 border-t border-border/60 pt-6">
+                <div v-if="filtersVisible" class="mt-6 border-t border-border/60 pt-6">
                     <div class="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                         <div class="flex flex-wrap items-end gap-3">
                             <div class="min-w-60 flex-1 space-y-1">
@@ -386,15 +307,16 @@ const bulkDeleteTrainings = async () => {
                                     <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         v-model="search"
-                                        placeholder="Title, facilitator, venue..."
+                                        placeholder="Officer name..."
                                         class="pl-9"
                                     />
                                 </div>
                             </div>
-                            <div class="min-w-42.5 space-y-1">
+
+                            <div v-if="showCoopFilter" class="min-w-40 space-y-1">
                                 <label class="text-sm font-medium text-foreground/80">Cooperative</label>
-                                <Select v-model="coopId">
-                                    <SelectTrigger id="coop_filter">
+                                <Select v-model="coopId" :disabled="hasCoopLock">
+                                    <SelectTrigger>
                                         <SelectValue :placeholder="allCooperativesLabel" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -405,34 +327,23 @@ const bulkDeleteTrainings = async () => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div class="min-w-42.5 space-y-1">
-                                <label class="text-sm font-medium text-foreground/80">Target Group</label>
-                                <Select v-model="targetGroup">
-                                    <SelectTrigger id="target_group_filter">
-                                        <SelectValue placeholder="All Groups" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Groups</SelectItem>
-                                        <SelectItem v-for="option in targetGroups" :key="option" :value="option">
-                                            {{ option }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div class="min-w-42.5 space-y-1">
+
+                            <div class="min-w-40 space-y-1">
                                 <label class="text-sm font-medium text-foreground/80">Status</label>
                                 <Select v-model="status">
-                                    <SelectTrigger id="status_filter">
+                                    <SelectTrigger>
                                         <SelectValue placeholder="All Statuses" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem v-for="option in statusOptions" :key="option" :value="option">
-                                            {{ option }}
-                                        </SelectItem>
+                                        <SelectItem value="Active">Active</SelectItem>
+                                        <SelectItem value="Retired">Retired</SelectItem>
+                                        <SelectItem value="Removed">Removed</SelectItem>
+                                        <SelectItem value="Resigned">Resigned</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
+
                             <Button
                                 v-if="hasActiveFilters"
                                 type="button"
@@ -457,46 +368,36 @@ const bulkDeleteTrainings = async () => {
                             <TableHead v-if="canBulkDelete" class="w-12">
                                 <Checkbox
                                     :model-value="allVisibleSelected"
-                                    :disabled="trainings.data.length === 0"
-                                    aria-label="Select all trainings"
+                                    :disabled="officers.data.length === 0"
+                                    aria-label="Select all officers"
                                     @update:model-value="toggleAll"
                                 />
                             </TableHead>
-                            <TableHead>Training</TableHead>
-                            <TableHead :class="isSidebarCreateView ? 'text-center' : ''">{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Target Group</TableHead>
+                            <TableHead>Officer</TableHead>
+                            <TableHead>Cooperative</TableHead>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Committee</TableHead>
+                            <TableHead>Term</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <template v-if="isLoading">
-                            <TableRow v-for="rowIndex in 6" :key="`training-loading-${rowIndex}`">
-                                <TableCell v-if="canBulkDelete" class="w-12">
-                                    <div class="h-4 w-4 rounded bg-muted animate-pulse" />
-                                </TableCell>
-                                <TableCell>
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-muted animate-pulse" />
-                                        <div class="space-y-2">
-                                            <div class="h-4 w-44 rounded bg-muted animate-pulse" />
-                                            <div class="h-3 w-28 rounded bg-muted animate-pulse" />
-                                        </div>
-                                    </div>
-                                </TableCell>
-                                <TableCell :class="['text-sm text-muted-foreground', isSidebarCreateView ? 'text-center' : '']">
-                                    <div class="mx-auto h-5 w-14 rounded-full bg-muted animate-pulse" />
-                                </TableCell>
-                                <TableCell><div class="h-4 w-24 rounded bg-muted animate-pulse" /></TableCell>
+                            <TableRow v-for="rowIndex in 6" :key="`officer-loading-${rowIndex}`">
+                                <TableCell v-if="canBulkDelete" class="w-12"><div class="h-4 w-4 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-40 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-36 rounded bg-muted animate-pulse" /></TableCell>
                                 <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-24 rounded bg-muted animate-pulse" /></TableCell>
                                 <TableCell><div class="h-4 w-20 rounded bg-muted animate-pulse" /></TableCell>
-                                <TableCell v-if="showActions"><div class="mx-auto h-8 w-40 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell v-if="showActions"><div class="mx-auto h-8 w-36 rounded bg-muted animate-pulse" /></TableCell>
                             </TableRow>
                         </template>
 
-                        <TableRow v-else-if="trainings.data.length === 0">
-                            <TableCell :colspan="(showActions ? 6 : 5) + (canBulkDelete ? 1 : 0)" class="text-center text-muted-foreground">
+                        <TableRow v-else-if="officers.data.length === 0">
+                            <TableCell :colspan="(showActions ? 7 : 6) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
                                 <div class="mx-auto max-w-md space-y-3 py-6">
                                     <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                                         <SearchX class="h-6 w-6" />
@@ -510,90 +411,41 @@ const bulkDeleteTrainings = async () => {
                                 </div>
                             </TableCell>
                         </TableRow>
-                        <TableRow v-for="training in trainings.data" :key="training.id">
+
+                        <TableRow v-for="officer in officers.data" :key="officer.id">
                             <TableCell v-if="canBulkDelete" class="w-12">
                                 <Checkbox
-                                    :model-value="isSelected(training.id)"
-                                    :aria-label="`Select ${training.title}`"
-                                    @update:model-value="(checked) => toggleOne(training.id, checked)"
+                                    :model-value="isSelected(officer.id)"
+                                    :aria-label="`Select ${officer.member.full_name}`"
+                                    @update:model-value="(checked) => toggleOne(officer.id, checked)"
                                 />
                             </TableCell>
                             <TableCell>
                                 <div class="flex items-center gap-3">
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                        <GraduationCap class="h-4 w-4" />
+                                        <Users class="h-4 w-4" />
                                     </div>
-                                    <div>
-                                        <div class="font-medium text-foreground">{{ training.title }}</div>
-                                        <div class="text-xs text-muted-foreground">{{ training.facilitator || 'No facilitator' }}</div>
-                                    </div>
+                                    <TooltipProvider :delay-duration="150">
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <span class="inline-block max-w-56 truncate font-medium text-foreground">{{ officer.member.full_name }}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>{{ officer.member.full_name }}</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
                             </TableCell>
-                            <TableCell :class="['text-sm text-muted-foreground', isSidebarCreateView ? 'text-center' : '']">
-                                <span
-                                    v-if="isSidebarCreateView"
-                                    :class="['inline-flex min-w-10 items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold', cooperativeCountBadgeClass(cooperativesParticipatingCount(training))]"
-                                >
-                                    {{ cooperativesParticipatingCount(training) }}
-                                </span>
-                                <TooltipProvider v-else :delay-duration="150">
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <span class="inline-block max-w-60 truncate align-middle">{{ training.cooperative.name }}</span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{{ training.cooperative.name }}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">
-                                <TooltipProvider :delay-duration="150">
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <span class="inline-block max-w-44 truncate align-middle">{{ formatDate(training.date_conducted) }}</span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{{ formatDate(training.date_conducted) }}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ training.target_group }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ training.status }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ officer.cooperative.name }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ officer.position }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ officer.committee || 'N/A' }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ formatTerm(officer.term_start, officer.term_end) }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">{{ officer.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <TooltipProvider :delay-duration="150">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Tooltip v-if="showViewActionInRows">
+                                        <Tooltip v-if="canEditOfficer">
                                             <TooltipTrigger as-child>
-                                                <Button
-                                                    @click="openViewDialog(training)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="gap-2"
-                                                >
-                                                    <Eye class="h-4 w-4" />
-                                                    View
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>View details</p></TooltipContent>
-                                        </Tooltip>
-
-                                        <Tooltip v-if="showParticipantActionInRows">
-                                            <TooltipTrigger as-child>
-                                                <Link :href="participantsHref(training)">
-                                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
-                                                        <Users class="h-4 w-4" />
-                                                        Participants
-                                                    </Button>
-                                                </Link>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>View cooperative participants</p></TooltipContent>
-                                        </Tooltip>
-
-                                        <Tooltip v-if="canEdit">
-                                            <TooltipTrigger as-child>
-                                                <Link :href="`/trainings/${training.id}/edit`">
+                                                <Link :href="`/officers/${officer.id}/edit`">
                                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                         <Pencil class="h-4 w-4" />
                                                         Edit
@@ -602,11 +454,10 @@ const bulkDeleteTrainings = async () => {
                                             </TooltipTrigger>
                                             <TooltipContent><p>Edit this record</p></TooltipContent>
                                         </Tooltip>
-
-                                        <Tooltip v-if="canDelete">
+                                        <Tooltip v-if="canDeleteOfficer">
                                             <TooltipTrigger as-child>
                                                 <Button
-                                                    @click="deleteTraining(training)"
+                                                    @click="deleteOfficer(officer)"
                                                     variant="ghost"
                                                     size="sm"
                                                     class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
@@ -628,7 +479,7 @@ const bulkDeleteTrainings = async () => {
             <div class="border-t border-border px-4 py-4 sm:px-6">
                 <div class="mb-3 flex justify-center text-sm text-muted-foreground">
                     <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
-                    Showing {{ showingFrom }}–{{ showingTo }} of {{ trainings.total }} results
+                    Showing {{ showingFrom }}–{{ showingTo }} of {{ officers.total }} results
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
@@ -676,7 +527,7 @@ const bulkDeleteTrainings = async () => {
                                 Previous
                             </Button>
 
-                            <template v-for="item in paginationItems" :key="`training-page-${item}`">
+                            <template v-for="item in paginationItems" :key="`officer-page-${item}`">
                                 <span v-if="typeof item !== 'number'" class="px-1 text-sm text-muted-foreground">...</span>
                                 <Button
                                     v-else
@@ -722,39 +573,5 @@ const bulkDeleteTrainings = async () => {
                 </div>
             </div>
         </div>
-
-        <Dialog v-model:open="isViewDialogOpen">
-            <DialogContent class="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{{ selectedTraining?.title || 'Training details' }}</DialogTitle>
-                    <DialogDescription>
-                        Full details for the selected training record.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div v-if="selectedTraining" class="grid gap-4 text-sm sm:grid-cols-2">
-                    <div class="space-y-1 sm:col-span-2">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cooperative</p>
-                        <p class="text-foreground">{{ selectedTraining.cooperative.name }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Conducted</p>
-                        <p class="text-foreground">{{ formatDate(selectedTraining.date_conducted) }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
-                        <p class="text-foreground">{{ selectedTraining.status || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Facilitator</p>
-                        <p class="text-foreground">{{ selectedTraining.facilitator || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Target Group</p>
-                        <p class="text-foreground">{{ selectedTraining.target_group || 'N/A' }}</p>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
     </div>
 </template>

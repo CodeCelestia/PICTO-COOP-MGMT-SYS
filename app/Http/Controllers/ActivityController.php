@@ -160,7 +160,7 @@ class ActivityController extends Controller
             ->addSelect('activities.*')
             ->addSelect(DB::raw('activity_groups.cooperatives_count as cooperatives_count'));
 
-        $perPage = (int) $request->input('per_page', 15);
+        $perPage = (int) $request->input('per_page', 10);
         $perPage = max(1, min($perPage, 500));
 
         $activities = $query->orderByDesc('activities.created_at')->paginate($perPage)->withQueryString();
@@ -199,6 +199,132 @@ class ActivityController extends Controller
                 'title' => $activity->title,
             ],
             'cooperatives' => $cooperatives,
+        ]);
+    }
+
+    /**
+     * Display detailed information for an activity.
+     */
+    public function show(int $id): Response
+    {
+        $activity = Activity::withTrashed()
+            ->with(['cooperative', 'responsibleOfficer.member', 'fundingSources', 'participants'])
+            ->findOrFail($id);
+
+        $this->enforceCoopScope($activity->coop_id);
+
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+
+        $groupedActivities = Activity::query()
+            ->whereIn('id', $linkedActivityIds)
+            ->with([
+                'cooperative:id,name,registration_number,region,classification,status',
+                'responsibleOfficer.member',
+                'fundingSources',
+                'participants',
+            ])
+            ->get();
+
+        $primaryActivity = $groupedActivities->firstWhere('id', $activity->id) ?? $groupedActivities->first() ?? $activity;
+
+        $cooperatives = $groupedActivities
+            ->pluck('cooperative')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values()
+            ->map(fn ($coop) => [
+                'id' => $coop->id,
+                'name' => $coop->name,
+                'registration_number' => $coop->registration_number,
+                'region' => $coop->region,
+                'classification' => $coop->classification,
+                'status' => $coop->status,
+            ]);
+
+        $buildAttachment = function (?string $path, ?string $name = null, array $extra = []) {
+            if (empty($path)) {
+                return null;
+            }
+
+            $disk = Storage::disk('public');
+            $exists = $disk->exists($path);
+
+            return array_merge([
+                'path' => $path,
+                'name' => $name ?: basename($path),
+                'url' => $exists ? $disk->url($path) : null,
+                'size' => $exists ? $disk->size($path) : null,
+            ], $extra);
+        };
+
+        $outcomesAttachments = $groupedActivities
+            ->map(function ($item) use ($buildAttachment) {
+                return $buildAttachment($item->outcomes_attachment_path, null, [
+                    'source_activity_id' => $item->id,
+                ]);
+            })
+            ->filter()
+            ->unique('path')
+            ->values();
+
+        $fundingAttachments = $groupedActivities
+            ->flatMap(function ($item) use ($buildAttachment) {
+                return $item->fundingSources->flatMap(function ($source) {
+                    $paths = $source->attachment_paths ?? [];
+                    $names = $source->attachment_names ?? [];
+
+                    return collect($paths)->map(function ($path, $index) use ($names, $source) {
+                        return [
+                            'path' => $path,
+                            'name' => $names[$index] ?? basename($path),
+                            'funding_source_id' => $source->id,
+                            'funder_name' => $source->funder_name,
+                        ];
+                    });
+                })->map(function ($file) use ($buildAttachment, $item) {
+                    return $buildAttachment($file['path'] ?? null, $file['name'] ?? null, [
+                        'source_activity_id' => $item->id,
+                        'funding_source_id' => $file['funding_source_id'] ?? null,
+                        'funder_name' => $file['funder_name'] ?? null,
+                    ]);
+                });
+            })
+            ->filter()
+            ->unique(fn ($file) => ($file['path'] ?? '').'|'.($file['name'] ?? ''))
+            ->values();
+
+        return Inertia::render('Activities/Show', [
+            'activity' => [
+                'id' => $primaryActivity->id,
+                'title' => $primaryActivity->title,
+                'description' => $primaryActivity->description,
+                'category' => $primaryActivity->category,
+                'status' => $primaryActivity->status,
+                'date_started' => optional($primaryActivity->date_started)->toDateString(),
+                'date_ended' => optional($primaryActivity->date_ended)->toDateString(),
+                'venue' => $primaryActivity->venue,
+                'implementing_partner' => $primaryActivity->implementing_partner,
+                'funding_source' => $primaryActivity->funding_source,
+                'budget' => $primaryActivity->budget,
+                'actual_expense' => $primaryActivity->actual_expense,
+                'target_member_beneficiaries' => $primaryActivity->target_member_beneficiaries,
+                'actual_member_beneficiaries' => $primaryActivity->actual_member_beneficiaries,
+                'target_community_beneficiaries' => $primaryActivity->target_community_beneficiaries,
+                'actual_community_beneficiaries' => $primaryActivity->actual_community_beneficiaries,
+                'outcomes' => $primaryActivity->outcomes,
+                'remarks' => $primaryActivity->remarks,
+                'responsible_officer' => $primaryActivity->responsibleOfficer?->member?->full_name,
+                'cooperatives_count' => $cooperatives->count(),
+            ],
+            'cooperatives' => $cooperatives,
+            'participantsCount' => $groupedActivities->sum(fn ($item) => $item->participants->count()),
+            'outcomesAttachments' => $outcomesAttachments,
+            'fundingAttachments' => $fundingAttachments,
+            'attachments' => $outcomesAttachments
+                ->map(fn ($file) => array_merge($file, ['section' => 'outcomes']))
+                ->concat($fundingAttachments->map(fn ($file) => array_merge($file, ['section' => 'funding'])))
+                ->values(),
         ]);
     }
 

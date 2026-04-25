@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
-import MemberListPanel from '@/components/panels/MemberListPanel.vue';
-import OfficerListPanel from '@/components/panels/OfficerListPanel.vue';
-import CommitteeListPanel from '@/components/panels/CommitteeListPanel.vue';
+import CooperativeMemberListPanel from '@/components/panels/CooperativeMemberListPanel.vue';
+import CooperativeOfficerListPanel from '@/components/panels/CooperativeOfficerListPanel.vue';
+import CooperativeCommitteeListPanel from '@/components/panels/CooperativeCommitteeListPanel.vue';
 import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
 import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import { useCoopLabel } from '@/composables/useCoopLabel';
@@ -62,8 +62,10 @@ const props = defineProps<{
     memberFilters: {
         search?: string;
         membership_status?: string;
+        membership_type?: string;
         per_page?: string;
     };
+    membershipTypes: string[];
     officers: {
         data: Officer[];
         current_page: number;
@@ -100,6 +102,7 @@ const props = defineProps<{
             date_started: string | null;
             date_ended: string | null;
             status: string;
+            venue: string | null;
             responsible_officer_id: number | null;
             funding_source: string | null;
             cooperative: {
@@ -527,16 +530,17 @@ const statusBadgeClass = computed(() => {
                     </div>
 
                     <div v-show="activeTab === 'members'" class="space-y-4">
-                        <MemberListPanel
+                        <CooperativeMemberListPanel
                             :members="members"
                             :filters="memberFilters"
+                            :membership-types="membershipTypes"
                             :base-url="`${cooperativeBasePath}?tab=members`"
                             query-prefix="members_"
                         />
                     </div>
 
                     <div v-show="activeTab === 'officers'" class="space-y-4">
-                        <OfficerListPanel
+                        <CooperativeOfficerListPanel
                             :officers="officers"
                             :cooperatives="cooperatives"
                             :filters="officerFilters"
@@ -547,7 +551,7 @@ const statusBadgeClass = computed(() => {
                     </div>
 
                     <div v-show="activeTab === 'committees'" class="space-y-4">
-                        <CommitteeListPanel
+                        <CooperativeCommitteeListPanel
                             :committee-members="committeeMembers"
                             :cooperatives="cooperatives"
                             :filters="committeeFilters"

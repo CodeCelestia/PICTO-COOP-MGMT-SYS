@@ -317,6 +317,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activities/create', [ActivityController::class, 'create'])
         ->middleware('permission:create activities-&-projects')
         ->name('activities.create');
+    Route::get('activities/{activity}', [ActivityController::class, 'show'])
+        ->middleware('permission:read activities-&-projects')
+        ->name('activities.show');
     Route::post('activities', [ActivityController::class, 'store'])
         ->middleware('permission:create activities-&-projects')
         ->name('activities.store');

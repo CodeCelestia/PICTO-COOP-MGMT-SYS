@@ -1,10 +1,26 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { Building2, Eye, FileText, Filter, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import {
+    Building2,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
+    Eye,
+    FileText,
+    Loader2,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Search,
+    SearchX,
+    SlidersHorizontal,
+    Sparkles,
+    Trash2,
+} from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     Card,
     CardContent,
@@ -12,6 +28,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -28,11 +45,16 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
-import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 import type { BreadcrumbItem } from '@/types';
 
@@ -89,10 +111,8 @@ interface Props {
 const props = defineProps<Props>();
 const {
     availableCooperativesLabel,
-    cooperativeLabel,
     cooperativeLabelLower,
     cooperativeManagementLabel,
-    noCooperativesFoundLabel,
     totalCooperativesLabel,
 } = useCoopLabel();
 
@@ -124,10 +144,65 @@ const coopType = ref(props.filters.coop_type || 'all');
 const selectedRegionCode = ref('all');
 const selectedProvinceCode = ref('all');
 const selectedMunicipalityCode = ref('all');
-const presetPageSizes = ['5', '15', '30'];
-const initialPerPageRaw = props.filters.per_page || String(props.cooperatives.per_page || 20);
+const presetPageSizes = ['10', '15', '25', '50', '100'];
+const initialPerPageRaw = props.filters.per_page || String(props.cooperatives.per_page || 10);
 const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
 const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+const filtersVisible = ref(true);
+const isLoading = ref(false);
+const isHydratingFilters = ref(true);
+const SEARCH_DEBOUNCE_MS = 300;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const currentPage = computed(() => props.cooperatives.current_page || 1);
+const totalPages = computed(() => Math.max(props.cooperatives.last_page || 1, 1));
+const showingFrom = computed(() => (props.cooperatives.total ? (currentPage.value - 1) * props.cooperatives.per_page + 1 : 0));
+const showingTo = computed(() => (props.cooperatives.total ? Math.min(currentPage.value * props.cooperatives.per_page, props.cooperatives.total) : 0));
+
+const hasActiveFilters = computed(() => {
+    return Boolean(
+        search.value.trim()
+        || status.value !== 'all'
+        || coopType.value !== 'all'
+        || selectedRegionCode.value !== 'all'
+        || selectedProvinceCode.value !== 'all'
+        || selectedMunicipalityCode.value !== 'all'
+        || resolvedPerPage() !== '10',
+    );
+});
+
+const buildQuery = (pageNumber = 1) => {
+    const regionName = (selectedRegionCode.value !== 'all' && regions.value.find((r) => r.code === selectedRegionCode.value)?.name) || '';
+    const provinceName = (selectedProvinceCode.value !== 'all' && provinces.value.find((p) => p.code === selectedProvinceCode.value)?.name) || '';
+    const municipalityName = (selectedMunicipalityCode.value !== 'all' && cities.value.find((c) => c.code === selectedMunicipalityCode.value)?.name) || '';
+
+    return {
+        page: pageNumber,
+        search: search.value,
+        status: status.value === 'all' ? '' : status.value,
+        coop_type: coopType.value === 'all' ? '' : coopType.value,
+        region: regionName,
+        province: provinceName,
+        municipality: municipalityName,
+        per_page: resolvedPerPage(),
+    };
+};
+
+const navigateWithFilters = (pageNumber = 1) => {
+    isLoading.value = true;
+
+    router.get('/cooperatives', buildQuery(pageNumber), {
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
+    });
+};
+
+const applyFilters = (pageNumber = 1) => {
+    navigateWithFilters(pageNumber);
+};
 
 onMounted(async () => {
     await fetchRegions();
@@ -154,13 +229,21 @@ onMounted(async () => {
             selectedMunicipalityCode.value = cityObj.code;
         }
     }
+
+    isHydratingFilters.value = false;
+});
+
+onUnmounted(() => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
 });
 
 const resolvedPerPage = () => {
     if (perPage.value !== 'custom') return perPage.value;
 
     const parsed = Number(customPerPage.value);
-    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+    if (!Number.isInteger(parsed) || parsed < 1) return '10';
 
     return String(Math.min(parsed, 500));
 };
@@ -188,31 +271,45 @@ watch(selectedProvinceCode, async (newCode) => {
     }
 });
 
-const applyFilters = () => {
-    const regionName = (selectedRegionCode.value !== 'all' && regions.value.find((r) => r.code === selectedRegionCode.value)?.name) || '';
-    const provinceName = (selectedProvinceCode.value !== 'all' && provinces.value.find((p) => p.code === selectedProvinceCode.value)?.name) || '';
-    const municipalityName = (selectedMunicipalityCode.value !== 'all' && cities.value.find((c) => c.code === selectedMunicipalityCode.value)?.name) || '';
+watch(search, () => {
+    if (isHydratingFilters.value) return;
 
-    router.get('/cooperatives', {
-        search: search.value,
-        status: status.value === 'all' ? '' : status.value,
-        coop_type: coopType.value === 'all' ? '' : coopType.value,
-        region: regionName,
-        province: provinceName,
-        municipality: municipalityName,
-        per_page: resolvedPerPage(),
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+
+    searchDebounceTimer = setTimeout(() => {
+        applyFilters(1);
+    }, SEARCH_DEBOUNCE_MS);
+});
+
+watch([status, coopType, selectedRegionCode, selectedProvinceCode, selectedMunicipalityCode, perPage, customPerPage], () => {
+    if (isHydratingFilters.value) return;
+    applyFilters(1);
+});
+
+const goToPage = (targetPage: number) => {
+    if (targetPage < 1 || targetPage > totalPages.value || targetPage === currentPage.value) return;
+    applyFilters(targetPage);
 };
 
-watch(status, (newStatus, oldStatus) => {
-    if (newStatus === oldStatus) return;
+const paginationItems = computed<Array<number | string>>(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
 
-    if (newStatus === 'Archived' || oldStatus === 'Archived') {
-        applyFilters();
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, index) => index + 1);
     }
+
+    if (current <= 4) {
+        return [1, 2, 3, 4, 5, 'ellipsis-right', total];
+    }
+
+    if (current >= total - 3) {
+        return [1, 'ellipsis-left', total - 4, total - 3, total - 2, total - 1, total];
+    }
+
+    return [1, 'ellipsis-left', current - 1, current, current + 1, 'ellipsis-right', total];
 });
 
 const resetFilters = () => {
@@ -222,9 +319,9 @@ const resetFilters = () => {
     selectedRegionCode.value = 'all';
     selectedProvinceCode.value = 'all';
     selectedMunicipalityCode.value = 'all';
-    perPage.value = '15';
+    perPage.value = '10';
     customPerPage.value = '';
-    router.get('/cooperatives');
+    applyFilters(1);
 };
 
 const deleteCooperative = async (cooperative: Cooperative) => {
@@ -360,6 +457,19 @@ const getTypePreview = (coop: Cooperative) => {
                                 Clear
                             </Button>
                         </div>
+                        <Button
+                            v-if="!isCoopAdminOnly"
+                            type="button"
+                            variant="outline"
+                            class="gap-2"
+                            @click="filtersVisible = !filtersVisible"
+                        >
+                            <SlidersHorizontal
+                                class="h-4 w-4 transition-transform duration-200"
+                                :class="filtersVisible ? 'rotate-90' : 'rotate-0'"
+                            />
+                            {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
+                        </Button>
                         <Link v-if="canCreateCoop" href="/cooperatives/create">
                             <Button class="gap-2">
                                 <Plus class="h-4 w-4" />
@@ -369,148 +479,127 @@ const getTypePreview = (coop: Cooperative) => {
                     </div>
                 </div>
 
-                <div v-if="!isCoopAdminOnly" class="mt-6 border-t border-border/60 pt-6">
-                <FilterPanel
-                    title="Filters"
-                    :description="`Show filter fields to refine ${cooperativeLabelLower} results.`"
-                    showLabel="Show filters"
-                    hideLabel="Hide filters"
+                <Transition
+                    enter-active-class="transition-all duration-300 ease-out"
+                    enter-from-class="opacity-0 -translate-y-2"
+                    enter-to-class="opacity-100 translate-y-0"
+                    leave-active-class="transition-all duration-200 ease-in"
+                    leave-from-class="opacity-100 translate-y-0"
+                    leave-to-class="opacity-0 -translate-y-2"
                 >
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Search</label>
-                        <div class="relative">
-                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                v-model="search"
-                                @keyup.enter="applyFilters"
-                                placeholder="Name, Reg #, Province..."
-                                class="pl-9"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
-                        <Select v-model="status">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Statuses" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                                <SelectItem value="Suspended">Suspended</SelectItem>
-                                <SelectItem value="Dissolved">Dissolved</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Type</label>
-                        <Select v-model="coopType">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Types</SelectItem>
-                                <SelectItem v-for="type in coopTypes" :key="type" :value="type">
-                                    {{ type }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Region</label>
-                        <Select v-model="selectedRegionCode">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Regions" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Regions</SelectItem>
-                                <SelectItem
-                                    v-for="regionItem in regions"
-                                    :key="regionItem.code"
-                                    :value="regionItem.code"
-                                >
-                                    {{ regionItem.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Province</label>
-                        <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Provinces" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Provinces</SelectItem>
-                                <SelectItem
-                                    v-for="provinceItem in provinces"
-                                    :key="provinceItem.code"
-                                    :value="provinceItem.code"
-                                >
-                                    {{ provinceItem.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Municipality</label>
-                        <Select v-model="selectedMunicipalityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0">
-                            <SelectTrigger>
-                                <SelectValue placeholder="All Municipalities" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Municipalities</SelectItem>
-                                <SelectItem
-                                    v-for="municipalityItem in cities"
-                                    :key="municipalityItem.code"
-                                    :value="municipalityItem.code"
-                                >
-                                    {{ municipalityItem.name }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-foreground">Rows Per Page</label>
-                        <div class="flex gap-2">
-                            <Select v-model="perPage">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select size" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="5">5</SelectItem>
-                                    <SelectItem value="15">15</SelectItem>
-                                    <SelectItem value="30">30</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                v-if="perPage === 'custom'"
-                                v-model="customPerPage"
-                                type="number"
-                                min="1"
-                                max="500"
-                                placeholder="Enter"
-                                class="w-28"
-                            />
-                        </div>
-                    </div>
-                </div>
+                    <div v-if="!isCoopAdminOnly && filtersVisible" class="mt-6 border-t border-border/60 pt-6">
+                        <div class="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+                            <div class="flex flex-wrap items-end gap-3">
+                                <div class="min-w-55 flex-1 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Search</label>
+                                    <div class="relative">
+                                        <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input v-model="search" placeholder="Search cooperatives..." class="pl-9" />
+                                    </div>
+                                </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <Button @click="applyFilters" variant="default" class="gap-2">
-                        <Filter class="h-4 w-4" />
-                        Apply Filters
-                    </Button>
-                    <Button @click="resetFilters" variant="outline" class="gap-2">
-                        <Search class="h-4 w-4" />
-                        Reset
-                    </Button>
-                </div>
-                </FilterPanel>
-                </div>
+                                <div class="min-w-40 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Status</label>
+                                    <Select v-model="status">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Statuses" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Statuses</SelectItem>
+                                            <SelectItem value="Active">Active</SelectItem>
+                                            <SelectItem value="Inactive">Inactive</SelectItem>
+                                            <SelectItem value="Suspended">Suspended</SelectItem>
+                                            <SelectItem value="Dissolved">Dissolved</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div class="min-w-40 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Type</label>
+                                    <Select v-model="coopType">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Types" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Types</SelectItem>
+                                            <SelectItem v-for="type in coopTypes" :key="type" :value="type">
+                                                {{ type }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div class="min-w-45 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Region</label>
+                                    <Select v-model="selectedRegionCode">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Regions" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Regions</SelectItem>
+                                            <SelectItem
+                                                v-for="regionItem in regions"
+                                                :key="regionItem.code"
+                                                :value="regionItem.code"
+                                            >
+                                                {{ regionItem.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div class="min-w-45 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Province</label>
+                                    <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Provinces" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Provinces</SelectItem>
+                                            <SelectItem
+                                                v-for="provinceItem in provinces"
+                                                :key="provinceItem.code"
+                                                :value="provinceItem.code"
+                                            >
+                                                {{ provinceItem.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div class="min-w-45 space-y-1">
+                                    <label class="text-sm font-medium text-foreground">Municipality</label>
+                                    <Select v-model="selectedMunicipalityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Municipalities" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Municipalities</SelectItem>
+                                            <SelectItem
+                                                v-for="municipalityItem in cities"
+                                                :key="municipalityItem.code"
+                                                :value="municipalityItem.code"
+                                            >
+                                                {{ municipalityItem.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <Button
+                                    v-if="hasActiveFilters"
+                                    type="button"
+                                    variant="outline"
+                                    class="ml-auto gap-2"
+                                    @click="resetFilters"
+                                >
+                                    <RotateCcw class="h-4 w-4" />
+                                    Clear Filters
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
             </section>
 
             <Card v-if="isCoopAdminOnly" class="border-border/80 bg-card shadow-sm">
@@ -584,7 +673,10 @@ const getTypePreview = (coop: Cooperative) => {
 
             <Card v-else class="overflow-hidden border-border/80 bg-card shadow-sm">
                 <CardHeader class="pb-3">
-                    <CardTitle class="text-base font-semibold text-foreground">{{ availableCooperativesLabel }}</CardTitle>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <CardTitle class="text-base font-semibold text-foreground">{{ availableCooperativesLabel }}</CardTitle>
+                        <Badge variant="secondary">{{ cooperatives.total }} records</Badge>
+                    </div>
                     <CardDescription>Open a cooperative profile to continue to members, officers, and committees management.</CardDescription>
                 </CardHeader>
 
@@ -612,11 +704,42 @@ const getTypePreview = (coop: Cooperative) => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                <TableRow v-if="cooperatives.data.length === 0">
+                                <template v-if="isLoading">
+                                    <TableRow v-for="rowIndex in 6" :key="`coop-loading-${rowIndex}`">
+                                        <TableCell v-if="canBulkDelete" class="w-12">
+                                            <div class="h-4 w-4 rounded bg-muted animate-pulse" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <div class="flex items-center gap-3">
+                                                <div class="h-10 w-10 rounded-full bg-muted animate-pulse" />
+                                                <div class="space-y-2">
+                                                    <div class="h-4 w-44 rounded bg-muted animate-pulse" />
+                                                    <div class="h-3 w-28 rounded bg-muted animate-pulse" />
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell class="text-center"><div class="mx-auto h-5 w-14 rounded-full bg-muted animate-pulse" /></TableCell>
+                                        <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                        <TableCell><div class="h-4 w-36 rounded bg-muted animate-pulse" /></TableCell>
+                                        <TableCell><div class="h-5 w-20 rounded bg-muted animate-pulse" /></TableCell>
+                                        <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                        <TableCell><div class="h-4 w-24 rounded bg-muted animate-pulse" /></TableCell>
+                                        <TableCell v-if="showActions"><div class="mx-auto h-8 w-44 rounded bg-muted animate-pulse" /></TableCell>
+                                    </TableRow>
+                                </template>
+
+                                <TableRow v-else-if="cooperatives.data.length === 0">
                                     <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="py-10 text-center text-muted-foreground">
-                                        <div class="mx-auto max-w-md space-y-2">
-                                            <p class="font-medium text-foreground">{{ noCooperativesFoundLabel }}</p>
-                                            <p class="text-sm text-muted-foreground">Try clearing filters or searching by province or registration number.</p>
+                                        <div class="mx-auto max-w-md space-y-3">
+                                            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                                <SearchX class="h-6 w-6" />
+                                            </div>
+                                            <p class="font-medium text-foreground">No results found</p>
+                                            <p class="text-sm text-muted-foreground">Try adjusting your filters or search terms.</p>
+                                            <Button v-if="hasActiveFilters" type="button" variant="outline" class="gap-2" @click="resetFilters">
+                                                <RotateCcw class="h-4 w-4" />
+                                                Clear Filters
+                                            </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -640,7 +763,16 @@ const getTypePreview = (coop: Cooperative) => {
                                                 <Building2 class="h-5 w-5" />
                                             </div>
                                             <div>
-                                                <div class="text-foreground">{{ coop.name }}</div>
+                                                <TooltipProvider :delay-duration="150">
+                                                    <Tooltip>
+                                                        <TooltipTrigger as-child>
+                                                            <div class="max-w-60 truncate text-foreground">{{ coop.name }}</div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{{ coop.name }}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -665,10 +797,19 @@ const getTypePreview = (coop: Cooperative) => {
                                         </div>
                                     </TableCell>
                                     <TableCell class="text-muted-foreground">
-                                        <div class="text-sm">
-                                            <div class="font-medium text-foreground">{{ coop.city_municipality || coop.province }}</div>
-                                            <div v-if="coop.city_municipality" class="text-xs text-muted-foreground">{{ coop.province }}</div>
-                                        </div>
+                                        <TooltipProvider :delay-duration="150">
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <div class="text-sm">
+                                                        <div class="max-w-45 truncate font-medium text-foreground">{{ coop.city_municipality || coop.province }}</div>
+                                                        <div v-if="coop.city_municipality" class="max-w-45 truncate text-xs text-muted-foreground">{{ coop.province }}</div>
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{{ formatFullAddress(coop) }}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </TableCell>
                                     <TableCell>
                                         <Badge :class="getStatusBadgeColor(coop.status)" class="border">
@@ -686,76 +827,175 @@ const getTypePreview = (coop: Cooperative) => {
                                         {{ formatDate(coop.date_established) }}
                                     </TableCell>
                                     <TableCell v-if="showActions" class="text-center">
-                                        <div class="flex flex-wrap justify-center gap-2">
-                                            <Link :href="`/cooperatives/${coop.id}`" @click.stop>
-                                                <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1">
-                                                    <Eye class="h-3 w-3" />
-                                                    View
-                                                </Button>
-                                            </Link>
-                                            <Link v-if="canEditCoop" :href="`/cooperatives/${coop.id}/edit`" @click.stop>
-                                                <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1">
-                                                    <Pencil class="h-3 w-3" />
-                                                    Edit
-                                                </Button>
-                                            </Link>
-                                            <Button asChild variant="ghost" size="sm" class="table-action-btn table-action-other gap-1">
-                                                <a
-                                                    :href="`/cooperatives/${coop.id}/report`"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    @click.stop
-                                                    class="inline-flex items-center gap-1"
-                                                >
-                                                    <FileText class="h-3 w-3" />
-                                                    Report
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                v-if="canDeleteCoop"
-                                                @click="deleteCooperative(coop)"
-                                                @click.stop
-                                                variant="ghost"
-                                                size="sm"
-                                                class="table-action-btn table-action-delete gap-1 text-red-600 hover:text-red-700"
-                                            >
-                                                <Trash2 class="h-3 w-3" />
-                                                Delete
-                                            </Button>
-                                        </div>
+                                        <TooltipProvider :delay-duration="150">
+                                            <div class="flex flex-wrap justify-center gap-2">
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Link :href="`/cooperatives/${coop.id}`" @click.stop>
+                                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1">
+                                                                <Eye class="h-3 w-3" />
+                                                                View
+                                                            </Button>
+                                                        </Link>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>View details</p></TooltipContent>
+                                                </Tooltip>
+
+                                                <Tooltip v-if="canEditCoop">
+                                                    <TooltipTrigger as-child>
+                                                        <Link :href="`/cooperatives/${coop.id}/edit`" @click.stop>
+                                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1">
+                                                                <Pencil class="h-3 w-3" />
+                                                                Edit
+                                                            </Button>
+                                                        </Link>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Edit this record</p></TooltipContent>
+                                                </Tooltip>
+
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button asChild variant="ghost" size="sm" class="table-action-btn table-action-other gap-1">
+                                                            <a
+                                                                :href="`/cooperatives/${coop.id}/report`"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                @click.stop
+                                                                class="inline-flex items-center gap-1"
+                                                            >
+                                                                <FileText class="h-3 w-3" />
+                                                                Report
+                                                            </a>
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Open report in new tab</p></TooltipContent>
+                                                </Tooltip>
+
+                                                <Tooltip v-if="canDeleteCoop">
+                                                    <TooltipTrigger as-child>
+                                                        <Button
+                                                            @click.stop="deleteCooperative(coop)"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            class="table-action-btn table-action-delete gap-1 text-red-600 hover:text-red-700"
+                                                        >
+                                                            <Trash2 class="h-3 w-3" />
+                                                            Delete
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Delete this record</p></TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                        </TooltipProvider>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
                     </div>
 
-                    <div v-if="cooperatives.last_page > 1" class="border-t border-border px-4 py-3">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div class="text-sm text-muted-foreground">
-                                Showing {{ (cooperatives.current_page - 1) * cooperatives.per_page + 1 }} to
-                                {{ Math.min(cooperatives.current_page * cooperatives.per_page, cooperatives.total) }} of
-                                {{ cooperatives.total }} {{ cooperativeLabelLower }}
+                    <div class="border-t border-border px-4 py-4">
+                        <div class="mb-3 flex items-center justify-center text-sm text-muted-foreground">
+                            <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
+                            Showing {{ showingFrom }}-{{ showingTo }} of {{ cooperatives.total }} results
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                            <div class="flex items-center gap-2 md:justify-start">
+                                <span class="text-sm text-muted-foreground">Show</span>
+                                <Select v-model="perPage">
+                                    <SelectTrigger class="w-24">
+                                        <SelectValue placeholder="Rows" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                        <SelectItem value="100">100</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    v-if="perPage === 'custom'"
+                                    v-model="customPerPage"
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    class="w-20"
+                                />
+                                <span class="text-sm text-muted-foreground">per page</span>
                             </div>
-                            <div class="flex flex-wrap gap-2">
-                                <Button
-                                    v-for="page in cooperatives.last_page"
-                                    :key="page"
-                                    :variant="page === cooperatives.current_page ? 'default' : 'outline'"
-                                    size="sm"
-                                    @click="router.get('/cooperatives', {
-                                        page,
-                                        search: search || '',
-                                        status: status === 'all' ? '' : status,
-                                        coop_type: coopType === 'all' ? '' : coopType,
-                                        region: (selectedRegionCode !== 'all' && regions.find((r) => r.code === selectedRegionCode)?.name) || '',
-                                        province: (selectedProvinceCode !== 'all' && provinces.find((p) => p.code === selectedProvinceCode)?.name) || '',
-                                        municipality: (selectedMunicipalityCode !== 'all' && cities.find((c) => c.code === selectedMunicipalityCode)?.name) || '',
-                                        per_page: resolvedPerPage(),
-                                    }, { preserveScroll: true, preserveState: true })"
-                                >
-                                    {{ page }}
-                                </Button>
+
+                            <div class="flex justify-center">
+                                <div class="flex flex-wrap items-center justify-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-1"
+                                        :disabled="currentPage <= 1"
+                                        :class="currentPage <= 1 ? 'cursor-not-allowed opacity-50' : ''"
+                                        @click="goToPage(1)"
+                                    >
+                                        <ChevronsLeft class="h-4 w-4" />
+                                        First
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-1"
+                                        :disabled="currentPage <= 1"
+                                        :class="currentPage <= 1 ? 'cursor-not-allowed opacity-50' : ''"
+                                        @click="goToPage(currentPage - 1)"
+                                    >
+                                        <ChevronLeft class="h-4 w-4" />
+                                        Previous
+                                    </Button>
+
+                                    <template v-for="item in paginationItems" :key="`page-item-${item}`">
+                                        <span v-if="typeof item !== 'number'" class="px-1 text-sm text-muted-foreground">...</span>
+                                        <Button
+                                            v-else
+                                            type="button"
+                                            :variant="item === currentPage ? 'default' : 'outline'"
+                                            size="sm"
+                                            class="min-w-9"
+                                            @click="goToPage(item)"
+                                        >
+                                            {{ item }}
+                                        </Button>
+                                    </template>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-1"
+                                        :disabled="currentPage >= totalPages"
+                                        :class="currentPage >= totalPages ? 'cursor-not-allowed opacity-50' : ''"
+                                        @click="goToPage(currentPage + 1)"
+                                    >
+                                        Next
+                                        <ChevronRight class="h-4 w-4" />
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        class="gap-1"
+                                        :disabled="currentPage >= totalPages"
+                                        :class="currentPage >= totalPages ? 'cursor-not-allowed opacity-50' : ''"
+                                        @click="goToPage(totalPages)"
+                                    >
+                                        Last
+                                        <ChevronsRight class="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
+
+                            <div class="hidden md:block" />
                         </div>
                     </div>
                 </CardContent>

@@ -165,7 +165,7 @@ class TrainingController extends Controller
             ->addSelect('trainings.*')
             ->addSelect(DB::raw('training_groups.cooperatives_count as cooperatives_count'));
 
-        $perPage = (int) $request->input('per_page', 15);
+        $perPage = (int) $request->input('per_page', 10);
         $perPage = max(1, min($perPage, 500));
 
         $trainings = $query->orderByDesc('trainings.created_at')->paginate($perPage)->withQueryString();

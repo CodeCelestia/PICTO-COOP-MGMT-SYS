@@ -1,17 +1,29 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Pencil, Trash2, Search, HandCoins, Users, Eye, FileText } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
-import FilterPanel from '@/components/FilterPanel.vue';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+    ChevronsLeft,
+    ChevronsRight,
+    ChevronLeft,
+    ChevronRight,
+    ClipboardList,
+    Eye,
+    FileText,
+    HandCoins,
+    Loader2,
+    Pencil,
+    Plus,
+    RotateCcw,
+    Search,
+    SearchX,
+    SlidersHorizontal,
+    Trash2,
+    Users,
+    Wallet,
+} from 'lucide-vue-next';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -28,6 +40,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
 import { confirmAction } from '@/lib/alerts';
@@ -55,7 +73,7 @@ interface Activity {
     date_started: string | null;
     date_ended: string | null;
     status: string;
-    venue: string | null;
+    venue?: string | null;
     responsible_officer_id: number | null;
     funding_source: string | null;
     cooperative: Cooperative;
@@ -101,32 +119,66 @@ const canCreate = computed(() => permissions.value.includes('create activities-&
 const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
 const canDelete = computed(() => permissions.value.includes('delete activities-&-projects'));
 const showParticipantActionInRows = computed(() => isSidebarCreateView.value || props.showParticipantActionInRows || false);
-const showViewActionInRows = computed(() => props.showViewActionInRows || false);
-const showActions = computed(() => showViewActionInRows.value || showParticipantActionInRows.value || canEdit.value || canDelete.value);
-const isViewDialogOpen = ref(false);
-const selectedActivity = ref<Activity | null>(null);
+const showActions = computed(() => true);
 
 const search = ref(props.filters.search || '');
 const coopId = ref(props.filters.coop_id || 'all');
 const status = ref(props.filters.status || 'all');
 const category = ref(props.filters.category || 'all');
 const canBulkDelete = computed(() => canDelete.value);
-const presetPageSizes = ['5', '15', '30'];
-const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 15);
-const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
-const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+const presetPageSizes = ['10', '25', '50', '100'];
+const initialPerPageRaw = props.filters.per_page || String(props.activities.per_page || 10);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : '10');
+const filtersVisible = ref(true);
+const isLoading = ref(false);
+const SEARCH_DEBOUNCE_MS = 300;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const currentPage = computed(() => props.activities.current_page || 1);
+const totalPages = computed(() => Math.max(props.activities.last_page || 1, 1));
+const showingFrom = computed(() => (props.activities.total ? (currentPage.value - 1) * props.activities.per_page + 1 : 0));
+const showingTo = computed(() => (props.activities.total ? Math.min(currentPage.value * props.activities.per_page, props.activities.total) : 0));
+
+const clearSearchTimer = () => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
+    }
+};
+
+const hasActiveFilters = computed(() => (
+    search.value.trim() !== ''
+    || coopId.value !== 'all'
+    || status.value !== 'all'
+    || category.value !== 'all'
+    || perPage.value !== '10'
+));
+
+const paginationItems = computed<Array<number | string>>(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, index) => index + 1);
+    }
+
+    if (current <= 4) {
+        return [1, 2, 3, 4, 5, 'ellipsis-right', total];
+    }
+
+    if (current >= total - 3) {
+        return [1, 'ellipsis-left', total - 4, total - 3, total - 2, total - 1, total];
+    }
+
+    return [1, 'ellipsis-left', current - 1, current, current + 1, 'ellipsis-right', total];
+});
 
 if (lockedCoopId.value) {
     coopId.value = lockedCoopId.value;
 }
 
 const resolvedPerPage = () => {
-    if (perPage.value !== 'custom') return perPage.value;
-
-    const parsed = Number(customPerPage.value);
-    if (!Number.isInteger(parsed) || parsed < 1) return '15';
-
-    return String(Math.min(parsed, 500));
+    return perPage.value;
 };
 
 const resolvedCoopId = () => {
@@ -154,29 +206,54 @@ const buildQuery = (pageNumber?: number) => {
 };
 
 const applyFilters = () => {
+    isLoading.value = true;
     router.get(baseUrl.value, buildQuery(), {
         preserveState: true,
         preserveScroll: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
     });
 };
 
-watch(status, (newStatus, oldStatus) => {
-    if (newStatus === oldStatus) return;
-
-    if (newStatus === 'Archived' || oldStatus === 'Archived') {
+watch(search, () => {
+    clearSearchTimer();
+    searchDebounceTimer = setTimeout(() => {
         applyFilters();
-    }
+    }, SEARCH_DEBOUNCE_MS);
+});
+
+watch([coopId, status, category, perPage], () => {
+    clearSearchTimer();
+    applyFilters();
 });
 
 const resetFilters = () => {
+    clearSearchTimer();
     search.value = '';
     coopId.value = lockedCoopId.value || 'all';
     status.value = 'all';
     category.value = 'all';
-    perPage.value = '15';
-    customPerPage.value = '';
-    router.get(baseUrl.value);
+    perPage.value = '10';
+    applyFilters();
 };
+
+const goToPage = (pageNumber: number) => {
+    if (pageNumber < 1 || pageNumber > totalPages.value || pageNumber === currentPage.value) return;
+
+    isLoading.value = true;
+    router.get(baseUrl.value, buildQuery(pageNumber), {
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
+    });
+};
+
+onUnmounted(() => {
+    clearSearchTimer();
+});
 
 const deleteActivity = async (activity: Activity) => {
     if (!canDelete.value) return;
@@ -235,9 +312,32 @@ const participantsHref = (activity: Activity) => {
     return `/activity-participants?activity_id=${activity.id}&coop_id=${activity.coop_id}`;
 };
 
-const openViewDialog = (activity: Activity) => {
-    selectedActivity.value = activity;
-    isViewDialogOpen.value = true;
+const openActivityDetails = (activity: Activity) => {
+    router.get(`/activities/${activity.id}`);
+};
+
+const openParticipants = (activity: Activity) => {
+    if (!showParticipantActionInRows.value) {
+        return;
+    }
+
+    router.get(participantsHref(activity));
+};
+
+const openFunding = (activity: Activity) => {
+    router.get(`/activity-funding-sources?activity_id=${activity.id}`);
+};
+
+const openReport = (activity: Activity) => {
+    window.open(`/activities/${activity.id}/report`, '_blank', 'noopener,noreferrer');
+};
+
+const openEdit = (activity: Activity) => {
+    if (!canEdit.value) {
+        return;
+    }
+
+    router.get(`/activities/${activity.id}/edit`);
 };
 
 const visibleActivities = computed(() => props.activities.data);
@@ -274,7 +374,10 @@ const bulkDeleteActivities = async () => {
         <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
-                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activities & Projects</h1>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activities & Projects</h1>
+                        <Badge variant="secondary">{{ activities.total }} records</Badge>
+                    </div>
                     <p class="text-sm text-muted-foreground">Track cooperative activities and projects</p>
                 </div>
                 <div class="flex flex-wrap items-center justify-end gap-2">
@@ -288,6 +391,16 @@ const bulkDeleteActivities = async () => {
                             Clear
                         </Button>
                     </div>
+                    <Button
+                        v-if="showCoopFilter"
+                        type="button"
+                        variant="outline"
+                        class="gap-2"
+                        @click="filtersVisible = !filtersVisible"
+                    >
+                        <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
+                        {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
+                    </Button>
                     <Link v-if="canCreate" :href="lockedCoopId ? `/activities/create?coop_id=${lockedCoopId}&coop_context=1` : '/activities/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
@@ -297,104 +410,88 @@ const bulkDeleteActivities = async () => {
                 </div>
             </div>
 
-            <div class="mt-6 border-t border-border/60 pt-6">
-                <FilterPanel
-                    title="Filters"
-                    description="Show filter fields to refine activities and projects."
-                    showLabel="Show filters"
-                    hideLabel="Hide filters"
-                >
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
-                            <div class="relative">
-                                <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    v-model="search"
-                                    @keyup.enter="applyFilters"
-                                    placeholder="Title, funding, partner..."
-                                    class="pl-9"
-                                />
+            <Transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="opacity-0 -translate-y-2"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 -translate-y-2"
+            >
+                <div v-if="showCoopFilter && filtersVisible" class="mt-6 border-t border-border/60 pt-6">
+                    <div class="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div class="min-w-60 flex-1 space-y-1">
+                                <label class="text-sm font-medium text-foreground/80">Search</label>
+                                <div class="relative">
+                                    <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        v-model="search"
+                                        placeholder="Title, funding, partner..."
+                                        class="pl-9"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div v-if="showCoopFilter">
-                            <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
-                            <Select v-model="coopId">
-                                <SelectTrigger>
-                                    <SelectValue :placeholder="allCooperativesLabel" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">{{ allCooperativesLabel }}</SelectItem>
-                                    <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                        {{ coop.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground/80">Category</label>
-                            <Select v-model="category">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Categories" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
-                                    <SelectItem v-for="option in categoryOptions" :key="option" :value="option">
-                                        {{ option }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
-                            <Select v-model="status">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem v-for="option in statusOptions" :key="option" :value="option">
-                                        {{ option }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
-                            <div class="flex gap-2">
-                                <Select v-model="perPage">
+
+                            <div class="min-w-40 space-y-1">
+                                <label class="text-sm font-medium text-foreground/80">Cooperative</label>
+                                <Select v-model="coopId">
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select size" />
+                                        <SelectValue :placeholder="allCooperativesLabel" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="5">5</SelectItem>
-                                        <SelectItem value="15">15</SelectItem>
-                                        <SelectItem value="30">30</SelectItem>
-                                        <SelectItem value="custom">Custom</SelectItem>
+                                        <SelectItem value="all">All Cooperatives</SelectItem>
+                                        <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                            {{ coop.name }}
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Input
-                                    v-if="perPage === 'custom'"
-                                    v-model="customPerPage"
-                                    type="number"
-                                    min="1"
-                                    max="500"
-                                    placeholder="Enter"
-                                    class="w-28"
-                                />
                             </div>
+
+                            <div class="min-w-40 space-y-1">
+                                <label class="text-sm font-medium text-foreground/80">Category</label>
+                                <Select v-model="category">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="All Categories" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Categories</SelectItem>
+                                        <SelectItem v-for="option in categoryOptions" :key="option" :value="option">
+                                            {{ option }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div class="min-w-40 space-y-1">
+                                <label class="text-sm font-medium text-foreground/80">Status</label>
+                                <Select v-model="status">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="All Statuses" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem v-for="option in statusOptions" :key="option" :value="option">
+                                            {{ option }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <Button
+                                v-if="hasActiveFilters"
+                                type="button"
+                                variant="outline"
+                                class="ml-auto gap-2"
+                                @click="resetFilters"
+                            >
+                                <RotateCcw class="h-4 w-4" />
+                                Clear Filters
+                            </Button>
                         </div>
                     </div>
-
-                    <div class="mt-5 flex flex-wrap gap-2">
-                        <Button @click="applyFilters" class="gap-2">
-                            <Search class="h-4 w-4" />
-                            Apply Filters
-                        </Button>
-                        <Button @click="resetFilters" variant="outline">Clear Filters</Button>
-                    </div>
-                </FilterPanel>
-            </div>
+                </div>
+            </Transition>
         </div>
 
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -417,15 +514,52 @@ const bulkDeleteActivities = async () => {
                             <TableHead>Dates</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Responsible</TableHead>
-                            <TableHead v-if="showActions" class="text-center">Actions</TableHead>
+                            <TableHead v-if="showActions" class="min-w-[220px] text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-if="activities.data.length === 0">
+                        <template v-if="isLoading">
+                            <TableRow v-for="rowIndex in 6" :key="`activity-loading-${rowIndex}`">
+                                <TableCell v-if="canBulkDelete" class="w-12">
+                                    <div class="h-4 w-4 rounded bg-muted animate-pulse" />
+                                </TableCell>
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-muted animate-pulse" />
+                                        <div class="space-y-2">
+                                            <div class="h-4 w-44 rounded bg-muted animate-pulse" />
+                                            <div class="h-3 w-28 rounded bg-muted animate-pulse" />
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell :class="['text-sm text-muted-foreground', isSidebarCreateView ? 'text-center' : '']">
+                                    <div class="mx-auto h-5 w-14 rounded-full bg-muted animate-pulse" />
+                                </TableCell>
+                                <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-32 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-32 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-5 w-20 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell><div class="h-4 w-28 rounded bg-muted animate-pulse" /></TableCell>
+                                <TableCell v-if="showActions"><div class="mx-auto h-8 w-52 rounded bg-muted animate-pulse" /></TableCell>
+                            </TableRow>
+                        </template>
+
+                        <TableRow v-else-if="activities.data.length === 0">
                             <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="text-center text-muted-foreground">
-                                No activities found.
+                                <div class="mx-auto max-w-md space-y-3 py-6">
+                                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                        <SearchX class="h-6 w-6" />
+                                    </div>
+                                    <p class="font-medium text-foreground">No results found</p>
+                                    <p class="text-sm text-muted-foreground">Try adjusting your filters or search terms.</p>
+                                    <Button v-if="hasActiveFilters" type="button" variant="outline" class="gap-2" @click="resetFilters">
+                                        <RotateCcw class="h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
+
                         <TableRow v-for="activity in activities.data" :key="activity.id">
                             <TableCell v-if="canBulkDelete" class="w-12">
                                 <Checkbox
@@ -439,9 +573,27 @@ const bulkDeleteActivities = async () => {
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
                                         <ClipboardList class="h-4 w-4" />
                                     </div>
-                                    <div>
-                                        <div class="font-medium text-foreground">{{ activity.title }}</div>
-                                        <div class="text-xs text-muted-foreground">{{ activity.funding_source || 'No funding source' }}</div>
+                                    <div class="min-w-0">
+                                        <TooltipProvider :delay-duration="150">
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <div class="max-w-60 truncate font-medium text-foreground">{{ activity.title }}</div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{{ activity.title }}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider :delay-duration="150">
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <div class="max-w-60 truncate text-xs text-muted-foreground">{{ activity.funding_source || 'No funding source' }}</div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{{ activity.funding_source || 'No funding source' }}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 </div>
                             </TableCell>
@@ -452,7 +604,16 @@ const bulkDeleteActivities = async () => {
                                 >
                                     {{ cooperativesParticipatingCount(activity) }}
                                 </span>
-                                <span v-else>{{ activity.cooperative.name }}</span>
+                                <TooltipProvider v-else :delay-duration="150">
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <span class="inline-block max-w-60 truncate align-middle">{{ activity.cooperative.name }}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{{ activity.cooperative.name }}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.category }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.venue || 'N/A' }}</TableCell>
@@ -461,136 +622,206 @@ const bulkDeleteActivities = async () => {
                             </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ activity.status }}</TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
-                            <TableCell v-if="showActions" class="text-center">
-                                <div class="flex flex-wrap justify-center gap-2">
-                                    <Button
-                                        v-if="showViewActionInRows"
-                                        @click="openViewDialog(activity)"
-                                        variant="outline"
-                                        size="sm"
-                                        class="gap-2"
-                                    >
-                                        <Eye class="h-4 w-4" />
-                                        View
-                                    </Button>
-                                    <Link v-if="showParticipantActionInRows" :href="participantsHref(activity)">
-                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
-                                            <Users class="h-4 w-4" />
-                                            Participants
-                                        </Button>
-                                    </Link>
-                                    <Link :href="`/activity-funding-sources?activity_id=${activity.id}`">
-                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-other gap-2">
-                                            <HandCoins class="h-4 w-4" />
-                                            Funding
-                                        </Button>
-                                    </Link>
-                                    <Button asChild variant="ghost" size="sm" class="table-action-btn table-action-other gap-2">
-                                        <a
-                                            :href="`/activities/${activity.id}/report`"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            @click.stop
-                                            class="inline-flex items-center gap-2"
-                                        >
-                                            <FileText class="h-4 w-4" />
-                                            Report
-                                        </a>
-                                    </Button>
-                                    <Link v-if="canEdit" :href="`/activities/${activity.id}/edit`">
-                                        <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
-                                            <Pencil class="h-4 w-4" />
-                                            Edit
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        v-if="canDelete"
-                                        @click="deleteActivity(activity)"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                </div>
+                            <TableCell v-if="showActions" class="text-center align-top">
+                                <TooltipProvider :delay-duration="150">
+                                    <div class="grid grid-cols-3 gap-2.5">
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="openParticipants(activity)"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                    :disabled="!showParticipantActionInRows"
+                                                >
+                                                    <Users class="h-3.5 w-3.5" />
+                                                    Participants
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>View participants for this activity</p></TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="openFunding(activity)"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                >
+                                                    <Wallet class="h-3.5 w-3.5" />
+                                                    Funding
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>View funding sources</p></TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="openReport(activity)"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                >
+                                                    <ClipboardList class="h-3.5 w-3.5" />
+                                                    Report
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Generate report</p></TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="openActivityDetails(activity)"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                >
+                                                    <Eye class="h-3.5 w-3.5" />
+                                                    View
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>View activity details</p></TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="openEdit(activity)"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                    :disabled="!canEdit"
+                                                >
+                                                    <Pencil class="h-3.5 w-3.5" />
+                                                    Edit
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Edit this activity</p></TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Button
+                                                    @click="deleteActivity(activity)"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs"
+                                                    :disabled="!canDelete"
+                                                >
+                                                    <Trash2 class="h-3.5 w-3.5" />
+                                                    Delete
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Delete this activity</p></TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                </TooltipProvider>
                             </TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
             </div>
 
-            <div v-if="activities.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="text-sm text-muted-foreground">
-                        Showing {{ (activities.current_page - 1) * activities.per_page + 1 }} to
-                        {{ Math.min(activities.current_page * activities.per_page, activities.total) }} of
-                        {{ activities.total }} activities
+            <div class="border-t border-border px-4 py-4 sm:px-6">
+                <div class="mb-3 flex justify-center text-sm text-muted-foreground">
+                    <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
+                    Showing {{ showingFrom }}–{{ showingTo }} of {{ activities.total }} results
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                    <div class="flex items-center gap-2 md:justify-start">
+                        <span class="text-sm text-muted-foreground">Show</span>
+                        <Select v-model="perPage">
+                            <SelectTrigger class="w-24">
+                                <SelectValue placeholder="Rows" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <span class="text-sm text-muted-foreground">per page</span>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <Button
-                            v-for="pageNumber in activities.last_page"
-                            :key="pageNumber"
-                            variant="outline"
-                            size="sm"
-                            :disabled="pageNumber === activities.current_page"
-                            @click="router.get(baseUrl, buildQuery(pageNumber), { preserveScroll: true, preserveState: true })"
-                        >
-                            {{ pageNumber }}
-                        </Button>
+
+                    <div class="flex justify-center mt-4">
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="gap-1"
+                                :disabled="currentPage <= 1"
+                                :class="currentPage <= 1 ? 'cursor-not-allowed opacity-50' : ''"
+                                @click="goToPage(1)"
+                            >
+                                <ChevronsLeft class="h-4 w-4" />
+                                First
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="gap-1"
+                                :disabled="currentPage <= 1"
+                                :class="currentPage <= 1 ? 'cursor-not-allowed opacity-50' : ''"
+                                @click="goToPage(currentPage - 1)"
+                            >
+                                <ChevronLeft class="h-4 w-4" />
+                                Previous
+                            </Button>
+
+                            <template v-for="item in paginationItems" :key="`activity-page-${item}`">
+                                <span v-if="typeof item !== 'number'" class="px-1 text-sm text-muted-foreground">...</span>
+                                <Button
+                                    v-else
+                                    type="button"
+                                    :variant="item === currentPage ? 'default' : 'outline'"
+                                    size="sm"
+                                    class="min-w-9"
+                                    @click="goToPage(item)"
+                                >
+                                    {{ item }}
+                                </Button>
+                            </template>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="gap-1"
+                                :disabled="currentPage >= totalPages"
+                                :class="currentPage >= totalPages ? 'cursor-not-allowed opacity-50' : ''"
+                                @click="goToPage(currentPage + 1)"
+                            >
+                                Next
+                                <ChevronRight class="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="gap-1"
+                                :disabled="currentPage >= totalPages"
+                                :class="currentPage >= totalPages ? 'cursor-not-allowed opacity-50' : ''"
+                                @click="goToPage(totalPages)"
+                            >
+                                Last
+                                <ChevronsRight class="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
+
+                    <div class="hidden md:block" />
                 </div>
             </div>
         </div>
 
-        <Dialog v-model:open="isViewDialogOpen">
-            <DialogContent class="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{{ selectedActivity?.title || 'Activity details' }}</DialogTitle>
-                    <DialogDescription>
-                        Full details for the selected activity or project.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div v-if="selectedActivity" class="grid gap-4 text-sm sm:grid-cols-2">
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cooperative</p>
-                        <p class="text-foreground">{{ selectedActivity.cooperative.name }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</p>
-                        <p class="text-foreground">{{ selectedActivity.category || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
-                        <p class="text-foreground">{{ selectedActivity.status || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Responsible Officer</p>
-                        <p class="text-foreground">{{ formatOfficerName(selectedActivity) }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Started</p>
-                        <p class="text-foreground">{{ formatDate(selectedActivity.date_started) }}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Ended</p>
-                        <p class="text-foreground">{{ formatDate(selectedActivity.date_ended) }}</p>
-                    </div>
-                    <div class="space-y-1 sm:col-span-2">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funding Source</p>
-                        <p class="text-foreground">{{ selectedActivity.funding_source || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1 sm:col-span-2">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Venue</p>
-                        <p class="text-foreground">{{ selectedActivity.venue || 'N/A' }}</p>
-                    </div>
-                    <div class="space-y-1 sm:col-span-2">
-                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>
-                        <p class="whitespace-pre-wrap text-foreground">{{ selectedActivity.description || 'N/A' }}</p>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
     </div>
 </template>

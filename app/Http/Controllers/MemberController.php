@@ -285,7 +285,8 @@ class MemberController extends Controller
 
         $memberSearch = $request->input('members_search');
         $memberStatus = $request->input('members_membership_status');
-        $memberPerPage = (int) $request->input('members_per_page', 15);
+        $memberType = $request->input('members_membership_type');
+        $memberPerPage = (int) $request->input('members_per_page', 10);
         $memberPerPage = max(1, min($memberPerPage, 500));
 
         $membersQuery = Member::with(['cooperative', 'user', 'roles'])
@@ -308,7 +309,19 @@ class MemberController extends Controller
             $membersQuery->where('membership_status', $memberStatus);
         }
 
-        $members = $membersQuery->latest()->paginate($memberPerPage)->withQueryString();
+        if ($memberType) {
+            $membersQuery->where('membership_type', $memberType);
+        }
+
+        $members = $membersQuery->orderBy('last_name')->orderBy('first_name')->paginate($memberPerPage)->withQueryString();
+
+        $membershipTypes = Member::query()
+            ->where('coop_id', $coopId)
+            ->whereNotNull('membership_type')
+            ->distinct()
+            ->orderBy('membership_type')
+            ->pluck('membership_type')
+            ->values();
 
         $services = MemberServiceAvailed::with(['member:id,first_name,last_name'])
             ->where('coop_id', $coopId)
@@ -397,8 +410,10 @@ class MemberController extends Controller
             'memberFilters' => [
                 'search' => $memberSearch,
                 'membership_status' => $memberStatus,
+                'membership_type' => $memberType,
                 'per_page' => $request->input('members_per_page'),
             ],
+            'membershipTypes' => $membershipTypes,
             'services' => $services,
             'activities' => $activities,
             'activityFilters' => [
