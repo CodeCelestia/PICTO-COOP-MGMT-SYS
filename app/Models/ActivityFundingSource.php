@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -27,6 +29,8 @@ class ActivityFundingSource extends Model
 {
     use SoftDeletes;
     use CoopScoped;
+    use LogsActivity;
+
     protected $fillable = [
         'activity_id',
         'category',
@@ -52,6 +56,25 @@ class ActivityFundingSource extends Model
             'attachment_paths' => 'array',
             'attachment_names' => 'array',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'funder_name',
+                'funder_type',
+                'category',
+                'amount_allocated',
+                'amount_released',
+                'date_released',
+                'status',
+                'remarks',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'FundingSource'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Funding Source: ".($this->funder_name ?? 'Unknown'));
     }
 
     public function activity(): BelongsTo

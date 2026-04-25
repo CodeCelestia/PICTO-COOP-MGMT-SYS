@@ -6,6 +6,8 @@ use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -28,6 +30,8 @@ class Training extends Model
 {
     use SoftDeletes;
     use CoopScoped;
+    use LogsActivity;
+
     protected $fillable = [
         'coop_id',
         'title',
@@ -50,6 +54,26 @@ class Training extends Model
             'follow_up_date' => 'date',
             'follow_up_needed' => 'boolean',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'title',
+                'date_conducted',
+                'facilitator',
+                'venue',
+                'target_group',
+                'no_of_participants',
+                'status',
+                'follow_up_needed',
+                'follow_up_date',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'Training'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Training: ".($this->title ?? 'Untitled'));
     }
 
     public function cooperative(): BelongsTo

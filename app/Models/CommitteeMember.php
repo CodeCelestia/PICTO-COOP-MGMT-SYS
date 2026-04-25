@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -22,6 +24,8 @@ class CommitteeMember extends Model
 {
     use SoftDeletes;
     use CoopScoped;
+    use LogsActivity;
+
     protected $fillable = [
         'coop_id',
         'member_id',
@@ -38,6 +42,22 @@ class CommitteeMember extends Model
             'date_assigned' => 'date',
             'date_removed' => 'date',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'committee_name',
+                'role',
+                'date_assigned',
+                'date_removed',
+                'status',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'CommitteeMember'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Committee Member record");
     }
 
     /**

@@ -50,13 +50,17 @@ class MemberLoan extends Model
     {
         return LogOptions::defaults()
             ->logOnly([
-                'coop_id',
-                'member_id',
                 'principal',
                 'interest_rate',
                 'term_months',
+                'loan_type_id',
                 'status',
+                'purpose',
                 'approved_by',
+                'approved_at',
+                'remarks',
+                'disbursement_date',
+                'disbursement_method',
                 'amount_disbursed',
             ])
             ->logOnlyDirty()

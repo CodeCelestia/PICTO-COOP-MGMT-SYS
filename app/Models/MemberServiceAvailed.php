@@ -58,7 +58,15 @@ class MemberServiceAvailed extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['service_type', 'status', 'amount'])
+            ->logOnly([
+                'service_type',
+                'service_detail',
+                'date_availed',
+                'amount',
+                'status',
+                'reference_no',
+                'remarks',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Service availment has been {$eventName}");

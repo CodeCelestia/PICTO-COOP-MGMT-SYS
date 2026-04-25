@@ -43,7 +43,14 @@ class MemberSavings extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['coop_id', 'member_id', 'account_status', 'current_balance', 'interest_rate'])
+            ->logOnly([
+                'account_number',
+                'account_status',
+                'current_balance',
+                'interest_rate',
+                'opened_at',
+                'closed_at',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => "Member savings has been {$eventName}");

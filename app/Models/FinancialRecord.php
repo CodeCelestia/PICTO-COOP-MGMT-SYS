@@ -6,6 +6,8 @@ use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -31,6 +33,8 @@ class FinancialRecord extends Model
 {
     use SoftDeletes;
     use CoopScoped;
+    use LogsActivity;
+
     protected $fillable = [
         'coop_id',
         'period',
@@ -60,6 +64,28 @@ class FinancialRecord extends Model
             'external_assistance_received' => 'decimal:2',
             'date_recorded' => 'date',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'period',
+                'type',
+                'amount',
+                'source',
+                'purpose',
+                'date_recorded',
+                'total_assets',
+                'total_liabilities',
+                'net_surplus',
+                'capital_build_up',
+                'reference_doc',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'FinancialRecord'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Financial Record");
     }
 
     public function cooperative(): BelongsTo

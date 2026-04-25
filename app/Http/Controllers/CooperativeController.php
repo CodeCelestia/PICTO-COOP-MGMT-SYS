@@ -144,8 +144,25 @@ class CooperativeController extends Controller
         $typeIds = $validated['type_ids'];
         unset($validated['type_ids']);
 
+        if (is_string($request->input('date_established')) && $request->input('date_established') !== '') {
+            $validated['date_established'] = substr($request->input('date_established'), 0, 10);
+        }
+
         $accreditations = $validated['accreditations'] ?? [];
         unset($validated['accreditations']);
+
+        foreach ($accreditations as &$accreditation) {
+            if (!is_array($accreditation)) {
+                continue;
+            }
+
+            foreach (['date_granted', 'valid_until', 'accreditation_date'] as $dateField) {
+                if (!empty($accreditation[$dateField])) {
+                    $accreditation[$dateField] = substr((string) $accreditation[$dateField], 0, 10);
+                }
+            }
+        }
+        unset($accreditation);
 
         $oldValues = [];
         $cooperative = Cooperative::create($validated);
@@ -270,45 +287,70 @@ class CooperativeController extends Controller
         $statusRemarks = $validated['status_remarks'] ?? null;
         unset($validated['change_reason'], $validated['status_remarks']);
 
+        if (is_string($request->input('date_established')) && $request->input('date_established') !== '') {
+            $validated['date_established'] = substr($request->input('date_established'), 0, 10);
+        }
+
         $cooperative->update($validated);
         $cooperative->types()->sync($typeIds);
 
-        $submittedAccreditations = $request->input('accreditations', []);
-        $existingIds = $cooperative->accreditations()->pluck('id')->toArray();
-        $submittedIds = array_filter(array_map(fn ($item) => $item['id'] ?? null, $submittedAccreditations));
+        $accreditations = $request->input('accreditations', []);
+        if (!empty($accreditations) && is_array($accreditations)) {
+            $normalizedAccreditations = [];
+            foreach ($accreditations as $acc) {
+                if (!is_array($acc)) {
+                    continue;
+                }
 
-        $idsToDelete = array_diff($existingIds, $submittedIds);
-        if (!empty($idsToDelete)) {
-            $cooperative->accreditations()->whereIn('id', $idsToDelete)->delete();
-        }
+                if (empty($acc['level']) && empty($acc['date_granted'])) {
+                    continue;
+                }
 
-        foreach ($submittedAccreditations as $accreditation) {
-            if (!empty($accreditation['id'])) {
-                $existing = $cooperative->accreditations()->withTrashed()->find($accreditation['id']);
-                if ($existing) {
-                    $existing->update([
-                        'level' => $accreditation['level'],
-                        'date_granted' => $accreditation['date_granted'],
-                        'valid_until' => $accreditation['valid_until'] ?? null,
-                        'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
-                        'remarks' => $accreditation['remarks'] ?? null,
-                    ]);
-
-                    if ($existing->trashed()) {
-                        $existing->restore();
+                foreach (['date_granted', 'valid_until', 'accreditation_date'] as $dateField) {
+                    if (!empty($acc[$dateField])) {
+                        $acc[$dateField] = substr((string) $acc[$dateField], 0, 10);
                     }
                 }
 
-                continue;
+                $normalizedAccreditations[] = $acc;
             }
 
-            $cooperative->accreditations()->create([
-                'level' => $accreditation['level'],
-                'date_granted' => $accreditation['date_granted'],
-                'valid_until' => $accreditation['valid_until'] ?? null,
-                'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
-                'remarks' => $accreditation['remarks'] ?? null,
-            ]);
+            $existingIds = $cooperative->accreditations()->pluck('id')->toArray();
+            $submittedIds = array_filter(array_map(fn ($item) => $item['id'] ?? null, $normalizedAccreditations));
+
+            $idsToDelete = array_diff($existingIds, $submittedIds);
+            if (!empty($idsToDelete)) {
+                $cooperative->accreditations()->whereIn('id', $idsToDelete)->delete();
+            }
+
+            foreach ($normalizedAccreditations as $accreditation) {
+                if (!empty($accreditation['id'])) {
+                    $existing = $cooperative->accreditations()->withTrashed()->find($accreditation['id']);
+                    if ($existing) {
+                        $existing->update([
+                            'level' => $accreditation['level'],
+                            'date_granted' => $accreditation['date_granted'],
+                            'valid_until' => $accreditation['valid_until'] ?? null,
+                            'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
+                            'remarks' => $accreditation['remarks'] ?? null,
+                        ]);
+
+                        if ($existing->trashed()) {
+                            $existing->restore();
+                        }
+                    }
+
+                    continue;
+                }
+
+                $cooperative->accreditations()->create([
+                    'level' => $accreditation['level'],
+                    'date_granted' => $accreditation['date_granted'],
+                    'valid_until' => $accreditation['valid_until'] ?? null,
+                    'issuing_body' => $accreditation['issuing_body'] ?? 'CDA',
+                    'remarks' => $accreditation['remarks'] ?? null,
+                ]);
+            }
         }
 
         if ($previousStatus !== $newStatus) {

@@ -87,8 +87,18 @@ class Member extends Model
             ->logOnly([
                 'first_name',
                 'last_name',
+                'gender',
+                'address',
+                'region',
+                'province',
+                'city_municipality',
+                'barangay',
+                'phone',
+                'email',
+                'date_joined',
                 'membership_status',
                 'membership_type',
+                'educational_attainment',
                 'sector',
                 'primary_livelihood',
                 'share_capital'

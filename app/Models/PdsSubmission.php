@@ -30,7 +30,10 @@ class PdsSubmission extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'submitted_at'])
+            ->logOnly([
+                'status',
+                'submitted_at',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "PDS submission has been {$eventName}");

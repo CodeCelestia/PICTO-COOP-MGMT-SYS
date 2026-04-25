@@ -38,7 +38,13 @@ class SavingsTransaction extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['member_savings_id', 'coop_id', 'type', 'amount', 'recorded_by'])
+            ->logOnly([
+                'type',
+                'amount',
+                'balance_after',
+                'remarks',
+                'recorded_at',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => "Savings transaction has been {$eventName}");

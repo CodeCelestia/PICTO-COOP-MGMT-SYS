@@ -4,12 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingParticipant extends Model
 {
     use SoftDeletes;
+    use LogsActivity;
+
     protected $fillable = [
         'training_id',
         'member_id',
@@ -25,6 +29,21 @@ class TrainingParticipant extends Model
         return [
             'certificate_date' => 'date',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'outcome',
+                'certificate_no',
+                'certificate_date',
+                'remarks',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'TrainingParticipant'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Training Participant record");
     }
 
     public function training(): BelongsTo

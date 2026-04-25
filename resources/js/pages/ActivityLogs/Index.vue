@@ -37,24 +37,34 @@ interface Causer {
     email: string;
 }
 
+interface ActivityFieldChange {
+    field: string;
+    old?: unknown;
+    new?: unknown;
+}
+
 interface ActivityItem {
     id: number;
     table_name: string | null;
     record_id: number | null;
+    record_name?: string | null;
     action: string;
     changed_by: string;
     changed_at: string | null;
     old_value: Record<string, unknown> | null;
     new_value: Record<string, unknown> | null;
-    changes?: Record<string, { old: unknown; new: unknown }>;
     description: string;
+    human_description?: string | null;
     event: string;
     subject_type: string;
     subject_id: number;
+    batch_group?: string | null;
+    created_at_raw?: number | null;
     causer: Causer | null;
     ip_address?: string | null;
     user_name?: string | null;
     module_name?: string | null;
+    field_changes?: ActivityFieldChange[];
     properties: {
         attributes?: Record<string, unknown>;
         old?: Record<string, unknown>;
@@ -91,6 +101,12 @@ interface SessionItem {
         name: string;
         email: string;
     };
+}
+
+interface DisplayFieldChangeRow {
+    field: string;
+    oldValue: string;
+    newValue: string;
 }
 
 interface AccountStatusItem {
@@ -155,6 +171,7 @@ const auditSearch = ref(props.filters.audit.search || '');
 const auditEvent = ref(props.filters.audit.event || 'all');
 const auditSubject = ref(props.filters.audit.subject_type || 'all');
 const expandedRow = ref<number | null>(null);
+const expandedFieldRows = ref<Set<number>>(new Set());
 
 const applyAuditFilters = () => {
     router.get('/activity-logs', {
@@ -299,6 +316,78 @@ const activeTotal = computed(() => {
     if (showSessions.value) return props.sessions?.total ?? 0;
     return props.accounts?.total ?? 0;
 });
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+const toDisplayValue = (value: unknown): string => {
+    if (value === null) return 'null';
+    if (value === undefined) return '-';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'string' && value.includes('T')) return value.substring(0, 10);
+    if (Array.isArray(value) || isPlainObject(value)) {
+        return JSON.stringify(value);
+    }
+    return String(value);
+};
+
+const toggleFieldRows = (id: number) => {
+    if (expandedFieldRows.value.has(id)) {
+        expandedFieldRows.value.delete(id);
+    } else {
+        expandedFieldRows.value.add(id);
+    }
+};
+
+const getEntryFieldChanges = (activity: ActivityItem): DisplayFieldChangeRow[] => {
+    const rows: DisplayFieldChangeRow[] = [];
+    const fieldChanges = Array.isArray(activity.field_changes) ? activity.field_changes : [];
+
+    if (fieldChanges.length > 0) {
+        fieldChanges.forEach((change) => {
+            if (!change || typeof change !== 'object') return;
+            const field = 'field' in change ? String(change.field ?? '') : '';
+            if (!field) return;
+
+            const oldVal = toDisplayValue((change as { old?: unknown }).old);
+            const newVal = toDisplayValue((change as { new?: unknown }).new);
+
+            if (oldVal === '-' && newVal === '-') return;
+            if (oldVal === newVal) return;
+
+            rows.push({
+                field,
+                oldValue: oldVal,
+                newValue: newVal,
+            });
+        });
+
+        return rows;
+    }
+
+    const oldValues = isPlainObject(activity.old_value) ? activity.old_value : {};
+    const newValues = isPlainObject(activity.new_value) ? activity.new_value : {};
+    const fields = Array.from(new Set([...Object.keys(oldValues), ...Object.keys(newValues)]));
+
+    fields.forEach((field) => {
+        const oldVal = toDisplayValue(oldValues[field]);
+        const newVal = toDisplayValue(newValues[field]);
+
+        if (oldVal === '-' && newVal === '-') return;
+        if (oldVal === newVal) return;
+
+        rows.push({
+            field,
+            oldValue: oldVal,
+            newValue: newVal,
+        });
+    });
+
+    return rows;
+};
+
+const isFieldRowsExpanded = (id: number) => expandedFieldRows.value.has(id);
 </script>
 
 <template>
@@ -571,7 +660,7 @@ const activeTotal = computed(() => {
                                                 <div class="space-y-4">
                                                     <div>
                                                         <h4 class="mb-2 text-sm font-semibold">Description:</h4>
-                                                        <p class="text-sm text-muted-foreground">{{ activity.description }}</p>
+                                                        <p class="text-sm text-muted-foreground">{{ activity.human_description || activity.description }}</p>
                                                     </div>
 
                                                     <div class="grid gap-4 md:grid-cols-2 mb-4">
@@ -588,7 +677,9 @@ const activeTotal = computed(() => {
                                                             <div class="space-y-1 text-xs text-muted-foreground">
                                                                 <div><strong>Module:</strong> {{ activity.module_name || activity.subject_type || 'N/A' }}</div>
                                                                 <div><strong>Action:</strong> {{ activity.action }}</div>
+                                                                <div><strong>Record:</strong> {{ activity.record_name || (activity.record_id ? `Record #${activity.record_id}` : 'N/A') }}</div>
                                                                 <div><strong>Record ID:</strong> {{ activity.record_id ?? 'N/A' }}</div>
+                                                                <div><strong>IP Address:</strong> {{ activity.ip_address || 'N/A' }}</div>
                                                                 <div><strong>Timestamp:</strong> {{ activity.created_at_full }}</div>
                                                             </div>
                                                         </div>
@@ -596,16 +687,33 @@ const activeTotal = computed(() => {
 
                                                     <div>
                                                         <h4 class="mb-2 text-sm font-semibold">Field Changes:</h4>
-                                                        <div class="space-y-3 rounded-md border border-border bg-card p-3 text-sm">
-                                                            <template v-if="activity.changes && typeof activity.changes === 'object' && Object.keys(activity.changes).length > 0">
-                                                                <div v-for="(change, field) in activity.changes" :key="field" class="rounded-md border border-muted p-3">
-                                                                    <div class="font-medium text-foreground">{{ field }}</div>
-                                                                    <div class="mt-1 text-xs text-muted-foreground">
-                                                                        Old: <span class="font-mono">{{ change.old === null ? 'null' : change.old }}</span>
-                                                                    </div>
-                                                                    <div class="text-xs text-muted-foreground">
-                                                                        New: <span class="font-mono">{{ change.new === null ? 'null' : change.new }}</span>
-                                                                    </div>
+                                                        <div class="rounded-md border border-border bg-card p-3 text-sm">
+                                                            <template v-if="getEntryFieldChanges(activity).length > 0">
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Field</TableHead>
+                                                                            <TableHead>Old Value</TableHead>
+                                                                            <TableHead>New Value</TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        <TableRow v-for="row in getEntryFieldChanges(activity).slice(0, isFieldRowsExpanded(activity.id) ? undefined : 5)" :key="row.field">
+                                                                            <TableCell class="font-medium">{{ row.field }}</TableCell>
+                                                                            <TableCell><span class="font-mono text-xs">{{ row.oldValue }}</span></TableCell>
+                                                                            <TableCell><span class="font-mono text-xs">{{ row.newValue }}</span></TableCell>
+                                                                        </TableRow>
+                                                                    </TableBody>
+                                                                </Table>
+
+                                                                <div v-if="getEntryFieldChanges(activity).length > 5" class="mt-3 text-right text-xs">
+                                                                    <button
+                                                                        type="button"
+                                                                        class="font-medium text-primary hover:underline"
+                                                                        @click="toggleFieldRows(activity.id)"
+                                                                    >
+                                                                        {{ isFieldRowsExpanded(activity.id) ? 'See less' : 'See more fields' }}
+                                                                    </button>
                                                                 </div>
                                                             </template>
                                                             <template v-else>

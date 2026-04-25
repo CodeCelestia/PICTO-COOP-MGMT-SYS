@@ -129,7 +129,20 @@ class Cooperative extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'registration_number', 'status', 'province'])
+            ->logOnly([
+                'name',
+                'registration_number',
+                'classification',
+                'date_established',
+                'address',
+                'region',
+                'province',
+                'city_municipality',
+                'barangay',
+                'email',
+                'phone',
+                'status',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Cooperative has been {$eventName}");

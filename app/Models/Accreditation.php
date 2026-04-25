@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Accreditation extends Model
 {
     use SoftDeletes;
+    use LogsActivity;
 
     protected $fillable = [
         'cooperative_id',
@@ -25,6 +28,22 @@ class Accreditation extends Model
             'date_granted' => 'date',
             'valid_until' => 'date',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'level',
+                'date_granted',
+                'valid_until',
+                'issuing_body',
+                'remarks',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'Accreditation'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Accreditation record");
     }
 
     public function cooperative(): BelongsTo

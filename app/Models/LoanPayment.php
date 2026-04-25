@@ -47,7 +47,17 @@ class LoanPayment extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['loan_id', 'coop_id', 'amount_paid', 'status', 'recorded_by'])
+            ->logOnly([
+                'payment_number',
+                'principal_due',
+                'interest_due',
+                'amount_paid',
+                'due_date',
+                'paid_at',
+                'balance_after',
+                'status',
+                'remarks',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn (string $eventName) => "Loan payment has been {$eventName}");

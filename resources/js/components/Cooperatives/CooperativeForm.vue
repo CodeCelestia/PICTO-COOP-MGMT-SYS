@@ -15,6 +15,7 @@ interface CooperativeAccreditation {
   level: string;
   date_granted: string;
   valid_until?: string;
+  accreditation_date?: string;
   issuing_body?: string;
   remarks?: string;
 }
@@ -63,10 +64,18 @@ const normalizeDateInput = (value?: string | null): string => {
   const dateOnlyMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
   if (dateOnlyMatch) return dateOnlyMatch[1];
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
+  return value.substring(0, 10);
+};
 
-  return parsed.toISOString().slice(0, 10);
+const normalizeAccreditations = (accreditations?: CooperativeAccreditation[]): CooperativeAccreditation[] => {
+  if (!Array.isArray(accreditations)) return [];
+
+  return accreditations.map((item) => ({
+    ...item,
+    date_granted: normalizeDateInput(item?.date_granted),
+    valid_until: normalizeDateInput(item?.valid_until),
+    accreditation_date: normalizeDateInput(item?.accreditation_date),
+  }));
 };
 
 const normalizeLocationKey = (value?: string | null): string => {
@@ -102,7 +111,9 @@ const form = useForm({
   registration_number: props.cooperative?.registration_number || '',
   type_ids: (props.cooperative?.types || []).map((type) => type.id.toString()),
   classification: props.cooperative?.classification || '',
-  date_established: normalizeDateInput(props.cooperative?.date_established),
+  date_established: props.cooperative?.date_established
+    ? String(props.cooperative.date_established).substring(0, 10)
+    : null,
   address: props.cooperative?.address || '',
   region: props.cooperative?.region || '',
   province: props.cooperative?.province || '',
@@ -111,7 +122,7 @@ const form = useForm({
   email: props.cooperative?.email || '',
   phone: props.cooperative?.phone || '',
   status: props.cooperative?.status || 'Active',
-  accreditations: props.accreditations ?? props.cooperative?.accreditations ?? [],
+  accreditations: normalizeAccreditations(props.accreditations ?? props.cooperative?.accreditations ?? []),
 });
 
 const selectedTypeLabels = computed(() => {
@@ -326,7 +337,7 @@ const submit = () => {
           </div>
           <div>
             <Label for="date_established">Date Established <span class="text-red-500">*</span></Label>
-            <Input id="date_established" v-model="form.date_established" type="date" required :class="{'border-red-500 focus-visible:ring-red-500': form.errors.date_established}" />
+            <Input id="date_established" v-model="form.date_established" type="date" required @change="form.date_established = (($event.target as HTMLInputElement).value)" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.date_established}" />
             <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
           </div>
           <div>

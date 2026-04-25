@@ -6,6 +6,8 @@ use App\Models\Concerns\CoopScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -36,6 +38,8 @@ class Activity extends Model
 {
     use SoftDeletes;
     use CoopScoped;
+    use LogsActivity;
+
     protected $fillable = [
         'coop_id',
         'title',
@@ -67,6 +71,28 @@ class Activity extends Model
             'budget' => 'decimal:2',
             'actual_expense' => 'decimal:2',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'title',
+                'description',
+                'category',
+                'date_started',
+                'date_ended',
+                'status',
+                'venue',
+                'budget',
+                'actual_expense',
+                'outcomes',
+                'remarks',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->withProperties(['module' => 'Activity'])
+            ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Activity: ".($this->title ?? 'Untitled'));
     }
 
     /**

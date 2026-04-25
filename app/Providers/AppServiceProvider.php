@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Activitylog\Models\Activity as ActivityLogEntry;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,6 +54,33 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Logout::class, LogLogout::class);
         Event::listen(PasswordResetLinkSent::class, LogPasswordResetRequest::class);
         Event::listen(PasswordReset::class, LogPasswordResetComplete::class);
+
+        ActivityLogEntry::saved(function (ActivityLogEntry $activity): void {
+            if (app()->runningInConsole()) {
+                return;
+            }
+
+            $properties = $activity->properties?->toArray() ?? [];
+
+            if (array_key_exists('ip_address', $properties) && !empty($properties['ip_address'])) {
+                return;
+            }
+
+            $ipAddress = request()?->ip() ?? request()?->getClientIp() ?? $activity->ip_address;
+
+            if (!$ipAddress) {
+                return;
+            }
+
+            $properties['ip_address'] = $ipAddress;
+            $activity->properties = $properties;
+
+            if (empty($activity->ip_address)) {
+                $activity->ip_address = $ipAddress;
+            }
+
+            $activity->saveQuietly();
+        });
     }
 
     /**
