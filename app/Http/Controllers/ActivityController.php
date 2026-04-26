@@ -539,42 +539,44 @@ class ActivityController extends Controller
 
         $createdCount = 0;
 
-        foreach ($selectedCoopIds as $selectedCoopId) {
-            $this->enforceCoopScope((int) $selectedCoopId);
+        DB::transaction(function () use ($selectedCoopIds, $validated, $fundingSources, &$createdCount) {
+            foreach ($selectedCoopIds as $selectedCoopId) {
+                $this->enforceCoopScope((int) $selectedCoopId);
 
-            $payload = $validated;
-            $payload['coop_id'] = (int) $selectedCoopId;
+                $payload = $validated;
+                $payload['coop_id'] = (int) $selectedCoopId;
 
-            if ($selectedCoopIds->count() > 1) {
-                $payload['responsible_officer_id'] = null;
+                if ($selectedCoopIds->count() > 1) {
+                    $payload['responsible_officer_id'] = null;
+                }
+
+                $activity = Activity::create($payload);
+                $createdCount++;
+
+                foreach ($fundingSources as $source) {
+                    $activity->fundingSources()->create([
+                        'coop_id' => $activity->coop_id,
+                        'funder_name' => $source['funder_name'],
+                        'funder_type' => $source['funder_type'],
+                        'amount_allocated' => $source['amount_allocated'] ?? null,
+                        'amount_released' => $source['amount_released'] ?? null,
+                        'date_released' => $source['date_released'] ?? null,
+                        'status' => $source['status'],
+                        'remarks' => $source['remarks'] ?? null,
+                        'attachment_paths' => $source['attachment_paths'] ?? null,
+                        'attachment_names' => $source['attachment_names'] ?? null,
+                    ]);
+                }
+
+                $this->logDetailedActivity(
+                    'created',
+                    $activity,
+                    [],
+                    $activity->fresh()->getAttributes(),
+                    'Activities'
+                );
             }
-
-            $activity = Activity::create($payload);
-            $createdCount++;
-
-            foreach ($fundingSources as $source) {
-                $activity->fundingSources()->create([
-                    'coop_id' => $activity->coop_id,
-                    'funder_name' => $source['funder_name'],
-                    'funder_type' => $source['funder_type'],
-                    'amount_allocated' => $source['amount_allocated'] ?? null,
-                    'amount_released' => $source['amount_released'] ?? null,
-                    'date_released' => $source['date_released'] ?? null,
-                    'status' => $source['status'],
-                    'remarks' => $source['remarks'] ?? null,
-                    'attachment_paths' => $source['attachment_paths'] ?? null,
-                    'attachment_names' => $source['attachment_names'] ?? null,
-                ]);
-            }
-
-            $this->logDetailedActivity(
-                'created',
-                $activity,
-                [],
-                $activity->fresh()->getAttributes(),
-                'Activities'
-            );
-        }
+        });
 
         $successMessage = $createdCount > 1
             ? "Activities created successfully for {$createdCount} cooperatives."

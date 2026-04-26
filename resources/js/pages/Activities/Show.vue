@@ -1,20 +1,42 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
+    AlertCircle,
     ArrowLeft,
     ClipboardList,
-    Cloud,
     Download,
-    File,
-    FileSpreadsheet,
-    FileText,
+    Eye,
+    FileX,
+    Monitor,
     Pencil,
+    Search,
 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+    getFileExtension,
+    getFileTypeConfig,
+    getLegendFileTypeGroups,
+    getPreviewSuggestion,
+} from '@/lib/activityFileTypes';
 
 interface ActivityDetails {
     id: number;
@@ -56,6 +78,11 @@ interface AttachmentItem {
     source_activity_id?: number | null;
     funding_source_id?: number | null;
     funder_name?: string | null;
+}
+
+interface PreviewUnavailableFile {
+    name: string;
+    url: string;
 }
 
 const props = defineProps<{
@@ -108,29 +135,139 @@ const formatAttachmentSize = (bytes: number | null) => {
     return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 };
 
-const fileKindFromName = (name: string) => {
-    const extension = name.split('.').pop()?.toLowerCase() || '';
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) return 'image';
-    if (extension === 'pdf') return 'pdf';
-    if (['doc', 'docx'].includes(extension)) return 'word';
-    if (['xls', 'xlsx', 'csv'].includes(extension)) return 'excel';
-    return 'other';
+const legendGroups = getLegendFileTypeGroups();
+const showPreviewUnavailableModal = ref(false);
+const previewUnavailableFile = ref<PreviewUnavailableFile | null>(null);
+
+const previewUnavailableFileConfig = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return null;
+    }
+
+    return getFileTypeConfig(previewUnavailableFile.value.name);
+});
+
+const previewUnavailableSuggestion = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return '';
+    }
+
+    return getPreviewSuggestion(previewUnavailableFile.value.name);
+});
+
+const openAttachmentPreview = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const attachmentToneClasses = (kind: string) => {
-    switch (kind) {
-        case 'pdf':
-            return 'border-red-200 bg-red-50 text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300';
-        case 'word':
-            return 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300';
-        case 'excel':
-            return 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300';
-        case 'image':
-            return 'border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-500/40 dark:bg-violet-500/10 dark:text-violet-300';
-        default:
-            return 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/10 dark:text-slate-300';
-    }
+const downloadAttachment = (file: AttachmentItem) => {
+    if (!file.url) return;
+
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = file.name || 'attachment';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
+
+const downloadFileFromUrl = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = name || 'attachment';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const handleAttachmentPreview = (file: AttachmentItem) => {
+    if (!file.url) {
+        return;
+    }
+
+    const config = getFileTypeConfig(file.name);
+    if (config.previewable) {
+        openAttachmentPreview(file.url);
+        return;
+    }
+
+    previewUnavailableFile.value = { name: file.name, url: file.url };
+    showPreviewUnavailableModal.value = true;
+};
+
+const closePreviewUnavailableModal = () => {
+    showPreviewUnavailableModal.value = false;
+    previewUnavailableFile.value = null;
+};
+
+const downloadPreviewUnavailableFile = () => {
+    if (!previewUnavailableFile.value) {
+        return;
+    }
+
+    downloadFileFromUrl(previewUnavailableFile.value.url, previewUnavailableFile.value.name);
+    closePreviewUnavailableModal();
+};
+
+const cooperativeSearch = ref('');
+const cooperativesScrollRef = ref<HTMLElement | null>(null);
+const mobileCooperativesExpanded = ref(false);
+const hasMoreCooperatives = ref(false);
+
+const showCooperativeSearch = computed(() => props.cooperatives.length >= 5);
+
+const filteredCooperatives = computed(() => {
+    const keyword = cooperativeSearch.value.trim().toLowerCase();
+    if (!keyword) {
+        return props.cooperatives;
+    }
+
+    return props.cooperatives.filter((coop) => {
+        return [
+            coop.name,
+            coop.registration_number,
+            coop.region,
+            coop.classification,
+            coop.status,
+        ].some((value) => (value || '').toLowerCase().includes(keyword));
+    });
+});
+
+const mobileVisibleCooperatives = computed(() => {
+    if (mobileCooperativesExpanded.value) {
+        return filteredCooperatives.value;
+    }
+
+    return filteredCooperatives.value.slice(0, 3);
+});
+
+const hiddenMobileCooperativeCount = computed(() => Math.max(filteredCooperatives.value.length - 3, 0));
+
+const updateCooperativeScrollHint = () => {
+    const container = cooperativesScrollRef.value;
+    if (!container) {
+        hasMoreCooperatives.value = false;
+        return;
+    }
+
+    hasMoreCooperatives.value = container.scrollTop + container.clientHeight < container.scrollHeight - 2;
+};
+
+onMounted(() => {
+    nextTick(updateCooperativeScrollHint);
+});
+
+watch(filteredCooperatives, () => {
+    nextTick(() => {
+        if (cooperativesScrollRef.value) {
+            cooperativesScrollRef.value.scrollTop = 0;
+        }
+        updateCooperativeScrollHint();
+    });
+});
 
 const activityStatusClass = computed(() => {
     switch (props.activity.status) {
@@ -250,34 +387,80 @@ const textOrDash = (value: string | null | undefined) => {
 
             <Card class="border-border/80 bg-card/95 shadow-sm">
                 <CardHeader class="space-y-1 pb-4">
-                    <CardTitle class="text-xl">Cooperatives Participating</CardTitle>
-                    <CardDescription>
-                        <Badge variant="secondary">{{ cooperatives.length }} Cooperatives Participating</Badge>
-                    </CardDescription>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <CardTitle class="text-xl">Cooperatives Participating</CardTitle>
+                        <div class="flex items-center gap-2">
+                            <Badge class="border border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200">
+                                {{ filteredCooperatives.length }} cooperatives
+                            </Badge>
+                            <span v-if="cooperatives.length >= 10" class="text-xs text-muted-foreground">Scroll to see all</span>
+                        </div>
+                    </div>
+                    <CardDescription>Compact list of all assigned cooperatives for this activity.</CardDescription>
                 </CardHeader>
                 <CardContent class="pt-0">
                     <div v-if="cooperatives.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                         No cooperatives linked.
                     </div>
-                    <div v-else class="divide-y divide-border/70 rounded-xl border border-border/70 bg-background">
-                        <div v-for="coop in cooperatives" :key="coop.id" class="grid gap-3 p-4 md:grid-cols-[1.4fr_1fr_auto] md:items-center">
-                            <div>
-                                <p class="text-sm font-semibold text-foreground">{{ coop.name }}</p>
-                                <p class="text-xs text-muted-foreground">{{ coop.registration_number || EMPTY_VALUE }}</p>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Badge class="border border-blue-300 bg-blue-100 text-blue-800 dark:border-blue-400/40 dark:bg-blue-500/20 dark:text-blue-200">
-                                    {{ coop.region || EMPTY_VALUE }}
-                                </Badge>
-                                <Badge variant="outline">
-                                    {{ cooperativeClassificationLabel(coop.classification) }}
+                    <div v-else class="space-y-3">
+                        <div v-if="showCooperativeSearch" class="relative">
+                            <Search class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input v-model="cooperativeSearch" placeholder="Search cooperatives..." class="h-8 pl-9 text-sm" />
+                        </div>
+
+                        <div class="sm:hidden space-y-2">
+                            <div class="flex flex-wrap gap-2">
+                                <Badge v-for="coop in mobileVisibleCooperatives" :key="`mobile-${coop.id}`" variant="secondary" class="max-w-full truncate">
+                                    {{ coop.name }}
                                 </Badge>
                             </div>
-                            <div class="md:justify-self-end">
-                                <Badge :class="cooperativeStatusClass(coop.status)">
-                                    {{ coop.status || EMPTY_VALUE }}
-                                </Badge>
+                            <Button v-if="hiddenMobileCooperativeCount > 0 && !mobileCooperativesExpanded" type="button" variant="outline" size="sm" @click="mobileCooperativesExpanded = true">
+                                +{{ hiddenMobileCooperativeCount }} more
+                            </Button>
+                        </div>
+
+                        <div class="relative hidden sm:block">
+                            <div ref="cooperativesScrollRef" class="max-h-80 overflow-y-auto rounded-xl border border-border/70 bg-background" @scroll="updateCooperativeScrollHint">
+                                <table class="w-full border-collapse text-sm">
+                                    <thead class="sticky top-0 z-10 bg-muted/70 backdrop-blur">
+                                        <tr class="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                            <th class="px-3 py-2 font-medium">#</th>
+                                            <th class="px-3 py-2 font-medium">Cooperative Name</th>
+                                            <th class="px-3 py-2 font-medium">Region</th>
+                                            <th class="px-3 py-2 font-medium">Classification</th>
+                                            <th class="px-3 py-2 font-medium">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(coop, index) in filteredCooperatives" :key="coop.id" class="border-t border-border/60 odd:bg-background even:bg-muted/20 hover:bg-muted/40">
+                                            <td class="px-3 py-2">{{ index + 1 }}</td>
+                                            <td class="px-3 py-2">
+                                                <p class="font-medium text-foreground">{{ coop.name }}</p>
+                                                <p class="text-xs text-muted-foreground">{{ coop.registration_number || EMPTY_VALUE }}</p>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <Badge class="border border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200">
+                                                    {{ coop.region || EMPTY_VALUE }}
+                                                </Badge>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <Badge variant="outline" class="bg-muted/40">
+                                                    {{ cooperativeClassificationLabel(coop.classification) }}
+                                                </Badge>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <Badge :class="cooperativeStatusClass(coop.status)">
+                                                    {{ coop.status || EMPTY_VALUE }}
+                                                </Badge>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="filteredCooperatives.length === 0">
+                                            <td colspan="5" class="px-3 py-6 text-center text-sm text-muted-foreground">No cooperatives match your search.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
+                            <div v-if="hasMoreCooperatives" class="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-background to-transparent" />
                         </div>
                     </div>
                 </CardContent>
@@ -323,73 +506,112 @@ const textOrDash = (value: string | null | undefined) => {
                     <CardTitle class="text-xl">Attachments / Supporting Documents</CardTitle>
                     <CardDescription>Download uploaded outcomes and funding source files.</CardDescription>
                 </CardHeader>
-                <CardContent class="space-y-6 pt-0">
-                    <section class="space-y-3">
-                        <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Outcomes Attachments</h3>
-                        <div v-if="outcomesAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
-                            <div class="flex items-center gap-2">
-                                <Cloud class="h-4 w-4" />
-                                No attachments uploaded
-                            </div>
-                        </div>
-                        <div v-else class="space-y-2">
-                            <div v-for="file in outcomesAttachments" :key="`outcomes-${file.path}`" class="flex flex-col gap-3 rounded-lg border border-border/70 bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-center gap-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border" :class="attachmentToneClasses(fileKindFromName(file.name))">
-                                        <FileText v-if="fileKindFromName(file.name) === 'pdf' || fileKindFromName(file.name) === 'word'" class="h-5 w-5" />
-                                        <FileSpreadsheet v-else-if="fileKindFromName(file.name) === 'excel'" class="h-5 w-5" />
-                                        <Cloud v-else-if="fileKindFromName(file.name) === 'image'" class="h-5 w-5" />
-                                        <File v-else class="h-5 w-5" />
-                                    </div>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ formatAttachmentSize(file.size) }}</p>
+                <CardContent class="pt-0">
+                    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
+                        <div class="space-y-6">
+                            <section class="space-y-3">
+                                <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Outcomes Attachments</h3>
+                                <div v-if="outcomesAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                    No attachments uploaded
+                                </div>
+                                <div v-else class="space-y-2">
+                                    <div v-for="file in outcomesAttachments" :key="`outcomes-${file.path}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                                            <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                {{ getFileExtension(file.name) }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                                <p class="text-xs text-muted-foreground">{{ formatAttachmentSize(file.size) }}</p>
+                                            </div>
+                                        </div>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file)">
+                                                        <Eye class="h-3.5 w-3.5" />
+                                                        Preview
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Preview file in new tab</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-green-200 bg-green-50 px-2 text-xs text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400" @click="downloadAttachment(file)">
+                                                        <Download class="h-3.5 w-3.5" />
+                                                        Download
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Download this file</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 </div>
-                                <Button v-if="file.url" as-child variant="outline" size="sm" class="gap-2">
-                                    <a :href="file.url" target="_blank" rel="noreferrer">
-                                        <Download class="h-4 w-4" />
-                                        Download
-                                    </a>
-                                </Button>
-                            </div>
-                        </div>
-                    </section>
+                            </section>
 
-                    <section class="space-y-3">
-                        <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments</h3>
-                        <div v-if="fundingAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
-                            <div class="flex items-center gap-2">
-                                <Cloud class="h-4 w-4" />
-                                No attachments uploaded
-                            </div>
-                        </div>
-                        <div v-else class="space-y-2">
-                            <div v-for="file in fundingAttachments" :key="`funding-${file.path}-${file.funding_source_id || 0}`" class="flex flex-col gap-3 rounded-lg border border-border/70 bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-center gap-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border" :class="attachmentToneClasses(fileKindFromName(file.name))">
-                                        <FileText v-if="fileKindFromName(file.name) === 'pdf' || fileKindFromName(file.name) === 'word'" class="h-5 w-5" />
-                                        <FileSpreadsheet v-else-if="fileKindFromName(file.name) === 'excel'" class="h-5 w-5" />
-                                        <Cloud v-else-if="fileKindFromName(file.name) === 'image'" class="h-5 w-5" />
-                                        <File v-else class="h-5 w-5" />
-                                    </div>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
-                                        <p class="text-xs text-muted-foreground">
-                                            {{ formatAttachmentSize(file.size) }}
-                                            <span v-if="file.funder_name"> • {{ file.funder_name }}</span>
-                                        </p>
+                            <section class="space-y-3">
+                                <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments</h3>
+                                <div v-if="fundingAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                    No attachments uploaded
+                                </div>
+                                <div v-else class="space-y-2">
+                                    <div v-for="file in fundingAttachments" :key="`funding-${file.path}-${file.funding_source_id || 0}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                                            <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                {{ getFileExtension(file.name) }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                                <p class="text-xs text-muted-foreground">
+                                                    {{ formatAttachmentSize(file.size) }}
+                                                    <span v-if="file.funder_name"> • {{ file.funder_name }}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file)">
+                                                        <Eye class="h-3.5 w-3.5" />
+                                                        Preview
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Preview file in new tab</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-green-200 bg-green-50 px-2 text-xs text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400" @click="downloadAttachment(file)">
+                                                        <Download class="h-3.5 w-3.5" />
+                                                        Download
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Download this file</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 </div>
-                                <Button v-if="file.url" as-child variant="outline" size="sm" class="gap-2">
-                                    <a :href="file.url" target="_blank" rel="noreferrer">
-                                        <Download class="h-4 w-4" />
-                                        Download
-                                    </a>
-                                </Button>
-                            </div>
+                            </section>
                         </div>
-                    </section>
+
+                        <aside class="rounded-lg border border-border/70 bg-muted/20 p-4 lg:border-l lg:pl-4">
+                            <h4 class="mb-3 text-sm font-semibold text-muted-foreground">File Types</h4>
+                            <div class="space-y-2">
+                                <div v-for="group in legendGroups" :key="group.key" class="rounded-md border border-border/60 bg-background/70 px-2 py-2">
+                                    <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ group.label }}</p>
+                                    <div class="flex items-center gap-2">
+                                        <component :is="group.icon" class="h-8 w-8 shrink-0" :class="group.iconColorClass" />
+                                        <Badge variant="outline" class="font-semibold" :class="group.badgeClass">{{ group.badgeText }}</Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -417,5 +639,48 @@ const textOrDash = (value: string | null | undefined) => {
                 </Link>
             </div>
         </div>
+
+        <Dialog :open="showPreviewUnavailableModal" @update:open="(open: boolean) => !open && closePreviewUnavailableModal()">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <FileX class="h-4 w-4 text-amber-500" />
+                        Preview Not Available
+                    </DialogTitle>
+                    <DialogDescription>
+                        This file type cannot be previewed in the browser.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="previewUnavailableFile && previewUnavailableFileConfig" class="space-y-3">
+                    <div class="rounded-md border border-border/70 bg-muted/30 p-3">
+                        <p class="truncate text-sm font-medium text-foreground" :title="previewUnavailableFile.name">{{ previewUnavailableFile.name }}</p>
+                        <div class="mt-2 flex items-center gap-2">
+                            <component :is="previewUnavailableFileConfig.icon" class="h-8 w-8" :class="previewUnavailableFileConfig.iconColorClass" />
+                            <Badge variant="outline" class="font-semibold" :class="previewUnavailableFileConfig.badgeClass">{{ previewUnavailableFileConfig.extension }}</Badge>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">
+                        <p class="flex items-center gap-2 text-sm font-medium">
+                            <AlertCircle class="h-4 w-4" />
+                            Suggested app
+                        </p>
+                        <p class="mt-1 flex items-center gap-2 text-sm">
+                            <Monitor class="h-4 w-4" />
+                            {{ previewUnavailableSuggestion }}
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" @click="closePreviewUnavailableModal">Cancel</Button>
+                    <Button type="button" class="gap-2" @click="downloadPreviewUnavailableFile">
+                        <Download class="h-4 w-4" />
+                        Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

@@ -72,7 +72,6 @@ class Training extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'Training'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Training: ".($this->title ?? 'Untitled'));
     }
 

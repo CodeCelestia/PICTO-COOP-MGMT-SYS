@@ -46,6 +46,7 @@ const props = defineProps<Props>();
             :trainings="trainings"
             :cooperatives="cooperatives"
             :filters="filters"
+            :show-view-action-in-rows="true"
         />
     </AppLayout>
 </template>

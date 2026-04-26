@@ -358,13 +358,75 @@ const submitCreateAccount = () => {
         preserveScroll: true,
         onSuccess: () => {
             closeCreateAccountModal();
-            router.reload({
-                only: ['members'],
+            router.get(baseUrl.value, buildQuery(currentPage.value), {
                 preserveScroll: true,
                 preserveState: true,
             });
         },
     });
+};
+
+const cooperativeContextId = computed<number | null>(() => {
+    const currentPath = (page.url || '').split('?')[0] || '';
+    const basePath = (baseUrl.value || '').split('?')[0] || '';
+    const sources = [currentPath, basePath];
+
+    for (const source of sources) {
+        const match = source.match(/\/(?:members\/management|cooperatives)\/(\d+)/);
+        if (match?.[1]) {
+            const parsed = Number(match[1]);
+            if (Number.isInteger(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+    }
+
+    return null;
+});
+
+const cooperativeReturnTo = computed(() => {
+    const currentUrl = page.url || '';
+    return currentUrl.startsWith('/') ? currentUrl : '';
+});
+
+const createMemberHref = computed(() => {
+    const cooperativeId = cooperativeContextId.value;
+    const returnTo = cooperativeReturnTo.value;
+
+    if (!cooperativeId && !returnTo) {
+        return '/members/create';
+    }
+
+    const params = new URLSearchParams();
+    if (cooperativeId) {
+        params.set('coop_id', String(cooperativeId));
+        params.set('context', 'cooperative');
+    }
+    if (returnTo) {
+        params.set('return_to', returnTo);
+    }
+
+    return `/members/create?${params.toString()}`;
+});
+
+const editMemberHref = (memberId: number) => {
+    const cooperativeId = cooperativeContextId.value;
+    const returnTo = cooperativeReturnTo.value;
+
+    if (!cooperativeId && !returnTo) {
+        return `/members/${memberId}/edit`;
+    }
+
+    const params = new URLSearchParams();
+    if (cooperativeId) {
+        params.set('coop_id', String(cooperativeId));
+        params.set('context', 'cooperative');
+    }
+    if (returnTo) {
+        params.set('return_to', returnTo);
+    }
+
+    return `/members/${memberId}/edit?${params.toString()}`;
 };
 </script>
 
@@ -399,7 +461,7 @@ const submitCreateAccount = () => {
                         <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
                         {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
                     </Button>
-                    <Link v-if="canCreateMember" href="/members/create">
+                    <Link v-if="canCreateMember" :href="createMemberHref">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Register Member
@@ -668,7 +730,7 @@ const submitCreateAccount = () => {
 
                                         <Tooltip v-if="canEditMember">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/members/${member.id}/edit`">
+                                                <Link :href="editMemberHref(member.id)">
                                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1.5">
                                                         <Pencil class="h-4 w-4" />
                                                         Edit

@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { usePsgc } from '@/composables/usePsgc';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { notifySuccess } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;
@@ -38,6 +39,22 @@ defineProps<Props>();
 const page = usePage();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
+
+const queryParams = computed(() => {
+    const [, queryString = ''] = (page.url || '').split('?');
+    return new URLSearchParams(queryString);
+});
+
+const cooperativeIdFromContext = computed(() => queryParams.value.get('coop_id') || '');
+const cooperativeContextFlag = computed(() => queryParams.value.get('context') === 'cooperative');
+const returnToPath = computed(() => {
+    const value = queryParams.value.get('return_to') || '';
+    if (!value.startsWith('/') || value.startsWith('//')) {
+        return '';
+    }
+
+    return value;
+});
 
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
 
@@ -66,6 +83,8 @@ const form = useForm({
     primary_livelihood: '',
     sector: '',
     role_ids: [] as number[],
+    context: '',
+    return_to: '',
 });
 
 const primaryLivelihoodTags = ref<string[]>([]);
@@ -90,6 +109,13 @@ watch(primaryLivelihoodTags, (tags) => {
 
 onMounted(() => {
     fetchRegions();
+
+    if (cooperativeIdFromContext.value && !form.coop_id) {
+        form.coop_id = cooperativeIdFromContext.value;
+    }
+
+    form.context = cooperativeContextFlag.value ? 'cooperative' : '';
+    form.return_to = returnToPath.value;
 });
 
 watch(selectedRegionCode, (newRegion) => {
@@ -127,13 +153,40 @@ watch(selectedCityCode, (newCity) => {
 
 const submit = () => {
     if (!canCreateMember.value) return;
+
+    form.context = cooperativeContextFlag.value ? 'cooperative' : '';
+    form.return_to = returnToPath.value;
+
     form.post('/members', {
         preserveScroll: true,
+        onSuccess: () => {
+            notifySuccess('Member registered successfully.');
+            goBackToCooperativeMembers();
+        },
     });
 };
 
+const goBackToCooperativeMembers = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    if (returnToPath.value) {
+        router.get(returnToPath.value);
+        return;
+    }
+
+    if (cooperativeIdFromContext.value) {
+        router.get(`/members/management/${cooperativeIdFromContext.value}?tab=members`);
+        return;
+    }
+
+    router.get('/dashboard');
+};
+
 const cancel = () => {
-    router.get('/members');
+    goBackToCooperativeMembers();
 };
 
 const toggleRole = (roleId: number) => {

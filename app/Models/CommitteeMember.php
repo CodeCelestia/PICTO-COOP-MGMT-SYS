@@ -56,7 +56,6 @@ class CommitteeMember extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'CommitteeMember'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Committee Member record");
     }
 

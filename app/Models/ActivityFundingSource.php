@@ -73,7 +73,6 @@ class ActivityFundingSource extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'FundingSource'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Funding Source: ".($this->funder_name ?? 'Unknown'));
     }
 

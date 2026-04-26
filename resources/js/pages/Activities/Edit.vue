@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, ClipboardList, Cloud, File, FileSpreadsheet, FileText, Lock, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, FileX, Lock, Monitor, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,8 +24,20 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useCoopLabel } from '@/composables/useCoopLabel';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    getFileExtension,
+    getFileTypeConfig,
+    getLegendFileTypeGroups,
+    getPreviewSuggestion,
+} from '@/lib/activityFileTypes';
 import { confirmAction, notifyError, notifySuccess } from '@/lib/alerts';
 import { dateInputValue } from '@/utils/date';
 
@@ -90,17 +110,20 @@ interface FundingSourceFormRow {
     is_saved?: boolean;
 }
 
-type AttachmentKind = 'pdf' | 'word' | 'excel' | 'image' | 'other';
-
 interface FileDisplayItem {
     name: string;
     sizeLabel: string;
-    kind: AttachmentKind;
+    extension: string;
     previewUrl: string;
     pendingIndex?: number;
     url?: string;
     path?: string;
     isExisting: boolean;
+}
+
+interface PreviewUnavailableFile {
+    name: string;
+    url: string;
 }
 
 interface Props {
@@ -179,6 +202,7 @@ const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
+const fileObjectUrls = new Map<File, string>();
 
 const initialSelectedCoopIds = computed(() => {
     if (lockedCooperativeId.value) {
@@ -403,40 +427,86 @@ const formatFileSize = (bytes: number) => {
     return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 };
 
-const fileKindFromName = (name: string): AttachmentKind => {
-    const extension = name.split('.').pop()?.toLowerCase() || '';
-    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(extension)) return 'image';
-    if (extension === 'pdf') return 'pdf';
-    if (['doc', 'docx'].includes(extension)) return 'word';
-    if (['xls', 'xlsx'].includes(extension)) return 'excel';
-    return 'other';
+const getAttachmentPreviewUrl = (file: File) => {
+    const existing = fileObjectUrls.get(file);
+    if (existing) {
+        return existing;
+    }
+
+    const url = URL.createObjectURL(file);
+    fileObjectUrls.set(file, url);
+    return url;
 };
 
-const getAttachmentPreviewUrl = (file: File) => (fileKindFromName(file.name) === 'image' ? URL.createObjectURL(file) : '');
+const legendGroups = getLegendFileTypeGroups();
+const showPreviewUnavailableModal = ref(false);
+const previewUnavailableFile = ref<PreviewUnavailableFile | null>(null);
 
-const getAttachmentToneClasses = (kind: AttachmentKind) => {
-    switch (kind) {
-        case 'pdf':
-            return 'border-red-200 bg-red-50 text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300';
-        case 'word':
-            return 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300';
-        case 'excel':
-            return 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300';
-        case 'image':
-            return 'border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-500/40 dark:bg-violet-500/10 dark:text-violet-300';
-        default:
-            return 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-500/40 dark:bg-slate-500/10 dark:text-slate-300';
+const previewUnavailableFileConfig = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return null;
     }
+
+    return getFileTypeConfig(previewUnavailableFile.value.name);
+});
+
+const previewUnavailableSuggestion = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return '';
+    }
+
+    return getPreviewSuggestion(previewUnavailableFile.value.name);
+});
+
+const openAttachmentPreview = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const handleAttachmentPreview = (name: string, url: string) => {
+    const config = getFileTypeConfig(name);
+    if (config.previewable) {
+        openAttachmentPreview(url);
+        return;
+    }
+
+    previewUnavailableFile.value = { name, url };
+    showPreviewUnavailableModal.value = true;
+};
+
+const closePreviewUnavailableModal = () => {
+    showPreviewUnavailableModal.value = false;
+    previewUnavailableFile.value = null;
+};
+
+const downloadFromUrl = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const downloadPreviewUnavailableFile = () => {
+    if (!previewUnavailableFile.value) {
+        return;
+    }
+
+    downloadFromUrl(previewUnavailableFile.value.url, previewUnavailableFile.value.name);
+    closePreviewUnavailableModal();
 };
 
 const fundingSourceFiles = (source: FundingSourceFormRow): FileDisplayItem[] => {
     const existing = (source.attachment_names || []).map((name, idx) => {
         const path = source.attachment_paths?.[idx] || '';
+        const extension = getFileExtension(name);
         return {
             name,
             sizeLabel: 'Saved file',
-            kind: fileKindFromName(name),
-            previewUrl: fileKindFromName(name) === 'image' && path ? `/storage/${path}` : '',
+            extension,
+            previewUrl: path ? `/storage/${path}` : '',
             url: path ? `/storage/${path}` : undefined,
             path,
             isExisting: true,
@@ -451,7 +521,7 @@ const fundingSourceFiles = (source: FundingSourceFormRow): FileDisplayItem[] => 
         items.push({
             name: file.name,
             sizeLabel: formatFileSize(file.size),
-            kind: fileKindFromName(file.name),
+            extension: getFileExtension(file.name),
             previewUrl: getAttachmentPreviewUrl(file),
             pendingIndex,
             isExisting: false,
@@ -476,8 +546,8 @@ const outcomesExistingFile = computed<FileDisplayItem | null>(() => {
     return {
         name,
         sizeLabel: 'Saved file',
-        kind: fileKindFromName(name),
-        previewUrl: fileKindFromName(name) === 'image' ? `/storage/${path}` : '',
+        extension: getFileExtension(name),
+        previewUrl: `/storage/${path}`,
         url: `/storage/${path}`,
         path,
         isExisting: true,
@@ -490,11 +560,16 @@ const outcomesNewFile = computed<FileDisplayItem | null>(() => {
     return {
         name: form.outcomes_attachment.name,
         sizeLabel: formatFileSize(form.outcomes_attachment.size),
-        kind: fileKindFromName(form.outcomes_attachment.name),
+        extension: getFileExtension(form.outcomes_attachment.name),
         previewUrl: getAttachmentPreviewUrl(form.outcomes_attachment),
         pendingIndex: 0,
         isExisting: false,
     };
+});
+
+onUnmounted(() => {
+    fileObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    fileObjectUrls.clear();
 });
 
 const updateOutcomesAttachment = (event: Event) => {
@@ -786,78 +861,105 @@ const submit = () => {
                         <CardTitle class="text-xl">Attachments / Supporting Documents</CardTitle>
                         <CardDescription>Manage the outcomes attachment and supporting funding source files.</CardDescription>
                     </CardHeader>
-                    <CardContent class="space-y-6 pt-0">
-                        <div class="space-y-4 rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-background text-muted-foreground">
-                                    <Upload class="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 class="text-sm font-semibold text-foreground">Outcomes Attachment</h3>
-                                    <p class="text-xs text-muted-foreground">PDF, Word, Excel, and image files are supported.</p>
-                                </div>
-                            </div>
-                            <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateOutcomesAttachment" />
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Button type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
-                                    <Plus class="h-3.5 w-3.5" />
-                                    Add File
-                                </Button>
-                                <span class="text-xs text-muted-foreground">Maximum file size: {{ MAX_FILE_SIZE_MB }}MB per file</span>
-                            </div>
-
-                            <div v-if="!outcomesExistingFile && !outcomesNewFile" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
-                                No file added yet. Use the file input above to add a supporting document.
-                            </div>
-
-                            <div v-if="outcomesExistingFile" class="overflow-hidden rounded-xl border border-border bg-background">
-                                <div class="flex items-center gap-3 p-3">
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border" :class="getAttachmentToneClasses(outcomesExistingFile.kind)">
-                                        <img v-if="outcomesExistingFile.kind === 'image' && outcomesExistingFile.previewUrl" :src="outcomesExistingFile.previewUrl" :alt="outcomesExistingFile.name" class="h-full w-full object-cover" />
-                                        <FileText v-else-if="outcomesExistingFile.kind === 'pdf'" class="h-5 w-5" />
-                                        <FileText v-else-if="outcomesExistingFile.kind === 'word'" class="h-5 w-5" />
-                                        <FileSpreadsheet v-else-if="outcomesExistingFile.kind === 'excel'" class="h-5 w-5" />
-                                        <File v-else class="h-5 w-5" />
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <a v-if="outcomesExistingFile.url" :href="outcomesExistingFile.url" target="_blank" rel="noreferrer" class="truncate font-medium text-primary underline" :title="outcomesExistingFile.name">{{ outcomesExistingFile.name }}</a>
-                                            <p v-else class="truncate font-medium text-foreground" :title="outcomesExistingFile.name">{{ outcomesExistingFile.name }}</p>
-                                            <Badge variant="outline" class="shrink-0">Saved</Badge>
+                    <CardContent class="pt-0">
+                        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
+                            <div class="space-y-6">
+                                <div class="space-y-4 rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-background text-muted-foreground">
+                                            <Upload class="h-5 w-5" />
                                         </div>
-                                        <p class="text-xs text-muted-foreground">{{ outcomesExistingFile.sizeLabel }}</p>
-                                    </div>
-                                    <Button type="button" variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="removeOutcomesAttachment">
-                                        <X class="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div v-if="outcomesNewFile" class="overflow-hidden rounded-xl border border-border bg-background">
-                                <div class="flex items-center gap-3 p-3">
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border" :class="getAttachmentToneClasses(outcomesNewFile.kind)">
-                                        <img v-if="outcomesNewFile.kind === 'image' && outcomesNewFile.previewUrl" :src="outcomesNewFile.previewUrl" :alt="outcomesNewFile.name" class="h-full w-full object-cover" />
-                                        <FileText v-else-if="outcomesNewFile.kind === 'pdf'" class="h-5 w-5" />
-                                        <FileText v-else-if="outcomesNewFile.kind === 'word'" class="h-5 w-5" />
-                                        <FileSpreadsheet v-else-if="outcomesNewFile.kind === 'excel'" class="h-5 w-5" />
-                                        <File v-else class="h-5 w-5" />
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <p class="truncate font-medium text-foreground" :title="outcomesNewFile.name">{{ outcomesNewFile.name }}</p>
-                                            <Badge variant="secondary" class="shrink-0">New</Badge>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-foreground">Outcomes Attachment</h3>
+                                            <p class="text-xs text-muted-foreground">PDF, Word, Excel, presentation, or image files are supported.</p>
                                         </div>
-                                        <p class="text-xs text-muted-foreground">{{ outcomesNewFile.sizeLabel }}</p>
                                     </div>
-                                    <Button type="button" variant="ghost" size="sm" class="h-8 px-2 text-muted-foreground" @click="removeOutcomesAttachment">
-                                        <X class="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                            <p v-if="form.errors.outcomes_attachment" class="text-sm text-red-500">{{ form.errors.outcomes_attachment }}</p>
-                        </div>
+                                    <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateOutcomesAttachment" />
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <Button type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
+                                            <Plus class="h-3.5 w-3.5" />
+                                            Add File
+                                        </Button>
+                                        <span class="text-xs text-muted-foreground">Maximum file size: {{ MAX_FILE_SIZE_MB }}MB per file</span>
+                                    </div>
 
-                        <div class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+                                    <div v-if="!outcomesExistingFile && !outcomesNewFile" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                        No file added yet. Use the file input above to add a supporting document.
+                                    </div>
+
+                                    <div v-if="outcomesExistingFile" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                                            <component :is="getFileTypeConfig(outcomesExistingFile.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(outcomesExistingFile.name).iconColorClass" />
+                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(outcomesExistingFile.name).badgeClass">
+                                                {{ outcomesExistingFile.extension }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="truncate font-medium text-foreground" :title="outcomesExistingFile.name">{{ outcomesExistingFile.name }}</p>
+                                                <p class="text-xs text-muted-foreground">{{ outcomesExistingFile.sizeLabel }}</p>
+                                            </div>
+                                        </div>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(outcomesExistingFile.name, outcomesExistingFile.previewUrl)">
+                                                        <Eye class="h-3.5 w-3.5" />
+                                                        Preview
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Preview file in new tab</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="removeOutcomesAttachment">
+                                                        <Trash2 class="h-3.5 w-3.5" />
+                                                        Remove
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Remove this file</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+
+                                    <div v-if="outcomesNewFile" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                                            <component :is="getFileTypeConfig(outcomesNewFile.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(outcomesNewFile.name).iconColorClass" />
+                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(outcomesNewFile.name).badgeClass">
+                                                {{ outcomesNewFile.extension }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="truncate font-medium text-foreground" :title="outcomesNewFile.name">{{ outcomesNewFile.name }}</p>
+                                                <p class="text-xs text-muted-foreground">{{ outcomesNewFile.sizeLabel }}</p>
+                                            </div>
+                                        </div>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(outcomesNewFile.name, outcomesNewFile.previewUrl)">
+                                                        <Eye class="h-3.5 w-3.5" />
+                                                        Preview
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Preview file in new tab</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger as-child>
+                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="removeOutcomesAttachment">
+                                                        <Trash2 class="h-3.5 w-3.5" />
+                                                        Remove
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Remove this file</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <p v-if="form.errors.outcomes_attachment" class="text-sm text-red-500">{{ form.errors.outcomes_attachment }}</p>
+                                </div>
+
+                                <div class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments</h3>
@@ -873,9 +975,9 @@ const submit = () => {
                                 No funding sources yet. Add one above to attach supporting files.
                             </div>
 
-                            <div v-else class="space-y-4">
-                                <Card v-for="(source, index) in form.funding_sources" :key="source.id ?? index" class="border-border/70 bg-background shadow-none">
-                                    <CardContent class="space-y-4 p-4">
+                                    <div v-else class="space-y-4">
+                                        <Card v-for="(source, index) in form.funding_sources" :key="source.id ?? index" class="border-border/70 bg-background shadow-none">
+                                            <CardContent class="space-y-4 p-4">
                                         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                                             <div>
                                                 <Label :for="`funding_name_${index}`">Funding Source Name <span class="text-red-500">*</span></Label>
@@ -921,10 +1023,10 @@ const submit = () => {
                                             <Input :id="`funding_remarks_${index}`" v-model="source.remarks" placeholder="Optional notes" />
                                         </div>
 
-                                        <div>
-                                            <Label class="mb-2 block">Files</Label>
-                                            <div class="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
-                                                <input :ref="(el) => setFundingFileInputRef(index, el as HTMLInputElement | null)" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateFundingSourceAttachment($event, index)" />
+                                            <div>
+                                                <Label class="mb-2 block">Files</Label>
+                                                <div class="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
+                                                    <input :ref="(el) => setFundingFileInputRef(index, el as HTMLInputElement | null)" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateFundingSourceAttachment($event, index)" />
 
                                                 <div class="mb-3 flex flex-wrap items-center gap-2">
                                                     <Button v-if="(source.attachment_names?.length || 0) + source.attachments.length < maxFundingSourceFiles" type="button" variant="outline" size="sm" class="gap-1" @click="triggerFundingSourceFilePicker(index)">
@@ -940,49 +1042,48 @@ const submit = () => {
                                                 </div>
 
                                                 <div v-else class="space-y-3">
-                                                    <div v-for="file in fundingSourceFiles(source)" :key="`${file.name}-${file.isExisting ? file.path : file.pendingIndex}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center">
-                                                        <div class="flex min-w-0 flex-1 items-center gap-3">
-                                                            <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border" :class="getAttachmentToneClasses(file.kind)">
-                                                                <img v-if="file.kind === 'image' && file.previewUrl" :src="file.previewUrl" :alt="file.name" class="h-full w-full object-cover" />
-                                                                <FileText v-else-if="file.kind === 'pdf'" class="h-5 w-5" />
-                                                                <FileText v-else-if="file.kind === 'word'" class="h-5 w-5" />
-                                                                <FileSpreadsheet v-else-if="file.kind === 'excel'" class="h-5 w-5" />
-                                                                <File v-else class="h-5 w-5" />
-                                                            </div>
-                                                            <div class="min-w-0 flex-1">
-                                                                <div class="flex items-center gap-2">
-                                                                    <a v-if="file.url" :href="file.url" target="_blank" rel="noreferrer" class="truncate font-medium text-primary underline" :title="file.name">{{ file.name }}</a>
-                                                                    <p v-else class="truncate font-medium text-foreground" :title="file.name">{{ file.name }}</p>
-                                                                    <Badge v-if="file.isExisting" variant="outline" class="shrink-0 gap-1"><Cloud class="h-3 w-3" />Saved</Badge>
-                                                                    <Badge v-else variant="secondary" class="shrink-0">New</Badge>
-                                                                </div>
+                                                    <div v-for="file in fundingSourceFiles(source)" :key="`${file.name}-${file.isExisting ? file.path : file.pendingIndex}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                                        <div class="flex min-w-0 flex-1 items-center gap-2">
+                                                            <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                                {{ file.extension }}
+                                                            </span>
+                                                            <div class="min-w-0">
+                                                                <p class="truncate font-medium text-foreground" :title="file.name">{{ file.name }}</p>
                                                                 <p class="text-xs text-muted-foreground">{{ file.sizeLabel }}</p>
                                                             </div>
                                                         </div>
-                                                        <Button
-                                                            v-if="!file.isExisting && typeof file.pendingIndex === 'number'"
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            class="h-8 px-2 text-muted-foreground"
-                                                            @click="removeFundingSourceAttachment(index, file.pendingIndex)"
-                                                        >
-                                                            <X class="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            v-else-if="file.isExisting && file.path"
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            class="h-8 px-2 text-muted-foreground"
-                                                            @click="removeExistingFundingSourceFile(index, file.path)"
-                                                        >
-                                                            <X class="h-4 w-4" />
-                                                        </Button>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger as-child>
+                                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file.name, file.previewUrl)">
+                                                                        <Eye class="h-3.5 w-3.5" />
+                                                                        Preview
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Preview file in new tab</TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger as-child>
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+                                                                        @click="file.isExisting && file.path ? removeExistingFundingSourceFile(index, file.path) : removeFundingSourceAttachment(index, file.pendingIndex ?? 0)"
+                                                                    >
+                                                                        <Trash2 class="h-3.5 w-3.5" />
+                                                                        Remove
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Remove this file</TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                            </div>
 
                                         <div class="flex flex-wrap items-center justify-between gap-2">
                                             <span v-if="source.is_saved" class="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Saved</span>
@@ -992,10 +1093,25 @@ const submit = () => {
                                                 Remove Source
                                             </Button>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                    <p v-if="form.errors.funding_sources" class="mt-1 text-sm text-red-500">{{ form.errors.funding_sources }}</p>
+                                </div>
                             </div>
-                            <p v-if="form.errors.funding_sources" class="mt-1 text-sm text-red-500">{{ form.errors.funding_sources }}</p>
+
+                            <aside class="rounded-lg border border-border/70 bg-muted/20 p-4 lg:border-l lg:pl-4">
+                                <h4 class="mb-3 text-sm font-semibold text-muted-foreground">File Types</h4>
+                                <div class="space-y-2">
+                                    <div v-for="group in legendGroups" :key="group.key" class="rounded-md border border-border/60 bg-background/70 px-2 py-2">
+                                        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ group.label }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <component :is="group.icon" class="h-8 w-8 shrink-0" :class="group.iconColorClass" />
+                                            <Badge variant="outline" class="font-semibold" :class="group.badgeClass">{{ group.badgeText }}</Badge>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aside>
                         </div>
                     </CardContent>
                 </Card>
@@ -1044,5 +1160,48 @@ const submit = () => {
             @update:open="(value) => isCooperativeDialogOpen = value"
             @confirm="syncSelectedCooperatives"
         />
+
+        <Dialog :open="showPreviewUnavailableModal" @update:open="(open: boolean) => !open && closePreviewUnavailableModal()">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <FileX class="h-4 w-4 text-amber-500" />
+                        Preview Not Available
+                    </DialogTitle>
+                    <DialogDescription>
+                        This file type cannot be previewed in the browser.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="previewUnavailableFile && previewUnavailableFileConfig" class="space-y-3">
+                    <div class="rounded-md border border-border/70 bg-muted/30 p-3">
+                        <p class="truncate text-sm font-medium text-foreground" :title="previewUnavailableFile.name">{{ previewUnavailableFile.name }}</p>
+                        <div class="mt-2 flex items-center gap-2">
+                            <component :is="previewUnavailableFileConfig.icon" class="h-8 w-8" :class="previewUnavailableFileConfig.iconColorClass" />
+                            <Badge variant="outline" class="font-semibold" :class="previewUnavailableFileConfig.badgeClass">{{ previewUnavailableFileConfig.extension }}</Badge>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">
+                        <p class="flex items-center gap-2 text-sm font-medium">
+                            <AlertCircle class="h-4 w-4" />
+                            Suggested app
+                        </p>
+                        <p class="mt-1 flex items-center gap-2 text-sm">
+                            <Monitor class="h-4 w-4" />
+                            {{ previewUnavailableSuggestion }}
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" @click="closePreviewUnavailableModal">Cancel</Button>
+                    <Button type="button" class="gap-2" @click="downloadPreviewUnavailableFile">
+                        <Download class="h-4 w-4" />
+                        Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

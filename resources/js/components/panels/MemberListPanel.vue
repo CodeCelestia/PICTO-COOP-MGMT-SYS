@@ -234,8 +234,12 @@ const submitCreateAccount = () => {
         preserveScroll: true,
         onSuccess: () => {
             closeCreateAccountModal();
-            router.reload({
-                only: ['members'],
+            router.get(baseUrl.value, {
+                page: String(props.members.current_page),
+                [queryKey('search')]: search.value,
+                [queryKey('membership_status')]: membershipStatus.value === 'all' ? '' : membershipStatus.value,
+                [queryKey('per_page')]: resolvedPerPage(),
+            }, {
                 preserveScroll: true,
                 preserveState: true,
             });

@@ -42,7 +42,6 @@ class TrainingParticipant extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'TrainingParticipant'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Training Participant record");
     }
 

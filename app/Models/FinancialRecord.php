@@ -84,7 +84,6 @@ class FinancialRecord extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'FinancialRecord'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Financial Record");
     }
 

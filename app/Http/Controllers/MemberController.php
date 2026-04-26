@@ -182,6 +182,40 @@ class MemberController extends Controller
             ->all();
     }
 
+    private function sanitizeInternalReturnPath(?string $path): ?string
+    {
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    private function resolveCooperativeContextRedirect(Request $request, ?int $fallbackCoopId = null): string
+    {
+        $safeReturnPath = $this->sanitizeInternalReturnPath($request->input('return_to'));
+        if ($safeReturnPath) {
+            return $safeReturnPath;
+        }
+
+        $coopId = (int) ($request->input('coop_id') ?: $fallbackCoopId ?: 0);
+        if ($coopId > 0) {
+            return "/members/management/{$coopId}?tab=members";
+        }
+
+        return route('dashboard');
+    }
+
+    private function shouldUseCooperativeContextRedirect(Request $request): bool
+    {
+        return $request->input('context') === 'cooperative'
+            || $request->filled('return_to');
+    }
+
     /**
      * Display a listing of members
      */
@@ -625,6 +659,11 @@ class MemberController extends Controller
             'Members'
         );
 
+        if ($this->shouldUseCooperativeContextRedirect($request)) {
+            return redirect()->to($this->resolveCooperativeContextRedirect($request, (int) $member->coop_id))
+                ->with('success', 'Member created successfully.');
+        }
+
         return redirect()->route('members.index')
             ->with('success', 'Member created successfully.');
     }
@@ -922,6 +961,11 @@ class MemberController extends Controller
                 ]);
             }
         });
+
+        if ($this->shouldUseCooperativeContextRedirect($request)) {
+            return redirect()->to($this->resolveCooperativeContextRedirect($request, (int) $member->coop_id))
+                ->with('success', 'Member updated successfully.');
+        }
 
         return redirect()->route('members.index')
             ->with('success', 'Member updated successfully.');

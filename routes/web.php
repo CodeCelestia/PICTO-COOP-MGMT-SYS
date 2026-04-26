@@ -391,6 +391,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('trainings', [TrainingController::class, 'store'])
         ->middleware('permission:create training-&-capacity')
         ->name('trainings.store');
+    Route::match(['get', 'post'], 'trainings/members/by-cooperatives', [TrainingController::class, 'membersByCooperatives'])
+        ->middleware('permission:read training-&-capacity|create training-&-capacity|update training-&-capacity')
+        ->name('trainings.members-by-cooperatives');
+    Route::get('trainings/{training}', [TrainingController::class, 'show'])
+        ->middleware('permission:read training-&-capacity')
+        ->name('trainings.show');
     Route::get('trainings/{training}/edit', [TrainingController::class, 'edit'])
         ->middleware('permission:update training-&-capacity')
         ->name('trainings.edit');

@@ -91,7 +91,6 @@ class Activity extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'Activity'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Activity: ".($this->title ?? 'Untitled'));
     }
 

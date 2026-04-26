@@ -57,7 +57,6 @@ class Officer extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'Officer'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Officer record");
     }
 

@@ -7,6 +7,7 @@ use App\Models\Cooperative;
 use App\Models\Member;
 use App\Models\Training;
 use App\Models\TrainingParticipant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -283,9 +284,66 @@ class TrainingController extends Controller
 
         return Inertia::render('Trainings/Create', [
             'cooperatives' => $cooperatives,
-            'members' => $this->mapMembers($this->buildMembersQuery()->get()),
             'isCooperativeContext' => $isCooperativeContext,
             'contextCooperativeId' => $contextCooperativeId,
+        ]);
+    }
+
+    public function membersByCooperatives(Request $request): JsonResponse
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+            abort(403);
+        }
+
+        $user = auth()->user();
+        $coopId = $user?->coop_id;
+
+        $validated = $request->validate([
+            'cooperative_ids' => ['required', 'array', 'min:1'],
+            'cooperative_ids.*' => $this->isCoopAdmin() && $coopId
+                ? ['integer', 'exists:cooperatives,id', Rule::in([(int) $coopId])]
+                : ['integer', 'exists:cooperatives,id'],
+        ]);
+
+        $selectedCoopIds = collect($validated['cooperative_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($this->isCoopAdmin() && $coopId) {
+            $selectedCoopIds = collect([(int) $coopId]);
+        }
+
+        $cooperatives = Cooperative::query()
+            ->select('id', 'name')
+            ->whereIn('id', $selectedCoopIds)
+            ->orderBy('name')
+            ->get();
+
+        $membersByCoop = Member::query()
+            ->select('id', 'first_name', 'last_name', 'coop_id')
+            ->whereIn('coop_id', $cooperatives->pluck('id'))
+            ->orderBy('last_name', 'asc')
+            ->orderBy('first_name', 'asc')
+            ->get()
+            ->groupBy('coop_id');
+
+        return response()->json([
+            'cooperatives' => $cooperatives->map(function (Cooperative $cooperative) use ($membersByCoop) {
+                return [
+                    'id' => $cooperative->id,
+                    'name' => $cooperative->name,
+                    'members' => $membersByCoop
+                        ->get($cooperative->id, collect())
+                        ->map(fn (Member $member) => [
+                            'id' => $member->id,
+                            'first_name' => $member->first_name,
+                            'last_name' => $member->last_name,
+                            'coop_id' => $member->coop_id,
+                        ])
+                        ->values(),
+                ];
+            })->values(),
         ]);
     }
 
@@ -362,8 +420,12 @@ class TrainingController extends Controller
             ])->withInput();
         }
 
-        $invalidSelectedCoopMembers = $members->whereNotIn('coop_id', $selectedCoopIds->all())->pluck('id');
-        if ($invalidSelectedCoopMembers->isNotEmpty()) {
+        $validSelectedMemberCount = Member::query()
+            ->whereIn('coop_id', $selectedCoopIds->all())
+            ->whereIn('id', $memberIds)
+            ->count();
+
+        if ($validSelectedMemberCount !== $memberIds->count()) {
             return back()->withErrors([
                 'member_ids' => 'Selected members must belong to one of the selected cooperatives.',
             ])->withInput();
@@ -448,7 +510,12 @@ class TrainingController extends Controller
             ->all();
 
         $training->load('cooperative', 'participants.member.roles', 'participants.member.cooperative');
-        $selectedMemberIds = $training->participants->pluck('member_id')->toArray();
+        $selectedMemberIds = TrainingParticipant::query()
+            ->whereIn('training_id', $linkedTrainingIds)
+            ->pluck('member_id')
+            ->unique()
+            ->values()
+            ->all();
 
         return Inertia::render('Trainings/Edit', [
             'training' => array_merge($training->toArray(), [
@@ -456,7 +523,6 @@ class TrainingController extends Controller
                 'follow_up_date' => optional($training->follow_up_date)->format('Y-m-d'),
             ]),
             'cooperatives' => $cooperatives,
-            'members' => $this->mapMembers($this->buildMembersQuery()->get()),
             'selected_member_ids' => $selectedMemberIds,
             'isCooperativeContext' => $isCooperativeContext,
             'contextCooperativeId' => $contextCooperativeId,
@@ -539,8 +605,12 @@ class TrainingController extends Controller
             ])->withInput();
         }
 
-        $invalidSelectedCoopMembers = $members->whereNotIn('coop_id', $selectedCoopIds->all())->pluck('id');
-        if ($invalidSelectedCoopMembers->isNotEmpty()) {
+        $validSelectedMemberCount = Member::query()
+            ->whereIn('coop_id', $selectedCoopIds->all())
+            ->whereIn('id', $selectedMemberIds)
+            ->count();
+
+        if ($validSelectedMemberCount !== $selectedMemberIds->count()) {
             return back()->withErrors([
                 'member_ids' => 'Selected members must belong to one of the selected cooperatives.',
             ])->withInput();
@@ -616,6 +686,130 @@ class TrainingController extends Controller
 
         return redirect()->route('trainings.index')
             ->with('success', 'Training record updated successfully.');
+    }
+
+    public function show(Training $training): Response
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+            abort(403);
+        }
+
+        $this->enforceCoopScope($training->coop_id);
+
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+
+        $trainingRecords = Training::query()
+            ->with('cooperative')
+            ->whereIn('id', $linkedTrainingIds)
+            ->orderBy('coop_id')
+            ->get();
+
+        $primaryTraining = $trainingRecords->firstWhere('id', $training->id) ?? $trainingRecords->first() ?? $training;
+        $primaryTraining->loadMissing('cooperative');
+
+        $cooperativeIds = $trainingRecords
+            ->pluck('coop_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $cooperatives = Cooperative::query()
+            ->select('id', 'name', 'registration_number', 'status', 'region', 'classification')
+            ->whereIn('id', $cooperativeIds)
+            ->orderBy('name')
+            ->get();
+
+        $participants = TrainingParticipant::query()
+            ->with(['member.cooperative'])
+            ->whereIn('training_id', $linkedTrainingIds)
+            ->get()
+            ->sortBy(function (TrainingParticipant $participant) {
+                return sprintf(
+                    '%s %s',
+                    strtolower($participant->member?->last_name ?? ''),
+                    strtolower($participant->member?->first_name ?? '')
+                );
+            })
+            ->values();
+
+        $participantsByCooperative = $participants
+            ->groupBy(fn (TrainingParticipant $participant) => (int) ($participant->member?->coop_id ?? 0))
+            ->map(function (Collection $group, int $cooperativeId) use ($cooperatives) {
+                $cooperative = $cooperatives->firstWhere('id', $cooperativeId);
+
+                return [
+                    'id' => $cooperative?->id ?? $cooperativeId,
+                    'name' => $cooperative?->name ?? 'No cooperative',
+                    'registration_number' => $cooperative?->registration_number,
+                    'status' => $cooperative?->status,
+                    'region' => $cooperative?->region,
+                    'classification' => $cooperative?->classification,
+                    'participants_count' => $group->count(),
+                    'participants' => $group->map(function (TrainingParticipant $participant) {
+                        return [
+                            'id' => $participant->id,
+                            'member_id' => $participant->member_id,
+                            'full_name' => $participant->member?->full_name ?? 'Unknown member',
+                            'first_name' => $participant->member?->first_name,
+                            'last_name' => $participant->member?->last_name,
+                            'member_code' => null,
+                            'outcome' => $participant->outcome,
+                            'certificate_no' => $participant->certificate_no,
+                            'certificate_date' => optional($participant->certificate_date)->toDateString(),
+                            'remarks' => $participant->remarks,
+                        ];
+                    })->values(),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+
+        $cooperativesWithParticipants = $cooperatives->map(function (Cooperative $cooperative) use ($participantsByCooperative) {
+            $group = $participantsByCooperative->firstWhere('id', $cooperative->id);
+
+            return [
+                'id' => $cooperative->id,
+                'name' => $cooperative->name,
+                'registration_number' => $cooperative->registration_number,
+                'status' => $cooperative->status,
+                'region' => $cooperative->region,
+                'classification' => $cooperative->classification,
+                'participants_count' => $group['participants_count'] ?? 0,
+                'participants' => $group['participants'] ?? [],
+            ];
+        })->values();
+
+        return Inertia::render('Trainings/Show', [
+            'training' => [
+                'id' => $primaryTraining->id,
+                'coop_id' => $primaryTraining->coop_id,
+                'title' => $primaryTraining->title,
+                'date_conducted' => optional($primaryTraining->date_conducted)->toDateString(),
+                'facilitator' => $primaryTraining->facilitator,
+                'skills_targeted' => $primaryTraining->skills_targeted,
+                'venue' => $primaryTraining->venue,
+                'target_group' => $primaryTraining->target_group,
+                'no_of_participants' => $primaryTraining->no_of_participants,
+                'follow_up_needed' => (bool) $primaryTraining->follow_up_needed,
+                'follow_up_date' => optional($primaryTraining->follow_up_date)->toDateString(),
+                'follow_up_remarks' => $primaryTraining->follow_up_remarks,
+                'status' => $primaryTraining->status,
+                'cooperative' => $primaryTraining->cooperative ? [
+                    'id' => $primaryTraining->cooperative->id,
+                    'name' => $primaryTraining->cooperative->name,
+                    'registration_number' => $primaryTraining->cooperative->registration_number,
+                    'status' => $primaryTraining->cooperative->status,
+                    'region' => $primaryTraining->cooperative->region,
+                    'classification' => $primaryTraining->cooperative->classification,
+                ] : null,
+            ],
+            'cooperatives' => $cooperativesWithParticipants,
+            'participantsByCooperative' => $participantsByCooperative,
+            'participantCount' => $participants->count(),
+            'total_participants' => $participants->count(),
+            'linkedTrainingCount' => $trainingRecords->count(),
+            'attachments' => [],
+        ]);
     }
 
     public function destroy(Training $training): RedirectResponse

@@ -42,7 +42,6 @@ class Accreditation extends Model
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->withProperties(['module' => 'Accreditation'])
             ->setDescriptionForEvent(fn (string $eventName) => "{$eventName} Accreditation record");
     }
 
