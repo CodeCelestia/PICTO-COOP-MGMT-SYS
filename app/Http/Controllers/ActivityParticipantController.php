@@ -286,7 +286,7 @@ class ActivityParticipantController extends Controller
             'Activity Participants'
         );
 
-        return redirect()->route('activity-participants.index')
+        return redirect()->back()
             ->with('success', 'Activity participant removed successfully.');
     }
 }

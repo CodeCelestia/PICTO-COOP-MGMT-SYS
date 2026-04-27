@@ -821,7 +821,12 @@ class TrainingController extends Controller
         $this->enforceCoopScope($training->coop_id);
 
         $oldValues = $training->getAttributes();
-        $training->delete();
+
+        DB::transaction(function () use ($training) {
+            $training->participants()->delete();
+            $training->skillsInventory()->delete();
+            $training->delete();
+        });
 
         $this->logDetailedActivity(
             'deleted',
@@ -831,7 +836,7 @@ class TrainingController extends Controller
             'Trainings'
         );
 
-        return redirect()->route('trainings.index')
+        return redirect()->back()
             ->with('success', 'Training record deleted successfully.');
     }
 }

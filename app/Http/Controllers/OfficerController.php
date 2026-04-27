@@ -332,7 +332,7 @@ class OfficerController extends Controller
             }
         }
 
-        DB::transaction(function () use ($officer, $validated, $historySnapshot, $hasChanges, $reason, $electionYear) {
+        DB::transaction(function () use ($officer, $validated, $historySnapshot, $hasChanges, $reason, $electionYear, $oldValues) {
             $officer->update($validated);
 
             if ($hasChanges) {
@@ -379,7 +379,7 @@ class OfficerController extends Controller
             'Officers'
         );
 
-        return redirect()->route('officers.index')
+        return redirect()->back()
             ->with('success', 'Officer deleted successfully.');
     }
 

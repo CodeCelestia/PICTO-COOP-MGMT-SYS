@@ -449,7 +449,7 @@ class ActivityFundingSourceController extends Controller
         $activityFundingSource->delete();
         $this->syncActivityFundingSourceSummary($activityId);
 
-        return redirect()->route($this->resolveIndexRoute($request))
+        return redirect()->back()
             ->with('success', 'Funding source deleted successfully.');
     }
 }

@@ -683,7 +683,7 @@ const toggleRole = (roleId: number) => {
                                         <SelectValue placeholder="Select educational level" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="None">None</SelectItem>
+                                        <SelectItem value="No Formal Education">No Formal Education</SelectItem>
                                         <SelectItem value="Elementary">Elementary</SelectItem>
                                         <SelectItem value="High School">High School</SelectItem>
                                         <SelectItem value="Vocational">Vocational</SelectItem>

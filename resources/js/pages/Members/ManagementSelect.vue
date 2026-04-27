@@ -225,7 +225,7 @@ const formatDate = (date: string | null) => {
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="space-y-6 p-4 md:p-6">
-            <section class="rounded-2xl border border-border/70 bg-gradient-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
+            <section class="rounded-2xl border border-border/70 bg-linear-to-br from-background via-card to-muted/30 p-5 shadow-sm md:p-6">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">

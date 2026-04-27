@@ -12,6 +12,7 @@ use App\Models\Officer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -248,6 +249,7 @@ class ActivityController extends Controller
             }
 
             $disk = Storage::disk('public');
+            /** @var FilesystemAdapter $disk */
             $exists = $disk->exists($path);
 
             return array_merge([
@@ -282,7 +284,7 @@ class ActivityController extends Controller
                             'funder_name' => $source->funder_name,
                         ];
                     });
-                })->map(function ($file) use ($buildAttachment, $item) {
+                })->map(function (array $file) use ($buildAttachment, $item) {
                     return $buildAttachment($file['path'] ?? null, $file['name'] ?? null, [
                         'source_activity_id' => $item->id,
                         'funding_source_id' => $file['funding_source_id'] ?? null,
@@ -322,8 +324,8 @@ class ActivityController extends Controller
             'outcomesAttachments' => $outcomesAttachments,
             'fundingAttachments' => $fundingAttachments,
             'attachments' => $outcomesAttachments
-                ->map(fn ($file) => array_merge($file, ['section' => 'outcomes']))
-                ->concat($fundingAttachments->map(fn ($file) => array_merge($file, ['section' => 'funding'])))
+                ->map(fn (array $file) => array_merge($file, ['section' => 'outcomes']))
+                ->concat($fundingAttachments->map(fn (array $file) => array_merge($file, ['section' => 'funding'])))
                 ->values(),
         ]);
     }
@@ -855,7 +857,12 @@ class ActivityController extends Controller
         $this->enforceCoopScope($activity->coop_id);
 
         $oldValues = $activity->getAttributes();
-        $activity->delete();
+
+        DB::transaction(function () use ($activity) {
+            $activity->participants()->delete();
+            $activity->fundingSources()->delete();
+            $activity->delete();
+        });
 
         $this->logDetailedActivity(
             'deleted',
@@ -865,7 +872,7 @@ class ActivityController extends Controller
             'Activities'
         );
 
-        return redirect()->route('activities.index')
+        return redirect()->back()
             ->with('success', 'Activity deleted successfully.');
     }
 

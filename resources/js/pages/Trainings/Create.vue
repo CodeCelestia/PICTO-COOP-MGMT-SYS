@@ -92,6 +92,8 @@ const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
 const isCooperativeDialogOpen = ref(false);
 const selectedCoopIds = ref<string[]>(form.coop_ids);
+const trainingFormRef = ref<HTMLFormElement | null>(null);
+const cooperativeSectionRef = ref<HTMLElement | null>(null);
 const goBack = () => {
     window.history.back();
 };
@@ -389,11 +391,35 @@ watch(selectedCoopIds, async (newVal) => {
     form.member_ids = form.member_ids.filter((memberId) => allowedMemberIds.has(memberId));
 }, { deep: true, immediate: true });
 
-const submit = () => {
+const scrollToFirstInvalidField = async () => {
+    await nextTick();
+
+    const firstInvalid = trainingFormRef.value?.querySelector<HTMLElement>(':invalid');
+    if (!firstInvalid) return;
+
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    firstInvalid.focus();
+};
+
+const scrollToCooperativeSection = async () => {
+    await nextTick();
+
+    cooperativeSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const picker = document.getElementById('coop_picker');
+    picker?.focus();
+};
+
+const submit = async () => {
     if (!canCreateTraining.value) return;
+
+    if (trainingFormRef.value && !trainingFormRef.value.reportValidity()) {
+        await scrollToFirstInvalidField();
+        return;
+    }
 
     if (!selectedCoopIds.value.length) {
         form.setError('coop_ids', 'Please select at least one cooperative.');
+        await scrollToCooperativeSection();
         return;
     }
 
@@ -406,7 +432,13 @@ const submit = () => {
         onSuccess: () => {
             notifySuccess('Training saved successfully.');
         },
-        onError: (errors) => {
+        onError: async (errors) => {
+            if (errors.coop_ids || errors.coop_id) {
+                await scrollToCooperativeSection();
+            } else {
+                await scrollToFirstInvalidField();
+            }
+
             const firstError = Object.values(errors)[0];
             notifyError(firstError || 'Unable to save training. Please check the form and try again.');
         },
@@ -440,7 +472,7 @@ const cancel = () => {
                 </CardContent>
             </Card>
 
-            <form @submit.prevent="submit" class="space-y-6">
+            <form ref="trainingFormRef" @submit.prevent="submit" class="space-y-6">
                 <Card class="w-full min-h-87.5 border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
@@ -453,7 +485,7 @@ const cancel = () => {
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="title">Title <span class="text-red-500">*</span></Label>
-                                <Input id="title" v-model="form.title" placeholder="Enter training title" :class="{ 'border-red-500': form.errors.title }" />
+                                <Input id="title" v-model="form.title" required placeholder="Enter training title" :class="{ 'border-red-500': form.errors.title }" />
                                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-500">{{ form.errors.title }}</p>
                             </div>
                             <div>
@@ -525,7 +557,7 @@ const cancel = () => {
                         <CardDescription>Choose the cooperative or keep the locked context selection.</CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4 pt-0">
-                        <div>
+                        <div ref="cooperativeSectionRef">
                             <Label for="coop_picker">Cooperatives</Label>
                             <Button
                                 id="coop_picker"

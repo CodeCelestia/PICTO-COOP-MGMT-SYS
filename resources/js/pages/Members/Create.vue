@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
-import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
+import { ArrowLeft, Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -161,7 +161,6 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: () => {
             notifySuccess('Member registered successfully.');
-            goBackToCooperativeMembers();
         },
     });
 };
@@ -203,10 +202,18 @@ const toggleRole = (roleId: number) => {
     <AppLayout>
         <div class="space-y-6 p-4 md:p-6">
             <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Register New Member</h1>
-                <p class="mt-1 text-sm text-muted-foreground">
-                    Create a new member profile
-                </p>
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">Register New Member</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Create a new member profile
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBackToCooperativeMembers">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back
+                    </Button>
+                </div>
             </section>
 
             <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -500,7 +507,7 @@ const toggleRole = (roleId: number) => {
                                         <SelectValue placeholder="Select educational level" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="None">None</SelectItem>
+                                        <SelectItem value="No Formal Education">No Formal Education</SelectItem>
                                         <SelectItem value="Elementary">Elementary</SelectItem>
                                         <SelectItem value="High School">High School</SelectItem>
                                         <SelectItem value="Vocational">Vocational</SelectItem>

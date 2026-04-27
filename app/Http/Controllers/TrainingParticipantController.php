@@ -323,7 +323,7 @@ class TrainingParticipantController extends Controller
             'Training Participants'
         );
 
-        return redirect()->route('training-participants.index')
+        return redirect()->back()
             ->with('success', 'Training participant removed successfully.');
     }
 }

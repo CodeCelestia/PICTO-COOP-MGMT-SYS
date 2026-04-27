@@ -2,6 +2,7 @@
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
+import { ArrowLeft } from 'lucide-vue-next';
 
 const props = defineProps<{
     members: Array<{
@@ -124,6 +125,10 @@ const submit = () => {
         forceFormData: true,
     });
 };
+
+const goBack = () => {
+    window.history.back();
+};
 </script>
 
 <template>
@@ -131,9 +136,15 @@ const submit = () => {
 
     <FinanceShellLayout active-tab="loans">
         <div class="max-w-3xl space-y-6">
-            <div>
-                <h1 class="text-2xl font-semibold">New Member Loan</h1>
-                <p class="text-sm text-muted-foreground">Fill out this short form to submit a loan application.</p>
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-semibold">New Member Loan</h1>
+                    <p class="text-sm text-muted-foreground">Fill out this short form to submit a loan application.</p>
+                </div>
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="goBack">
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </button>
             </div>
 
             <form class="space-y-5 rounded-lg border bg-card p-5" @submit.prevent="submit">

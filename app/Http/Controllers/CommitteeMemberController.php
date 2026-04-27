@@ -301,7 +301,7 @@ class CommitteeMemberController extends Controller
             'Committee Members'
         );
 
-        return redirect()->route('committee-members.index')
+        return redirect()->back()
             ->with('success', 'Committee member removed successfully.');
     }
 }

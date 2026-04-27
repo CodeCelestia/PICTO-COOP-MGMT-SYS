@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, FileX, Lock, Monitor, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -140,6 +140,8 @@ const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const isCooperativeDialogOpen = ref(false);
 const selectedCoopIds = ref<string[]>(form.coop_ids);
+const activityFormRef = ref<HTMLFormElement | null>(null);
+const cooperativeSectionRef = ref<HTMLElement | null>(null);
 const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
 const fileObjectUrls = new Map<File, string>();
@@ -453,10 +455,35 @@ const removeFundingSource = async (index: number) => {
     form.funding_sources.splice(index, 1);
 };
 
-const submit = () => {
+const scrollToFirstInvalidField = async () => {
+    await nextTick();
+
+    const firstInvalid = activityFormRef.value?.querySelector<HTMLElement>(':invalid');
+    if (!firstInvalid) return;
+
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    firstInvalid.focus();
+};
+
+const scrollToCooperativeSection = async () => {
+    await nextTick();
+
+    cooperativeSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const picker = document.getElementById('coop_picker');
+    picker?.focus();
+};
+
+const submit = async () => {
     if (!canCreateActivity.value) return;
+
+    if (activityFormRef.value && !activityFormRef.value.reportValidity()) {
+        await scrollToFirstInvalidField();
+        return;
+    }
+
     if (!selectedCoopIds.value.length) {
         form.setError('coop_ids', 'Please select at least one cooperative.');
+        await scrollToCooperativeSection();
         return;
     }
 
@@ -484,7 +511,13 @@ const submit = () => {
         onSuccess: () => {
             notifySuccess('Activity saved successfully.');
         },
-        onError: (errors) => {
+        onError: async (errors) => {
+            if (errors.coop_ids || errors.coop_id) {
+                await scrollToCooperativeSection();
+            } else {
+                await scrollToFirstInvalidField();
+            }
+
             const firstError = Object.values(errors)[0];
             notifyError(firstError || 'Unable to save activity. Please check the form and try again.');
         },
@@ -518,7 +551,7 @@ const cancel = () => {
                 </CardContent>
             </Card>
 
-            <form @submit.prevent="submit" class="space-y-6">
+            <form ref="activityFormRef" @submit.prevent="submit" class="space-y-6">
                 <Card class="border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
@@ -531,7 +564,7 @@ const cancel = () => {
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="title">Title <span class="text-red-500">*</span></Label>
-                                <Input id="title" v-model="form.title" placeholder="Enter activity title" :class="{ 'border-red-500': form.errors.title }" />
+                                <Input id="title" v-model="form.title" required placeholder="Enter activity title" :class="{ 'border-red-500': form.errors.title }" />
                                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-500">{{ form.errors.title }}</p>
                             </div>
                             <div>
@@ -593,7 +626,7 @@ const cancel = () => {
                         <CardDescription>Select the cooperatives this activity belongs to.</CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-4 pt-0">
-                        <div>
+                        <div ref="cooperativeSectionRef">
                             <Label for="coop_picker">Cooperatives</Label>
                             <Button
                                 id="coop_picker"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeft } from 'lucide-vue-next';
 
 defineProps<{
     members: Array<{ id: number; first_name: string; last_name: string }>;
@@ -16,6 +17,10 @@ const form = useForm({
 const submit = () => {
     form.post('/finance/savings');
 };
+
+const goBack = () => {
+    window.history.back();
+};
 </script>
 
 <template>
@@ -23,7 +28,13 @@ const submit = () => {
 
     <FinanceShellLayout active-tab="savings">
         <div class="max-w-2xl space-y-6">
-            <h1 class="text-2xl font-semibold">Open Savings Account</h1>
+            <div class="flex items-start justify-between gap-4">
+                <h1 class="text-2xl font-semibold">Open Savings Account</h1>
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="goBack">
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </button>
+            </div>
 
             <form class="space-y-4 rounded-lg border bg-card p-4" @submit.prevent="submit">
                 <div>

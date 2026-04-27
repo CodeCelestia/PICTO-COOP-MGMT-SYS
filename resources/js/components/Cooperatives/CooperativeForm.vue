@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { usePsgc } from '@/composables/usePsgc';
+import { notifySuccess } from '@/lib/alerts';
 
 interface CooperativeAccreditation {
   id?: number;
@@ -152,6 +153,11 @@ const toggleCoopType = (typeId: string) => {
 
 const clearCoopType = () => {
   form.type_ids = [];
+};
+
+const saveCoopTypeSelection = () => {
+  isCoopTypeDialogOpen.value = false;
+  notifySuccess('Successfully added.');
 };
 
 const addAccreditationRow = () => {
@@ -596,7 +602,7 @@ const submit = () => {
 
           <div class="flex items-center justify-between gap-3">
             <Button type="button" variant="ghost" @click="clearCoopType">Clear selection</Button>
-            <Button type="button" variant="outline" @click="isCoopTypeDialogOpen = false">Close</Button>
+            <Button type="button" variant="outline" @click="saveCoopTypeSelection">Save</Button>
           </div>
         </div>
       </DialogContent>

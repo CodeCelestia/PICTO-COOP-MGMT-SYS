@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { Users, Save, X } from 'lucide-vue-next';
+import { ArrowLeft, Users, Save, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,14 +66,24 @@ const submit = () => {
 const cancel = () => {
     router.get('/officers');
 };
+
+const goBack = () => {
+    window.history.back();
+};
 </script>
 
 <template>
     <AppLayout>
         <div class="space-y-6 p-4 sm:p-6">
-            <div class="space-y-1">
-                <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Officer</h1>
-                <p class="text-sm text-muted-foreground">Assign a member to an officer role.</p>
+            <div class="flex items-start justify-between gap-4">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Officer</h1>
+                    <p class="text-sm text-muted-foreground">Assign a member to an officer role.</p>
+                </div>
+                <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </Button>
             </div>
 
             <div class="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">

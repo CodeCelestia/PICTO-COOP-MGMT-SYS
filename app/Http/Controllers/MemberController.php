@@ -625,7 +625,7 @@ class MemberController extends Controller
             'membership_type' => ['nullable', 'in:Regular,Associate,Honorary'],
             'membership_status' => ['nullable', 'in:Active,Suspended,Resigned,Deceased'],
             'share_capital' => ['nullable', 'numeric', 'min:0'],
-            'educational_attainment' => ['nullable', 'in:Elementary,High School,Vocational,College,Post-Graduate,None'],
+            'educational_attainment' => ['nullable', 'in:No Formal Education,Elementary,High School,Vocational,College,Post-Graduate'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
             'role_ids' => ['nullable', 'array'],
@@ -881,7 +881,7 @@ class MemberController extends Controller
             'membership_type' => ['nullable', 'in:Regular,Associate,Honorary'],
             'membership_status' => ['nullable', 'in:Active,Suspended,Resigned,Deceased'],
             'share_capital' => ['nullable', 'numeric', 'min:0'],
-            'educational_attainment' => ['nullable', 'in:Elementary,High School,Vocational,College,Post-Graduate,None'],
+            'educational_attainment' => ['nullable', 'in:No Formal Education,Elementary,High School,Vocational,College,Post-Graduate'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
             'role_ids' => ['nullable', 'array'],
@@ -1001,7 +1001,7 @@ class MemberController extends Controller
             'Members'
         );
 
-        return redirect()->route('members.index')
+        return redirect()->back()
             ->with('success', 'Member deleted successfully.');
     }
 

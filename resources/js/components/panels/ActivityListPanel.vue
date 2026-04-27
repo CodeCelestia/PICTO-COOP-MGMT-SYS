@@ -514,7 +514,7 @@ const bulkDeleteActivities = async () => {
                             <TableHead>Dates</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Responsible</TableHead>
-                            <TableHead v-if="showActions" class="min-w-[220px] text-center">Actions</TableHead>
+                            <TableHead v-if="showActions" class="min-w-55 text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
