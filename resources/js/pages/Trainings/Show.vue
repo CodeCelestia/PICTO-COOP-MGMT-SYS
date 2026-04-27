@@ -513,11 +513,11 @@ const selectedCooperativeLabel = computed(() => {
 
                 <CardContent class="pt-0">
                     <div class="overflow-hidden rounded-xl border border-border bg-card">
-                        <div class="grid h-110 grid-cols-[240px_minmax(0,1fr)]">
-                            <div class="border-r border-border">
+                        <div class="grid h-110 grid-cols-1 overflow-x-hidden lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
+                            <div class="border-b border-border lg:border-b-0 lg:border-r">
                                 <div
                                     tabindex="0"
-                                    class="max-h-110 overflow-y-auto outline-none"
+                                    class="max-h-110 overflow-y-auto overflow-x-hidden p-2 outline-none"
                                     @keydown="onCooperativeListKeydown"
                                 >
                                     <template v-if="isPanelsLoading">
@@ -532,15 +532,15 @@ const selectedCooperativeLabel = computed(() => {
                                             v-for="cooperative in preparedCooperatives"
                                             :key="cooperative.id"
                                             type="button"
-                                            class="w-full border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/50"
+                                            class="w-full rounded-lg border-2 px-3.5 py-3 text-left transition-all duration-150 cursor-pointer hover:shadow-sm"
                                             :class="cooperative.id === selectedCooperative?.id
-                                                ? 'border-l-2 border-l-primary bg-primary/5 dark:bg-primary/10'
-                                                : 'border-l-2 border-l-transparent'"
+                                                ? 'border-primary bg-primary/15 shadow-sm hover:shadow-md hover:bg-primary/20'
+                                                : 'border-border/60 bg-white hover:border-primary/50 hover:bg-primary/5 dark:bg-muted/30 dark:border-border dark:hover:border-primary/40 dark:hover:bg-primary/10'"
                                             @click="selectCooperative(cooperative.id)"
                                         >
                                             <div class="flex items-center gap-2">
-                                                <Building2 class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                <p class="min-w-0 flex-1 truncate text-sm" :class="cooperative.id === selectedCooperative?.id ? 'font-semibold text-foreground' : 'font-medium text-foreground'">
+                                                <Building2 class="h-4 w-4 shrink-0 text-muted-foreground" />
+                                                <p class="min-w-0 flex-1 truncate text-sm" :class="cooperative.id === selectedCooperative?.id ? 'font-semibold text-foreground' : 'font-semibold text-foreground'">
                                                     {{ cooperative.name }}
                                                 </p>
                                                 <span class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/20 dark:text-green-400">

@@ -501,19 +501,6 @@ const cancel = () => {
                                     </SelectContent>
                                 </Select>
                                 <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500">{{ form.errors.target_group }}</p>
-
-                        watch(
-                            () => [filteredAvailableMembers.value.length, selectedMembersForCoop.value.length, isLoadingMembers.value, activeCoopId.value, memberSearch.value],
-                            async () => {
-                                await nextTick();
-                                updatePanelOverflow();
-                            },
-                            { deep: true, immediate: true }
-                        );
-
-                        onMounted(() => {
-                            updatePanelOverflow();
-                        });
                             </div>
                             <div>
                                 <Label for="date_conducted">Date Conducted</Label>
@@ -603,34 +590,36 @@ const cancel = () => {
                             <p>Please select a cooperative above to view and add participants.</p>
                         </div>
 
-                        <div v-else class="grid gap-4" :class="hasCooperativeSidebar ? 'md:grid-cols-[240px_minmax(0,1fr)]' : 'grid-cols-1'">
+                        <div v-else class="grid gap-4" :class="hasCooperativeSidebar ? 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]' : 'grid-cols-1'">
                             <div v-if="hasCooperativeSidebar" class="space-y-2">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cooperatives</p>
-                                <div class="space-y-1 rounded-xl border border-border bg-muted/20 p-2">
+                                <div class="space-y-2 rounded-xl border border-border bg-card p-2.5">
                                     <button
                                         v-for="group in selectedCooperativeGroups"
                                         :key="group.id"
                                         type="button"
-                                        class="flex w-full items-center justify-between rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors"
+                                        class="flex w-full items-center justify-between rounded-lg border-2 px-3.5 py-3 text-left transition-all duration-150 cursor-pointer"
                                         :class="activeCoopId === group.id
-                                            ? 'border-l-primary bg-primary/10 text-foreground'
-                                            : 'border-l-transparent text-muted-foreground hover:bg-muted'"
+                                            ? 'border-primary bg-primary/15 text-foreground shadow-sm hover:shadow-md hover:bg-primary/20'
+                                            : 'border-border/60 bg-white text-foreground hover:border-primary/50 hover:bg-primary/5 hover:shadow-sm dark:bg-muted/30 dark:border-border dark:hover:border-primary/40 dark:hover:bg-primary/10'"
                                         @click="setActiveCooperative(group.id)"
                                     >
-                                        <div class="min-w-0">
-                                            <p class="truncate font-medium">{{ group.name }}</p>
-                                            <p class="text-xs text-muted-foreground">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-semibold text-sm leading-5 wrap-break-word">{{ group.name }}</p>
+                                            <p class="text-xs text-muted-foreground mt-0.5">
                                                 {{ selectedCountByCoop[group.id] || 0 }} / {{ group.members.length }} selected
                                             </p>
                                         </div>
-                                        <CheckCircle2
-                                            v-if="isAllSelectedForCoop(group.id)"
-                                            class="h-4 w-4 shrink-0 text-emerald-600"
-                                        />
-                                        <MinusCircle
-                                            v-else-if="isPartialSelectedForCoop(group.id)"
-                                            class="h-4 w-4 shrink-0 text-amber-600"
-                                        />
+                                        <div class="ml-2 shrink-0 flex items-center justify-center">
+                                            <CheckCircle2
+                                                v-if="isAllSelectedForCoop(group.id)"
+                                                class="h-5 w-5 text-emerald-600 dark:text-emerald-500"
+                                            />
+                                            <MinusCircle
+                                                v-else-if="isPartialSelectedForCoop(group.id)"
+                                                class="h-5 w-5 text-amber-600 dark:text-amber-500"
+                                            />
+                                        </div>
                                     </button>
                                 </div>
                             </div>

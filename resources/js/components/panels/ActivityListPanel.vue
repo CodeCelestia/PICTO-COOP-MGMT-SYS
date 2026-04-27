@@ -514,7 +514,7 @@ const bulkDeleteActivities = async () => {
                             <TableHead>Dates</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Responsible</TableHead>
-                            <TableHead v-if="showActions" class="min-w-55 text-center">Actions</TableHead>
+                            <TableHead v-if="showActions" class="min-w-70 text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -624,18 +624,14 @@ const bulkDeleteActivities = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
                             <TableCell v-if="showActions" class="text-center align-top">
                                 <TooltipProvider :delay-duration="150">
-                                    <div class="grid grid-cols-3 gap-2.5">
-
-                                        <!-- ROW 1: Participants | Funding | Report -->
+                                    <div class="flex items-center justify-center gap-1.5">
 
                                         <!-- Participants — Blue -->
                                         <Tooltip>
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="openParticipants(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-blue-200 bg-blue-50 text-blue-700
                                                            hover:bg-blue-100 hover:border-blue-300
                                                            dark:border-blue-700 dark:bg-blue-950 dark:text-blue-300
@@ -643,11 +639,10 @@ const bulkDeleteActivities = async () => {
                                                            disabled:opacity-50 disabled:pointer-events-none"
                                                     :disabled="!showParticipantActionInRows"
                                                 >
-                                                    <Users class="h-3.5 w-3.5" />
-                                                    Participants
+                                                    <Users class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>View participants for this activity</p></TooltipContent>
+                                            <TooltipContent><p>View Participants for this activity</p></TooltipContent>
                                         </Tooltip>
 
                                         <!-- Funding — Green -->
@@ -655,19 +650,16 @@ const bulkDeleteActivities = async () => {
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="openFunding(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-green-200 bg-green-50 text-green-700
                                                            hover:bg-green-100 hover:border-green-300
                                                            dark:border-green-700 dark:bg-green-950 dark:text-green-300
                                                            dark:hover:bg-green-900 dark:hover:border-green-600"
                                                 >
-                                                    <Wallet class="h-3.5 w-3.5" />
-                                                    Funding
+                                                    <Wallet class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>View funding sources</p></TooltipContent>
+                                            <TooltipContent><p>View Funding Sources for this activity</p></TooltipContent>
                                         </Tooltip>
 
                                         <!-- Report — Violet -->
@@ -675,41 +667,33 @@ const bulkDeleteActivities = async () => {
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="openReport(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-violet-200 bg-violet-50 text-violet-700
                                                            hover:bg-violet-100 hover:border-violet-300
                                                            dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300
                                                            dark:hover:bg-violet-900 dark:hover:border-violet-600"
                                                 >
-                                                    <ClipboardList class="h-3.5 w-3.5" />
-                                                    Report
+                                                    <ClipboardList class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>Generate report</p></TooltipContent>
+                                            <TooltipContent><p>Generate Report</p></TooltipContent>
                                         </Tooltip>
-
-                                        <!-- ROW 2: View | Edit | Delete -->
 
                                         <!-- View — Sky -->
                                         <Tooltip>
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="openActivityDetails(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-sky-200 bg-sky-50 text-sky-700
                                                            hover:bg-sky-100 hover:border-sky-300
                                                            dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300
                                                            dark:hover:bg-sky-900 dark:hover:border-sky-600"
                                                 >
-                                                    <Eye class="h-3.5 w-3.5" />
-                                                    View
+                                                    <Eye class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>View activity details</p></TooltipContent>
+                                            <TooltipContent><p>View Activity Details</p></TooltipContent>
                                         </Tooltip>
 
                                         <!-- Edit — Amber -->
@@ -717,9 +701,7 @@ const bulkDeleteActivities = async () => {
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="openEdit(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-amber-200 bg-amber-50 text-amber-700
                                                            hover:bg-amber-100 hover:border-amber-300
                                                            dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300
@@ -727,21 +709,18 @@ const bulkDeleteActivities = async () => {
                                                            disabled:opacity-50 disabled:pointer-events-none"
                                                     :disabled="!canEdit"
                                                 >
-                                                    <Pencil class="h-3.5 w-3.5" />
-                                                    Edit
+                                                    <Pencil class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>Edit this activity</p></TooltipContent>
+                                            <TooltipContent><p>Edit Activity</p></TooltipContent>
                                         </Tooltip>
 
-                                        <!-- Delete — Red (soft, not filled destructive) -->
+                                        <!-- Delete — Red -->
                                         <Tooltip>
                                             <TooltipTrigger as-child>
                                                 <Button
                                                     @click="deleteActivity(activity)"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    class="h-8 w-full justify-center gap-1 px-2 text-xs transition-colors duration-150
+                                                    class="h-9 w-9 flex items-center justify-center transition-colors duration-150
                                                            border-red-200 bg-red-50 text-red-700
                                                            hover:bg-red-100 hover:border-red-300
                                                            dark:border-red-700 dark:bg-red-950 dark:text-red-300
@@ -749,11 +728,10 @@ const bulkDeleteActivities = async () => {
                                                            disabled:opacity-50 disabled:pointer-events-none"
                                                     :disabled="!canDelete"
                                                 >
-                                                    <Trash2 class="h-3.5 w-3.5" />
-                                                    Delete
+                                                    <Trash2 class="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent><p>Delete this activity</p></TooltipContent>
+                                            <TooltipContent><p>Delete Activity</p></TooltipContent>
                                         </Tooltip>
 
                                     </div>
