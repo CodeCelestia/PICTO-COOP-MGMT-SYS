@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
-import { ArrowLeft } from 'lucide-vue-next';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps<{
     members: Array<{
@@ -40,10 +40,100 @@ const form = useForm({
     attachments: [] as File[],
 });
 
+const attachmentInputRef = ref<HTMLInputElement | null>(null);
+const previewUrls = new Map<File, string>();
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
 const onAttachmentsChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
-    form.attachments = target.files ? Array.from(target.files) : [];
+    const selectedFiles = target.files ? Array.from(target.files) : [];
+
+    selectedFiles.forEach((file) => {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            return;
+        }
+
+        form.attachments.push(file);
+    });
+
+    target.value = '';
 };
+
+const triggerAttachmentPicker = () => {
+    attachmentInputRef.value?.click();
+};
+
+const removeAttachment = (index: number) => {
+    form.attachments.splice(index, 1);
+};
+
+const getAttachmentPreviewUrl = (file: File) => {
+    const existingUrl = previewUrls.get(file);
+    if (existingUrl) {
+        return existingUrl;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    previewUrls.set(file, objectUrl);
+    return objectUrl;
+};
+
+const openAttachmentPreview = (file: File) => {
+    window.open(getAttachmentPreviewUrl(file), '_blank', 'noopener,noreferrer');
+};
+
+const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getFileLabel = (name: string) => {
+    const extension = name.split('.').pop()?.toUpperCase() || 'FILE';
+
+    if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP', 'SVG'].includes(extension)) {
+        return 'IMG';
+    }
+
+    if (extension === 'PDF') {
+        return 'PDF';
+    }
+
+    return extension.slice(0, 4) || 'FILE';
+};
+
+const getFileCardIcon = (name: string) => {
+    const extension = name.split('.').pop()?.toLowerCase() || '';
+
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+        return Image;
+    }
+
+    if (extension === 'pdf') {
+        return FileText;
+    }
+
+    return File;
+};
+
+const attachmentItems = computed(() => form.attachments.map((file, index) => ({
+    file,
+    index,
+    label: getFileLabel(file.name),
+    sizeLabel: formatFileSize(file.size),
+    icon: getFileCardIcon(file.name),
+})));
+
+onUnmounted(() => {
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    previewUrls.clear();
+});
 
 const selectedCooperative = computed(() => {
     if (!props.showCooperativePicker) {
@@ -212,16 +302,55 @@ const goBack = () => {
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium">File Attachments</label>
-                    <input type="file" multiple class="w-full rounded-md border px-3 py-2 text-sm" @change="onAttachmentsChange" />
-                    <p class="mt-1 text-xs text-muted-foreground">You may upload one or more supporting files.</p>
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <label class="block text-sm font-medium">File Attachments</label>
+                        <span class="text-xs text-muted-foreground">Maximum file size: 5MB per file</span>
+                    </div>
+
+                    <input ref="attachmentInputRef" type="file" multiple class="hidden" @change="onAttachmentsChange" />
+
+                    <div class="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+                        <div v-if="attachmentItems.length === 0" class="rounded-md border border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
+                            No files selected yet.
+                        </div>
+
+                        <div v-else class="space-y-2">
+                            <div v-for="item in attachmentItems" :key="item.file.name + item.file.size + item.index" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex min-w-0 items-start gap-3">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground">
+                                        {{ item.label }}
+                                    </div>
+                                    <component :is="item.icon" class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground sm:hidden" />
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-foreground">{{ item.file.name }}</p>
+                                        <p class="text-xs text-muted-foreground">{{ item.sizeLabel }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="openAttachmentPreview(item.file)">
+                                        <Eye class="h-3.5 w-3.5" />
+                                        Preview
+                                    </button>
+                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5" @click="removeAttachment(item.index)">
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" class="inline-flex items-center gap-2 rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background hover:bg-foreground/90" @click="triggerAttachmentPicker">
+                                <Plus class="h-4 w-4" />
+                                Add File
+                            </button>
+                            <p class="text-xs text-muted-foreground">You may upload one or more supporting files.</p>
+                        </div>
+                    </div>
+
                     <div v-if="form.errors.attachments" class="mt-1 text-xs text-red-600">{{ form.errors.attachments }}</div>
                     <div v-if="form.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ form.errors['attachments.0'] }}</div>
-                    <ul v-if="form.attachments.length > 0" class="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-                        <li v-for="file in form.attachments" :key="file.name + file.size">
-                            {{ file.name }}
-                        </li>
-                    </ul>
                 </div>
 
                 <div class="flex items-center gap-3 border-t pt-4">

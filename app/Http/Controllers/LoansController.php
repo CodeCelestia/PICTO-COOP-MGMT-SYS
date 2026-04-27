@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -271,8 +272,14 @@ class LoansController extends Controller
     {
         $this->enforceLoanAccess($loan, $request->user());
 
+        $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
+        $loan->setAttribute('attachments', $this->formatLoanAttachments($attachmentContext['paths']));
+        $from = $request->query('from') === 'coop' ? 'coop' : null;
+
         return Inertia::render('Finance/Loans/Edit', [
             'loan' => $loan->load(['member:id,first_name,last_name']),
+            'from' => $from,
+            'cooperative_id' => $from === 'coop' ? $loan->coop_id : null,
         ]);
     }
 
@@ -289,7 +296,31 @@ class LoansController extends Controller
             'term_months' => ['required', 'integer', 'min:1', 'max:60'],
             'purpose' => ['nullable', 'string'],
             'status' => ['required', 'in:Pending,Approved,Active,Completed,Defaulted,Rejected'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:5120'],
+            'attachments_removed' => ['nullable', 'array'],
+            'attachments_removed.*' => ['string'],
         ]);
+
+        $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
+        $remainingAttachmentPaths = array_values(array_filter(
+            $attachmentContext['paths'],
+            fn (string $path) => ! in_array($path, $validated['attachments_removed'] ?? [], true)
+        ));
+
+        $newAttachmentPaths = [];
+        foreach ($request->file('attachments', []) as $attachment) {
+            if (! $attachment instanceof UploadedFile) {
+                continue;
+            }
+
+            $newAttachmentPaths[] = $attachment->store("loan-attachments/{$loan->id}", 'public');
+        }
+
+        $validated['remarks'] = $this->buildLoanRemarks(
+            $attachmentContext['remarks'],
+            array_values(array_unique(array_merge($remainingAttachmentPaths, $newAttachmentPaths)))
+        );
 
         $oldValues = $loan->getAttributes();
         $loan->update($validated);
@@ -514,5 +545,83 @@ class LoansController extends Controller
         $loan->update([
             'remarks' => trim($existingRemarks === '' ? $attachmentBlock : "{$existingRemarks}\n\n{$attachmentBlock}"),
         ]);
+    }
+
+    /**
+     * @return array{remarks: string, paths: array<int, string>}
+     */
+    private function extractLoanAttachmentContext(?string $remarks): array
+    {
+        $normalizedRemarks = trim((string) $remarks);
+
+        if ($normalizedRemarks === '') {
+            return ['remarks' => '', 'paths' => []];
+        }
+
+        $marker = "\n\nAttachments:\n";
+        $markerPosition = strpos($normalizedRemarks, $marker);
+
+        if ($markerPosition === false) {
+            return ['remarks' => $normalizedRemarks, 'paths' => []];
+        }
+
+        $baseRemarks = trim(substr($normalizedRemarks, 0, $markerPosition));
+        $attachmentBlock = trim(substr($normalizedRemarks, $markerPosition + strlen($marker)));
+        $paths = [];
+
+        foreach (preg_split('/\r?\n/', $attachmentBlock) ?: [] as $line) {
+            $line = trim($line);
+
+            if ($line === '' || ! str_starts_with($line, '- ')) {
+                continue;
+            }
+
+            $path = trim(substr($line, 2));
+
+            if ($path !== '') {
+                $paths[] = $path;
+            }
+        }
+
+        return [
+            'remarks' => $baseRemarks,
+            'paths' => $paths,
+        ];
+    }
+
+    /**
+     * @param array<int, string> $attachmentPaths
+     * @return array<int, array{path: string, name: string, url: string, extension: string}>
+     */
+    private function formatLoanAttachments(array $attachmentPaths): array
+    {
+        return array_values(array_map(function (string $path) {
+            $fileName = basename($path);
+
+            return [
+                'path' => $path,
+                'name' => $fileName,
+                'url' => Storage::disk('public')->url($path),
+                'extension' => strtolower(pathinfo($fileName, PATHINFO_EXTENSION)),
+            ];
+        }, array_values(array_filter($attachmentPaths, static fn ($path) => is_string($path) && trim($path) !== ''))));
+    }
+
+    /**
+     * @param array<int, string> $attachmentPaths
+     */
+    private function buildLoanRemarks(string $baseRemarks, array $attachmentPaths): ?string
+    {
+        $cleanBaseRemarks = trim($baseRemarks);
+        $cleanAttachmentPaths = array_values(array_filter(array_map('trim', $attachmentPaths), static fn (string $path) => $path !== ''));
+
+        if (empty($cleanAttachmentPaths)) {
+            return $cleanBaseRemarks !== '' ? $cleanBaseRemarks : null;
+        }
+
+        $attachmentLines = implode("\n", array_map(static fn (string $path) => "- {$path}", $cleanAttachmentPaths));
+        $attachmentBlock = "Attachments:\n{$attachmentLines}";
+
+        return $cleanBaseRemarks === '' ? $attachmentBlock : "{$cleanBaseRemarks}\n\n{$attachmentBlock}";
     }
 }
