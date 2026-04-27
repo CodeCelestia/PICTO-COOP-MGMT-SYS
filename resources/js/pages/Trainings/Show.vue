@@ -6,6 +6,7 @@ import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
+    ClipboardList,
     GraduationCap,
     Pencil,
     Paperclip,
@@ -97,6 +98,10 @@ const goBack = () => {
 
 const goEdit = () => {
     router.visit(`/trainings/${props.training.id}/edit`);
+};
+
+const openReport = () => {
+    window.open(`/trainings/${props.training.id}/report`, '_blank', 'noopener,noreferrer');
 };
 
 const formatDate = (value: string | null) => {
@@ -413,6 +418,16 @@ const selectedCooperativeLabel = computed(() => {
                         </div>
 
                         <div class="flex flex-wrap gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="h-8 gap-1 px-2 text-xs transition-colors duration-150 border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-300 dark:hover:bg-violet-900 dark:hover:border-violet-600"
+                                type="button"
+                                @click="openReport"
+                            >
+                                <ClipboardList class="h-3.5 w-3.5" />
+                                Report
+                            </Button>
                             <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
                                 <ArrowLeft class="h-4 w-4" />
                                 Back

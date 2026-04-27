@@ -385,6 +385,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('trainings', [TrainingController::class, 'index'])
         ->middleware('permission:read training-&-capacity')
         ->name('trainings.index');
+    Route::get('trainings/{training}/report', [TrainingController::class, 'report'])
+        ->middleware('permission:read training-&-capacity')
+        ->name('trainings.report');
     Route::get('trainings/create', [TrainingController::class, 'create'])
         ->middleware('permission:create training-&-capacity')
         ->name('trainings.create');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use App\Models\Cooperative;
 use App\Models\Member;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
@@ -810,6 +812,60 @@ class TrainingController extends Controller
             'linkedTrainingCount' => $trainingRecords->count(),
             'attachments' => [],
         ]);
+    }
+
+    public function report(Training $training)
+    {
+        $training = Training::withTrashed()
+            ->with('cooperative')
+            ->findOrFail($training->id);
+
+        $this->enforceCoopScope($training->coop_id);
+
+        $linkedTrainingIds = $this->resolveGroupedTrainingIds($training);
+
+        $trainingRecords = Training::query()
+            ->with('cooperative')
+            ->whereIn('id', $linkedTrainingIds)
+            ->orderBy('coop_id')
+            ->get();
+
+        $cooperatives = Cooperative::query()
+            ->select('id', 'name', 'registration_number', 'status', 'region', 'classification')
+            ->whereIn('id', $trainingRecords->pluck('coop_id')->filter()->unique()->values())
+            ->orderBy('name')
+            ->get();
+
+        $participants = \App\Models\TrainingParticipant::with([
+            'member:id,first_name,last_name,coop_id',
+            'member.cooperative:id,name',
+        ])
+            ->whereIn('training_id', $linkedTrainingIds)
+            ->get()
+            ->sortBy([
+                ['member.last_name', 'asc'],
+                ['member.first_name', 'asc'],
+            ])
+            ->values()
+            ->map(function ($p) {
+                return [
+                    'name' => trim(($p->member->last_name ?? '') . ', ' . ($p->member->first_name ?? '')),
+                    'cooperative' => $p->member->cooperative->name ?? 'N/A',
+                    'outcome' => $p->outcome ?? 'N/A',
+                    'certificate_no' => $p->certificate_no ?? '',
+                    'certificate_date' => $p->certificate_date ?? '',
+                ];
+            });
+
+        $pdf = Pdf::loadView('training-report', [
+            'training' => $training,
+            'trainingRecords' => $trainingRecords,
+            'cooperatives' => $cooperatives,
+            'participants' => $participants,
+            'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download(Str::slug($training->title, '-') . '-training-report.pdf');
     }
 
     public function destroy(Training $training): RedirectResponse
