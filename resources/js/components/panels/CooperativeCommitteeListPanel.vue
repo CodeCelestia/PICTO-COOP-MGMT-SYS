@@ -75,6 +75,7 @@ const hasCoopLock = computed(() => Boolean(props.lockCoopId));
 const showCoopFilter = computed(() => !hasCoopLock.value);
 
 const page = usePage();
+const currentUrl = computed(() => props.baseUrl || page.url || '');
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
 const canCreateCommittee = computed(() => permissions.value.includes('create officers-&-committees'));
@@ -276,7 +277,7 @@ const bulkDeleteCommitteeMembers = async () => {
                         <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
                         {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
                     </Button>
-                    <Link v-if="canCreateCommittee" href="/committee-members/create">
+                    <Link v-if="canCreateCommittee" :href="currentUrl ? `/committee-members/create?return_to=${encodeURIComponent(currentUrl)}` : '/committee-members/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Committee Member
@@ -435,7 +436,7 @@ const bulkDeleteCommitteeMembers = async () => {
                                     <div class="flex flex-wrap justify-center gap-2">
                                         <Tooltip v-if="canEditCommittee">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/committee-members/${committeeMember.id}/edit`">
+                                                <Link :href="currentUrl ? `/committee-members/${committeeMember.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/committee-members/${committeeMember.id}/edit`">
                                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                         <Pencil class="h-4 w-4" />
                                                         Edit

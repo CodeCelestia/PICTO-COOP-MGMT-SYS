@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
+import { useCreateBack } from '@/composables/useCreateBack';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
@@ -30,6 +31,9 @@ const props = defineProps<{
     };
 }>();
 
+const { goBack } = useCreateBack({ fallbackHref: '/finance/savings' });
+const currentUrl = window.location.pathname + window.location.search;
+
 const txForm = useForm({
     type: 'Deposit',
     amount: 0,
@@ -59,8 +63,8 @@ const calculateInterest = () => {
                 </p>
             </div>
             <div class="flex gap-2">
-                <Link v-if="permissions.can_edit" :href="`/finance/savings/${savings.id}/edit`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
-                <Link href="/finance/savings" class="rounded-md border px-3 py-2 text-sm">Back</Link>
+                <Link v-if="permissions.can_edit" :href="currentUrl ? `/finance/savings/${savings.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${savings.id}/edit`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
             </div>
         </div>
 

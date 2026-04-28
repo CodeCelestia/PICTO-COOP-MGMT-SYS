@@ -15,6 +15,7 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -91,13 +92,14 @@ const isPanelsLoading = ref(true);
 const globalSearch = ref('');
 const memberSearch = ref('');
 const selectedCooperativeId = ref<number | null>(null);
-
-const goBack = () => {
-    router.visit('/trainings');
-};
+const currentUrl = computed(() => page.url || '');
+const { goBack } = useCreateBack({ fallbackHref: '/trainings' });
 
 const goEdit = () => {
-    router.visit(`/trainings/${props.training.id}/edit`);
+    const editHref = currentUrl.value
+        ? `/trainings/${props.training.id}/edit?return_to=${encodeURIComponent(currentUrl.value)}`
+        : `/trainings/${props.training.id}/edit`;
+    router.visit(editHref);
 };
 
 const openReport = () => {

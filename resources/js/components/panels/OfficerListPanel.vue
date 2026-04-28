@@ -54,6 +54,7 @@ const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 const hasCoopLock = computed(() => Boolean(props.lockCoopId));
 
 const page = usePage();
+const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
@@ -180,7 +181,7 @@ const bulkDeleteOfficers = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreateOfficer" href="/officers/create">
+                    <Link v-if="canCreateOfficer" :href="currentUrl ? `/officers/create?return_to=${encodeURIComponent(currentUrl)}` : '/officers/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Officer
@@ -327,7 +328,7 @@ const bulkDeleteOfficers = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ officer.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEditOfficer" :href="`/officers/${officer.id}/edit`">
+                                    <Link v-if="canEditOfficer" :href="currentUrl ? `/officers/${officer.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/officers/${officer.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit

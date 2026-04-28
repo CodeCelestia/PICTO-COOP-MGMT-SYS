@@ -4,6 +4,7 @@ import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -126,6 +127,19 @@ const returnToPath = computed(() => {
 
     return value;
 });
+const backHref = computed(() => {
+    if (returnToPath.value) {
+        return returnToPath.value;
+    }
+
+    const cooperativeId = cooperativeIdFromContext.value || String(props.member.coop_id || '');
+    if (cooperativeId) {
+        return `/members/management/${cooperativeId}?tab=members`;
+    }
+
+    return '/members';
+});
+const { goBack } = useCreateBack({ fallbackHref: backHref.value });
 
 const form = useForm({
     coop_id: props.member.coop_id.toString(),
@@ -337,33 +351,13 @@ const submit = () => {
         preserveScroll: true,
         onSuccess: () => {
             notifySuccess('Member updated successfully.');
-            goBackToCooperativeMembers();
+                goBack();
         },
     });
 };
 
-const goBackToCooperativeMembers = () => {
-    if (window.history.length > 1) {
-        window.history.back();
-        return;
-    }
-
-    if (returnToPath.value) {
-        router.get(returnToPath.value);
-        return;
-    }
-
-    const cooperativeId = cooperativeIdFromContext.value || String(props.member.coop_id || '');
-    if (cooperativeId) {
-        router.get(`/members/management/${cooperativeId}?tab=members`);
-        return;
-    }
-
-    router.get('/dashboard');
-};
-
 const cancel = () => {
-    goBackToCooperativeMembers();
+    goBack();
 };
 
 const toggleRole = (roleId: number) => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const props = defineProps<{
@@ -22,6 +23,8 @@ const props = defineProps<{
     remainingBalance: number;
 }>();
 
+const { goBack } = useCreateBack({ fallbackHref: '/member-portal/loans' });
+
 const formatAmount = (value: string | number) => {
     const num = Number(value);
     if (Number.isNaN(num)) return String(value);
@@ -41,7 +44,7 @@ const formatAmount = (value: string | number) => {
                         Status: {{ props.loan.status }}
                     </p>
                 </div>
-                <Link href="/member-portal/loans" class="rounded-md border px-3 py-2 text-sm">Back</Link>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

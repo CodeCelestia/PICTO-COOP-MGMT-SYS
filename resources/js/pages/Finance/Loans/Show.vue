@@ -50,6 +50,8 @@ const props = defineProps<{
     };
 }>();
 
+const currentUrl = window.location.pathname + window.location.search;
+
 const backHref = computed(() => {
     if (props.from === 'coop' && props.cooperative_id) {
         return `/cooperatives/${props.cooperative_id}?tab=loans`;
@@ -63,7 +65,7 @@ const editHref = computed(() => {
         return `/finance/loans/${props.loan.id}/edit?from=coop&cooperative_id=${props.cooperative_id}`;
     }
 
-    return `/finance/loans/${props.loan.id}/edit`;
+    return currentUrl ? `/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${props.loan.id}/edit`;
 });
 
 const attachments = computed(() => props.loan.attachments || []);

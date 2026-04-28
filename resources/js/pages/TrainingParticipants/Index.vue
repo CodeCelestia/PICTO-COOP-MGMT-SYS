@@ -101,6 +101,7 @@ const filters = computed(() => props.filters);
 const { allCooperativesLabel } = useCoopLabel();
 
 const page = usePage();
+const currentUrl = page.url || '';
 const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreate = computed(() => permissions.value.includes('create training-&-capacity'));
@@ -391,7 +392,7 @@ const bulkDeleteParticipants = async () => {
                             </TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEdit" :href="`/training-participants/${participant.id}/edit`">
+                                    <Link v-if="canEdit" :href="currentUrl ? `/training-participants/${participant.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/training-participants/${participant.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit

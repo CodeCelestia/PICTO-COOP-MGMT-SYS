@@ -470,6 +470,12 @@ class TrainingController extends Controller
             ? "Training records created successfully for {$createdCount} cooperatives."
             : 'Training record created successfully.';
 
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', $successMessage);
+        }
+
         return redirect()->route('trainings.index')
             ->with('success', $successMessage);
     }
@@ -685,6 +691,12 @@ class TrainingController extends Controller
                 'Trainings'
             );
         });
+
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Training record updated successfully.');
+        }
 
         return redirect()->route('trainings.index')
             ->with('success', 'Training record updated successfully.');

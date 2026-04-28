@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -76,12 +77,14 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get('/skill-inventories');
+    goBack();
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const { goBack } = useCreateBack({
+    fallbackHref: '/skill-inventories',
+    cooperativeId: computed(() => form.coop_id),
+    cooperativeTab: 'training-capacity',
+});
 </script>
 
 <template>

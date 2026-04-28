@@ -202,6 +202,12 @@ class OfficerController extends Controller
             );
         });
 
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Officer created successfully.');
+        }
+
         return redirect()->route('officers.index')
             ->with('success', 'Officer created successfully.');
     }
@@ -352,6 +358,12 @@ class OfficerController extends Controller
                 'Officers'
             );
         });
+
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Officer updated successfully.');
+        }
 
         return redirect()->route('officers.index')
             ->with('success', 'Officer updated successfully.');

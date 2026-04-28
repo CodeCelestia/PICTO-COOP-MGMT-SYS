@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -61,12 +62,14 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get('/committee-members');
+    goBack();
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const { goBack } = useCreateBack({
+    fallbackHref: '/committee-members',
+    cooperativeId: computed(() => form.coop_id),
+    cooperativeTab: 'committees',
+});
 </script>
 
 <template>

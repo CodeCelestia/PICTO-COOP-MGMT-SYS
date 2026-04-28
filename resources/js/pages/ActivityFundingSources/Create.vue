@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction, notifySuccess } from '@/lib/alerts';
 
@@ -271,12 +272,14 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get(fundingSourceBasePath.value);
+    goBack();
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const { goBack } = useCreateBack({
+    fallbackHref: fundingSourceBasePath.value,
+    cooperativeId: computed(() => selectedActivity.value?.coop_id || form.coop_id || null),
+    cooperativeTab: 'activities-projects',
+});
 </script>
 
 <template>

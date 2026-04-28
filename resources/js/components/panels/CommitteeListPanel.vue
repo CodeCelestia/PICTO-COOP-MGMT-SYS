@@ -54,6 +54,7 @@ const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 const hasCoopLock = computed(() => Boolean(props.lockCoopId));
 
 const page = usePage();
+const currentUrl = page.url || '';
 const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const { allCooperativesLabel } = useCoopLabel();
@@ -175,7 +176,7 @@ const bulkRemoveCommitteeMembers = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreate" href="/committee-members/create">
+                    <Link v-if="canCreate" :href="currentUrl ? `/committee-members/create?return_to=${encodeURIComponent(currentUrl)}` : '/committee-members/create'">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Committee Member
@@ -320,7 +321,7 @@ const bulkRemoveCommitteeMembers = async () => {
                             <TableCell class="text-sm text-muted-foreground">{{ member.status }}</TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <div class="flex flex-wrap justify-center gap-2">
-                                    <Link v-if="canEdit" :href="`/committee-members/${member.id}/edit`">
+                                    <Link v-if="canEdit" :href="currentUrl ? `/committee-members/${member.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/committee-members/${member.id}/edit`">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />
                                             Edit

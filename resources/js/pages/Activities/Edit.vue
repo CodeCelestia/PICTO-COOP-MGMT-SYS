@@ -31,6 +31,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useCoopLabel } from '@/composables/useCoopLabel';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     getFileExtension,
@@ -204,6 +205,36 @@ const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
 const fileObjectUrls = new Map<File, string>();
 
+const initialSnapshot = JSON.stringify(form);
+
+const hasUnsavedChanges = () => JSON.stringify(form) !== initialSnapshot;
+
+const cancel = () => {
+    if (hasUnsavedChanges()) {
+        if (!confirm('You have unsaved changes. Leave anyway?')) return;
+    }
+
+    const params = new URLSearchParams(page.url.split('?')[1] || '');
+    const returnTo = params.get('return_to');
+
+    const isValidReturnTo = (href: string | null) => {
+        if (!href) return false;
+        try {
+            const url = new URL(href, window.location.origin);
+            return url.origin === window.location.origin && url.pathname.startsWith('/');
+        } catch (e) {
+            return false;
+        }
+    };
+
+    if (isValidReturnTo(returnTo)) {
+        router.get(returnTo as string);
+        return;
+    }
+
+    router.get(`/activities/${props.activity.id}`);
+};
+
 const initialSelectedCoopIds = computed(() => {
     if (lockedCooperativeId.value) {
         return [lockedCooperativeId.value];
@@ -222,12 +253,9 @@ const initialSelectedCoopIds = computed(() => {
 
 const selectedCoopIds = ref<string[]>(initialSelectedCoopIds.value);
 const isCooperativeDialogOpen = ref(false);
+const { goBack } = useCreateBack({ fallbackHref: '/activities' });
 
 // ✅ FIX: Always navigate to the activities index, never use document.referrer
-const goBack = () => {
-    router.get('/activities');
-};
-
 const selectedCooperatives = computed(() => {
     const selectedSet = new Set(selectedCoopIds.value);
     return props.cooperatives.filter((coop) => selectedSet.has(String(coop.id)));
@@ -669,10 +697,7 @@ const submit = () => {
                             <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Activity</h1>
                             <p class="mt-1 text-sm text-muted-foreground">Update a cooperative activity or project.</p>
                         </div>
-                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
-                            <ArrowLeft class="h-4 w-4" />
-                            Back
-                        </Button>
+                        <!-- Back removed per UX rules for Edit pages -->
                     </div>
                 </CardContent>
             </Card>
@@ -1136,7 +1161,7 @@ const submit = () => {
                 </Card>
 
                 <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                    <Button @click="goBack" type="button" variant="outline" class="gap-2">
+                    <Button @click="cancel" type="button" variant="outline" class="gap-2">
                         <X class="h-4 w-4" />
                         Cancel
                     </Button>

@@ -181,6 +181,7 @@ const tabs: LiftedTab[] = [
 ];
 
 const page = usePage();
+const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { cooperativeManagementLabel } = useCoopLabel();
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
@@ -418,7 +419,7 @@ const statusBadgeClass = computed(() => {
                                 <h2 class="text-xl font-semibold text-foreground">Cooperative Profile</h2>
                                 <p class="text-base text-muted-foreground">Key registration and accreditation details for quick review.</p>
                             </div>
-                            <Link v-if="canEditCoop" :href="`/cooperatives/${cooperative.id}/edit`">
+                            <Link v-if="canEditCoop" :href="currentUrl ? `/cooperatives/${cooperative.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/cooperatives/${cooperative.id}/edit`">
                                 <Button variant="outline" class="gap-2">
                                     <Pencil class="h-4 w-4" />
                                     Edit Cooperative

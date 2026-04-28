@@ -84,6 +84,7 @@ const queryPrefix = computed(() => props.queryPrefix || '');
 const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 
 const page = usePage();
+const currentUrl = computed(() => props.baseUrl || page.url || '');
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canViewMember = computed(() => permissions.value.includes('read members-profile'));
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
@@ -385,8 +386,8 @@ const cooperativeContextId = computed<number | null>(() => {
 });
 
 const cooperativeReturnTo = computed(() => {
-    const currentUrl = page.url || '';
-    return currentUrl.startsWith('/') ? currentUrl : '';
+    const value = currentUrl.value;
+    return value.startsWith('/') ? value : '';
 });
 
 const createMemberHref = computed(() => {
@@ -408,6 +409,16 @@ const createMemberHref = computed(() => {
 
     return `/members/create?${params.toString()}`;
 });
+
+const memberDetailHref = (memberId: number) => {
+    const returnTo = cooperativeReturnTo.value;
+
+    if (!returnTo) {
+        return `/members/${memberId}`;
+    }
+
+    return `/members/${memberId}?return_to=${encodeURIComponent(returnTo)}`;
+};
 
 const editMemberHref = (memberId: number) => {
     const cooperativeId = cooperativeContextId.value;
@@ -718,7 +729,7 @@ const editMemberHref = (memberId: number) => {
 
                                         <Tooltip v-if="canViewMember">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/members/${member.id}`">
+                                                <Link :href="memberDetailHref(member.id)">
                                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1.5">
                                                         <Eye class="h-4 w-4" />
                                                         View

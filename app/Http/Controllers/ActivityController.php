@@ -584,6 +584,12 @@ class ActivityController extends Controller
             ? "Activities created successfully for {$createdCount} cooperatives."
             : 'Activity created successfully.';
 
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', $successMessage);
+        }
+
         return redirect()->route('activities.index')
             ->with('success', $successMessage);
     }
@@ -840,6 +846,12 @@ class ActivityController extends Controller
                 'Activities'
             );
         });
+
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Activity updated successfully.');
+        }
 
         return redirect()->route('activities.index')
             ->with('success', 'Activity updated successfully.');

@@ -66,6 +66,7 @@ const filters = computed(() => props.filters);
 const { allCooperativesLabel } = useCoopLabel();
 
 const page = usePage();
+const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canCreate = computed(() => permissions.value.includes('create financial-&-support'));
 const canEdit = computed(() => permissions.value.includes('update financial-&-support'));
@@ -341,7 +342,7 @@ const bulkDeleteRecords = async () => {
                                 <TableCell class="text-sm text-muted-foreground">{{ formatDate(record.date_recorded) }}</TableCell>
                                 <TableCell v-if="showActions" class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Link v-if="canEdit" :href="`/financial-records/${record.id}/edit`">
+                                        <Link v-if="canEdit" :href="currentUrl ? `/financial-records/${record.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/financial-records/${record.id}/edit`">
                                             <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                 <Pencil class="h-4 w-4" />
                                                 Edit

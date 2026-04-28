@@ -124,6 +124,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 ]);
 
 const page = usePage();
+const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canViewAllCoops = computed(() => permissions.value.includes('view-all-cooperatives'));
 const canCreateCoop = computed(() => permissions.value.includes('create coop-master-profile'));
@@ -616,7 +617,7 @@ const getTypePreview = (coop: Cooperative) => {
                             >
                                 {{ coopProfile.status }}
                             </Badge>
-                            <Link v-if="coopProfile && canEditCoop" :href="`/cooperatives/${coopProfile.id}/edit`">
+                            <Link v-if="coopProfile && canEditCoop" :href="currentUrl ? `/cooperatives/${coopProfile.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/cooperatives/${coopProfile.id}/edit`">
                                 <Button class="gap-2">
                                     <Pencil class="h-4 w-4" />
                                     Edit Cooperative
@@ -843,7 +844,7 @@ const getTypePreview = (coop: Cooperative) => {
 
                                                 <Tooltip v-if="canEditCoop">
                                                     <TooltipTrigger as-child>
-                                                        <Link :href="`/cooperatives/${coop.id}/edit`" @click.stop>
+                                                        <Link :href="currentUrl ? `/cooperatives/${coop.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/cooperatives/${coop.id}/edit`" @click.stop>
                                                             <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1">
                                                                 <Pencil class="h-3 w-3" />
                                                                 Edit

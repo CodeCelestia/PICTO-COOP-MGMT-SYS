@@ -24,6 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+// Cancel navigation is handled explicitly below (no history.back/document.referrer)
 import {
     Tooltip,
     TooltipContent,
@@ -145,9 +146,7 @@ const cooperativeSectionRef = ref<HTMLElement | null>(null);
 const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
 const fileObjectUrls = new Map<File, string>();
-const goBack = () => {
-    window.history.back();
-};
+// Note: cancel() below will navigate to a validated return_to, cooperative show, or activities index.
 
 const showFileSizeError = (fileName: string) => {
     notifyError(`"${fileName}" exceeds the ${MAX_FILE_SIZE_MB}MB limit. Please upload a smaller file.`);
@@ -525,6 +524,34 @@ const submit = async () => {
 };
 
 const cancel = () => {
+    // Prefer a validated return_to if provided, otherwise use cooperative context or global index
+    const params = new URLSearchParams(page.url.split('?')[1] || '');
+    const returnTo = params.get('return_to');
+
+    const isValidReturnTo = (href: string | null) => {
+        if (!href) return false;
+        try {
+            const url = new URL(href, window.location.origin);
+            return url.origin === window.location.origin && url.pathname.startsWith('/');
+        } catch (e) {
+            return false;
+        }
+    };
+
+    if (isValidReturnTo(returnTo)) {
+        router.get(returnTo as string);
+        return;
+    }
+
+    if (isCooperativeContext) {
+        const coopId = lockedCooperative?.id || (selectedCoopIds && selectedCoopIds.length ? selectedCoopIds[0] : null);
+        if (coopId) {
+            router.get(`/cooperatives/${coopId}`);
+            return;
+        }
+    }
+
+    // fallback to activities index (hardcoded)
     router.get('/activities');
 };
 </script>
@@ -543,10 +570,7 @@ const cancel = () => {
                             <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Activity</h1>
                             <p class="mt-1 text-sm text-muted-foreground">Record a cooperative activity or project.</p>
                         </div>
-                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
-                            <ArrowLeft class="h-4 w-4" />
-                            Back
-                        </Button>
+                        <!-- Back removed per UX rules for Create pages -->
                     </div>
                 </CardContent>
             </Card>

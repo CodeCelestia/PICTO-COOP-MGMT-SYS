@@ -12,6 +12,7 @@ import {
     Search,
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -93,10 +94,8 @@ const props = defineProps<{
 }>();
 
 const EMPTY_VALUE = '—';
-
-const goBack = () => {
-    window.history.back();
-};
+const currentUrl = computed(() => `${window.location.pathname}${window.location.search}`);
+const { goBack } = useCreateBack({ fallbackHref: '/activities' });
 
 const formatDateLong = (value: string | null) => {
     if (!value) return EMPTY_VALUE;
@@ -631,7 +630,7 @@ const textOrDash = (value: string | null | undefined) => {
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </Button>
-                <Link :href="`/activities/${activity.id}/edit`">
+                <Link :href="currentUrl ? `/activities/${activity.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/activities/${activity.id}/edit`">
                     <Button class="gap-2">
                         <Pencil class="h-4 w-4" />
                         Edit Activity

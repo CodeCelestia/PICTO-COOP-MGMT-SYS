@@ -105,6 +105,14 @@ const isSidebarCreateView = computed(() => !lockedCoopId.value);
 const showCoopFilter = computed(() => !lockedCoopId.value);
 
 const page = usePage();
+const currentUrl = computed(() => props.baseUrl || page.url || '');
+const createTrainingHref = computed(() => {
+    if (lockedCoopId.value) {
+        return `/trainings/create?coop_id=${lockedCoopId.value}&coop_context=1&return_to=${encodeURIComponent(currentUrl.value)}`;
+    }
+
+    return '/trainings/create';
+});
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create training-&-capacity'));
@@ -360,7 +368,7 @@ const bulkDeleteTrainings = async () => {
                         <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
                         {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
                     </Button>
-                    <Link v-if="canCreate" :href="lockedCoopId ? `/trainings/create?coop_id=${lockedCoopId}&coop_context=1` : '/trainings/create'">
+                    <Link v-if="canCreate" :href="createTrainingHref">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Training
@@ -566,7 +574,7 @@ const bulkDeleteTrainings = async () => {
                                     <div class="flex flex-wrap justify-center gap-2">
                                         <Tooltip v-if="showViewActionInRows">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/trainings/${training.id}`">
+                                                <Link :href="lockedCoopId ? `/trainings/${training.id}?return_to=${encodeURIComponent(currentUrl)}` : `/trainings/${training.id}`">
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -594,7 +602,7 @@ const bulkDeleteTrainings = async () => {
 
                                         <Tooltip v-if="canEdit">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/trainings/${training.id}/edit`">
+                                                <Link :href="lockedCoopId ? '/trainings/' + training.id + '/edit?return_to=' + encodeURIComponent(currentUrl) : '/trainings/' + training.id + '/edit'">
                                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                         <Pencil class="h-4 w-4" />
                                                         Edit

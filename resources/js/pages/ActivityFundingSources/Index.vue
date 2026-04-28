@@ -85,6 +85,7 @@ const props = defineProps<Props>();
 const filters = computed(() => props.filters);
 
 const page = usePage();
+const currentUrl = page.url || '';
 const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const { allCooperativesLabel } = useCoopLabel();
@@ -423,7 +424,7 @@ const bulkDeleteFundingSources = async () => {
                                 <TableCell class="text-sm text-muted-foreground">{{ source.status }}</TableCell>
                                 <TableCell v-if="showActions" class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Link v-if="canEdit" :href="`/activity-funding-sources/${source.id}/edit`">
+                                        <Link v-if="canEdit" :href="currentUrl ? `/activity-funding-sources/${source.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/activity-funding-sources/${source.id}/edit`">
                                             <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                                 <Pencil class="h-4 w-4" />
                                                 Edit

@@ -30,6 +30,8 @@ const props = defineProps<{
     };
 }>();
 
+const currentUrl = window.location.pathname + window.location.search;
+
 const status = ref(props.filters?.status || '');
 
 const applyFilter = () => {
@@ -120,13 +122,13 @@ const closeAccount = (savingsId: number) => {
                         </td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="`/finance/savings/${row.id}`">
+                                <Link :href="currentUrl ? `/finance/savings/${row.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View
                                     </Button>
                                 </Link>
-                                <Link v-if="permissions.can_edit" :href="`/finance/savings/${row.id}/edit`">
+                                <Link v-if="permissions.can_edit" :href="currentUrl ? `/finance/savings/${row.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}/edit`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                         <Pencil class="h-4 w-4" />
                                         Edit

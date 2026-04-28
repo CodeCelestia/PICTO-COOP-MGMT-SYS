@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
+import { useCreateBack } from '@/composables/useCreateBack';
 
 const props = defineProps<{
     members: Array<{
@@ -216,9 +217,7 @@ const submit = () => {
     });
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const { goBack } = useCreateBack({ fallbackHref: '/finance/loans' });
 </script>
 
 <template>
@@ -357,7 +356,7 @@ const goBack = () => {
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
                         {{ form.processing ? 'Submitting...' : 'Submit Loan Application' }}
                     </button>
-                    <Link href="/finance/loans" class="rounded-md border px-4 py-2 text-sm">Cancel</Link>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="goBack">Cancel</button>
                 </div>
             </form>
         </div>

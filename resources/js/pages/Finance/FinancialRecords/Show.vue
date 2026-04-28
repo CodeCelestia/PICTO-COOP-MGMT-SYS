@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
@@ -25,6 +26,8 @@ defineProps<{
         can_edit: boolean;
     };
 }>();
+
+const { goBack } = useCreateBack({ fallbackHref: '/finance/financial-records' });
 
 const formatTypeLabel = (value: string | null | undefined) => {
     if (!value) return 'Unknown';
@@ -80,7 +83,7 @@ const displayTitle = (record: FinancialRecord) => {
                     <h1 class="text-2xl font-semibold">{{ displayTitle(record) }}</h1>
                     <p class="text-sm text-muted-foreground">Read-only ledger entry details.</p>
                 </div>
-                <Link href="/finance/financial-records" class="rounded-md border px-3 py-2 text-sm">Back</Link>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
             </div>
 
             <div class="space-y-6">

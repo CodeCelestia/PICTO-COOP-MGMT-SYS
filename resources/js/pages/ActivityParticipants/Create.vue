@@ -14,6 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -71,12 +72,19 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get('/activity-participants');
+    goBack();
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const selectedActivityCoopId = computed(() => {
+    const selectedActivity = props.activities.find((activity) => activity.id.toString() === form.activity_id);
+    return selectedActivity?.coop_id || props.activities[0]?.coop_id || null;
+});
+
+const { goBack } = useCreateBack({
+    fallbackHref: '/activity-participants',
+    cooperativeId: selectedActivityCoopId,
+    cooperativeTab: 'activities-projects',
+});
 </script>
 
 <template>

@@ -70,6 +70,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const page = usePage();
+const currentUrl = page.url || '';
 const { allCooperativesLabel } = useCoopLabel();
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const canRestore = computed(() => {
@@ -371,7 +372,7 @@ const bulkDeleteSubmissions = async () => {
                                 <TableCell>{{ formatDate(pds.submitted_at) }}</TableCell>
                                 <TableCell class="text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Link v-if="!isArchivedView" :href="`/pds/${pds.id}/edit`">
+                                        <Link v-if="!isArchivedView" :href="currentUrl ? `/pds/${pds.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/pds/${pds.id}/edit`">
                                             <Button variant="outline" size="sm" class="table-action-btn table-action-edit gap-1.5">
                                                 <Pencil class="h-4 w-4" />
                                                 Edit

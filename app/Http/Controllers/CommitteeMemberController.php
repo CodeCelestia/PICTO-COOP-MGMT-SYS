@@ -177,6 +177,12 @@ class CommitteeMemberController extends Controller
             'Committee Members'
         );
 
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Committee member added successfully.');
+        }
+
         return redirect()->route('committee-members.index')
             ->with('success', 'Committee member added successfully.');
     }
@@ -274,6 +280,12 @@ class CommitteeMemberController extends Controller
             $committeeMember->fresh()->getAttributes(),
             'Committee Members'
         );
+
+        $returnTo = $this->resolveInternalReturnTo($request);
+        if ($returnTo) {
+            return redirect()->to($returnTo)
+                ->with('success', 'Committee member updated successfully.');
+        }
 
         return redirect()->route('committee-members.index')
             ->with('success', 'Committee member updated successfully.');

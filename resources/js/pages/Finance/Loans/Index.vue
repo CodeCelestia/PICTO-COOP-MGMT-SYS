@@ -34,6 +34,8 @@ const props = defineProps<{
     };
 }>();
 
+const currentUrl = window.location.pathname + window.location.search;
+
 const selectedStatus = ref(props.filters?.status || '');
 
 const applyFilter = () => {
@@ -133,13 +135,13 @@ const deleteLoan = (loanId: number) => {
                         <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="`/finance/loans/${loan.id}`">
+                                <Link :href="currentUrl ? `/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View
                                     </Button>
                                 </Link>
-                                <Link v-if="permissions.can_edit && loan.status === 'Pending'" :href="`/finance/loans/${loan.id}/edit`">
+                                <Link v-if="permissions.can_edit && loan.status === 'Pending'" :href="currentUrl ? `/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}/edit`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                         <Pencil class="h-4 w-4" />
                                         Edit

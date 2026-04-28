@@ -4,6 +4,7 @@ import { ArrowLeft, Building2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import CooperativeForm from '@/components/Cooperatives/CooperativeForm.vue';
 import { useCoopLabel } from '@/composables/useCoopLabel';
+// Explicit cancel navigation below (Create pages use hardcoded routes)
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,10 +27,6 @@ const { cooperativeLabel } = useCoopLabel();
 const cancel = () => {
     router.get('/cooperatives');
 };
-
-const goBack = () => {
-    window.history.back();
-};
 </script>
 
 <template>
@@ -48,10 +45,7 @@ const goBack = () => {
                                 <p class="mt-1 text-sm text-muted-foreground">Create a new cooperative master profile</p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
-                            <ArrowLeft class="h-4 w-4" />
-                            Back
-                        </Button>
+                        <!-- Back removed per UX rules for Create pages -->
                     </div>
                 </CardContent>
             </Card>

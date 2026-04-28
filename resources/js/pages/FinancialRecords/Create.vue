@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -60,12 +61,10 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get('/financial-records');
+    goBack();
 };
 
-const goBack = () => {
-    window.history.back();
-};
+const { goBack } = useCreateBack({ fallbackHref: '/financial-records' });
 </script>
 
 <template>

@@ -49,7 +49,22 @@ const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissi
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canUpdateMember = computed(() => permissions.value.includes('update officers-&-committees'));
-const backToListHref = computed(() => (isCoopAdmin.value ? '/cooperatives/my?tab=committees' : '/committee-members'));
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const validatedReturnTo = computed(() => {
+    const returnTo = queryParams.value.get('return_to') || '';
+
+    try {
+        const url = new URL(returnTo, window.location.origin);
+        if (url.origin === window.location.origin && url.pathname.startsWith('/')) {
+            return `${url.pathname}${url.search}${url.hash}`;
+        }
+    } catch {
+        // ignore invalid return_to values
+    }
+
+    return '';
+});
+const backToListHref = computed(() => validatedReturnTo.value || (isCoopAdmin.value ? '/cooperatives/my?tab=committees' : '/committee-members'));
 
 const form = useForm({
     coop_id: props.committeeMember.coop_id.toString(),

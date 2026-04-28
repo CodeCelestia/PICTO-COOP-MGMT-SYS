@@ -69,6 +69,34 @@ const canCreateUserAccounts = computed(() => permissions.value.includes('create 
 const canReadMemberLoans = computed(() => permissions.value.includes('read finance-member-loans'));
 const canBulkDelete = computed(() => canDeleteMember.value);
 const showActions = computed(() => canViewMember.value || canEditMember.value || canReadMemberLoans.value || canCreateUserAccounts.value || canDeleteMember.value);
+const currentUrl = computed(() => {
+    const value = page.url || '';
+    return value.startsWith('/') ? value : '';
+});
+
+const createMemberHref = computed(() => {
+    if (!currentUrl.value) {
+        return '/members/create';
+    }
+
+    return `/members/create?return_to=${encodeURIComponent(currentUrl.value)}`;
+});
+
+const memberDetailHref = (memberId: number) => {
+    if (!currentUrl.value) {
+        return `/members/${memberId}`;
+    }
+
+    return `/members/${memberId}?return_to=${encodeURIComponent(currentUrl.value)}`;
+};
+
+const memberEditHref = (memberId: number) => {
+    if (!currentUrl.value) {
+        return `/members/${memberId}/edit`;
+    }
+
+    return `/members/${memberId}/edit?return_to=${encodeURIComponent(currentUrl.value)}`;
+};
 
 const search = ref(props.filters.search || '');
 const membershipStatus = ref(props.filters.membership_status || 'all');
@@ -272,7 +300,7 @@ const submitCreateAccount = () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreateMember" href="/members/create">
+                    <Link v-if="canCreateMember" :href="createMemberHref">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Register Member
@@ -453,13 +481,13 @@ const submitCreateAccount = () => {
                                             Loans
                                         </Button>
                                     </Link>
-                                    <Link v-if="canViewMember" :href="`/members/${member.id}`">
+                                    <Link v-if="canViewMember" :href="memberDetailHref(member.id)">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-1.5" title="View member">
                                             <Eye class="h-4 w-4" />
                                             View
                                         </Button>
                                     </Link>
-                                    <Link v-if="canEditMember" :href="`/members/${member.id}/edit`">
+                                    <Link v-if="canEditMember" :href="memberEditHref(member.id)">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-1.5" title="Edit member">
                                             <Pencil class="h-4 w-4" />
                                             Edit

@@ -13,6 +13,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 interface Cooperative {
@@ -64,6 +65,7 @@ const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissi
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canUpdate = computed(() => permissions.value.includes('update training-&-capacity'));
+const { goBack } = useCreateBack({ fallbackHref: '/training-participants' });
 
 const form = useForm({
     training_id: props.participant.training_id.toString(),
@@ -104,7 +106,7 @@ const submit = () => {
 };
 
 const cancel = () => {
-    router.get('/training-participants');
+    goBack();
 };
 </script>
 

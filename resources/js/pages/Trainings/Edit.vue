@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCoopLabel } from '@/composables/useCoopLabel';
+import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { notifyError, notifySuccess } from '@/lib/alerts';
 import { dateInputValue } from '@/utils/date';
@@ -133,11 +134,37 @@ const activeCoopId = ref<number | null>(null);
 const isLoadingMembers = ref(false);
 const fetchVersion = ref(0);
 
-// ✅ FIX: Always navigate to the trainings index, never use document.referrer
-const goBack = () => {
-    router.get('/trainings');
+const initialSnapshot = JSON.stringify(form);
+
+const hasUnsavedChanges = () => JSON.stringify(form) !== initialSnapshot;
+
+const cancel = () => {
+    if (hasUnsavedChanges()) {
+        if (!confirm('You have unsaved changes. Leave anyway?')) return;
+    }
+
+    const params = new URLSearchParams(page.url.split('?')[1] || '');
+    const returnTo = params.get('return_to');
+
+    const isValidReturnTo = (href: string | null) => {
+        if (!href) return false;
+        try {
+            const url = new URL(href, window.location.origin);
+            return url.origin === window.location.origin && url.pathname.startsWith('/');
+        } catch (e) {
+            return false;
+        }
+    };
+
+    if (isValidReturnTo(returnTo)) {
+        router.get(returnTo as string);
+        return;
+    }
+
+    router.get(`/trainings/${props.training.id}`);
 };
 
+// ✅ FIX: Always navigate to the trainings index, never use document.referrer
 const selectedCooperatives = computed(() => {
     const selectedSet = new Set(selectedCoopIds.value);
     return props.cooperatives.filter((coop) => selectedSet.has(String(coop.id)));
@@ -476,10 +503,7 @@ const submit = () => {
                             <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit Training</h1>
                             <p class="mt-1 text-sm text-muted-foreground">Update a training or capacity building session.</p>
                         </div>
-                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
-                            <ArrowLeft class="h-4 w-4" />
-                            Back
-                        </Button>
+                        <!-- Back removed per UX rules for Edit pages -->
                     </div>
                 </CardContent>
             </Card>
@@ -824,7 +848,7 @@ const submit = () => {
                 </Card>
 
                 <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-                    <Button @click="goBack" type="button" variant="outline" class="gap-2">
+                    <Button @click="cancel" type="button" variant="outline" class="gap-2">
                         <X class="h-4 w-4" />
                         Cancel
                     </Button>

@@ -166,11 +166,6 @@ const submit = () => {
 };
 
 const goBackToCooperativeMembers = () => {
-    if (window.history.length > 1) {
-        window.history.back();
-        return;
-    }
-
     if (returnToPath.value) {
         router.get(returnToPath.value);
         return;
@@ -181,7 +176,7 @@ const goBackToCooperativeMembers = () => {
         return;
     }
 
-    router.get('/dashboard');
+    router.get('/members/management');
 };
 
 const cancel = () => {

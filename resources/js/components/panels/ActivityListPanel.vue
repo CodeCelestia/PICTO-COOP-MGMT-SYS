@@ -113,6 +113,14 @@ const isSidebarCreateView = computed(() => !lockedCoopId.value);
 const showCoopFilter = computed(() => !lockedCoopId.value);
 
 const page = usePage();
+const currentUrl = computed(() => props.baseUrl || page.url || '');
+const createActivityHref = computed(() => {
+    if (lockedCoopId.value) {
+        return `/activities/create?coop_id=${lockedCoopId.value}&coop_context=1&return_to=${encodeURIComponent(currentUrl.value)}`;
+    }
+
+    return '/activities/create';
+});
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
 const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
@@ -313,7 +321,8 @@ const participantsHref = (activity: Activity) => {
 };
 
 const openActivityDetails = (activity: Activity) => {
-    router.get(`/activities/${activity.id}`);
+    const returnQuery = lockedCoopId.value ? `?return_to=${encodeURIComponent(currentUrl.value)}` : '';
+    router.get(`/activities/${activity.id}${returnQuery}`);
 };
 
 const openParticipants = (activity: Activity) => {
@@ -337,7 +346,8 @@ const openEdit = (activity: Activity) => {
         return;
     }
 
-    router.get(`/activities/${activity.id}/edit`);
+    const returnQuery = lockedCoopId.value ? `?return_to=${encodeURIComponent(currentUrl.value)}` : '';
+    router.get(`/activities/${activity.id}/edit${returnQuery}`);
 };
 
 const visibleActivities = computed(() => props.activities.data);
@@ -401,7 +411,7 @@ const bulkDeleteActivities = async () => {
                         <SlidersHorizontal class="h-4 w-4 transition-transform duration-200" :class="filtersVisible ? 'rotate-90' : 'rotate-0'" />
                         {{ filtersVisible ? 'Hide Filters' : 'Show Filters' }}
                     </Button>
-                    <Link v-if="canCreate" :href="lockedCoopId ? `/activities/create?coop_id=${lockedCoopId}&coop_context=1` : '/activities/create'">
+                    <Link v-if="canCreate" :href="createActivityHref">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Activity

@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAppBackgroundPreference } from '@/composables/useAppBackgroundPreference';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/AppLayout.vue';
 import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
@@ -66,10 +67,12 @@ const canViewAllCoops = computed(() => permissions.value.includes('view-all-coop
 const isCoopScoped = computed(() => Boolean(page.props.auth?.user?.coop_id) && !canViewAllCoops.value);
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
 const backToListHref = computed(() => (isCoopScoped.value ? '/cooperatives/my?tab=members' : '/members'));
+const currentUrl = computed(() => {
+    const value = page.url || '';
+    return value.startsWith('/') ? value : '';
+});
+const { goBack } = useCreateBack({ fallbackHref: backToListHref.value });
 const { isAppBackgroundVisible } = useAppBackgroundPreference();
-const goBack = () => {
-    window.history.back();
-};
 
 const tabs: LiftedTab[] = [
     { id: 'profile', label: 'Member Profile', icon: IdCard },
@@ -161,7 +164,7 @@ const memberInfoPanelClass = computed(() =>
                             <ArrowLeft class="h-4 w-4" />
                             Back
                         </Button>
-                        <Link v-if="canEditMember" :href="`/members/${props.member.id}/edit`">
+                        <Link v-if="canEditMember" :href="currentUrl ? `/members/${props.member.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/members/${props.member.id}/edit`">
                             <Button size="sm" class="gap-2">
                                 <Pencil class="h-4 w-4" />
                                 Edit Member
