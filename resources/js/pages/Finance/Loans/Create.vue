@@ -29,15 +29,17 @@ const props = defineProps<{
         loan_types: Array<{ id: number; name: string; cooperative_id: number; classification: 'micro' | 'small' | 'medium' | 'large' | null }>;
     }>;
     showCooperativePicker: boolean;
-    preselectedCooperativeId: number | null;
+    preselectedCoopId?: number | null;
+    preselectedMemberId?: number | null;
+    preselectedCoop?: { id: number; name: string; members: any[]; loanTypes: any[] } | null;
 }>();
 
 const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/finance/loans' });
 
 const form = useForm({
-    cooperative_id: props.preselectedCooperativeId ? String(props.preselectedCooperativeId) : '',
+    coop_id: props.preselectedCoopId ?? '',
     return_to: returnToHref.value,
-    member_id: '',
+    member_id: props.preselectedMemberId ?? '',
     loan_type_id: '',
     principal: '',
     purpose: '',
@@ -139,15 +141,25 @@ onUnmounted(() => {
     previewUrls.clear();
 });
 
+const isFromCoopContext = computed(() => !!props.preselectedCoopId);
+
 const selectedCooperative = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoop || null;
+    }
+
     if (!props.showCooperativePicker) {
         return null;
     }
 
-    return props.cooperatives.find((cooperative) => String(cooperative.id) === String(form.cooperative_id)) || null;
+    return props.cooperatives.find((cooperative) => String(cooperative.id) === String(form.coop_id)) || null;
 });
 
 const availableMembers = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoop?.members || [];
+    }
+
     if (props.showCooperativePicker) {
         return selectedCooperative.value?.members || [];
     }
@@ -160,6 +172,10 @@ const selectedMember = computed(() => {
 });
 
 const filteredLoanTypes = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoop?.loanTypes || [];
+    }
+
     const sourceLoanTypes = props.showCooperativePicker
         ? (selectedCooperative.value?.loan_types || [])
         : props.loanTypes;
@@ -189,8 +205,8 @@ const filteredLoanTypes = computed(() => {
     });
 });
 
-watch(() => form.cooperative_id, () => {
-    if (!props.showCooperativePicker) {
+watch(() => form.coop_id, () => {
+    if (isFromCoopContext.value || !props.showCooperativePicker) {
         return;
     }
 
@@ -210,8 +226,8 @@ watch(filteredLoanTypes, (loanTypes) => {
 });
 
 const submit = () => {
-    if (props.showCooperativePicker && !form.cooperative_id) {
-        form.setError('cooperative_id', 'Please select a cooperative first.');
+    if (props.showCooperativePicker && !form.coop_id) {
+        form.setError('coop_id', 'Please select a cooperative first.');
         return;
     }
 
@@ -238,33 +254,43 @@ const submit = () => {
             </div>
 
             <form class="space-y-5 rounded-lg border bg-card p-5" @submit.prevent="submit">
-                <div v-if="showCooperativePicker">
+                <div>
                     <label class="mb-1 block text-sm font-medium">Cooperative</label>
-                    <select v-model="form.cooperative_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                        <option value="">Select cooperative</option>
-                        <option v-for="cooperative in cooperatives" :key="cooperative.id" :value="cooperative.id">
-                            {{ cooperative.name }}
-                        </option>
-                    </select>
-                    <p class="mt-1 text-xs text-muted-foreground">Select a cooperative first to load members and loan types.</p>
-                    <div v-if="form.errors.cooperative_id" class="mt-1 text-xs text-red-600">{{ form.errors.cooperative_id }}</div>
+                    <div v-if="isFromCoopContext" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                        {{ preselectedCoop?.name || 'Selected cooperative' }}
+                    </div>
+                    <template v-else>
+                        <select v-model="form.coop_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                            <option value="">Select cooperative</option>
+                            <option v-for="cooperative in cooperatives" :key="cooperative.id" :value="cooperative.id">
+                                {{ cooperative.name }}
+                            </option>
+                        </select>
+                        <p class="mt-1 text-xs text-muted-foreground">Select a cooperative first to load members and loan types.</p>
+                        <div v-if="form.errors.coop_id" class="mt-1 text-xs text-red-600">{{ form.errors.coop_id }}</div>
+                    </template>
                 </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium">Member</label>
-                    <select v-model="form.member_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.cooperative_id">
-                        <option value="">Select member</option>
-                        <option v-for="member in availableMembers" :key="member.id" :value="member.id">
-                            {{ member.first_name }} {{ member.last_name }}
-                        </option>
-                    </select>
-                    <p class="mt-1 text-xs text-muted-foreground">Choose the member requesting the loan.</p>
-                    <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
+                    <div v-if="isFromCoopContext" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                        {{ selectedMember ? `${selectedMember.first_name} ${selectedMember.last_name}` : 'Selected member' }}
+                    </div>
+                    <template v-else>
+                        <select v-model="form.member_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.coop_id">
+                            <option value="">Select member</option>
+                            <option v-for="member in availableMembers" :key="member.id" :value="member.id">
+                                {{ member.first_name }} {{ member.last_name }}
+                            </option>
+                        </select>
+                        <p class="mt-1 text-xs text-muted-foreground">Choose the member requesting the loan.</p>
+                        <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
+                    </template>
                 </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium">Loan Type</label>
-                    <select v-model="form.loan_type_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.cooperative_id">
+                    <select v-model="form.loan_type_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.coop_id && !isFromCoopContext">
                         <option value="">Select loan type</option>
                         <option v-for="loanType in filteredLoanTypes" :key="loanType.id" :value="loanType.id">
                             {{ loanType.name }}

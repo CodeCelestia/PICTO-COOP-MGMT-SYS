@@ -86,6 +86,13 @@ const queryKey = (key: string) => `${queryPrefix.value}${key}`;
 const page = usePage();
 const currentUrl = computed(() => props.baseUrl || page.url || '');
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
+const cooperativeId = computed(() => {
+    const source = currentUrl.value || '';
+    const path = source.split('?')[0] || '';
+    const match = path.match(/\/cooperatives\/(\d+)/);
+
+    return match?.[1] ? Number(match[1]) : null;
+});
 const canViewMember = computed(() => permissions.value.includes('read members-profile'));
 const canCreateMember = computed(() => permissions.value.includes('create members-profile'));
 const canEditMember = computed(() => permissions.value.includes('update members-profile'));
@@ -711,7 +718,7 @@ const editMemberHref = (memberId: number) => {
 
                                         <Tooltip v-if="canReadMemberLoans">
                                             <TooltipTrigger as-child>
-                                                <Link :href="`/finance/loans?member_id=${member.id}`">
+                                                <Link v-if="canReadMemberLoans" :href="cooperativeId ? `/finance/loans/create?coop_id=${cooperativeId}&member_id=${member.id}` : `/finance/loans/create?member_id=${member.id}`">
                                                     <Button
                                                         variant="outline"
                                                         size="sm"

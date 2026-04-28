@@ -72,14 +72,23 @@ class LoansController extends Controller
         }
 
         $isSuperOrProvincialAdmin = (bool) ($user?->hasRole(['Super Admin', 'Provincial Admin']));
-        $preselectedCooperativeId = null;
+        $preselectedCoopId = $request->query('coop_id');
+        $preselectedMemberId = $request->query('member_id');
+        $preselectedCoop = $preselectedCoopId
+            ? \App\Models\Cooperative::with(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)])->find($preselectedCoopId)
+            : null;
 
-        if ($isSuperOrProvincialAdmin) {
-            $requestedCooperativeId = (int) $request->input('cooperative_id');
-            if ($requestedCooperativeId > 0) {
-                $preselectedCooperativeId = $requestedCooperativeId;
-            }
-        }
+        $preselectedCoop = $preselectedCoop ? [
+            'id' => $preselectedCoop->id,
+            'name' => $preselectedCoop->name,
+            'members' => $preselectedCoop->members,
+            'loanTypes' => $preselectedCoop->loanTypes,
+        ] : null;
+
+        $preselectedCoopId = $preselectedCoop ? (int) $preselectedCoop['id'] : null;
+        $preselectedMemberId = $preselectedMemberId !== null && $preselectedMemberId !== ''
+            ? (int) $preselectedMemberId
+            : null;
 
         $membersQuery = Member::query()
             ->select(['id', 'first_name', 'last_name', 'coop_id'])
@@ -138,23 +147,14 @@ class LoansController extends Controller
         $members = $membersQuery->get();
         $loanTypes = $loanTypesQuery->get();
 
-        if ($isSuperOrProvincialAdmin) {
-            if ($preselectedCooperativeId) {
-                $selectedCooperative = $cooperatives->firstWhere('id', $preselectedCooperativeId);
-                $members = collect($selectedCooperative['members'] ?? []);
-                $loanTypes = collect($selectedCooperative['loan_types'] ?? []);
-            } else {
-                $members = collect();
-                $loanTypes = collect();
-            }
-        }
-
         return Inertia::render('Finance/Loans/Create', [
             'members' => $members,
             'loanTypes' => $loanTypes,
             'cooperatives' => $cooperatives,
             'showCooperativePicker' => $isSuperOrProvincialAdmin,
-            'preselectedCooperativeId' => $preselectedCooperativeId,
+            'preselectedCoopId' => $preselectedCoopId,
+            'preselectedMemberId' => $preselectedMemberId,
+            'preselectedCoop' => $preselectedCoop,
         ]);
     }
 
