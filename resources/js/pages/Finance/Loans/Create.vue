@@ -32,8 +32,11 @@ const props = defineProps<{
     preselectedCooperativeId: number | null;
 }>();
 
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/finance/loans' });
+
 const form = useForm({
     cooperative_id: props.preselectedCooperativeId ? String(props.preselectedCooperativeId) : '',
+    return_to: returnToHref.value,
     member_id: '',
     loan_type_id: '',
     principal: '',
@@ -216,8 +219,6 @@ const submit = () => {
         forceFormData: true,
     });
 };
-
-const { goBack } = useCreateBack({ fallbackHref: '/finance/loans' });
 </script>
 
 <template>

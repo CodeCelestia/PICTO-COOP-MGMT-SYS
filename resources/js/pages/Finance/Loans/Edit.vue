@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
+import { useCreateBack } from '@/composables/useCreateBack';
 
 type LoanAttachment = {
     path: string;
@@ -25,7 +26,11 @@ const props = defineProps<{
     cooperative_id?: number | null;
 }>();
 
+const fallbackHref = computed(() => `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?from=coop&cooperative_id=${props.cooperative_id}` : ''}`);
+const { goBack, returnToHref } = useCreateBack({ fallbackHref });
+
 const form = useForm({
+    return_to: returnToHref.value,
     interest_rate: Number(props.loan.interest_rate),
     term_months: props.loan.term_months,
     purpose: props.loan.purpose || '',
@@ -277,7 +282,7 @@ const submit = () => {
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
                         Save
                     </button>
-                    <Link :href="backHref" class="rounded-md border px-4 py-2 text-sm">Cancel</Link>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="goBack">Cancel</button>
                 </div>
             </form>
         </div>

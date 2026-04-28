@@ -56,7 +56,10 @@ const filteredMembers = computed(() => {
 
 const submit = () => {
     if (!canCreateMember.value) return;
-    form.post('/committee-members', {
+    form.transform((data) => ({
+        ...data,
+        return_to: returnToHref.value,
+    })).post('/committee-members', {
         preserveScroll: true,
     });
 };
@@ -65,7 +68,7 @@ const cancel = () => {
     goBack();
 };
 
-const { goBack } = useCreateBack({
+const { goBack, returnToHref } = useCreateBack({
     fallbackHref: '/committee-members',
     cooperativeId: computed(() => form.coop_id),
     cooperativeTab: 'committees',

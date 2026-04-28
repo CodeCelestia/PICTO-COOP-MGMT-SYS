@@ -6,6 +6,7 @@ import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge'
 import { Head, Link } from '@inertiajs/vue3';
 import { Eye, Plus } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+const currentUrl = window.location.pathname + window.location.search;
 
 interface FundingSource {
     id: number;
@@ -54,7 +55,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                 <h1 class="text-2xl font-semibold">Funding Sources</h1>
                 <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
             </div>
-            <Link v-if="permissions.can_create" href="/finance/funding-sources/create">
+            <Link v-if="permissions.can_create" :href="currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create'">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Funding Source
@@ -105,7 +106,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                         <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_released) }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="`/finance/funding-sources/${item.id}`">
+                                <Link :href="currentUrl ? `/finance/funding-sources/${item.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/funding-sources/${item.id}`">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View

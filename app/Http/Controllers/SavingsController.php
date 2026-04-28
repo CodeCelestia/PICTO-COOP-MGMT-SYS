@@ -127,8 +127,11 @@ class SavingsController extends Controller
             'Savings'
         );
 
-        return redirect()->route('finance.savings.show', $savings)
-            ->with('success', 'Savings account created successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Savings account created successfully.')
+            : redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account created successfully.');
     }
 
     public function show(MemberSavings $savings, Request $request): Response
@@ -181,8 +184,11 @@ class SavingsController extends Controller
             'Savings'
         );
 
-        return redirect()->route('finance.savings.show', $savings)
-            ->with('success', 'Savings account updated successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Savings account updated successfully.')
+            : redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account updated successfully.');
     }
 
     public function destroy(MemberSavings $savings, Request $request): RedirectResponse

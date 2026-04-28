@@ -253,7 +253,7 @@ const initialSelectedCoopIds = computed(() => {
 
 const selectedCoopIds = ref<string[]>(initialSelectedCoopIds.value);
 const isCooperativeDialogOpen = ref(false);
-const { goBack } = useCreateBack({ fallbackHref: '/activities' });
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/activities' });
 
 // ✅ FIX: Always navigate to the activities index, never use document.referrer
 const selectedCooperatives = computed(() => {
@@ -657,6 +657,7 @@ const submit = () => {
         ...data,
         coop_id: selectedCoopIds.value[0] || '',
         coop_ids: [...selectedCoopIds.value],
+        return_to: returnToHref.value,
         responsible_officer_id: data.responsible_officer_id === 'none' ? '' : data.responsible_officer_id,
         funding_source: data.funding_source || data.funding_sources[0]?.funder_name || '',
         funding_sources: data.funding_sources.map((source) => ({

@@ -51,10 +51,11 @@ const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissi
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canUpdateRecord = computed(() => permissions.value.includes('update financial-&-support'));
-const { goBack } = useCreateBack({ fallbackHref: '/financial-records' });
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/financial-records' });
 
 const form = useForm({
     coop_id: props.record.coop_id.toString(),
+    return_to: returnToHref.value,
     period: props.record.period,
     type: props.record.type,
     amount: props.record.amount || '',
@@ -69,7 +70,6 @@ const form = useForm({
     type_of_assistance: props.record.type_of_assistance || '',
     reference_doc: props.record.reference_doc || '',
 });
-
 const typeOptions = ['Income', 'Expense', 'Grant', 'Loan', 'Support', 'Capital'];
 const assistanceTypes = ['Grant', 'Loan', 'Training', 'Equipment', 'Technical Assistance', 'Other'];
 

@@ -156,8 +156,11 @@ class FinancialRecordController extends Controller
 
         FinancialRecord::create($validated);
 
-        return redirect()->route('financial-records.index')
-            ->with('success', 'Financial record created successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Financial record created successfully.')
+            : redirect()->route('financial-records.index')->with('success', 'Financial record created successfully.');
     }
 
     public function edit(FinancialRecord $financialRecord): Response
@@ -220,8 +223,11 @@ class FinancialRecordController extends Controller
 
         $financialRecord->update($validated);
 
-        return redirect()->route('financial-records.index')
-            ->with('success', 'Financial record updated successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Financial record updated successfully.')
+            : redirect()->route('financial-records.index')->with('success', 'Financial record updated successfully.');
     }
 
     public function destroy(FinancialRecord $financialRecord): RedirectResponse

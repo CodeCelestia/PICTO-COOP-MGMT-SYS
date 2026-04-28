@@ -82,7 +82,7 @@ const deleteLoan = (loanId: number) => {
                     Status guide: Pending = submitted and waiting review; Approved = cleared for release; Active = already released and being paid; Completed = fully paid; Defaulted = overdue with missed payments.
                 </p>
             </div>
-            <Link v-if="permissions.can_create" href="/finance/loans/create">
+            <Link v-if="permissions.can_create" :href="currentUrl ? `/finance/loans/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/loans/create'">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Loan

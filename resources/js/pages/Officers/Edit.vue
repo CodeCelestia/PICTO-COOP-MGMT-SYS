@@ -110,7 +110,10 @@ const filteredMembers = computed(() => {
 
 const submit = () => {
     if (!canUpdateOfficer.value) return;
-    form.put(`/officers/${props.officer.id}`, {
+    form.transform((data) => ({
+        ...data,
+        return_to: validatedReturnTo.value,
+    })).put(`/officers/${props.officer.id}`, {
         preserveScroll: true,
     });
 };

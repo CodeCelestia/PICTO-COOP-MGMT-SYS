@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
+import { useCreateBack } from '@/composables/useCreateBack';
 
 const props = defineProps<{
     savings: {
@@ -10,7 +11,10 @@ const props = defineProps<{
     };
 }>();
 
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: `/finance/savings/${props.savings.id}` });
+
 const form = useForm({
+    return_to: returnToHref.value,
     interest_rate: Number(props.savings.interest_rate),
     account_status: props.savings.account_status,
 });
@@ -44,7 +48,7 @@ const submit = () => {
 
                 <div class="flex gap-2">
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">Save</button>
-                    <Link :href="`/finance/savings/${savings.id}`" class="rounded-md border px-4 py-2 text-sm">Cancel</Link>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="goBack">Cancel</button>
                 </div>
             </form>
         </div>

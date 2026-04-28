@@ -59,7 +59,10 @@ const filteredMembers = computed(() => {
 
 const submit = () => {
     if (!canCreateOfficer.value) return;
-    form.post('/officers', {
+    form.transform((data) => ({
+        ...data,
+        return_to: returnToHref.value,
+    })).post('/officers', {
         preserveScroll: true,
     });
 };
@@ -68,7 +71,7 @@ const cancel = () => {
     goBack();
 };
 
-const { goBack } = useCreateBack({
+const { goBack, returnToHref } = useCreateBack({
     fallbackHref: '/officers',
     cooperativeId: computed(() => form.coop_id),
     cooperativeTab: 'officers',

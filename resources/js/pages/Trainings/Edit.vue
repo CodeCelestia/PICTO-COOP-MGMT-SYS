@@ -164,6 +164,13 @@ const cancel = () => {
     router.get(`/trainings/${props.training.id}`);
 };
 
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const returnToHref = computed(() => {
+    const href = queryParams.value.get('return_to') || '';
+    if (!href || !href.startsWith('/') || href.startsWith('//')) return '';
+    return href;
+});
+
 // ✅ FIX: Always navigate to the trainings index, never use document.referrer
 const selectedCooperatives = computed(() => {
     const selectedSet = new Set(selectedCoopIds.value);
@@ -476,6 +483,7 @@ const submit = () => {
         ...data,
         coop_id: selectedCoopIds.value[0] || '',
         coop_ids: [...selectedCoopIds.value],
+        return_to: returnToHref.value,
     })).put(`/trainings/${props.training.id}`, {
         preserveScroll: true,
         onSuccess: () => {

@@ -472,6 +472,13 @@ const scrollToCooperativeSection = async () => {
     picker?.focus();
 };
 
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const returnToHref = computed(() => {
+    const href = queryParams.value.get('return_to') || '';
+    if (!href || !href.startsWith('/') || href.startsWith('//')) return '';
+    return href;
+});
+
 const submit = async () => {
     if (!canCreateActivity.value) return;
 
@@ -494,6 +501,7 @@ const submit = async () => {
         ...data,
         coop_id: selectedCoopIds.value[0] || '',
         coop_ids: [...selectedCoopIds.value],
+        return_to: returnToHref.value,
         responsible_officer_id: data.responsible_officer_id === 'none' ? '' : data.responsible_officer_id,
         funding_source: data.funding_source || data.funding_sources[0]?.funder_name || '',
         funding_sources: data.funding_sources.map((source) => ({

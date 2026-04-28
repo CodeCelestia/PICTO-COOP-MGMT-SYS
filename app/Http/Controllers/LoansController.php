@@ -238,9 +238,11 @@ class LoansController extends Controller
             'Loans'
         );
 
-        return redirect()
-            ->route('finance.loans.show', $loan)
-            ->with('success', 'Loan application created successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Loan application created successfully.')
+            : redirect()->route('finance.loans.show', $loan)->with('success', 'Loan application created successfully.');
     }
 
     public function show(MemberLoan $loan, Request $request): Response
@@ -333,8 +335,11 @@ class LoansController extends Controller
             'Loans'
         );
 
-        return redirect()->route('finance.loans.show', $loan)
-            ->with('success', 'Loan updated successfully.');
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+
+        return $safeReturnTo
+            ? redirect()->to($safeReturnTo)->with('success', 'Loan updated successfully.')
+            : redirect()->route('finance.loans.show', $loan)->with('success', 'Loan updated successfully.');
     }
 
     public function destroy(MemberLoan $loan, Request $request): RedirectResponse

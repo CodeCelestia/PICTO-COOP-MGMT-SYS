@@ -212,6 +212,13 @@ const selectedCoopCount = computed(() => {
     return selectedCooperativeGroups.value.filter((group) => (selectedCountByCoop.value[group.id] || 0) > 0).length;
 });
 
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const returnToHref = computed(() => {
+    const href = queryParams.value.get('return_to') || '';
+    if (!href || !href.startsWith('/') || href.startsWith('//')) return '';
+    return href;
+});
+
 const selectAllLabel = computed(() => {
     const searchTerm = memberSearch.value.trim();
     if (searchTerm) {
@@ -426,6 +433,7 @@ const submit = async () => {
         ...data,
         coop_id: selectedCoopIds.value[0] || '',
         coop_ids: [...selectedCoopIds.value],
+        return_to: returnToHref.value,
     })).post('/trainings', {
         preserveScroll: true,
         onSuccess: () => {

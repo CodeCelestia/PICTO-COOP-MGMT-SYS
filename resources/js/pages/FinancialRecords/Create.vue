@@ -33,8 +33,11 @@ const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateRecord = computed(() => permissions.value.includes('create financial-&-support'));
 
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/financial-records' });
+
 const form = useForm({
     coop_id: props.cooperatives[0]?.id?.toString() || '',
+    return_to: returnToHref.value,
     period: '',
     type: 'Income',
     amount: '',
@@ -63,8 +66,6 @@ const submit = () => {
 const cancel = () => {
     goBack();
 };
-
-const { goBack } = useCreateBack({ fallbackHref: '/financial-records' });
 </script>
 
 <template>

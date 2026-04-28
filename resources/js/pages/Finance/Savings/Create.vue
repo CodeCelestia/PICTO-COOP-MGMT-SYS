@@ -9,7 +9,10 @@ defineProps<{
     interestRate: number;
 }>();
 
+const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/finance/savings' });
+
 const form = useForm({
+    return_to: returnToHref.value,
     member_id: '',
     opening_balance: 0,
     interest_rate: 3,
@@ -18,8 +21,6 @@ const form = useForm({
 const submit = () => {
     form.post('/finance/savings');
 };
-
-const { goBack } = useCreateBack({ fallbackHref: '/finance/savings' });
 </script>
 
 <template>

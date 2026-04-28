@@ -83,7 +83,10 @@ const filteredMembers = computed(() => {
 
 const submit = () => {
     if (!canUpdateMember.value) return;
-    form.put(`/committee-members/${props.committeeMember.id}`, {
+    form.transform((data) => ({
+        ...data,
+        return_to: validatedReturnTo.value,
+    })).put(`/committee-members/${props.committeeMember.id}`, {
         preserveScroll: true,
     });
 };
