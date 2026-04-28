@@ -5,6 +5,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { useCreateBack } from '@/composables/useCreateBack';
+import { useRoute } from 'vue-router';
 
 type LoanAttachment = {
     path: string;
@@ -21,12 +22,30 @@ const props = defineProps<{
         purpose: string | null;
         status: string;
         attachments?: LoanAttachment[];
+        cooperative?: { id: number; name: string } | null;
     };
     from?: string | null;
     cooperative_id?: number | null;
 }>();
 
-const fallbackHref = computed(() => `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?from=coop&cooperative_id=${props.cooperative_id}` : ''}`);
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
+
+const fallbackHref = computed(() => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        return `/finance/loans/${props.loan.id}?coop_id=${coopIdFromUrl.value}`;
+    }
+
+    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
+});
+
 const { goBack, returnToHref } = useCreateBack({ fallbackHref });
 
 const form = useForm({
@@ -44,7 +63,13 @@ const previewUrls = new Map<File, string>();
 const existingAttachments = ref<LoanAttachment[]>([...(props.loan.attachments || [])]);
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-const backHref = computed(() => `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?from=coop&cooperative_id=${props.cooperative_id}` : ''}`);
+const backHref = computed(() => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        return `/finance/loans/${props.loan.id}?coop_id=${coopIdFromUrl.value}`;
+    }
+
+    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
+});
 
 const getAttachmentLabel = (attachment: LoanAttachment) => {
     const extension = attachment.extension.toUpperCase();
@@ -179,8 +204,17 @@ const submit = () => {
 <template>
     <Head :title="`Finance - Edit Loan #${loan.id}`" />
 
-    <FinanceShellLayout active-tab="loans">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
         <div class="max-w-2xl space-y-6">
+            <div v-if="isFromCoopContext" class="flex items-center gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ loan.cooperative?.name || 'Cooperative' }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">Edit Loan #{{ loan.id }}</span>
+                </nav>
+            </div>
             <h1 class="text-2xl font-semibold">Edit Loan #{{ loan.id }}</h1>
 
             <form class="space-y-4 rounded-lg border bg-card p-4" @submit.prevent="submit">

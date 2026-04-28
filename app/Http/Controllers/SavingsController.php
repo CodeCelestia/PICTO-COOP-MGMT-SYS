@@ -21,6 +21,7 @@ class SavingsController extends Controller
     {
         $user = $request->user();
         $query = MemberSavings::query()->with('member:id,first_name,last_name');
+        $cooperative = null;
 
         if ($this->isMemberOnly($user) && $user?->member_id) {
             $query->where('member_id', $user->member_id);
@@ -32,10 +33,16 @@ class SavingsController extends Controller
             $query->where('account_status', $request->string('status'));
         }
 
+        if ($request->filled('coop_id')) {
+            $query->where('coop_id', (int) $request->input('coop_id'));
+            $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
+        }
+
         $savings = $query->latest()->paginate(15)->withQueryString();
 
         return Inertia::render('Finance/Savings/Index', [
             'savings' => $savings,
+            'cooperative' => $cooperative,
             'accountStatuses' => ['Active', 'Dormant', 'Closed'],
             'filters' => $request->only(['status']),
             'permissions' => [
@@ -51,6 +58,8 @@ class SavingsController extends Controller
     public function create(Request $request): Response
     {
         $user = $request->user();
+        $coopId = $request->query('coop_id');
+        $cooperative = $coopId ? \App\Models\Cooperative::select(['id', 'name'])->find((int) $coopId) : null;
 
         if (!$user?->can('open finance-savings-accounts')) {
             abort(403, 'You do not have permission to open savings accounts.');
@@ -62,6 +71,10 @@ class SavingsController extends Controller
             ->select(['id', 'first_name', 'last_name'])
             ->orderBy('last_name');
 
+        if ($coopId) {
+            $membersQuery->where('coop_id', (int) $coopId);
+        }
+
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $membersQuery->where('coop_id', $user->coop_id);
         }
@@ -69,6 +82,7 @@ class SavingsController extends Controller
         return Inertia::render('Finance/Savings/Create', [
             'members' => $membersQuery->get(),
             'interestRate' => 3.0,
+            'coop' => $cooperative ? ['id' => $cooperative->id, 'name' => $cooperative->name] : null,
         ]);
     }
 
@@ -138,8 +152,12 @@ class SavingsController extends Controller
     {
         $this->enforceSavingsAccess($savings, $request->user());
 
+        if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $savings->coop_id) {
+            abort(403);
+        }
+
         return Inertia::render('Finance/Savings/Show', [
-            'savings' => $savings->load(['member:id,first_name,last_name']),
+            'savings' => $savings->load(['member:id,first_name,last_name', 'cooperative:id,name']),
             'transactions' => $savings->transactions()->latest()->paginate(10)->withQueryString(),
             'totalInterestEarned' => $savings->transactions()->where('type', 'Interest')->sum('amount'),
             'permissions' => [
@@ -155,8 +173,12 @@ class SavingsController extends Controller
     {
         $this->enforceSavingsAccess($savings, $request->user());
 
+        if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $savings->coop_id) {
+            abort(403);
+        }
+
         return Inertia::render('Finance/Savings/Edit', [
-            'savings' => $savings,
+            'savings' => $savings->load(['cooperative:id,name']),
         ]);
     }
 

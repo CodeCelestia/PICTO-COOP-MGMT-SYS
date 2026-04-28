@@ -7,6 +7,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Eye, Pencil } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 
 type LoanAttachment = {
     path: string;
@@ -52,17 +53,37 @@ const props = defineProps<{
 
 const currentUrl = window.location.pathname + window.location.search;
 
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
+
+const cooperativeName = computed(() => props.loan.cooperative?.name || 'Cooperative');
+
 const backHref = computed(() => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        return `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+    }
+
     if (props.from === 'coop' && props.cooperative_id) {
-        return `/cooperatives/${props.cooperative_id}?tab=loans`;
+        return `/cooperatives/${props.cooperative_id}?tab=members`;
     }
 
     return '/finance/loans';
 });
 
 const editHref = computed(() => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        return `/finance/loans/${props.loan.id}/edit?coop_id=${coopIdFromUrl.value}`;
+    }
+
     if (props.from === 'coop' && props.cooperative_id) {
-        return `/finance/loans/${props.loan.id}/edit?from=coop&cooperative_id=${props.cooperative_id}`;
+        return `/finance/loans/${props.loan.id}/edit?coop_id=${props.cooperative_id}`;
     }
 
     return currentUrl ? `/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${props.loan.id}/edit`;
@@ -110,9 +131,32 @@ const previewAttachment = (url: string) => {
 <template>
     <Head :title="`Finance - ${loan.member?.first_name || ''} ${loan.member?.last_name || ''} - Loan #${memberLoanCount}`" />
 
-    <FinanceShellLayout active-tab="loans">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
         <div class="space-y-6">
-            <div class="flex items-center justify-between">
+            <div v-if="isFromCoopContext" class="flex items-center justify-between gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">Loan #{{ loan.id }}</span>
+                </nav>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    <Link :href="backHref">
+                        <Button variant="outline" size="sm" class="gap-2">
+                            <ArrowLeft class="h-4 w-4" />
+                            Back
+                        </Button>
+                    </Link>
+                    <Link v-if="permissions.can_edit" :href="editHref">
+                        <Button size="sm" class="gap-2">
+                            <Pencil class="h-4 w-4" />
+                            Edit
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+            <div v-else class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-semibold">{{ loan.member?.first_name }} {{ loan.member?.last_name }} - Loan #{{ memberLoanCount }}</h1>
                     <p class="text-sm text-muted-foreground">

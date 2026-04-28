@@ -3,6 +3,7 @@ import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { useCreateBack } from '@/composables/useCreateBack';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
+import { computed } from 'vue';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 
 interface FinancialRecord {
@@ -28,6 +29,14 @@ defineProps<{
 }>();
 
 const { goBack } = useCreateBack({ fallbackHref: '/finance/financial-records' });
+const handleBackClick = () => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        return;
+    }
+
+    goBack();
+};
 
 const formatTypeLabel = (value: string | null | undefined) => {
     if (!value) return 'Unknown';
@@ -71,19 +80,36 @@ const displayTitle = (record: FinancialRecord) => {
 
     return `Financial Record #${record.id}`;
 };
+
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
 </script>
 
 <template>
     <Head :title="`Finance - ${displayTitle(record)}`" />
 
-    <FinanceShellLayout active-tab="financial-records">
+    <FinanceShellLayout active-tab="financial-records" :hide-tabs="isFromCoopContext">
         <div class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
+                    <div v-if="isFromCoopContext" class="mb-2 flex items-center gap-2 text-sm">
+                        <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                        <span class="text-muted-foreground">/</span>
+                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">Cooperative</a>
+                        <span class="text-muted-foreground">/</span>
+                        <span class="text-foreground">Financial Record</span>
+                    </div>
                     <h1 class="text-2xl font-semibold">{{ displayTitle(record) }}</h1>
                     <p class="text-sm text-muted-foreground">Read-only ledger entry details.</p>
                 </div>
-                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="handleBackClick">Back</button>
             </div>
 
             <div class="space-y-6">

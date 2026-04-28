@@ -235,19 +235,40 @@ const submit = () => {
         forceFormData: true,
     });
 };
+
+const handleBackClick = () => {
+    if (isFromCoopContext.value && props.preselectedCoopId) {
+        window.location.href = `/cooperatives/${props.preselectedCoopId}?tab=members`;
+    } else {
+        goBack();
+    }
+};
 </script>
 
 <template>
     <Head title="Finance - Create Loan" />
 
-    <FinanceShellLayout active-tab="loans">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
         <div class="max-w-3xl space-y-6">
-            <div class="flex items-start justify-between gap-4">
+            <div v-if="isFromCoopContext" class="flex items-center justify-between gap-4">
+                <nav class="flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${preselectedCoopId}`" class="text-primary hover:underline">{{ preselectedCoop?.name }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">New Loan</span>
+                </nav>
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBackClick">
+                    <ArrowLeft class="h-4 w-4" />
+                    Back
+                </button>
+            </div>
+            <div v-else class="flex items-start justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-semibold">New Member Loan</h1>
                     <p class="text-sm text-muted-foreground">Fill out this short form to submit a loan application.</p>
                 </div>
-                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="goBack">
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBackClick">
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </button>
@@ -383,7 +404,7 @@ const submit = () => {
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
                         {{ form.processing ? 'Submitting...' : 'Submit Loan Application' }}
                     </button>
-                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="goBack">Cancel</button>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleBackClick">Cancel</button>
                 </div>
             </form>
         </div>

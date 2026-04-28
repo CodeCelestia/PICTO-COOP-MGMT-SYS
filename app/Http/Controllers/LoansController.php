@@ -24,6 +24,7 @@ class LoansController extends Controller
     {
         $user = $request->user();
         $query = MemberLoan::query()->with(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name']);
+        $cooperative = null;
 
         if ($this->isMemberOnly($user) && $user?->member_id) {
             $query->where('member_id', $user->member_id);
@@ -39,6 +40,11 @@ class LoansController extends Controller
             $query->where('member_id', (int) $request->input('member_id'));
         }
 
+            if ($request->filled('coop_id')) {
+                $query->where('coop_id', (int) $request->input('coop_id'));
+                $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
+            }
+
         $loans = $query
             ->latest()
             ->paginate(15)
@@ -46,6 +52,7 @@ class LoansController extends Controller
 
         return Inertia::render('Finance/Loans/Index', [
             'loans' => $loans,
+            'cooperative' => $cooperative,
             'statuses' => ['Pending', 'Approved', 'Active', 'Completed', 'Defaulted', 'Rejected'],
             'filters' => $request->only(['status', 'member_id']),
             'permissions' => [
@@ -62,6 +69,7 @@ class LoansController extends Controller
     public function create(Request $request): Response
     {
         $user = $request->user();
+        $coopId = $request->query('coop_id');
 
         if (!$user?->can('create finance-member-loans') && !$user?->can('apply-own finance-member-loans')) {
             abort(403, 'You do not have permission to create loan applications.');
@@ -96,6 +104,10 @@ class LoansController extends Controller
             ->where('membership_status', 'Active')
             ->orderBy('last_name');
 
+        if ($coopId) {
+            $membersQuery->where('coop_id', (int) $coopId);
+        }
+
         if ($this->isMemberOnly($user) && $user?->member_id) {
             $membersQuery->where('id', $user->member_id);
         } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
@@ -106,6 +118,10 @@ class LoansController extends Controller
             ->select(['id', 'name', 'cooperative_id', 'classification'])
             ->where('is_active', true)
             ->orderBy('name');
+
+        if ($coopId) {
+            $loanTypesQuery->where('cooperative_id', (int) $coopId);
+        }
 
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $loanTypesQuery->where('cooperative_id', $user->coop_id);
@@ -249,7 +265,14 @@ class LoansController extends Controller
     {
         $this->enforceLoanAccess($loan, $request->user());
 
+        if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $loan->coop_id) {
+            abort(403);
+        }
+
         $loan->load(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name', 'payments']);
+        // Ensure attachments parsed from remarks are available to the show page
+        $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
+        $loan->setAttribute('attachments', $this->formatLoanAttachments($attachmentContext['paths']));
         $memberLoanCount = MemberLoan::withTrashed()
             ->where('member_id', $loan->member_id)
             ->count();
@@ -274,12 +297,16 @@ class LoansController extends Controller
     {
         $this->enforceLoanAccess($loan, $request->user());
 
+        if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $loan->coop_id) {
+            abort(403);
+        }
+
         $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
         $loan->setAttribute('attachments', $this->formatLoanAttachments($attachmentContext['paths']));
         $from = $request->query('from') === 'coop' ? 'coop' : null;
 
         return Inertia::render('Finance/Loans/Edit', [
-            'loan' => $loan->load(['member:id,first_name,last_name']),
+            'loan' => $loan->load(['member:id,first_name,last_name', 'cooperative:id,name']),
             'from' => $from,
             'cooperative_id' => $from === 'coop' ? $loan->coop_id : null,
         ]);

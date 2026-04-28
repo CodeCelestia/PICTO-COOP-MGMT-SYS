@@ -13,6 +13,7 @@ class FinancialRecordsController extends Controller
     {
         $user = $request->user();
         $query = FinancialRecord::query()->with('cooperative:id,name');
+        $cooperative = null;
 
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $query->where('coop_id', $user->coop_id);
@@ -31,6 +32,11 @@ class FinancialRecordsController extends Controller
             $query->where('type', $request->string('type'));
         }
 
+        if ($request->filled('coop_id')) {
+            $query->where('coop_id', (int) $request->input('coop_id'));
+            $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
+        }
+
         $records = $query
             ->latest()
             ->paginate(15)
@@ -38,6 +44,7 @@ class FinancialRecordsController extends Controller
 
         return Inertia::render('Finance/FinancialRecords/Index', [
             'records' => $records,
+            'cooperative' => $cooperative,
             'filters' => $request->only(['search', 'type']),
             'permissions' => [
                 'can_create' => $user?->can('create finance-ledger-entries') ?? false,
@@ -50,6 +57,10 @@ class FinancialRecordsController extends Controller
     public function show(FinancialRecord $financialRecord)
     {
         $user = request()->user();
+
+        if (request()->filled('coop_id') && (int) request()->input('coop_id') !== $financialRecord->coop_id) {
+            abort(403);
+        }
 
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $financialRecord->coop_id !== $user->coop_id) {
             abort(403);

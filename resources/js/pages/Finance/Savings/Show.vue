@@ -3,6 +3,7 @@ import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { useCreateBack } from '@/composables/useCreateBack';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps<{
     savings: {
@@ -12,6 +13,8 @@ const props = defineProps<{
         current_balance: string;
         interest_rate: string;
         member?: { first_name?: string; last_name?: string };
+        coop_id?: number;
+        cooperative?: { name?: string } | null;
     };
     transactions: {
         data: Array<{
@@ -31,8 +34,28 @@ const props = defineProps<{
     };
 }>();
 
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
+
+const cooperativeName = computed(() => props.savings.cooperative?.name || 'Cooperative');
+
 const { goBack } = useCreateBack({ fallbackHref: '/finance/savings' });
 const currentUrl = window.location.pathname + window.location.search;
+
+const handleBackClick = () => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+    } else {
+        goBack();
+    }
+};
 
 const txForm = useForm({
     type: 'Deposit',
@@ -54,17 +77,26 @@ const calculateInterest = () => {
 <template>
     <Head :title="`Finance - Savings ${savings.account_number}`" />
 
-    <FinanceShellLayout active-tab="savings">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold">Savings Account {{ savings.account_number }}</h1>
-                <p class="text-sm text-muted-foreground">
-                    {{ savings.member?.first_name }} {{ savings.member?.last_name }} | {{ savings.account_status }}
-                </p>
+    <FinanceShellLayout active-tab="savings" :hide-tabs="isFromCoopContext">
+        <div class="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+            <div class="w-full">
+                <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">Savings {{ savings.account_number }}</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-semibold">Savings Account {{ savings.account_number }}</h1>
+                    <p class="text-sm text-muted-foreground">
+                        {{ savings.member?.first_name }} {{ savings.member?.last_name }} | {{ savings.account_status }}
+                    </p>
+                </div>
             </div>
             <div class="flex gap-2">
-                <Link v-if="permissions.can_edit" :href="currentUrl ? `/finance/savings/${savings.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${savings.id}/edit`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
-                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
+                <Link v-if="permissions.can_edit" :href="`/finance/savings/${savings.id}/edit${isFromCoopContext && coopIdFromUrl ? `?coop_id=${coopIdFromUrl}` : (currentUrl ? `?return_to=${encodeURIComponent(currentUrl)}` : '')}`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="handleBackClick">Back</button>
             </div>
         </div>
 

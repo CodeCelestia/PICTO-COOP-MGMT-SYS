@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Building2, ClipboardList, GraduationCap, Pencil, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
+import { Building2, ClipboardList, FileText, GraduationCap, HandCoins, Landmark, Pencil, PiggyBank, ShieldCheck, Users, UsersRound, Wallet } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import LiftedTabs from '@/components/LiftedTabs.vue';
 import type { LiftedTab } from '@/components/LiftedTabs.vue';
 import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
+import FinanceFundingPanel from '@/components/panels/FinanceFundingPanel.vue';
+import FinanceLoanPanel from '@/components/panels/FinanceLoanPanel.vue';
+import FinanceRecordsPanel from '@/components/panels/FinanceRecordsPanel.vue';
+import FinanceSavingsPanel from '@/components/panels/FinanceSavingsPanel.vue';
 import CooperativeCommitteeListPanel from '@/components/panels/CooperativeCommitteeListPanel.vue';
 import CooperativeMemberListPanel from '@/components/panels/CooperativeMemberListPanel.vue';
 import CooperativeOfficerListPanel from '@/components/panels/CooperativeOfficerListPanel.vue';
@@ -148,6 +152,43 @@ const props = defineProps<{
         per_page: number;
         total: number;
     };
+    loans: Array<{
+        id: number;
+        principal: string;
+        status: string;
+        created_at: string | null;
+        purpose: string | null;
+        member?: { first_name?: string; last_name?: string };
+        loanType?: { name?: string };
+    }>;
+    savings: Array<{
+        id: number;
+        account_number: string;
+        account_status: string;
+        current_balance: string;
+        interest_rate: string;
+        member?: { first_name?: string; last_name?: string };
+    }>;
+    financialRecords: Array<{
+        id: number;
+        period: string;
+        type: string;
+        amount: string | null;
+        source: string | null;
+        purpose: string | null;
+        date_recorded: string | null;
+    }>;
+    fundingSources: Array<{
+        id: number;
+        funder_name: string;
+        funder_type: string;
+        category: 'activity' | 'project' | 'member_concern';
+        status: string;
+        amount_allocated: string | null;
+        amount_released: string | null;
+        activity_id: number | null;
+        activity?: { title?: string } | null;
+    }>;
     trainingFilters: {
         search?: string;
         status?: string;
@@ -179,6 +220,14 @@ const tabs: LiftedTab[] = [
     { id: 'loan-types', label: 'Loan Types', icon: UsersRound },
     { id: 'activities-projects', label: 'Activities & Projects', icon: ClipboardList },
     { id: 'training-capacity', label: 'Training & Capacity', icon: GraduationCap },
+    { id: 'finance', label: 'Finance', icon: Landmark },
+];
+
+const financeTabs: LiftedTab[] = [
+    { id: 'loans', label: 'Loans', icon: Wallet },
+    { id: 'savings', label: 'Savings', icon: PiggyBank },
+    { id: 'financial-records', label: 'Financial Records', icon: FileText },
+    { id: 'funding-sources', label: 'Funding Sources', icon: HandCoins },
 ];
 
 const page = usePage();
@@ -190,6 +239,7 @@ const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
 const activeTab = ref('profile');
+const activeFinanceTab = ref<'loans' | 'savings' | 'financial-records' | 'funding-sources'>('loans');
 
 const addLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
@@ -263,10 +313,18 @@ const resolveTab = (url: string) => {
     return tabs.some((item) => item.id === tab) ? tab! : 'profile';
 };
 
+const resolveFinanceTab = (url: string) => {
+    const queryString = url.includes('?') ? url.split('?')[1] : '';
+    const params = new URLSearchParams(queryString);
+    const subtab = params.get('subtab');
+    return financeTabs.some((item) => item.id === subtab) ? (subtab as typeof activeFinanceTab.value) : 'loans';
+};
+
 watch(
     () => page.url,
     (url) => {
         activeTab.value = resolveTab(url);
+        activeFinanceTab.value = resolveFinanceTab(url);
     },
     { immediate: true },
 );
@@ -715,6 +773,33 @@ const statusBadgeClass = computed(() => {
                             :show-view-action-in-rows="true"
                             :show-participant-action-in-rows="true"
                         />
+                    </div>
+
+                    <div v-show="activeTab === 'finance'" class="space-y-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-foreground">Finance</h2>
+                                <p class="text-base text-muted-foreground">Finance records scoped to {{ cooperative.name }}.</p>
+                            </div>
+                        </div>
+
+                        <LiftedTabs v-model="activeFinanceTab" :tabs="financeTabs" />
+
+                        <div v-show="activeFinanceTab === 'loans'">
+                            <FinanceLoanPanel :cooperative="cooperative" :loans="loans" />
+                        </div>
+
+                        <div v-show="activeFinanceTab === 'savings'">
+                            <FinanceSavingsPanel :cooperative="cooperative" :savings="savings" />
+                        </div>
+
+                        <div v-show="activeFinanceTab === 'financial-records'">
+                            <FinanceRecordsPanel :cooperative="cooperative" :records="financialRecords" />
+                        </div>
+
+                        <div v-show="activeFinanceTab === 'funding-sources'">
+                            <FinanceFundingPanel :cooperative="cooperative" :funding-sources="fundingSources" />
+                        </div>
                     </div>
                 </CardContent>
             </Card>

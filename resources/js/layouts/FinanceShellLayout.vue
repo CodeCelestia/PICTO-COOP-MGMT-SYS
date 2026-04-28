@@ -9,6 +9,7 @@ type FinanceTabId = 'funding-sources' | 'financial-records' | 'loans' | 'savings
 
 const props = defineProps<{
     activeTab: FinanceTabId;
+    hideTabs?: boolean;
 }>();
 
 const financeTabs: LiftedTab[] = [
@@ -83,7 +84,7 @@ watch(activeFinanceTab, (tab) => {
                         </div>
                     </div>
 
-                    <div>
+                    <div v-if="!hideTabs">
                         <LiftedTabs v-model="activeFinanceTab" :tabs="financeTabs" />
                     </div>
                 </CardContent>

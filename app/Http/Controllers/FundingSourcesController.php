@@ -13,6 +13,7 @@ class FundingSourcesController extends Controller
     {
         $user = $request->user();
         $query = ActivityFundingSource::query()->with(['activity:id,title', 'cooperative:id,name']);
+        $cooperative = null;
 
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $query->where('coop_id', $user->coop_id);
@@ -36,6 +37,11 @@ class FundingSourcesController extends Controller
             $query->where('funder_type', $request->string('funder_type'));
         }
 
+        if ($request->filled('coop_id')) {
+            $query->where('coop_id', (int) $request->input('coop_id'));
+            $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
+        }
+
         $fundingSources = $query
             ->latest()
             ->paginate(15)
@@ -43,6 +49,7 @@ class FundingSourcesController extends Controller
 
         return Inertia::render('Finance/FundingSources/Index', [
             'fundingSources' => $fundingSources,
+            'cooperative' => $cooperative,
             'filters' => $request->only(['search', 'status', 'funder_type']),
             'permissions' => [
                 'can_create' => $user?->can('create finance-funding-sources') ?? false,
@@ -56,6 +63,10 @@ class FundingSourcesController extends Controller
     public function show(ActivityFundingSource $fundingSource)
     {
         $user = request()->user();
+
+        if (request()->filled('coop_id') && (int) request()->input('coop_id') !== $fundingSource->coop_id) {
+            abort(403);
+        }
 
         if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id && $fundingSource->coop_id !== $user->coop_id) {
             abort(403);

@@ -12,6 +12,17 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import { computed as vueComputed } from 'vue';
+
+const isFromCoopContext = vueComputed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = vueComputed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
 import { computed, ref } from 'vue';
 
 interface FundingSource {
@@ -42,6 +53,14 @@ const props = defineProps<{
 }>();
 
 const { goBack } = useCreateBack({ fallbackHref: '/finance/funding-sources' });
+const handleBackClick = () => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        return;
+    }
+
+    goBack();
+};
 
 const isFilesDialogOpen = ref(false);
 const attachmentList = computed(() =>
@@ -84,14 +103,21 @@ const activityLabel = (source: FundingSource) => {
 <template>
     <Head :title="`Finance - Funding Source #${fundingSource.id}`" />
 
-    <FinanceShellLayout active-tab="funding-sources">
+    <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isFromCoopContext">
         <div class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
+                    <div v-if="isFromCoopContext" class="mb-2 flex items-center gap-2 text-sm">
+                        <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                        <span class="text-muted-foreground">/</span>
+                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">Cooperative</a>
+                        <span class="text-muted-foreground">/</span>
+                        <span class="text-foreground">Funding Source</span>
+                    </div>
                     <h1 class="text-2xl font-semibold">Funding Source Details</h1>
                     <p class="text-sm text-muted-foreground">Read-only funding source information.</p>
                 </div>
-                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="goBack">Back</button>
+                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="handleBackClick">Back</button>
             </div>
 
             <div class="space-y-6">

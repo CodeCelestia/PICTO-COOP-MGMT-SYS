@@ -6,6 +6,17 @@ import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge'
 import { Head, Link } from '@inertiajs/vue3';
 import { Eye, Plus } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import { computed } from 'vue';
+
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
 const currentUrl = window.location.pathname + window.location.search;
 
 interface FundingSource {
@@ -25,6 +36,7 @@ defineProps<{
     fundingSources: {
         data: FundingSource[];
     };
+    cooperative?: { id: number; name: string } | null;
     permissions: {
         can_create: boolean;
         can_edit: boolean;
@@ -49,13 +61,20 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
 <template>
     <Head title="Finance - Funding Sources" />
 
-    <FinanceShellLayout active-tab="funding-sources">
+    <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isFromCoopContext">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
+                    <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
+                        <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                        <span class="text-muted-foreground">/</span>
+                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
+                        <span class="text-muted-foreground">/</span>
+                        <span class="text-foreground">Funding Sources</span>
+                    </div>
                 <h1 class="text-2xl font-semibold">Funding Sources</h1>
                 <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
             </div>
-            <Link v-if="permissions.can_create" :href="currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create'">
+            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/finance/funding-sources/create?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create')">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Funding Source

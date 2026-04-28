@@ -5,7 +5,7 @@ import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge'
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Filter, Pencil, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 interface Loan {
     id: number;
@@ -20,6 +20,7 @@ const props = defineProps<{
     loans: {
         data: Loan[];
     };
+    cooperative?: { id: number; name: string } | null;
     statuses: string[];
     filters?: {
         status?: string;
@@ -35,6 +36,16 @@ const props = defineProps<{
 }>();
 
 const currentUrl = window.location.pathname + window.location.search;
+
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
 
 const selectedStatus = ref(props.filters?.status || '');
 
@@ -73,16 +84,23 @@ const deleteLoan = (loanId: number) => {
 <template>
     <Head title="Finance - Loans" />
 
-    <FinanceShellLayout active-tab="loans">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
+                <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">Loans</span>
+                </div>
                 <h1 class="text-2xl font-semibold">Member Loans</h1>
                 <p class="text-sm text-muted-foreground">Apply, approve, disburse, and monitor loan lifecycle.</p>
                 <p class="mt-2 text-xs text-muted-foreground">
                     Status guide: Pending = submitted and waiting review; Approved = cleared for release; Active = already released and being paid; Completed = fully paid; Defaulted = overdue with missed payments.
                 </p>
             </div>
-            <Link v-if="permissions.can_create" :href="currentUrl ? `/finance/loans/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/loans/create'">
+            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/finance/loans/create?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/loans/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/loans/create')">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Loan
@@ -135,13 +153,13 @@ const deleteLoan = (loanId: number) => {
                         <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="currentUrl ? `/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}`">
+                                <Link :href="isFromCoopContext && coopIdFromUrl ? `/finance/loans/${loan.id}?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}`)">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View
                                     </Button>
                                 </Link>
-                                <Link v-if="permissions.can_edit && loan.status === 'Pending'" :href="currentUrl ? `/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}/edit`">
+                                <Link v-if="permissions.can_edit && loan.status === 'Pending'" :href="isFromCoopContext && coopIdFromUrl ? `/finance/loans/${loan.id}/edit?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}/edit`)">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                         <Pencil class="h-4 w-4" />
                                         Edit

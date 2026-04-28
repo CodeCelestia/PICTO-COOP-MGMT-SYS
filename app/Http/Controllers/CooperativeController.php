@@ -9,8 +9,12 @@ use App\Models\Member;
 use App\Models\Officer;
 use App\Models\CommitteeMember;
 use App\Models\Activity;
+use App\Models\ActivityFundingSource;
 use App\Models\Training;
 use App\Models\LoanType;
+use App\Models\FinancialRecord;
+use App\Models\MemberLoan;
+use App\Models\MemberSavings;
 use App\Traits\LogsActivityWithChanges;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -610,6 +614,29 @@ class CooperativeController extends Controller
             ->orderBy('name')
             ->get(['id', 'cooperative_id', 'name', 'classification', 'description', 'is_active']);
 
+        $loans = MemberLoan::query()
+            ->where('coop_id', $cooperative->id)
+            ->with(['member', 'loanType'])
+            ->latest()
+            ->get();
+
+        $savings = MemberSavings::query()
+            ->where('coop_id', $cooperative->id)
+            ->with(['member'])
+            ->latest()
+            ->get();
+
+        $financialRecords = FinancialRecord::query()
+            ->where('coop_id', $cooperative->id)
+            ->latest()
+            ->get();
+
+        $fundingSources = ActivityFundingSource::query()
+            ->where('coop_id', $cooperative->id)
+            ->with(['activity'])
+            ->latest()
+            ->get();
+
         return Inertia::render('Cooperatives/Show', [
             'cooperative' => $cooperative,
             'members' => $members,
@@ -652,6 +679,10 @@ class CooperativeController extends Controller
             ],
             'cooperatives' => $cooperatives,
             'loanTypes' => $loanTypes,
+            'loans' => $loans,
+            'savings' => $savings,
+            'financialRecords' => $financialRecords,
+            'fundingSources' => $fundingSources,
             'loanTypePermissions' => [
                 'can_create' => $user?->can('create finance-member-loans') ?? false,
                 'can_edit' => $user?->can('update finance-member-loans') ?? false,

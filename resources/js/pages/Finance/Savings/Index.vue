@@ -6,7 +6,7 @@ import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge'
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Filter, Pencil, Plus, XCircle } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 interface SavingsRow {
     id: number;
@@ -19,6 +19,7 @@ interface SavingsRow {
 
 const props = defineProps<{
     savings: { data: SavingsRow[] };
+    cooperative?: { id: number; name: string } | null;
     accountStatuses: string[];
     filters?: { status?: string };
     permissions: {
@@ -31,6 +32,16 @@ const props = defineProps<{
 }>();
 
 const currentUrl = window.location.pathname + window.location.search;
+
+const isFromCoopContext = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return !!coopId;
+});
+
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId) : null;
+});
 
 const status = ref(props.filters?.status || '');
 
@@ -59,13 +70,20 @@ const closeAccount = (savingsId: number) => {
 <template>
     <Head title="Finance - Savings" />
 
-    <FinanceShellLayout active-tab="savings">
+    <FinanceShellLayout active-tab="savings" :hide-tabs="isFromCoopContext">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
+                <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
+                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                    <span class="text-muted-foreground">/</span>
+                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">Savings</span>
+                </div>
                 <h1 class="text-2xl font-semibold">Savings Accounts</h1>
                 <p class="text-sm text-muted-foreground">Manage member savings accounts, balances, and deposit or withdrawal activity in one place.</p>
             </div>
-            <Link v-if="permissions.can_create" :href="currentUrl ? `/finance/savings/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/savings/create'">
+            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/finance/savings/create?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/savings/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/savings/create')">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     Open Savings Account
@@ -122,13 +140,13 @@ const closeAccount = (savingsId: number) => {
                         </td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="currentUrl ? `/finance/savings/${row.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}`">
+                                <Link :href="isFromCoopContext && coopIdFromUrl ? `/finance/savings/${row.id}?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/savings/${row.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}`)">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View
                                     </Button>
                                 </Link>
-                                <Link v-if="permissions.can_edit" :href="currentUrl ? `/finance/savings/${row.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}/edit`">
+                                <Link v-if="permissions.can_edit" :href="isFromCoopContext && coopIdFromUrl ? `/finance/savings/${row.id}/edit?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/savings/${row.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/savings/${row.id}/edit`)">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                         <Pencil class="h-4 w-4" />
                                         Edit
