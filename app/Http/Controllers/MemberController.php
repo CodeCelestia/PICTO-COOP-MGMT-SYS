@@ -484,7 +484,7 @@ class MemberController extends Controller
     /**
      * Show the form for creating a new member
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         if (!$this->isSuperAdmin() && !$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
@@ -492,6 +492,10 @@ class MemberController extends Controller
 
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $selectedCooperativeId = (int) ($request->input('coop_id') ?: ($this->isCoopAdmin() ? $user?->coop_id : 0));
+        $selectedCooperative = $selectedCooperativeId > 0
+            ? Cooperative::select('id', 'name', 'region', 'classification', 'status')->find($selectedCooperativeId)
+            : null;
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);
@@ -499,6 +503,7 @@ class MemberController extends Controller
 
         return Inertia::render('Members/Create', [
             'cooperatives' => $cooperativesQuery->get(),
+            'cooperative' => $selectedCooperative?->only(['id', 'name', 'region', 'classification', 'status']),
             'availableRoles' => $this->assignableMemberRoles(),
             'canCreateUserAccounts' => (bool) auth()->user()?->can('create user-accounts'),
         ]);

@@ -472,7 +472,7 @@ const cancel = () => {
     }
 
     if (isCooperativeContext) {
-        const coopId = lockedCooperative?.id || (selectedCoopIds && selectedCoopIds.length ? selectedCoopIds[0] : null);
+        const coopId = lockedCooperative.value?.id || (selectedCoopIds.value.length ? selectedCoopIds.value[0] : null);
         if (coopId) {
             router.get(`/cooperatives/${coopId}`);
             return;
@@ -526,8 +526,6 @@ const cancel = () => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="option in targetGroups" :key="option" :value="option">{{ option }}</SelectItem>
-                            await nextTick();
-                            updatePanelOverflow();
                                     </SelectContent>
                                 </Select>
                                 <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500">{{ form.errors.target_group }}</p>

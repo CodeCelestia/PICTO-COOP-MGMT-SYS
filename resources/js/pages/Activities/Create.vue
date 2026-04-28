@@ -552,7 +552,7 @@ const cancel = () => {
     }
 
     if (isCooperativeContext) {
-        const coopId = lockedCooperative?.id || (selectedCoopIds && selectedCoopIds.length ? selectedCoopIds[0] : null);
+        const coopId = lockedCooperative.value?.id || (selectedCoopIds.value.length ? selectedCoopIds.value[0] : null);
         if (coopId) {
             router.get(`/cooperatives/${coopId}`);
             return;

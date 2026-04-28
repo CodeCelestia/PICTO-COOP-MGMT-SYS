@@ -352,6 +352,13 @@ const formatFullAddress = (coop: Cooperative) => {
 
 const accreditations = computed(() => props.cooperative.accreditations || []);
 
+const fundingSourcesForPanel = computed(() =>
+    props.fundingSources.map((source) => ({
+        ...source,
+        activity: source.activity || undefined,
+    })),
+);
+
 const startEditLoanType = (loanType: { id: number; name: string; classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null; description: string | null; is_active: boolean }) => {
     editingLoanTypeId.value = loanType.id;
     editLoanTypeForm.cooperative_id = props.cooperative.id;
@@ -472,7 +479,7 @@ const statusBadgeClass = computed(() => {
 
                 </CardHeader>
                 <CardContent class="space-y-6">
-                    <div class="coop-detail-tabs">
+                    <div class="coop-detail-tabs rounded-xl border border-border/70 bg-card/95 p-1.5 shadow-sm shadow-black/5 dark:shadow-black/20">
                         <LiftedTabs v-model="activeTab" :tabs="tabs" />
                     </div>
 
@@ -798,7 +805,7 @@ const statusBadgeClass = computed(() => {
                         </div>
 
                         <div v-show="activeFinanceTab === 'funding-sources'">
-                            <FinanceFundingPanel :cooperative="cooperative" :funding-sources="fundingSources" />
+                            <FinanceFundingPanel :cooperative="cooperative" :funding-sources="fundingSourcesForPanel" />
                         </div>
                     </div>
                 </CardContent>

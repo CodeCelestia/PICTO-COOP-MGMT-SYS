@@ -19,7 +19,7 @@ interface FundingSource {
     status: string;
     amount_allocated: string | null;
     amount_released: string | null;
-    activity?: { title?: string };
+    activity?: { title?: string } | null;
 }
 
 const props = defineProps<{
