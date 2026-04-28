@@ -1,31 +1,32 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { Building2, ClipboardList, GraduationCap, Pencil, ShieldCheck, Users, UsersRound } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import LiftedTabs from '@/components/LiftedTabs.vue';
+import type { LiftedTab } from '@/components/LiftedTabs.vue';
+import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
+import CooperativeCommitteeListPanel from '@/components/panels/CooperativeCommitteeListPanel.vue';
+import CooperativeMemberListPanel from '@/components/panels/CooperativeMemberListPanel.vue';
+import CooperativeOfficerListPanel from '@/components/panels/CooperativeOfficerListPanel.vue';
+import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import AppLayout from '@/layouts/AppLayout.vue';
-import LiftedTabs, { type LiftedTab } from '@/components/LiftedTabs.vue';
-import CooperativeMemberListPanel from '@/components/panels/CooperativeMemberListPanel.vue';
-import CooperativeOfficerListPanel from '@/components/panels/CooperativeOfficerListPanel.vue';
-import CooperativeCommitteeListPanel from '@/components/panels/CooperativeCommitteeListPanel.vue';
-import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
-import TrainingListPanel from '@/components/panels/TrainingListPanel.vue';
 import { useCoopLabel } from '@/composables/useCoopLabel';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 import type {
     CommitteeMember,
     CooperativeSummary,
     Member,
     Officer,
 } from '@/types/models';
-import type { BreadcrumbItem } from '@/types';
 
 interface Cooperative {
     id: number;
     name: string;
     registration_number: string;
-    classification: 'micro' | 'small' | 'medium' | 'large' | null;
+    classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null;
     types?: Array<{ id: number; name: string }>;
     date_established: string;
     address: string;
@@ -159,7 +160,7 @@ const props = defineProps<{
         id: number;
         cooperative_id: number;
         name: string;
-        classification: 'micro' | 'small' | 'medium' | 'large' | null;
+        classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null;
         description: string | null;
         is_active: boolean;
     }>;
@@ -293,7 +294,7 @@ const formatFullAddress = (coop: Cooperative) => {
 
 const accreditations = computed(() => props.cooperative.accreditations || []);
 
-const startEditLoanType = (loanType: { id: number; name: string; classification: 'micro' | 'small' | 'medium' | 'large' | null; description: string | null; is_active: boolean }) => {
+const startEditLoanType = (loanType: { id: number; name: string; classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null; description: string | null; is_active: boolean }) => {
     editingLoanTypeId.value = loanType.id;
     editLoanTypeForm.cooperative_id = props.cooperative.id;
     editLoanTypeForm.name = loanType.name;
@@ -318,7 +319,7 @@ const submitAddLoanType = () => {
     });
 };
 
-const loanTypeClassificationLabel = (classification: 'micro' | 'small' | 'medium' | 'large' | null): string | null => {
+const loanTypeClassificationLabel = (classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null): string | null => {
     switch (classification) {
         case 'micro':
             return 'Micro';
@@ -328,12 +329,14 @@ const loanTypeClassificationLabel = (classification: 'micro' | 'small' | 'medium
             return 'Medium';
         case 'large':
             return 'Large';
+        case 'Billion':
+            return 'Billion';
         default:
             return null;
     }
 };
 
-const loanTypeClassificationBadgeClass = (classification: 'micro' | 'small' | 'medium' | 'large' | null): string => {
+const loanTypeClassificationBadgeClass = (classification: 'micro' | 'small' | 'medium' | 'large' | 'Billion' | null): string => {
     switch (classification) {
         case 'micro':
             return 'border border-sky-300 bg-sky-100 text-sky-800';
@@ -343,6 +346,8 @@ const loanTypeClassificationBadgeClass = (classification: 'micro' | 'small' | 'm
             return 'border border-amber-300 bg-amber-100 text-amber-800';
         case 'large':
             return 'border border-rose-300 bg-rose-100 text-rose-800';
+        case 'Billion':
+            return 'border border-violet-300 bg-violet-100 text-violet-800';
         default:
             return 'border border-slate-200 bg-slate-100 text-slate-700';
     }

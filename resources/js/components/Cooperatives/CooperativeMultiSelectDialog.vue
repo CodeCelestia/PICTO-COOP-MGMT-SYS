@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
 import { Check, Search } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -92,7 +92,7 @@ const regionOptions = computed(() => {
     return Array.from(new Set(regions)).sort((a, b) => a.localeCompare(b));
 });
 
-const staticClassifications = ['micro', 'small', 'medium', 'large'];
+const staticClassifications = ['micro', 'small', 'medium', 'large', 'billion'];
 
 const classificationOptions = computed(() => staticClassifications);
 
@@ -209,6 +209,10 @@ const getClassificationBadgeClass = (classification: string | null | undefined) 
 
     if (normalized === 'large') {
         return 'rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-200';
+    }
+
+    if (normalized === 'billion') {
+        return 'rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:border-violet-500/50 dark:bg-violet-500/20 dark:text-violet-200';
     }
 
     return 'rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-200';

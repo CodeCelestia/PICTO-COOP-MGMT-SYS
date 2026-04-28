@@ -314,6 +314,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('activities/{activity}/cooperatives/{cooperative}/participants', [ActivityController::class, 'participantsByCooperative'])
         ->middleware('permission:read activities-&-projects')
         ->name('activities.cooperative-participants');
+    Route::get('cooperatives/{cooperative}/activities/{activity}/participants', [ActivityController::class, 'cooperativeParticipants'])
+        ->middleware('permission:read activities-&-projects')
+        ->name('cooperatives.activities.participants');
+    Route::post('cooperatives/{cooperative}/activities/{activity}/participants', [ActivityController::class, 'saveCooperativeParticipants'])
+        ->middleware('permission:update activities-&-projects')
+        ->name('cooperatives.activities.participants.save');
     Route::get('activities/create', [ActivityController::class, 'create'])
         ->middleware('permission:create activities-&-projects')
         ->name('activities.create');

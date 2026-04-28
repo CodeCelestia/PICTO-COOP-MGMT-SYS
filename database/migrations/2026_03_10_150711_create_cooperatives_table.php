@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('registration_number')->unique();
-            $table->enum('classification', ['micro', 'small', 'medium', 'large'])->nullable();
+            $table->enum('classification', ['micro', 'small', 'medium', 'large', 'billion'])->nullable();
             $table->date('date_established');
             $table->text('address');
             $table->string('province');

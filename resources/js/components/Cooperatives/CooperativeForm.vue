@@ -25,7 +25,7 @@ interface CooperativeData {
   id?: number;
   name?: string;
   registration_number?: string;
-  classification?: 'micro' | 'small' | 'medium' | 'large' | null;
+  classification?: 'micro' | 'small' | 'medium' | 'large' | 'billion' | null;
   types?: Array<{ id: number; name: string }>;
   date_established?: string;
   address?: string;
@@ -358,6 +358,7 @@ const submit = () => {
                 <SelectItem value="small">Small</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="large">Large</SelectItem>
+                <SelectItem value="Billion">Billion</SelectItem>
               </SelectContent>
             </Select>
             <p class="mt-1 text-xs text-muted-foreground">Cooperative size classification.</p>

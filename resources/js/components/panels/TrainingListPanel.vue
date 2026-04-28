@@ -572,33 +572,33 @@ const bulkDeleteTrainings = async () => {
                             <TableCell v-if="showActions" class="text-center">
                                 <TooltipProvider :delay-duration="150">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        <Tooltip v-if="showViewActionInRows">
-                                            <TooltipTrigger as-child>
-                                                <Link :href="lockedCoopId ? `/trainings/${training.id}?return_to=${encodeURIComponent(currentUrl)}` : `/trainings/${training.id}`">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        class="table-action-btn table-action-view gap-2 border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-900/30"
-                                                    >
-                                                        <Eye class="h-4 w-4" />
-                                                        View
-                                                    </Button>
-                                                </Link>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>View details</p></TooltipContent>
-                                        </Tooltip>
+                                                <Tooltip v-if="showParticipantActionInRows">
+                                                    <TooltipTrigger as-child>
+                                                        <Link :href="participantsHref(training)">
+                                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
+                                                                <Users class="h-4 w-4" />
+                                                                Participants
+                                                            </Button>
+                                                        </Link>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>View cooperative participants</p></TooltipContent>
+                                                </Tooltip>
 
-                                        <Tooltip v-if="showParticipantActionInRows">
-                                            <TooltipTrigger as-child>
-                                                <Link :href="participantsHref(training)">
-                                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
-                                                        <Users class="h-4 w-4" />
-                                                        Participants
-                                                    </Button>
-                                                </Link>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>View cooperative participants</p></TooltipContent>
-                                        </Tooltip>
+                                                <Tooltip v-if="showViewActionInRows">
+                                                    <TooltipTrigger as-child>
+                                                        <Link :href="lockedCoopId ? `/trainings/${training.id}?return_to=${encodeURIComponent(currentUrl)}` : `/trainings/${training.id}`">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                class="table-action-btn table-action-view gap-2 border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-900/30"
+                                                            >
+                                                                <Eye class="h-4 w-4" />
+                                                                View
+                                                            </Button>
+                                                        </Link>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>View details</p></TooltipContent>
+                                                </Tooltip>
 
                                         <Tooltip v-if="canEdit">
                                             <TooltipTrigger as-child>

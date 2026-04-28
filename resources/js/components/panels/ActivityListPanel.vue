@@ -7,8 +7,6 @@ import {
     ChevronRight,
     ClipboardList,
     Eye,
-    FileText,
-    HandCoins,
     Loader2,
     Pencil,
     Plus,
@@ -21,8 +19,8 @@ import {
     Wallet,
 } from 'lucide-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
@@ -317,7 +315,7 @@ const participantsHref = (activity: Activity) => {
         return `/activities/${activity.id}/cooperatives-participating`;
     }
 
-    return `/activity-participants?activity_id=${activity.id}&coop_id=${activity.coop_id}`;
+    return `/cooperatives/${lockedCoopId.value || activity.coop_id}/activities/${activity.id}/participants`;
 };
 
 const openActivityDetails = (activity: Activity) => {

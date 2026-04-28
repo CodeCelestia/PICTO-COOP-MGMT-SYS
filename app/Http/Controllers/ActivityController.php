@@ -332,25 +332,80 @@ class ActivityController extends Controller
 
     public function participantsByCooperative(Activity $activity, Cooperative $cooperative): Response
     {
-        $this->enforceCoopScope($activity->coop_id);
+        return $this->renderCooperativeParticipants($activity, $cooperative);
+    }
 
-        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+    public function cooperativeParticipants(Cooperative $cooperative, Activity $activity): Response
+    {
+        return $this->renderCooperativeParticipants($activity, $cooperative);
+    }
 
-        $isParticipating = Activity::query()
-            ->whereIn('id', $linkedActivityIds)
+    public function saveCooperativeParticipants(Request $request, Cooperative $cooperative, Activity $activity): RedirectResponse
+    {
+        $targetActivityIds = $this->resolveScopedActivityIds($activity, $cooperative);
+
+        $validated = $request->validate([
+            'member_ids' => ['nullable', 'array'],
+            'member_ids.*' => ['integer', 'exists:members,id'],
+        ]);
+
+        $memberIds = collect($validated['member_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $validCount = Member::query()
+            ->whereIn('id', $memberIds)
             ->where('coop_id', $cooperative->id)
-            ->exists();
+            ->count();
 
-        if (! $isParticipating) {
-            abort(404);
+        if ($validCount !== $memberIds->count()) {
+            abort(422, 'Some members do not belong to this cooperative.');
         }
 
-        $participants = ActivityParticipant::query()
-            ->with(['member:id,first_name,last_name,email,phone,coop_id'])
-            ->whereIn('activity_id', $linkedActivityIds)
-            ->whereHas('member', fn ($query) => $query->where('coop_id', $cooperative->id))
-            ->latest()
+        DB::transaction(function () use ($targetActivityIds, $memberIds) {
+            ActivityParticipant::query()
+                ->whereIn('activity_id', $targetActivityIds)
+                ->whereNotIn('member_id', $memberIds)
+                ->delete();
+
+            foreach ($targetActivityIds as $activityId) {
+                foreach ($memberIds as $memberId) {
+                    ActivityParticipant::withTrashed()->updateOrCreate(
+                        [
+                            'activity_id' => $activityId,
+                            'member_id' => $memberId,
+                        ],
+                        [
+                            'deleted_at' => null,
+                        ]
+                    );
+                }
+            }
+        });
+
+        return back()->with('success', 'Participants updated successfully.');
+    }
+
+    private function renderCooperativeParticipants(Activity $activity, Cooperative $cooperative): Response
+    {
+        $targetActivityIds = $this->resolveScopedActivityIds($activity, $cooperative);
+
+        $allMembers = $cooperative->members()
+            ->where('membership_status', 'Active')
+            ->select('id', 'first_name', 'last_name', 'coop_id', 'gender', 'date_joined', 'membership_status')
+            ->orderBy('last_name', 'asc')
+            ->orderBy('first_name', 'asc')
             ->get();
+
+        $selectedMemberIds = ActivityParticipant::query()
+            ->whereIn('activity_id', $targetActivityIds)
+            ->whereIn('member_id', $allMembers->pluck('id'))
+            ->whereHas('member', fn ($query) => $query->where('membership_status', 'Active'))
+            ->pluck('member_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
         return Inertia::render('Activities/ParticipantsByCooperative', [
             'activity' => [
@@ -361,8 +416,32 @@ class ActivityController extends Controller
                 'id' => $cooperative->id,
                 'name' => $cooperative->name,
             ],
-            'participants' => $participants,
+            'allMembers' => $allMembers,
+            'selectedMemberIds' => $selectedMemberIds,
+            'isCooperativeContext' => true,
         ]);
+    }
+
+    private function resolveScopedActivityIds(Activity $activity, Cooperative $cooperative): array
+    {
+        $this->enforceCoopScope($activity->coop_id);
+        $this->enforceCoopScope($cooperative->id);
+
+        $linkedActivityIds = $this->resolveGroupedActivityIds($activity);
+
+        $targetActivityIds = Activity::query()
+            ->whereIn('id', $linkedActivityIds)
+            ->where('coop_id', $cooperative->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if (empty($targetActivityIds)) {
+            abort(403, 'This activity does not belong to this cooperative.');
+        }
+
+        return $targetActivityIds;
     }
 
     public function report(int $id)
