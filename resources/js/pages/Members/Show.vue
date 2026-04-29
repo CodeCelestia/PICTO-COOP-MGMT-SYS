@@ -89,13 +89,34 @@ const detailsCardClass = computed(() =>
         : 'border-border bg-card shadow-sm'
 );
 
+const parseDateLocal = (dateString: string | null) => {
+    if (!dateString) return null;
+    const datePart = String(dateString).substring(0, 10);
+    const [year, month, day] = datePart.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+};
+
 const formatDate = (date: string | null) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
+    const d = parseDateLocal(date);
+    if (!d) return '—';
+    return d.toLocaleDateString('en-PH', {
         year: 'numeric',
-        month: 'short',
+        month: 'long',
         day: 'numeric',
     });
+};
+
+const computeAge = (dateString: string | null) => {
+    const d = parseDateLocal(dateString);
+    if (!d) return '—';
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+        age--;
+    }
+    return String(age);
 };
 
 const badgeStyle = (status: string | null) => {
@@ -133,12 +154,12 @@ const fullAddress = computed(() => {
             props.member.region,
         ]
             .filter(Boolean)
-            .join(', ') || 'N/A'
+            .join(', ') || '—'
     );
 });
 
 const formatDateRange = (start: string | null, end: string | null) => {
-    if (!start && !end) return 'N/A';
+    if (!start && !end) return '—';
     if (start && end && start !== end) return `${formatDate(start)} - ${formatDate(end)}`;
     return formatDate(start || end);
 };
@@ -179,9 +200,9 @@ const memberInfoPanelClass = computed(() =>
                         <Badge variant="outline" class="text-[11px]">
                             {{ isOfficerMember ? 'Officer' : 'Member' }}
                         </Badge>
-                        <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
+                            <span :class="['inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold', badgeStyle(props.member.membership_status)]">
                             <CheckCircle2 class="h-3.5 w-3.5" />
-                            {{ props.member.membership_status || 'N/A' }}
+                            {{ props.member.membership_status || '—' }}
                         </span>
                     </div>
                     <p class="text-sm text-muted-foreground">{{ props.member.cooperative.name }}</p>
@@ -201,16 +222,24 @@ const memberInfoPanelClass = computed(() =>
                         <dl class="mt-3 divide-y divide-border/60">
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Gender</dt>
-                                <dd class="text-base font-medium text-foreground">{{ props.member.gender || 'N/A' }}</dd>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.gender || '—' }}</dd>
                             </div>
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Profession</dt>
-                                <dd class="text-base font-medium text-foreground">{{ props.member.primary_livelihood || 'N/A' }}</dd>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.primary_livelihood || '—' }}</dd>
                             </div>
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Education</dt>
-                                <dd class="text-base font-medium text-foreground">{{ props.member.educational_attainment || 'N/A' }}</dd>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.educational_attainment || '—' }}</dd>
                             </div>
+                                <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                    <dt class="text-sm font-medium text-muted-foreground">Date of Birth</dt>
+                                    <dd class="text-base font-medium text-foreground">{{ formatDate(props.member.birth_date) }}</dd>
+                                </div>
+                                <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
+                                    <dt class="text-sm font-medium text-muted-foreground">Age</dt>
+                                    <dd class="text-base font-medium text-foreground">{{ computeAge(props.member.birth_date) }}</dd>
+                                </div>
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Date Joined</dt>
                                 <dd class="text-base font-medium text-foreground">{{ formatDate(props.member.date_joined) }}</dd>
@@ -223,11 +252,11 @@ const memberInfoPanelClass = computed(() =>
                         <dl class="mt-3 divide-y divide-border/60">
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Email</dt>
-                                <dd class="text-base font-medium text-foreground break-all">{{ props.member.email || 'N/A' }}</dd>
+                                <dd class="text-base font-medium text-foreground break-all">{{ props.member.email || '—' }}</dd>
                             </div>
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Phone</dt>
-                                <dd class="text-base font-medium text-foreground">{{ props.member.phone || 'N/A' }}</dd>
+                                <dd class="text-base font-medium text-foreground">{{ props.member.phone || '—' }}</dd>
                             </div>
                             <div class="grid gap-1 py-2 sm:grid-cols-[9rem_1fr] sm:gap-3">
                                 <dt class="text-sm font-medium text-muted-foreground">Address</dt>
@@ -242,19 +271,19 @@ const memberInfoPanelClass = computed(() =>
                     <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
                             <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Member status</h4>
-                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.membership_type || 'N/A' }}</p>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.membership_type || '—' }}</p>
                         </div>
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
                             <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Share capital</h4>
-                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.share_capital ? '₱ ' + Number(props.member.share_capital).toLocaleString() : 'N/A' }}</p>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.share_capital ? '₱ ' + Number(props.member.share_capital).toLocaleString() : '—' }}</p>
                         </div>
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
                             <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Sector</h4>
-                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.sector || 'N/A' }}</p>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.sector || '—' }}</p>
                         </div>
                         <div class="rounded-lg border border-border bg-muted/40 p-4">
                             <h4 class="text-xs uppercase tracking-widest text-muted-foreground">Education</h4>
-                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.educational_attainment || 'N/A' }}</p>
+                            <p class="mt-2 text-sm text-foreground/90">{{ props.member.educational_attainment || '—' }}</p>
                         </div>
                     </div>
                 </section>
@@ -292,8 +321,8 @@ const memberInfoPanelClass = computed(() =>
                                 <TableRow v-for="item in services" :key="item.id">
                                     <TableCell>{{ formatDate(item.date_availed) }}</TableCell>
                                     <TableCell>{{ item.service_type }}</TableCell>
-                                    <TableCell>{{ item.service_detail || 'N/A' }}</TableCell>
-                                    <TableCell>{{ item.status || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.service_detail || '—' }}</TableCell>
+                                    <TableCell>{{ item.status || '—' }}</TableCell>
                                     <TableCell>{{ item.amount !== null ? '₱ ' + Number(item.amount).toLocaleString() : '–' }}</TableCell>
                                     <TableCell>{{ item.remarks || '-' }}</TableCell>
                                 </TableRow>
@@ -322,10 +351,10 @@ const memberInfoPanelClass = computed(() =>
                                     <TableCell :colspan="5" class="py-4 text-center text-muted-foreground">No activity participation yet.</TableCell>
                                 </TableRow>
                                 <TableRow v-for="item in activities" :key="item.id">
-                                    <TableCell>{{ item.title || 'N/A' }}</TableCell>
-                                    <TableCell>{{ item.category || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.title || '—' }}</TableCell>
+                                    <TableCell>{{ item.category || '—' }}</TableCell>
                                     <TableCell>{{ formatDateRange(item.date_started, item.date_ended) }}</TableCell>
-                                    <TableCell>{{ item.role || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.role || '—' }}</TableCell>
                                     <TableCell>{{ item.is_beneficiary ? 'Yes' : 'No' }}</TableCell>
                                 </TableRow>
                             </TableBody>
@@ -354,12 +383,12 @@ const memberInfoPanelClass = computed(() =>
                                     <TableCell :colspan="6" class="py-4 text-center text-muted-foreground">No trainings found.</TableCell>
                                 </TableRow>
                                 <TableRow v-for="item in trainings" :key="item.id">
-                                    <TableCell>{{ item.title || 'N/A' }}</TableCell>
-                                    <TableCell>{{ item.category || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.title || '—' }}</TableCell>
+                                    <TableCell>{{ item.category || '—' }}</TableCell>
                                     <TableCell>{{ formatDate(item.date_from) }}</TableCell>
                                     <TableCell>{{ formatDate(item.date_to) }}</TableCell>
-                                    <TableCell>{{ item.venue || 'N/A' }}</TableCell>
-                                    <TableCell>{{ item.status || 'N/A' }}</TableCell>
+                                    <TableCell>{{ item.venue || '—' }}</TableCell>
+                                    <TableCell>{{ item.status || '—' }}</TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>

@@ -734,8 +734,14 @@ class MemberController extends Controller
                 ];
             });
 
+        $member = $member->load('cooperative');
+
+        $memberData = $member->toArray();
+        $memberData['birth_date'] = $member->birth_date ? $member->birth_date->format('Y-m-d') : null;
+        $memberData['date_joined'] = $member->date_joined ? $member->date_joined->format('Y-m-d') : null;
+
         return Inertia::render('Members/Edit', [
-            'member' => $member->load('cooperative'),
+            'member' => $memberData,
             'cooperatives' => $cooperativesQuery->get(),
             'availableRoles' => $this->assignableMemberRoles(),
             'userAccount' => $userAccount ? [

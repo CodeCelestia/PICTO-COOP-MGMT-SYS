@@ -2,6 +2,7 @@
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
+import { useFormUx } from '@/composables/useFormUx';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCreateBack } from '@/composables/useCreateBack';
@@ -165,6 +166,8 @@ const form = useForm({
     context: '',
     return_to: '',
 });
+
+const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, markClean } = useFormUx(form);
 
 const primaryLivelihoodTags = ref<string[]>(
     (props.member.primary_livelihood || '')
@@ -350,15 +353,19 @@ const submit = () => {
     form.put(`/members/${props.member.id}`, {
         preserveScroll: true,
         onSuccess: () => {
+            markClean();
             notifySuccess('Member updated successfully.');
-                goBack();
+            goBack();
         },
+        onError: () => {
+            triggerErrorShake();
+            scrollToFirstError();
+        }
     });
 };
 
-const cancel = () => {
-    goBack();
-};
+// use composable-provided handler which defaults to window.history.back()
+// `handleCancel` is provided by the composable
 
 const toggleRole = (roleId: number) => {
     const index = form.role_ids.indexOf(roleId);
@@ -393,7 +400,7 @@ const toggleRole = (roleId: number) => {
             </section>
 
             <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                <form @submit.prevent="submit" class="space-y-6">
+                <form @submit.prevent="submit" :class="{ 'animate-shake': showErrorShake }" class="space-y-6">
                     <!-- Cooperative Association -->
                     <div>
                         <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -402,9 +409,9 @@ const toggleRole = (roleId: number) => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="coop_id">Cooperative <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.coop_id" required>
-                                    <SelectTrigger :class="{ 'border-red-500': form.errors.coop_id }">
+                                <Label for="coop_id">Cooperative <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Select v-model="form.coop_id" required @update:modelValue="() => clearError('coop_id')">
+                                    <SelectTrigger :class="inputErrorClass('coop_id')">
                                         <SelectValue placeholder="Select cooperative" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -428,14 +435,15 @@ const toggleRole = (roleId: number) => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="first_name">First Name <span class="text-red-500">*</span></Label>
+                                <Label for="first_name">First Name <span class="text-red-500 ml-0.5">*</span></Label>
                                 <Input
                                     id="first_name"
                                     v-model="form.first_name"
                                     type="text"
                                     required
                                     placeholder="Enter first name"
-                                    :class="{ 'border-red-500': form.errors.first_name }"
+                                    :class="inputErrorClass('first_name')"
+                                    @input="clearError('first_name')"
                                 />
                                 <p v-if="form.errors.first_name" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.first_name }}
@@ -443,14 +451,15 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="last_name">Last Name <span class="text-red-500">*</span></Label>
+                                <Label for="last_name">Last Name <span class="text-red-500 ml-0.5">*</span></Label>
                                 <Input
                                     id="last_name"
                                     v-model="form.last_name"
                                     type="text"
                                     required
                                     placeholder="Enter last name"
-                                    :class="{ 'border-red-500': form.errors.last_name }"
+                                    :class="inputErrorClass('last_name')"
+                                    @input="clearError('last_name')"
                                 />
                                 <p v-if="form.errors.last_name" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.last_name }}
@@ -458,12 +467,13 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="birth_date">Birth Date</Label>
+                                <Label for="birth_date">Birth Date <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
                                 <Input
                                     id="birth_date"
                                     v-model="form.birth_date"
                                     type="date"
-                                    :class="{ 'border-red-500': form.errors.birth_date }"
+                                    :class="inputErrorClass('birth_date')"
+                                    @input="clearError('birth_date')"
                                 />
                                 <p v-if="form.errors.birth_date" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.birth_date }}
@@ -471,9 +481,9 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="gender">Gender</Label>
-                                <Select v-model="form.gender">
-                                    <SelectTrigger :class="{ 'border-red-500': form.errors.gender }">
+                                <Label for="gender">Gender <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
+                                <Select v-model="form.gender" @update:modelValue="() => clearError('gender')">
+                                    <SelectTrigger :class="inputErrorClass('gender')">
                                         <SelectValue placeholder="Select gender" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -497,13 +507,14 @@ const toggleRole = (roleId: number) => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="email">Email</Label>
+                                <Label for="email">Email <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
                                 <Input
                                     id="email"
                                     v-model="form.email"
                                     type="email"
                                     placeholder="member@example.com"
-                                    :class="{ 'border-red-500': form.errors.email }"
+                                    :class="inputErrorClass('email')"
+                                    @input="clearError('email')"
                                 />
                                 <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.email }}
@@ -511,13 +522,14 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div>
-                                <Label for="phone">Phone Number</Label>
+                                <Label for="phone">Phone Number <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
                                 <Input
                                     id="phone"
                                     v-model="form.phone"
                                     type="tel"
                                     placeholder="+63 XXX XXX XXXX"
-                                    :class="{ 'border-red-500': form.errors.phone }"
+                                    :class="inputErrorClass('phone')"
+                                    @input="clearError('phone')"
                                 />
                                 <p v-if="form.errors.phone" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.phone }}
@@ -525,12 +537,13 @@ const toggleRole = (roleId: number) => {
                             </div>
 
                             <div class="md:col-span-2">
-                                <Label for="address">Street Address / Building</Label>
+                                <Label for="address">Street Address / Building <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
                                 <Textarea
                                     id="address"
                                     v-model="form.address"
                                     placeholder="Street, building, house number..."
-                                    :class="{ 'border-red-500': form.errors.address }"
+                                    :class="inputErrorClass('address')"
+                                    @input="clearError('address')"
                                     rows="2"
                                 />
                                 <p v-if="form.errors.address" class="mt-1 text-sm text-red-500">
@@ -1036,7 +1049,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Form Actions -->
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>

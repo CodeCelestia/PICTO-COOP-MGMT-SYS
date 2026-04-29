@@ -2,6 +2,7 @@
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, BadgeCheck, Briefcase, Building2, FileText, MapPin, Save, User, UserPlus, X } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
+import { useFormUx } from '@/composables/useFormUx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,8 @@ const form = useForm({
     return_to: '',
 });
 
+const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, markClean } = useFormUx(form);
+
 const primaryLivelihoodTags = ref<string[]>([]);
 const newPrimaryLivelihood = ref('');
 
@@ -167,7 +170,12 @@ const submit = () => {
     form.post('/members', {
         preserveScroll: true,
         onSuccess: () => {
+            markClean();
             notifySuccess('Member registered successfully.');
+        },
+        onError: () => {
+            triggerErrorShake();
+            scrollToFirstError();
         },
     });
 };
@@ -176,9 +184,8 @@ const goBackToCooperativeMembers = () => {
     window.history.back();
 };
 
-const cancel = () => {
-    goBackToCooperativeMembers();
-};
+// use composable-provided handler which defaults to window.history.back()
+// `handleCancel` is provided by the composable
 
 const toggleRole = (roleId: number) => {
     const index = form.role_ids.indexOf(roleId);
@@ -232,7 +239,7 @@ const toggleRole = (roleId: number) => {
                 </div>
             </div>
 
-            <form @submit.prevent="submit" class="space-y-6">
+            <form @submit.prevent="submit" :class="{ 'animate-shake': showErrorShake }" class="space-y-6">
                 <Card class="border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
@@ -244,27 +251,27 @@ const toggleRole = (roleId: number) => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="first_name">First Name <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Input id="first_name" v-model="form.first_name" type="text" required placeholder="Enter first name" :class="{ 'border-red-500': form.errors.first_name }" />
+                                <Label for="first_name">First Name <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Input id="first_name" v-model="form.first_name" type="text" required placeholder="Enter first name" :class="inputErrorClass('first_name')" @input="clearError('first_name')" />
                                 <p v-if="form.errors.first_name" class="mt-1 text-sm text-red-500">{{ form.errors.first_name }}</p>
                             </div>
 
                             <div>
-                                <Label for="last_name">Last Name <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Input id="last_name" v-model="form.last_name" type="text" required placeholder="Enter last name" :class="{ 'border-red-500': form.errors.last_name }" />
+                                <Label for="last_name">Last Name <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Input id="last_name" v-model="form.last_name" type="text" required placeholder="Enter last name" :class="inputErrorClass('last_name')" @input="clearError('last_name')" />
                                 <p v-if="form.errors.last_name" class="mt-1 text-sm text-red-500">{{ form.errors.last_name }}</p>
                             </div>
 
                             <div>
-                                <Label for="birth_date">Birth Date <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Input id="birth_date" v-model="form.birth_date" type="date" required :class="{ 'border-red-500': form.errors.birth_date }" />
+                                <Label for="birth_date">Birth Date <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Input id="birth_date" v-model="form.birth_date" type="date" required :class="inputErrorClass('birth_date')" @input="clearError('birth_date')" />
                                 <p v-if="form.errors.birth_date" class="mt-1 text-sm text-red-500">{{ form.errors.birth_date }}</p>
                             </div>
 
                             <div>
-                                <Label for="gender">Gender <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Select v-model="form.gender" required>
-                                    <SelectTrigger :class="{ 'border-red-500': form.errors.gender }">
+                                <Label for="gender">Gender <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Select v-model="form.gender" required @update:modelValue="() => clearError('gender')">
+                                    <SelectTrigger :class="inputErrorClass('gender')">
                                         <SelectValue placeholder="Select gender" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -290,21 +297,21 @@ const toggleRole = (roleId: number) => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="email">Email Address <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Input id="email" v-model="form.email" type="email" placeholder="member@example.com" required :class="{ 'border-red-500': form.errors.email }" />
+                                <Label for="email">Email Address <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
+                                <Input id="email" v-model="form.email" type="email" placeholder="member@example.com" :class="inputErrorClass('email')" @input="clearError('email')" />
                                 <p class="mt-1 text-xs text-muted-foreground">This will be used as the account email.</p>
                                 <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">{{ form.errors.email }}</p>
                             </div>
 
                             <div>
-                                <Label for="phone">Phone Number</Label>
-                                <Input id="phone" v-model="form.phone" type="tel" placeholder="+63 XXX XXX XXXX" :class="{ 'border-red-500': form.errors.phone }" />
+                                <Label for="phone">Phone Number <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
+                                <Input id="phone" v-model="form.phone" type="tel" placeholder="+63 XXX XXX XXXX" :class="inputErrorClass('phone')" @input="clearError('phone')" />
                                 <p v-if="form.errors.phone" class="mt-1 text-sm text-red-500">{{ form.errors.phone }}</p>
                             </div>
 
                             <div class="md:col-span-2">
-                                <Label for="address">Street Address / Building <span class="ml-0.5 text-red-500">*</span></Label>
-                                <Textarea id="address" v-model="form.address" placeholder="Street, building, house number..." required rows="2" :class="{ 'border-red-500': form.errors.address }" />
+                                <Label for="address">Street Address / Building <span class="text-red-500 ml-0.5">*</span></Label>
+                                <Textarea id="address" v-model="form.address" placeholder="Street, building, house number..." required rows="2" :class="inputErrorClass('address')" @input="clearError('address')" />
                                 <p v-if="form.errors.address" class="mt-1 text-sm text-red-500">{{ form.errors.address }}</p>
                             </div>
 
@@ -516,8 +523,8 @@ const toggleRole = (roleId: number) => {
                     </CardContent>
                 </Card>
 
-                <div class="flex justify-end gap-3 pt-0">
-                    <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                    <div class="flex justify-end gap-3 pt-0">
+                    <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                         <X class="h-4 w-4" />
                         Cancel
                     </Button>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import Swal from 'sweetalert2';
+import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,6 +90,9 @@ const form = useForm({
     follow_up_remarks: '',
     status: 'Planned',
 });
+
+// Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll, cancel)
+const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel: handleCancelComposable, showErrorShake } = useFormUx(form);
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
@@ -437,13 +442,15 @@ const submit = async () => {
     })).post('/trainings', {
         preserveScroll: true,
         onSuccess: () => {
+            markClean();
             notifySuccess('Training saved successfully.');
         },
         onError: async (errors) => {
+            triggerErrorShake();
             if (errors.coop_ids || errors.coop_id) {
                 await scrollToCooperativeSection();
             } else {
-                await scrollToFirstInvalidField();
+                await scrollToFirstError();
             }
 
             const firstError = Object.values(errors)[0];
@@ -502,7 +509,7 @@ const cancel = () => {
                 </CardContent>
             </Card>
 
-            <form ref="trainingFormRef" @submit.prevent="submit" class="space-y-6">
+            <form ref="trainingFormRef" @submit.prevent="submit" class="space-y-6" :class="{ 'animate-shake': showErrorShake }">
                 <Card class="w-full min-h-87.5 border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
@@ -515,52 +522,52 @@ const cancel = () => {
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="title">Title <span class="text-red-500">*</span></Label>
-                                <Input id="title" v-model="form.title" required placeholder="Enter training title" :class="{ 'border-red-500': form.errors.title }" />
-                                <p v-if="form.errors.title" class="mt-1 text-sm text-red-500">{{ form.errors.title }}</p>
+                                <Input id="title" v-model="form.title" required placeholder="Enter training title" :class="inputErrorClass('title')" @input="clearError('title')" />
+                                <p v-if="form.errors.title" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.title }}</p>
                             </div>
                             <div>
                                 <Label for="target_group">Target Group <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.target_group">
-                                    <SelectTrigger id="target_group" :class="{ 'border-red-500': form.errors.target_group }">
+                                <Select v-model="form.target_group" @update:modelValue="clearError('target_group')">
+                                    <SelectTrigger id="target_group" :class="inputErrorClass('target_group')">
                                         <SelectValue placeholder="Select target group" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="option in targetGroups" :key="option" :value="option">{{ option }}</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500">{{ form.errors.target_group }}</p>
+                                <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.target_group }}</p>
                             </div>
                             <div>
-                                <Label for="date_conducted">Date Conducted</Label>
-                                <Input id="date_conducted" v-model="form.date_conducted" type="date" :class="{ 'border-red-500': form.errors.date_conducted }" />
-                                <p v-if="form.errors.date_conducted" class="mt-1 text-sm text-red-500">{{ form.errors.date_conducted }}</p>
+                                <Label for="date_conducted"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Date Conducted</Label>
+                                <Input id="date_conducted" v-model="form.date_conducted" type="date" :class="inputErrorClass('date_conducted')" @input="clearError('date_conducted')" />
+                                <p v-if="form.errors.date_conducted" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.date_conducted }}</p>
                             </div>
                             <div>
-                                <Label for="venue">Venue</Label>
-                                <Input id="venue" v-model="form.venue" placeholder="Training venue" :class="{ 'border-red-500': form.errors.venue }" />
-                                <p v-if="form.errors.venue" class="mt-1 text-sm text-red-500">{{ form.errors.venue }}</p>
+                                <Label for="venue"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Venue</Label>
+                                <Input id="venue" v-model="form.venue" placeholder="Training venue" :class="inputErrorClass('venue')" @input="clearError('venue')" />
+                                <p v-if="form.errors.venue" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.venue }}</p>
                             </div>
                             <div>
-                                <Label for="facilitator">Facilitator</Label>
-                                <Input id="facilitator" v-model="form.facilitator" placeholder="Provider or facilitator" :class="{ 'border-red-500': form.errors.facilitator }" />
-                                <p v-if="form.errors.facilitator" class="mt-1 text-sm text-red-500">{{ form.errors.facilitator }}</p>
+                                <Label for="facilitator"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Facilitator</Label>
+                                <Input id="facilitator" v-model="form.facilitator" placeholder="Provider or facilitator" :class="inputErrorClass('facilitator')" @input="clearError('facilitator')" />
+                                <p v-if="form.errors.facilitator" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.facilitator }}</p>
                             </div>
                             <div>
                                 <Label for="status">Status <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.status">
-                                    <SelectTrigger id="status" :class="{ 'border-red-500': form.errors.status }">
+                                <Select v-model="form.status" @update:modelValue="clearError('status')">
+                                    <SelectTrigger id="status" :class="inputErrorClass('status')">
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="option in statusOptions" :key="option" :value="option">{{ option }}</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="form.errors.status" class="mt-1 text-sm text-red-500">{{ form.errors.status }}</p>
+                                <p v-if="form.errors.status" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.status }}</p>
                             </div>
                             <div class="md:col-span-2">
-                                <Label for="skills_targeted">Skills Targeted</Label>
-                                <Textarea id="skills_targeted" v-model="form.skills_targeted" placeholder="Skills targeted by the training" />
-                                <p v-if="form.errors.skills_targeted" class="mt-1 text-sm text-red-500">{{ form.errors.skills_targeted }}</p>
+                                <Label for="skills_targeted"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Skills Targeted</Label>
+                                <Textarea id="skills_targeted" v-model="form.skills_targeted" placeholder="Skills targeted by the training" :class="inputErrorClass('skills_targeted')" @input="clearError('skills_targeted')" />
+                                <p v-if="form.errors.skills_targeted" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.skills_targeted }}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -818,26 +825,27 @@ const cancel = () => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="no_of_participants">No. of Participants</Label>
-                                <Input id="no_of_participants" v-model="form.no_of_participants" type="number" min="0" placeholder="0" :class="{ 'border-red-500': form.errors.no_of_participants }" />
-                                <p v-if="form.errors.no_of_participants" class="mt-1 text-sm text-red-500">{{ form.errors.no_of_participants }}</p>
+                                <Label for="no_of_participants"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Number of Participants</Label>
+                                <Input id="no_of_participants" v-model="form.no_of_participants" type="number" min="0" placeholder="0" :class="inputErrorClass('no_of_participants')" @input="clearError('no_of_participants')" />
+                                <p v-if="form.errors.no_of_participants" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.no_of_participants }}</p>
                             </div>
                             <div>
-                                <Label for="follow_up_date">Follow-up Date</Label>
-                                <Input id="follow_up_date" v-model="form.follow_up_date" type="date" :class="{ 'border-red-500': form.errors.follow_up_date }" />
-                                <p v-if="form.errors.follow_up_date" class="mt-1 text-sm text-red-500">{{ form.errors.follow_up_date }}</p>
+                                <Label for="follow_up_date"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Follow-Up Date</Label>
+                                <Input id="follow_up_date" v-model="form.follow_up_date" type="date" :class="inputErrorClass('follow_up_date')" @input="clearError('follow_up_date')" />
+                                <p v-if="form.errors.follow_up_date" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_date }}</p>
                             </div>
                             <div class="md:col-span-2">
-                                <Label for="follow_up_remarks">Follow-up Remarks</Label>
-                                <Input id="follow_up_remarks" v-model="form.follow_up_remarks" placeholder="Follow-up remarks" :class="{ 'border-red-500': form.errors.follow_up_remarks }" />
-                                <p v-if="form.errors.follow_up_remarks" class="mt-1 text-sm text-red-500">{{ form.errors.follow_up_remarks }}</p>
+                                <Label for="follow_up_remarks"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Follow-Up Remarks</Label>
+                                <Input id="follow_up_remarks" v-model="form.follow_up_remarks" placeholder="Follow-up remarks or notes" :class="inputErrorClass('follow_up_remarks')" @input="clearError('follow_up_remarks')" />
+                                <p v-if="form.errors.follow_up_remarks" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_remarks }}</p>
                             </div>
                             <div class="md:col-span-2">
                                 <Label for="follow_up_needed" class="flex items-center gap-2 text-sm text-foreground/80">
-                                    <Checkbox id="follow_up_needed" v-model:checked="form.follow_up_needed" />
+                                    <span class="text-xs text-muted-foreground font-normal">(Optional)</span>
+                                    <Checkbox id="follow_up_needed" v-model:checked="form.follow_up_needed" @update:checked="clearError('follow_up_needed')" />
                                     <span>Follow-up needed</span>
                                 </Label>
-                                <p v-if="form.errors.follow_up_needed" class="mt-1 text-sm text-red-500">{{ form.errors.follow_up_needed }}</p>
+                                <p v-if="form.errors.follow_up_needed" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_needed }}</p>
                             </div>
                         </div>
                     </CardContent>

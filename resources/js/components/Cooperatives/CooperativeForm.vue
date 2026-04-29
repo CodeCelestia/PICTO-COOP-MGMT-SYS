@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { Building2, Save, Search, X, MapPin } from 'lucide-vue-next';
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, nextTick } from 'vue';
+import { AlertCircle } from 'lucide-vue-next';
+import { useFormUx } from '@/composables/useFormUx';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -126,6 +128,27 @@ const form = useForm({
   accreditations: normalizeAccreditations(props.accreditations ?? props.cooperative?.accreditations ?? []),
 });
 
+// Frontend validation errors (optional override)
+const formErrors = ref<Record<string, string>>({});
+
+// use shared composable for form UX (dirty tracking, errors, shake, scroll, cancel)
+const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError: clearErrorUx, scrollToFirstError, triggerErrorShake, handleCancel, markClean } = useFormUx(form);
+
+// local wrapper to also clear frontend override errors
+const clearError = (field: string) => {
+  if (formErrors.value[field]) delete formErrors.value[field];
+  if (form.errors && form.errors[field]) {
+    if (typeof form.clearErrors === 'function') {
+      form.clearErrors(field);
+    } else {
+      // fallback
+      delete form.errors[field];
+    }
+  }
+  // also call composable clear for safety
+  try { clearErrorUx(field); } catch (e) {}
+};
+
 const selectedTypeLabels = computed(() => {
   const selected = props.cooperativeTypes
     .filter((type) => form.type_ids.includes(type.id.toString()))
@@ -148,11 +171,12 @@ const toggleCoopType = (typeId: string) => {
   } else {
     form.type_ids.push(typeId);
   }
-  form.clearErrors('type_ids');
+  clearError('type_ids');
 };
 
 const clearCoopType = () => {
   form.type_ids = [];
+  clearError('type_ids');
 };
 
 const saveCoopTypeSelection = () => {
@@ -226,6 +250,9 @@ onMounted(async () => {
     }
   } finally {
     isHydrating.value = false;
+    // mark pre-filling complete so dirty tracking starts
+    isPreFilling.value = false;
+    isDirty.value = false;
   }
 });
 
@@ -295,20 +322,33 @@ const submit = () => {
   }
   if (!form.type_ids.length) {
     form.setError('type_ids', 'Please select at least one cooperative type.');
+    void triggerErrorShake();
+    scrollToFirstError();
     return;
   }
 
+  const onOptions = {
+    preserveScroll: true,
+    onError: () => {
+      void triggerErrorShake();
+      scrollToFirstError();
+    },
+    onSuccess: () => {
+      markClean();
+    },
+  };
+
   if (props.method === 'post') {
-    form.post(props.action, { preserveScroll: true });
+    form.post(props.action, onOptions);
   } else {
-    form.put(props.action, { preserveScroll: true });
+    form.put(props.action, onOptions);
   }
 };
 </script>
 
 <template>
   <div class="rounded-xl border border-border/80 bg-card shadow-sm">
-    <form @submit.prevent="submit" class="space-y-6 p-5 sm:p-6">
+    <form @submit.prevent="submit" class="space-y-6 p-5 sm:p-6" :class="{ 'animate-shake': showErrorShake }">
       <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
         <h2 class="mb-4 flex items-center gap-2 text-base font-semibold text-foreground sm:text-lg">
           <Building2 class="h-5 w-5 text-primary" />
@@ -316,40 +356,67 @@ const submit = () => {
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <Label for="name">Cooperative Name <span class="text-red-500">*</span></Label>
-            <Input id="name" v-model="form.name" required placeholder="Enter cooperative name" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.name}" />
-            <p v-if="form.errors.name" class="mt-1 text-sm text-red-500">{{ form.errors.name }}</p>
+            <Label for="name" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Cooperative Name
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Input id="name" v-model="form.name" required placeholder="Enter cooperative name" :class="inputErrorClass('name')" @input="clearError('name')" />
+            <p v-if="form.errors.name || formErrors.name" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.name || formErrors.name }}
+            </p>
           </div>
           <div>
-            <Label for="registration_number">Registration Number <span class="text-red-500">*</span></Label>
-            <Input id="registration_number" v-model="form.registration_number" required placeholder="e.g., CDA-REG-5-2024-001" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.registration_number}" />
-            <p v-if="form.errors.registration_number" class="mt-1 text-sm text-red-500">{{ form.errors.registration_number }}</p>
+            <Label for="registration_number" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Registration Number
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Input id="registration_number" v-model="form.registration_number" required placeholder="e.g., CDA-REG-5-2024-001" :class="inputErrorClass('registration_number')" @input="clearError('registration_number')" />
+            <p v-if="form.errors.registration_number || formErrors.registration_number" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.registration_number || formErrors.registration_number }}
+            </p>
           </div>
           <div>
-            <Label for="coop_type">Cooperative Type <span class="text-red-500">*</span></Label>
+            <Label for="coop_type" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Cooperative Type
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
             <Button
               id="coop_type"
               type="button"
               variant="outline"
               class="w-full justify-between font-normal"
-              :class="{'border-red-500 focus-visible:ring-red-500': form.errors.type_ids, 'text-muted-foreground': form.type_ids.length === 0}"
+              :class="[inputErrorClass('type_ids'), { 'text-muted-foreground': form.type_ids.length === 0 }]"
               @click="isCoopTypeDialogOpen = true"
             >
               <span class="truncate">{{ selectedTypeLabels || 'Select cooperative type(s)' }}</span>
               <span class="text-xs text-muted-foreground">Choose</span>
             </Button>
             <p class="mt-1 text-xs text-muted-foreground">Use the picker to search and select a cooperative type.</p>
-            <p v-if="form.errors.type_ids" class="mt-1 text-sm text-red-500">{{ form.errors.type_ids }}</p>
+            <p v-if="form.errors.type_ids || formErrors.type_ids" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.type_ids || formErrors.type_ids }}
+            </p>
           </div>
           <div>
-            <Label for="date_established">Date Established <span class="text-red-500">*</span></Label>
-            <Input id="date_established" v-model="form.date_established" type="date" required @change="form.date_established = (($event.target as HTMLInputElement).value)" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.date_established}" />
-            <p v-if="form.errors.date_established" class="mt-1 text-sm text-red-500">{{ form.errors.date_established }}</p>
+            <Label for="date_established" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Date Established
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Input id="date_established" v-model="form.date_established" type="date" required @change="(e) => { form.date_established = (e.target as HTMLInputElement).value; clearError('date_established'); }" :class="inputErrorClass('date_established')" />
+            <p v-if="form.errors.date_established || formErrors.date_established" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.date_established || formErrors.date_established }}
+            </p>
           </div>
           <div>
-            <Label for="classification">Classification</Label>
-            <Select v-model="form.classification">
-              <SelectTrigger id="classification" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.classification}">
+            <Label for="classification" class="text-sm font-medium leading-none">
+              Classification
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Select v-model="form.classification" @update:modelValue="() => clearError('classification')">
+              <SelectTrigger id="classification" :class="inputErrorClass('classification')">
                 <SelectValue placeholder="Select classification (optional)" />
               </SelectTrigger>
               <SelectContent>
@@ -362,12 +429,18 @@ const submit = () => {
               </SelectContent>
             </Select>
             <p class="mt-1 text-xs text-muted-foreground">Cooperative size classification.</p>
-            <p v-if="form.errors.classification" class="mt-1 text-sm text-red-500">{{ form.errors.classification }}</p>
+            <p v-if="form.errors.classification || formErrors.classification" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.classification || formErrors.classification }}
+            </p>
           </div>
           <div>
-            <Label for="status">Status</Label>
-            <Select v-model="form.status">
-              <SelectTrigger id="status" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.status}">
+            <Label for="status" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Status
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Select v-model="form.status" @update:modelValue="() => clearError('status')">
+              <SelectTrigger id="status" :class="inputErrorClass('status')">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
@@ -378,12 +451,21 @@ const submit = () => {
               </SelectContent>
             </Select>
             <p class="mt-1 text-xs text-muted-foreground">Select the cooperative's registration status.</p>
-            <p v-if="form.errors.status" class="mt-1 text-sm text-red-500">{{ form.errors.status }}</p>
+            <p v-if="form.errors.status || formErrors.status" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.status || formErrors.status }}
+            </p>
           </div>
           <div class="md:col-span-2">
-            <Label for="address">Address <span class="text-red-500">*</span></Label>
-            <Textarea id="address" v-model="form.address" required rows="3" placeholder="e.g., 123 Main Street" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.address}" />
-            <p v-if="form.errors.address" class="mt-1 text-sm text-red-500">{{ form.errors.address }}</p>
+            <Label for="address" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Address
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Textarea id="address" v-model="form.address" required rows="3" placeholder="e.g., 123 Main Street" :class="inputErrorClass('address')" @input="clearError('address')" />
+            <p v-if="form.errors.address || formErrors.address" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.address || formErrors.address }}
+            </p>
           </div>
         </div>
       </div>
@@ -395,48 +477,72 @@ const submit = () => {
         </h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <Label for="region">Region <span class="text-red-500">*</span></Label>
-            <Select v-model="selectedRegionCode" required>
-              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.region}"><SelectValue placeholder="Select region" /></SelectTrigger>
+            <Label for="region" class="text-sm font-medium leading-none">
+              Region
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Select v-model="selectedRegionCode" @update:modelValue="() => clearError('region')">
+              <SelectTrigger :class="inputErrorClass('region')"><SelectValue placeholder="Select region" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Regions</SelectItem>
                 <SelectItem v-for="region in regions" :key="region.code" :value="region.code">{{ region.name }}</SelectItem>
               </SelectContent>
             </Select>
-            <p v-if="form.errors.region" class="mt-1 text-sm text-red-500">{{ form.errors.region }}</p>
+            <p v-if="form.errors.region || formErrors.region" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.region || formErrors.region }}
+            </p>
           </div>
           <div>
-            <Label for="province">Province <span class="text-red-500">*</span></Label>
-            <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0" required>
-              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.province}"><SelectValue placeholder="Select province" /></SelectTrigger>
+            <Label for="province" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Province
+              <span class="text-red-500 ml-0.5">*</span>
+            </Label>
+            <Select v-model="selectedProvinceCode" :disabled="selectedRegionCode === 'all' || provinces.length === 0" @update:modelValue="() => clearError('province')">
+              <SelectTrigger :class="inputErrorClass('province')"><SelectValue placeholder="Select province" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Provinces</SelectItem>
                 <SelectItem v-for="provinceItem in provinces" :key="provinceItem.code" :value="provinceItem.code">{{ provinceItem.name }}</SelectItem>
               </SelectContent>
             </Select>
-            <p v-if="form.errors.province" class="mt-1 text-sm text-red-500">{{ form.errors.province }}</p>
+            <p v-if="form.errors.province || formErrors.province" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.province || formErrors.province }}
+            </p>
           </div>
           <div>
-            <Label for="city_municipality">City/Municipality <span class="text-red-500">*</span></Label>
-            <Select v-model="selectedCityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0" required>
-              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.city_municipality}"><SelectValue placeholder="Select city/municipality" /></SelectTrigger>
+            <Label for="city_municipality" class="text-sm font-medium leading-none">
+              City/Municipality
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Select v-model="selectedCityCode" :disabled="selectedProvinceCode === 'all' || cities.length === 0" @update:modelValue="() => clearError('city_municipality')">
+              <SelectTrigger :class="inputErrorClass('city_municipality')"><SelectValue placeholder="Select city/municipality" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Municipalities</SelectItem>
                 <SelectItem v-for="cityItem in cities" :key="cityItem.code" :value="cityItem.code">{{ cityItem.name }}</SelectItem>
               </SelectContent>
             </Select>
-            <p v-if="form.errors.city_municipality" class="mt-1 text-sm text-red-500">{{ form.errors.city_municipality }}</p>
+            <p v-if="form.errors.city_municipality || formErrors.city_municipality" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.city_municipality || formErrors.city_municipality }}
+            </p>
           </div>
           <div>
-            <Label for="barangay">Barangay</Label>
-            <Select v-model="form.barangay" :disabled="selectedCityCode === 'all' || barangays.length === 0">
-              <SelectTrigger :class="{'border-red-500 focus-visible:ring-red-500': form.errors.barangay}"><SelectValue placeholder="Select barangay" /></SelectTrigger>
+            <Label for="barangay" class="text-sm font-medium leading-none">
+              Barangay
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Select v-model="form.barangay" :disabled="selectedCityCode === 'all' || barangays.length === 0" @update:modelValue="() => clearError('barangay')">
+              <SelectTrigger :class="inputErrorClass('barangay')"><SelectValue placeholder="Select barangay" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">None</SelectItem>
                 <SelectItem v-for="barangay in barangays" :key="barangay.code" :value="barangay.name">{{ barangay.name }}</SelectItem>
               </SelectContent>
             </Select>
-            <p v-if="form.errors.barangay" class="mt-1 text-sm text-red-500">{{ form.errors.barangay }}</p>
+            <p v-if="form.errors.barangay || formErrors.barangay" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.barangay || formErrors.barangay }}
+            </p>
           </div>
         </div>
       </div>
@@ -445,14 +551,26 @@ const submit = () => {
         <h2 class="mb-4 text-base font-semibold text-foreground sm:text-lg">Contact Information</h2>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <Label for="email">Email Address</Label>
-            <Input id="email" v-model="form.email" type="email" placeholder="email@example.com" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.email}" />
-            <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">{{ form.errors.email }}</p>
+            <Label for="email" class="text-sm font-medium leading-none">
+              Email Address
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Input id="email" v-model="form.email" type="email" placeholder="email@example.com" :class="inputErrorClass('email')" @input="clearError('email')" />
+            <p v-if="form.errors.email || formErrors.email" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.email || formErrors.email }}
+            </p>
           </div>
           <div>
-            <Label for="phone">Phone Number</Label>
-            <Input id="phone" v-model="form.phone" type="text" placeholder="+63 XXX XXX XXXX" :class="{'border-red-500 focus-visible:ring-red-500': form.errors.phone}" />
-            <p v-if="form.errors.phone" class="mt-1 text-sm text-red-500">{{ form.errors.phone }}</p>
+            <Label for="phone" class="text-sm font-medium leading-none">
+              Phone Number
+              <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+            </Label>
+            <Input id="phone" v-model="form.phone" type="text" placeholder="+63 XXX XXX XXXX" :class="inputErrorClass('phone')" @input="clearError('phone')" />
+            <p v-if="form.errors.phone || formErrors.phone" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+              {{ form.errors.phone || formErrors.phone }}
+            </p>
           </div>
         </div>
       </div>
@@ -477,71 +595,96 @@ const submit = () => {
           >
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <Label :for="`accreditation_level_${index}`">Level <span class="text-red-500">*</span></Label>
+                <Label :for="`accreditation_level_${index}`" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Level
+                  <span class="text-red-500 ml-0.5">*</span>
+                </Label>
                 <Input
                   :id="`accreditation_level_${index}`"
                   v-model="form.accreditations[index].level"
                   type="text"
                   placeholder="e.g. Level 1"
-                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.level`] }"
+                  :class="inputErrorClass(`accreditations.${index}.level`)"
+                  @input="() => clearError(`accreditations.${index}.level`)"
                 />
-                <p v-if="form.errors[`accreditations.${index}.level`]" class="mt-1 text-sm text-red-500">
-                  {{ form.errors[`accreditations.${index}.level`] }}
+                <p v-if="form.errors[`accreditations.${index}.level`] || formErrors[`accreditations.${index}.level`]" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                  {{ form.errors[`accreditations.${index}.level`] || formErrors[`accreditations.${index}.level`] }}
                 </p>
               </div>
               <div>
-                <Label :for="`accreditation_date_granted_${index}`">Date Granted <span class="text-red-500">*</span></Label>
+                <Label :for="`accreditation_date_granted_${index}`" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Date Granted
+                  <span class="text-red-500 ml-0.5">*</span>
+                </Label>
                 <Input
                   :id="`accreditation_date_granted_${index}`"
                   v-model="form.accreditations[index].date_granted"
                   type="date"
-                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.date_granted`] }"
+                  :class="inputErrorClass(`accreditations.${index}.date_granted`)"
+                  @change="() => clearError(`accreditations.${index}.date_granted`)"
                 />
-                <p v-if="form.errors[`accreditations.${index}.date_granted`]" class="mt-1 text-sm text-red-500">
-                  {{ form.errors[`accreditations.${index}.date_granted`] }}
+                <p v-if="form.errors[`accreditations.${index}.date_granted`] || formErrors[`accreditations.${index}.date_granted`]" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                  {{ form.errors[`accreditations.${index}.date_granted`] || formErrors[`accreditations.${index}.date_granted`] }}
                 </p>
               </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mt-4">
               <div>
-                <Label :for="`accreditation_valid_until_${index}`">Valid Until</Label>
+                <Label :for="`accreditation_valid_until_${index}`" class="text-sm font-medium leading-none">
+                  Valid Until
+                  <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+                </Label>
                 <Input
                   :id="`accreditation_valid_until_${index}`"
                   v-model="form.accreditations[index].valid_until"
                   type="date"
-                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.valid_until`] }"
+                  :class="inputErrorClass(`accreditations.${index}.valid_until`)"
+                  @change="() => clearError(`accreditations.${index}.valid_until`)"
                 />
-                <p v-if="form.errors[`accreditations.${index}.valid_until`]" class="mt-1 text-sm text-red-500">
-                  {{ form.errors[`accreditations.${index}.valid_until`] }}
+                <p v-if="form.errors[`accreditations.${index}.valid_until`] || formErrors[`accreditations.${index}.valid_until`]" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                  {{ form.errors[`accreditations.${index}.valid_until`] || formErrors[`accreditations.${index}.valid_until`] }}
                 </p>
               </div>
               <div>
-                <Label :for="`accreditation_issuing_body_${index}`">Issuing Body</Label>
+                <Label :for="`accreditation_issuing_body_${index}`" class="text-sm font-medium leading-none">
+                  Issuing Body
+                  <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+                </Label>
                 <Input
                   :id="`accreditation_issuing_body_${index}`"
                   v-model="form.accreditations[index].issuing_body"
                   type="text"
                   placeholder="CDA"
-                  :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.issuing_body`] }"
+                  :class="inputErrorClass(`accreditations.${index}.issuing_body`)"
+                  @input="() => clearError(`accreditations.${index}.issuing_body`)"
                 />
-                <p v-if="form.errors[`accreditations.${index}.issuing_body`]" class="mt-1 text-sm text-red-500">
-                  {{ form.errors[`accreditations.${index}.issuing_body`] }}
+                <p v-if="form.errors[`accreditations.${index}.issuing_body`] || formErrors[`accreditations.${index}.issuing_body`]" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                  {{ form.errors[`accreditations.${index}.issuing_body`] || formErrors[`accreditations.${index}.issuing_body`] }}
                 </p>
               </div>
             </div>
 
             <div class="mt-4">
-              <Label :for="`accreditation_remarks_${index}`">Remarks</Label>
+              <Label :for="`accreditation_remarks_${index}`" class="text-sm font-medium leading-none">
+                Remarks
+                <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
+              </Label>
               <Textarea
                 :id="`accreditation_remarks_${index}`"
                 v-model="form.accreditations[index].remarks"
                 rows="2"
                 placeholder="Optional remarks"
-                :class="{'border-red-500 focus-visible:ring-red-500': form.errors[`accreditations.${index}.remarks`] }"
+                :class="inputErrorClass(`accreditations.${index}.remarks`)"
+                @input="() => clearError(`accreditations.${index}.remarks`)"
               />
-              <p v-if="form.errors[`accreditations.${index}.remarks`]" class="mt-1 text-sm text-red-500">
-                {{ form.errors[`accreditations.${index}.remarks`] }}
+              <p v-if="form.errors[`accreditations.${index}.remarks`] || formErrors[`accreditations.${index}.remarks`]" class="text-sm text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                {{ form.errors[`accreditations.${index}.remarks`] || formErrors[`accreditations.${index}.remarks`] }}
               </p>
             </div>
 
@@ -555,7 +698,7 @@ const submit = () => {
       </div>
 
       <div class="flex flex-wrap justify-end gap-3 border-t border-border pt-6">
-        <Button type="button" variant="outline" @click="props.onCancel" class="gap-2"><X class="h-4 w-4" />Cancel</Button>
+        <Button type="button" variant="outline" @click="handleCancel" class="gap-2"><X class="h-4 w-4" />Cancel</Button>
         <Button v-if="props.canSubmit !== false" type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
       </div>
     </form>
@@ -610,3 +753,28 @@ const submit = () => {
     </Dialog>
   </div>
 </template>
+
+<style scoped>
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+</style>

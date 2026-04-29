@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, FileX, Lock, Monitor, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, onMounted, ref, watch, nextTick } from 'vue';
+import Swal from 'sweetalert2';
+import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -198,6 +200,9 @@ const categoryOptions = ['Project', 'Outreach', 'Event', 'Livelihood', 'Training
 const statusOptions = ['Planned', 'In Progress', 'Completed', 'Archived', 'Cancelled'];
 const funderTypeOptions = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
 const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
+
+// Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
+const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, showErrorShake } = useFormUx(form);
 const maxFundingSourceFiles = 3;
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -209,9 +214,20 @@ const initialSnapshot = JSON.stringify(form);
 
 const hasUnsavedChanges = () => JSON.stringify(form) !== initialSnapshot;
 
-const cancel = () => {
-    if (hasUnsavedChanges()) {
-        if (!confirm('You have unsaved changes. Leave anyway?')) return;
+const cancel = async () => {
+    // If form has unsaved changes, show SweetAlert first
+    if (isDirty.value) {
+        const result = await Swal.fire({
+            title: 'Discard changes?',
+            text: 'You have unsaved changes. Are you sure you want to discard them?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Discard',
+            cancelButtonText: 'Keep editing',
+        });
+
+        if (!result.isConfirmed) return;  // User chose to keep editing
+        // User chose to discard, proceed with navigation
     }
 
     const params = new URLSearchParams(page.url.split('?')[1] || '');
@@ -234,6 +250,12 @@ const cancel = () => {
 
     router.get(`/activities/${props.activity.id}`);
 };
+
+// Mark the form as clean after initial prefill (so changes are only tracked from here on)
+onMounted(async () => {
+    await nextTick();
+    markClean();
+});
 
 const initialSelectedCoopIds = computed(() => {
     if (lockedCooperativeId.value) {
@@ -674,9 +696,11 @@ const submit = () => {
     })).put(`/activities/${props.activity.id}`, {
         preserveScroll: true,
         onSuccess: () => {
+            markClean();
             notifySuccess('Activity updated successfully.');
         },
         onError: (errors) => {
+            triggerErrorShake();
             const firstError = Object.values(errors)[0];
             notifyError(firstError || 'Unable to update activity. Please check the form and try again.');
         },
@@ -703,7 +727,7 @@ const submit = () => {
                 </CardContent>
             </Card>
 
-            <form @submit.prevent="submit" class="space-y-6">
+            <form @submit.prevent="submit" class="space-y-6" :class="{ 'animate-shake': showErrorShake }">
                 <Card class="border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
@@ -716,13 +740,13 @@ const submit = () => {
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="title">Title <span class="text-red-500">*</span></Label>
-                                <Input id="title" v-model="form.title" placeholder="Enter activity title" :class="{ 'border-red-500': form.errors.title }" />
+                                <Input id="title" v-model="form.title" :class="inputErrorClass('title')" @input="clearError('title')" placeholder="Enter activity title" />
                                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-500">{{ form.errors.title }}</p>
                             </div>
                             <div>
                                 <Label for="category">Category <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.category">
-                                    <SelectTrigger id="category" :class="{ 'border-red-500': form.errors.category }">
+                                <Select v-model="form.category" @update:modelValue="clearError('category')">
+                                    <SelectTrigger id="category" :class="inputErrorClass('category')">
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -733,8 +757,8 @@ const submit = () => {
                             </div>
                             <div>
                                 <Label for="status">Status <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.status">
-                                    <SelectTrigger id="status" :class="{ 'border-red-500': form.errors.status }">
+                                <Select v-model="form.status" @update:modelValue="clearError('status')">
+                                    <SelectTrigger id="status" :class="inputErrorClass('status')">
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -745,27 +769,27 @@ const submit = () => {
                             </div>
                             <div>
                                 <Label for="date_started">Start Date</Label>
-                                <Input id="date_started" v-model="form.date_started" type="date" :class="{ 'border-red-500': form.errors.date_started }" />
+                                <Input id="date_started" v-model="form.date_started" type="date" :class="inputErrorClass('date_started')" @input="clearError('date_started')" />
                                 <p v-if="form.errors.date_started" class="mt-1 text-sm text-red-500">{{ form.errors.date_started }}</p>
                             </div>
                             <div>
                                 <Label for="date_ended">End Date</Label>
-                                <Input id="date_ended" v-model="form.date_ended" type="date" :class="{ 'border-red-500': form.errors.date_ended }" />
+                                <Input id="date_ended" v-model="form.date_ended" type="date" :class="inputErrorClass('date_ended')" @input="clearError('date_ended')" />
                                 <p v-if="form.errors.date_ended" class="mt-1 text-sm text-red-500">{{ form.errors.date_ended }}</p>
                             </div>
                             <div class="md:col-span-2">
                                 <Label for="description">Description / Objective</Label>
-                                <Textarea id="description" v-model="form.description" placeholder="Brief description or objective of the activity" />
+                                <Textarea id="description" v-model="form.description" :class="inputErrorClass('description')" @input="clearError('description')" placeholder="Brief description or objective of the activity" />
                                 <p v-if="form.errors.description" class="mt-1 text-sm text-red-500">{{ form.errors.description }}</p>
                             </div>
                             <div>
                                 <Label for="venue">Venue</Label>
-                                <Input id="venue" v-model="form.venue" placeholder="Enter venue or location" :class="{ 'border-red-500': form.errors.venue }" />
+                                <Input id="venue" v-model="form.venue" :class="inputErrorClass('venue')" @input="clearError('venue')" placeholder="Enter venue or location" />
                                 <p v-if="form.errors.venue" class="mt-1 text-sm text-red-500">{{ form.errors.venue }}</p>
                             </div>
                             <div>
                                 <Label for="implementing_partner">Implementing Partner</Label>
-                                <Input id="implementing_partner" v-model="form.implementing_partner" placeholder="Enter implementing partner" :class="{ 'border-red-500': form.errors.implementing_partner }" />
+                                <Input id="implementing_partner" v-model="form.implementing_partner" :class="inputErrorClass('implementing_partner')" @input="clearError('implementing_partner')" placeholder="Enter implementing partner" />
                                 <p v-if="form.errors.implementing_partner" class="mt-1 text-sm text-red-500">{{ form.errors.implementing_partner }}</p>
                             </div>
                         </div>
@@ -808,8 +832,8 @@ const submit = () => {
 
                         <div>
                             <Label for="responsible_officer_id">Responsible Officer</Label>
-                            <Select v-model="form.responsible_officer_id">
-                                <SelectTrigger id="responsible_officer_id" :class="{ 'border-red-500': form.errors.responsible_officer_id }">
+                            <Select v-model="form.responsible_officer_id" @update:modelValue="clearError('responsible_officer_id')">
+                                <SelectTrigger id="responsible_officer_id" :class="inputErrorClass('responsible_officer_id')">
                                     <SelectValue placeholder="Select officer" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -839,12 +863,12 @@ const submit = () => {
                                 <div class="grid gap-4">
                                     <div>
                                         <Label for="budget">Budget</Label>
-                                        <Input id="budget" v-model="form.budget" type="number" min="0" step="0.01" placeholder="0.00" />
+                                        <Input id="budget" v-model="form.budget" type="number" min="0" step="0.01" :class="inputErrorClass('budget')" @input="clearError('budget')" placeholder="0.00" />
                                         <p v-if="form.errors.budget" class="mt-1 text-sm text-red-500">{{ form.errors.budget }}</p>
                                     </div>
                                     <div>
                                         <Label for="actual_expense">Actual Expense</Label>
-                                        <Input id="actual_expense" v-model="form.actual_expense" type="number" min="0" step="0.01" placeholder="0.00" />
+                                        <Input id="actual_expense" v-model="form.actual_expense" type="number" min="0" step="0.01" :class="inputErrorClass('actual_expense')" @input="clearError('actual_expense')" placeholder="0.00" />
                                         <p v-if="form.errors.actual_expense" class="mt-1 text-sm text-red-500">{{ form.errors.actual_expense }}</p>
                                     </div>
                                 </div>
@@ -858,22 +882,22 @@ const submit = () => {
                                 <div class="grid gap-4">
                                     <div>
                                         <Label for="target_member_beneficiaries">Target Member Beneficiaries</Label>
-                                        <Input id="target_member_beneficiaries" v-model="form.target_member_beneficiaries" type="number" min="0" placeholder="0" />
+                                        <Input id="target_member_beneficiaries" v-model="form.target_member_beneficiaries" type="number" min="0" :class="inputErrorClass('target_member_beneficiaries')" @input="clearError('target_member_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.target_member_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.target_member_beneficiaries }}</p>
                                     </div>
                                     <div>
                                         <Label for="actual_member_beneficiaries">Actual Member Beneficiaries</Label>
-                                        <Input id="actual_member_beneficiaries" v-model="form.actual_member_beneficiaries" type="number" min="0" placeholder="0" />
+                                        <Input id="actual_member_beneficiaries" v-model="form.actual_member_beneficiaries" type="number" min="0" :class="inputErrorClass('actual_member_beneficiaries')" @input="clearError('actual_member_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.actual_member_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.actual_member_beneficiaries }}</p>
                                     </div>
                                     <div>
                                         <Label for="target_community_beneficiaries">Target Community Beneficiaries</Label>
-                                        <Input id="target_community_beneficiaries" v-model="form.target_community_beneficiaries" type="number" min="0" placeholder="0" />
+                                        <Input id="target_community_beneficiaries" v-model="form.target_community_beneficiaries" type="number" min="0" :class="inputErrorClass('target_community_beneficiaries')" @input="clearError('target_community_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.target_community_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.target_community_beneficiaries }}</p>
                                     </div>
                                     <div>
                                         <Label for="actual_community_beneficiaries">Actual Community Beneficiaries</Label>
-                                        <Input id="actual_community_beneficiaries" v-model="form.actual_community_beneficiaries" type="number" min="0" placeholder="0" />
+                                        <Input id="actual_community_beneficiaries" v-model="form.actual_community_beneficiaries" type="number" min="0" :class="inputErrorClass('actual_community_beneficiaries')" @input="clearError('actual_community_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.actual_community_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.actual_community_beneficiaries }}</p>
                                     </div>
                                 </div>
@@ -1150,12 +1174,12 @@ const submit = () => {
                     <CardContent class="space-y-4 pt-0">
                         <div>
                             <Label for="outcomes">Outcomes</Label>
-                            <Textarea id="outcomes" v-model="form.outcomes" placeholder="Key outputs or outcomes" />
+                            <Textarea id="outcomes" v-model="form.outcomes" :class="inputErrorClass('outcomes')" @input="clearError('outcomes')" placeholder="Key outputs or outcomes" />
                             <p v-if="form.errors.outcomes" class="mt-1 text-sm text-red-500">{{ form.errors.outcomes }}</p>
                         </div>
                         <div>
                             <Label for="remarks">Remarks</Label>
-                            <Textarea id="remarks" v-model="form.remarks" placeholder="Additional notes" />
+                            <Textarea id="remarks" v-model="form.remarks" :class="inputErrorClass('remarks')" @input="clearError('remarks')" placeholder="Additional notes" />
                             <p v-if="form.errors.remarks" class="mt-1 text-sm text-red-500">{{ form.errors.remarks }}</p>
                         </div>
                     </CardContent>
