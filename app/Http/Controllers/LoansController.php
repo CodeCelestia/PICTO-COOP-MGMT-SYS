@@ -7,6 +7,7 @@ use App\Models\LoanType;
 use App\Models\LoanPayment;
 use App\Models\Member;
 use App\Models\MemberLoan;
+use App\Models\Cooperative;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -14,62 +15,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Traits\LogsActivityWithChanges;
 use Inertia\Inertia;
-use Inertia\Response;
 
-class LoansController extends Controller
+class LoansController extends \App\Http\Controllers\Controller
 {
     use LogsActivityWithChanges;
 
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-        $query = MemberLoan::query()->with(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name']);
-        $cooperative = null;
-
-        if ($this->isMemberOnly($user) && $user?->member_id) {
-            $query->where('member_id', $user->member_id);
-        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
-            $query->where('coop_id', $user->coop_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
-        }
-
-        if ($request->filled('member_id') && ! $this->isMemberOnly($user)) {
-            $query->where('member_id', (int) $request->input('member_id'));
-        }
-
-            if ($request->filled('coop_id')) {
-                $query->where('coop_id', (int) $request->input('coop_id'));
-                $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
-            }
-
-        $loans = $query
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
-
-        return Inertia::render('Finance/Loans/Index', [
-            'loans' => $loans,
-            'cooperative' => $cooperative,
-            'statuses' => ['Pending', 'Approved', 'Active', 'Completed', 'Defaulted', 'Rejected'],
-            'filters' => $request->only(['status', 'member_id']),
-            'permissions' => [
-                'can_create' => ($user?->can('create finance-member-loans') ?? false) || ($user?->can('apply-own finance-member-loans') ?? false),
-                'can_approve' => ($user?->can('approve finance-member-loans') ?? false) || ($user?->can('approve-major finance-member-loans') ?? false),
-                'can_disburse' => $user?->can('disburse finance-member-loans') ?? false,
-                'can_edit' => $user?->can('update finance-member-loans') ?? false,
-                'can_delete' => $user?->can('delete finance-member-loans') ?? false,
-                'can_record_payment' => $user?->can('record-payment finance-member-loans') ?? false,
-            ],
-        ]);
-    }
-
-    public function create(Request $request): Response
+   public function create(Request $request): \Inertia\Response
     {
         $user = $request->user();
         $coopId = $request->query('coop_id');
+        $isCoopContext = $request->routeIs('cooperatives.finance.loans.*');
+        $cooperative = $request->route('cooperative');
+        $coopContext = $cooperative;
 
         if (!$user?->can('create finance-member-loans') && !$user?->can('apply-own finance-member-loans')) {
             abort(403, 'You do not have permission to create loan applications.');
@@ -80,18 +37,30 @@ class LoansController extends Controller
         }
 
         $isSuperOrProvincialAdmin = (bool) ($user?->hasRole(['Super Admin', 'Provincial Admin']));
-        $preselectedCoopId = $request->query('coop_id');
+        $preselectedCoopId = $isCoopContext
+            ? ($cooperative instanceof \App\Models\Cooperative ? $cooperative->id : $cooperative)
+            : $request->query('coop_id');
         $preselectedMemberId = $request->query('member_id');
-        $preselectedCoop = $preselectedCoopId
-            ? \App\Models\Cooperative::with(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)])->find($preselectedCoopId)
-            : null;
+        $preselectedCoop = null;
 
-        $preselectedCoop = $preselectedCoop ? [
-            'id' => $preselectedCoop->id,
-            'name' => $preselectedCoop->name,
-            'members' => $preselectedCoop->members,
-            'loanTypes' => $preselectedCoop->loanTypes,
-        ] : null;
+        if ($isCoopContext && $cooperative instanceof \App\Models\Cooperative) {
+            $cooperative->load(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)]);
+            $preselectedCoop = [
+                'id' => $cooperative->id,
+                'name' => $cooperative->name,
+                'members' => $cooperative->members,
+                'loanTypes' => $cooperative->loanTypes,
+            ];
+        } elseif ($preselectedCoopId) {
+            $preselectedCoopModel = \App\Models\Cooperative::with(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)])->find($preselectedCoopId);
+
+            $preselectedCoop = $preselectedCoopModel ? [
+                'id' => $preselectedCoopModel->id,
+                'name' => $preselectedCoopModel->name,
+                'members' => $preselectedCoopModel->members,
+                'loanTypes' => $preselectedCoopModel->loanTypes,
+            ] : null;
+        }
 
         $preselectedCoopId = $preselectedCoop ? (int) $preselectedCoop['id'] : null;
         $preselectedMemberId = $preselectedMemberId !== null && $preselectedMemberId !== ''
@@ -171,9 +140,60 @@ class LoansController extends Controller
             'preselectedCoopId' => $preselectedCoopId,
             'preselectedMemberId' => $preselectedMemberId,
             'preselectedCoop' => $preselectedCoop,
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
+    public function index(Request $request, ?Cooperative $cooperative = null): \Inertia\Response
+    {
+        $user = $request->user();
+
+        $isCoopContext = $request->routeIs('cooperatives.finance.loans.*');
+        $coopContext = $isCoopContext ? $cooperative : null;
+
+        $query = MemberLoan::query()
+            ->with(['member:id,first_name,last_name', 'loanType:id,name'])
+            ->orderBy('created_at', 'desc');
+
+        $filterStatus = $request->query('status');
+        $coopId = $request->query('coop_id') ?? ($cooperative?->id ?? null);
+
+        if ($coopId) {
+            $query->where('coop_id', (int) $coopId);
+        }
+
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $query->where('coop_id', $user->coop_id);
+        }
+
+        if ($filterStatus) {
+            $query->where('status', $filterStatus);
+        }
+
+        $loans = $query->paginate(15)->withQueryString();
+
+        $statuses = ['Pending', 'Approved', 'Active', 'Completed', 'Defaulted', 'Rejected'];
+
+        $permissions = [
+            'can_create' => $user?->can('create finance-member-loans') || $user?->can('apply-own finance-member-loans'),
+            'can_approve' => $user?->can('approve finance-member-loans') || $user?->can('approve-major finance-member-loans'),
+            'can_disburse' => $user?->can('disburse finance-member-loans'),
+            'can_edit' => $user?->can('update finance-member-loans'),
+            'can_delete' => $user?->can('delete finance-member-loans'),
+            'can_record_payment' => $user?->can('record-payment finance-member-loans'),
+        ];
+
+        return Inertia::render('Finance/Loans/Index', [
+            'loans' => $loans,
+            'cooperative' => $coopContext ? ['id' => $coopContext->id, 'name' => $coopContext->name] : null,
+            'statuses' => $statuses,
+            'filters' => ['status' => $filterStatus],
+            'permissions' => $permissions,
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
+        ]);
+    }
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -256,12 +276,18 @@ class LoansController extends Controller
 
         $safeReturnTo = $this->resolveInternalReturnTo($request);
 
-        return $safeReturnTo
-            ? redirect()->to($safeReturnTo)->with('success', 'Loan application created successfully.')
-            : redirect()->route('finance.loans.show', $loan)->with('success', 'Loan application created successfully.');
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'Loan application created successfully.');
+        }
+
+        if ($request->routeIs('cooperatives.finance.loans.*')) {
+            return $this->resolveRedirect($request, 'show', ['loan' => $loan->id])->with('success', 'Loan application created successfully.');
+        }
+
+        return redirect()->route('finance.loans.show', $loan)->with('success', 'Loan application created successfully.');
     }
 
-    public function show(MemberLoan $loan, Request $request): Response
+    public function show(Request $request, Cooperative $cooperative, MemberLoan $loan): \Inertia\Response
     {
         $this->enforceLoanAccess($loan, $request->user());
 
@@ -269,6 +295,8 @@ class LoansController extends Controller
             abort(403);
         }
 
+        $isCoopContext = $request->routeIs('cooperatives.finance.loans.*');
+        $coopContext = $isCoopContext ? $cooperative : null;
         $loan->load(['member:id,first_name,last_name', 'cooperative:id,name', 'loanType:id,name', 'payments']);
         // Ensure attachments parsed from remarks are available to the show page
         $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
@@ -290,10 +318,12 @@ class LoansController extends Controller
                 'can_delete' => $request->user()?->can('delete finance-member-loans') ?? false,
                 'can_record_payment' => $request->user()?->can('record-payment finance-member-loans') ?? false,
             ],
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
-    public function edit(MemberLoan $loan, Request $request): Response
+    public function edit(Request $request, Cooperative $cooperative, MemberLoan $loan): \Inertia\Response
     {
         $this->enforceLoanAccess($loan, $request->user());
 
@@ -303,16 +333,19 @@ class LoansController extends Controller
 
         $attachmentContext = $this->extractLoanAttachmentContext($loan->remarks);
         $loan->setAttribute('attachments', $this->formatLoanAttachments($attachmentContext['paths']));
-        $from = $request->query('from') === 'coop' ? 'coop' : null;
+        $isCoopContext = $request->routeIs('cooperatives.finance.loans.*');
+        $coopContext = $isCoopContext ? $cooperative : null;
 
         return Inertia::render('Finance/Loans/Edit', [
             'loan' => $loan->load(['member:id,first_name,last_name', 'cooperative:id,name']),
-            'from' => $from,
-            'cooperative_id' => $from === 'coop' ? $loan->coop_id : null,
+            'from' => $request->query('from') === 'coop' ? 'coop' : null,
+            'cooperative_id' => $isCoopContext ? $loan->coop_id : null,
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
-    public function update(Request $request, MemberLoan $loan): RedirectResponse
+    public function update(Request $request, Cooperative $cooperative, MemberLoan $loan): RedirectResponse
     {
         if (!$request->user()?->can('update finance-member-loans')) {
             abort(403, 'You do not have permission to update loans.');
@@ -364,12 +397,18 @@ class LoansController extends Controller
 
         $safeReturnTo = $this->resolveInternalReturnTo($request);
 
-        return $safeReturnTo
-            ? redirect()->to($safeReturnTo)->with('success', 'Loan updated successfully.')
-            : redirect()->route('finance.loans.show', $loan)->with('success', 'Loan updated successfully.');
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'Loan updated successfully.');
+        }
+
+        if ($request->routeIs('cooperatives.finance.loans.*')) {
+            return redirect()->route('cooperatives.finance.loans.show', ['cooperative' => $cooperative->id, 'loan' => $loan->id])->with('success', 'Loan updated successfully.');
+        }
+
+        return redirect()->route('finance.loans.show', $loan)->with('success', 'Loan updated successfully.');
     }
 
-    public function destroy(MemberLoan $loan, Request $request): RedirectResponse
+    public function destroy(Request $request, Cooperative $cooperative, MemberLoan $loan): RedirectResponse
     {
         if (!$request->user()?->can('delete finance-member-loans')) {
             abort(403, 'You do not have permission to delete loans.');
@@ -388,8 +427,11 @@ class LoansController extends Controller
             'Loans'
         );
 
-        return redirect()->route('finance.loans.index')
-            ->with('success', 'Loan deleted successfully.');
+        if ($request->routeIs('cooperatives.finance.loans.*')) {
+            return redirect()->route('cooperatives.finance.loans.index', ['cooperative' => $cooperative->id])->with('success', 'Loan deleted successfully.');
+        }
+
+        return redirect()->route('finance.loans.index')->with('success', 'Loan deleted successfully.');
     }
 
     public function approve(Request $request, MemberLoan $loan): RedirectResponse
@@ -525,6 +567,22 @@ class LoansController extends Controller
 
         return $principal * ($monthlyRate * (1 + $monthlyRate) ** $months)
             / ((1 + $monthlyRate) ** $months - 1);
+    }
+
+    private function resolveRedirect(Request $request, string $routeSuffix, array $params = []): RedirectResponse
+    {
+        if ($request->routeIs('cooperatives.finance.loans.*')) {
+            $cooperative = $request->route('cooperative');
+            if (! $cooperative instanceof Cooperative) {
+                $cooperative = Cooperative::find($cooperative);
+            }
+            $routeName = 'cooperatives.finance.loans.' . $routeSuffix;
+            $coopId = $cooperative instanceof Cooperative ? $cooperative->id : $cooperative;
+            return redirect()->route($routeName, array_merge(['cooperative' => $coopId], $params));
+        }
+
+        $routeName = 'finance.loans.' . $routeSuffix;
+        return redirect()->route($routeName, $params);
     }
 
     private function enforceLoanAccess(MemberLoan $loan, $user): void

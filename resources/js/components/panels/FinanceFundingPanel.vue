@@ -33,9 +33,9 @@ const canCreate = computed(() => permissions.value.includes('create finance-fund
 const canEdit = computed(() => permissions.value.includes('update finance-funding-sources'));
 const canDelete = computed(() => permissions.value.includes('delete finance-funding-sources'));
 
-const createHref = computed(() => `/finance/funding-sources/create?coop_id=${props.cooperative.id}`);
-const viewHref = (sourceId: number) => `/finance/funding-sources/${sourceId}?coop_id=${props.cooperative.id}`;
-const editHref = (sourceId: number) => `/finance/funding-sources/${sourceId}/edit?coop_id=${props.cooperative.id}`;
+const createHref = computed(() => `/cooperatives/${props.cooperative.id}/finance/funding-sources/create`);
+const viewHref = (sourceId: number) => `/cooperatives/${props.cooperative.id}/finance/funding-sources/${sourceId}`;
+const editHref = (sourceId: number) => `/cooperatives/${props.cooperative.id}/finance/funding-sources/${sourceId}/edit`;
 
 const deleteSource = (sourceId: number) => {
     if (!canDelete.value) return;
@@ -44,9 +44,8 @@ const deleteSource = (sourceId: number) => {
         return;
     }
 
-    router.delete(`/finance/funding-sources/${sourceId}`, {
+    router.delete(`/cooperatives/${props.cooperative.id}/finance/funding-sources/${sourceId}`, {
         preserveScroll: true,
-        data: { coop_id: props.cooperative.id },
     });
 };
 </script>

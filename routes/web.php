@@ -701,6 +701,151 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('trends.export');
     });
 
+    // ==================== PER-COOPERATIVE FINANCE ROUTES ====================
+    // Per-Coop: Funding Sources
+    Route::prefix('cooperatives/{cooperative}/finance/funding-sources')->name('cooperatives.finance.funding-sources.')->group(function () {
+        Route::get('/', [FundingSourcesController::class, 'index'])
+            ->middleware('permission:read finance-funding-sources')
+            ->name('index');
+
+        Route::get('create', [ActivityFundingSourceController::class, 'create'])
+            ->middleware('permission:create finance-funding-sources')
+            ->name('create');
+
+        Route::post('/', [ActivityFundingSourceController::class, 'store'])
+            ->middleware('permission:create finance-funding-sources')
+            ->name('store');
+
+        Route::get('{fundingSource}', [FundingSourcesController::class, 'show'])
+            ->middleware('permission:read finance-funding-sources')
+            ->name('show');
+
+        Route::get('{activityFundingSource}/edit', [ActivityFundingSourceController::class, 'edit'])
+            ->middleware('permission:update finance-funding-sources')
+            ->name('edit');
+
+        Route::put('{activityFundingSource}', [ActivityFundingSourceController::class, 'update'])
+            ->middleware('permission:update finance-funding-sources')
+            ->name('update');
+
+        Route::delete('{activityFundingSource}', [ActivityFundingSourceController::class, 'destroy'])
+            ->middleware('permission:delete finance-funding-sources')
+            ->name('destroy');
+    });
+
+    // Per-Coop: Financial Records (Ledger)
+    Route::prefix('cooperatives/{cooperative}/finance/financial-records')->name('cooperatives.finance.financial-records.')->group(function () {
+        Route::get('/', [FinancialRecordsController::class, 'index'])
+            ->middleware('permission:read finance-ledger-entries')
+            ->name('index');
+
+        Route::get('create', [FinancialRecordController::class, 'create'])
+            ->middleware('permission:create finance-ledger-entries')
+            ->name('create');
+
+        Route::post('/', [FinancialRecordController::class, 'store'])
+            ->middleware('permission:create finance-ledger-entries')
+            ->name('store');
+
+        Route::get('{financialRecord}', [FinancialRecordsController::class, 'show'])
+            ->middleware('permission:read finance-ledger-entries')
+            ->name('show');
+
+        Route::get('{financialRecord}/edit', [FinancialRecordController::class, 'edit'])
+            ->middleware('permission:update finance-ledger-entries')
+            ->name('edit');
+
+        Route::put('{financialRecord}', [FinancialRecordController::class, 'update'])
+            ->middleware('permission:update finance-ledger-entries')
+            ->name('update');
+
+        Route::delete('{financialRecord}', [FinancialRecordController::class, 'destroy'])
+            ->middleware('permission:delete finance-ledger-entries')
+            ->name('destroy');
+    });
+
+    // Per-Coop: Loans
+    Route::prefix('cooperatives/{cooperative}/finance/loans')->name('cooperatives.finance.loans.')->group(function () {
+        Route::get('/', [LoansController::class, 'index'])
+            ->middleware('permission:read finance-member-loans')
+            ->name('index');
+
+        Route::get('create', [LoansController::class, 'create'])
+            ->middleware('permission:create finance-member-loans|apply-own finance-member-loans')
+            ->name('create');
+
+        Route::post('/', [LoansController::class, 'store'])
+            ->middleware('permission:create finance-member-loans|apply-own finance-member-loans')
+            ->name('store');
+
+        Route::get('{loan}', [LoansController::class, 'show'])
+            ->middleware('permission:read finance-member-loans')
+            ->name('show');
+
+        Route::get('{loan}/edit', [LoansController::class, 'edit'])
+            ->middleware('permission:update finance-member-loans')
+            ->name('edit');
+
+        Route::put('{loan}', [LoansController::class, 'update'])
+            ->middleware('permission:update finance-member-loans')
+            ->name('update');
+
+        Route::delete('{loan}', [LoansController::class, 'destroy'])
+            ->middleware('permission:delete finance-member-loans')
+            ->name('destroy');
+
+        Route::post('{loan}/approve', [LoansController::class, 'approve'])
+            ->middleware('permission:approve finance-member-loans|approve-major finance-member-loans')
+            ->name('approve');
+
+        Route::post('{loan}/disburse', [LoansController::class, 'disburse'])
+            ->middleware('permission:disburse finance-member-loans')
+            ->name('disburse');
+
+        Route::post('{loan}/payments', [LoanPaymentsController::class, 'store'])
+            ->middleware('permission:record-payment finance-member-loans')
+            ->name('payments.store');
+    });
+
+    // Per-Coop: Savings
+    Route::prefix('cooperatives/{cooperative}/finance/savings')->name('cooperatives.finance.savings.')->group(function () {
+        Route::get('/', [SavingsController::class, 'index'])
+            ->middleware('permission:read finance-savings-accounts')
+            ->name('index');
+
+        Route::get('create', [SavingsController::class, 'create'])
+            ->middleware('permission:open finance-savings-accounts')
+            ->name('create');
+
+        Route::post('/', [SavingsController::class, 'store'])
+            ->middleware('permission:open finance-savings-accounts')
+            ->name('store');
+
+        Route::get('{savings}', [SavingsController::class, 'show'])
+            ->middleware('permission:read finance-savings-accounts')
+            ->name('show');
+
+        Route::get('{savings}/edit', [SavingsController::class, 'edit'])
+            ->middleware('permission:update finance-savings-accounts')
+            ->name('edit');
+
+        Route::put('{savings}', [SavingsController::class, 'update'])
+            ->middleware('permission:update finance-savings-accounts')
+            ->name('update');
+
+        Route::delete('{savings}', [SavingsController::class, 'destroy'])
+            ->middleware('permission:close finance-savings-accounts')
+            ->name('destroy');
+
+        Route::post('{savings}/transactions', [SavingsTransactionsController::class, 'store'])
+            ->middleware('permission:record-deposit finance-savings-accounts|record-withdrawal finance-savings-accounts')
+            ->name('transactions.store');
+
+        Route::post('{savings}/calculate-interest', [SavingsController::class, 'calculateInterest'])
+            ->middleware('permission:calculate-interest finance-savings-accounts|override finance-auto-jobs')
+            ->name('calculate-interest');
+    });
+
     // External Supports
     Route::get('external-supports/select', [ExternalSupportController::class, 'select'])
         ->middleware('permission:read financial-&-support')

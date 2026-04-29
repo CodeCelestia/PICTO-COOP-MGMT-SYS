@@ -160,6 +160,11 @@ onUnmounted(() => {
 });
 
 const isFromCoopContext = computed(() => !!props.preselectedCoopId);
+const hasPreselectedMember = computed(() => props.preselectedMemberId !== null && props.preselectedMemberId !== undefined);
+
+const formatMemberName = (member: CooperativeMemberOption) => `${member.first_name} ${member.last_name}`;
+
+const memberSearchQuery = ref('');
 
 const selectedCooperative = computed(() => {
     if (isFromCoopContext.value) {
@@ -188,6 +193,31 @@ const availableMembers = computed(() => {
 const selectedMember = computed(() => {
     return availableMembers.value.find((member) => String(member.id) === String(form.member_id)) || null;
 });
+
+const selectedCooperativeName = computed(() => props.preselectedCoop?.name || 'Selected cooperative');
+const selectedMemberName = computed(() => selectedMember.value ? formatMemberName(selectedMember.value) : 'Selected member');
+
+const searchableMembers = computed(() => {
+    const query = memberSearchQuery.value.trim().toLowerCase();
+
+    if (!query) {
+        return availableMembers.value;
+    }
+
+    return availableMembers.value.filter((member) => formatMemberName(member).toLowerCase().includes(query));
+});
+
+const selectMember = (member: CooperativeMemberOption) => {
+    form.member_id = member.id;
+    memberSearchQuery.value = formatMemberName(member);
+    form.loan_type_id = '';
+};
+
+watch(selectedMember, (member) => {
+    if (isFromCoopContext.value && !hasPreselectedMember.value && member) {
+        memberSearchQuery.value = formatMemberName(member);
+    }
+}, { immediate: true });
 
 const selectedCooperativeLoanTypes = computed(() => {
     if (isFromCoopContext.value) {
@@ -263,6 +293,11 @@ const submit = () => {
         return;
     }
 
+    if (isFromCoopContext.value && !form.member_id) {
+        form.setError('member_id', 'Please select a member.');
+        return;
+    }
+
     form.post('/finance/loans', {
         forceFormData: true,
     });
@@ -310,7 +345,7 @@ const handleBackClick = () => {
                 <div>
                     <label class="mb-1 block text-sm font-medium">Cooperative</label>
                     <div v-if="isFromCoopContext" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                        {{ preselectedCoop?.name || 'Selected cooperative' }}
+                        {{ selectedCooperativeName }}
                     </div>
                     <template v-else>
                         <select v-model="form.coop_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
@@ -326,8 +361,33 @@ const handleBackClick = () => {
 
                 <div>
                     <label class="mb-1 block text-sm font-medium">Member</label>
-                    <div v-if="isFromCoopContext" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                        {{ selectedMember ? `${selectedMember.first_name} ${selectedMember.last_name}` : 'Selected member' }}
+                    <div v-if="isFromCoopContext && hasPreselectedMember" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                        {{ selectedMemberName }}
+                    </div>
+                    <div v-else-if="isFromCoopContext" class="space-y-2">
+                        <input
+                            v-model="memberSearchQuery"
+                            type="text"
+                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                            placeholder="Search members"
+                        />
+                        <div class="max-h-56 overflow-y-auto rounded-md border border-input bg-background">
+                            <button
+                                v-for="member in searchableMembers"
+                                :key="member.id"
+                                type="button"
+                                class="flex w-full items-center justify-between gap-3 border-b border-input px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/60"
+                                @click="selectMember(member)"
+                            >
+                                <span class="font-medium text-foreground">{{ formatMemberName(member) }}</span>
+                                <span class="text-xs text-muted-foreground">Select</span>
+                            </button>
+                            <div v-if="searchableMembers.length === 0" class="px-3 py-4 text-sm text-muted-foreground">
+                                No members found.
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Search and select a member from this cooperative.</p>
+                        <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
                     </div>
                     <template v-else>
                         <select v-model="form.member_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.coop_id">

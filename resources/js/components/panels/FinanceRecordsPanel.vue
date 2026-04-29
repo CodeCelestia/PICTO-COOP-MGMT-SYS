@@ -31,9 +31,9 @@ const canCreate = computed(() => permissions.value.includes('create finance-ledg
 const canEdit = computed(() => permissions.value.includes('update finance-ledger-entries'));
 const canDelete = computed(() => permissions.value.includes('delete finance-ledger-entries'));
 
-const createHref = computed(() => `/finance/financial-records/create?coop_id=${props.cooperative.id}`);
-const viewHref = (recordId: number) => `/finance/financial-records/${recordId}?coop_id=${props.cooperative.id}`;
-const editHref = (recordId: number) => `/finance/financial-records/${recordId}/edit?coop_id=${props.cooperative.id}`;
+const createHref = computed(() => `/cooperatives/${props.cooperative.id}/finance/financial-records/create`);
+const viewHref = (recordId: number) => `/cooperatives/${props.cooperative.id}/finance/financial-records/${recordId}`;
+const editHref = (recordId: number) => `/cooperatives/${props.cooperative.id}/finance/financial-records/${recordId}/edit`;
 
 const formatDate = (value: string | null | undefined) => {
     if (!value) return 'N/A';
@@ -56,9 +56,8 @@ const deleteRecord = (recordId: number) => {
         return;
     }
 
-    router.delete(`/finance/financial-records/${recordId}`, {
+    router.delete(`/cooperatives/${props.cooperative.id}/finance/financial-records/${recordId}`, {
         preserveScroll: true,
-        data: { coop_id: props.cooperative.id },
     });
 };
 </script>

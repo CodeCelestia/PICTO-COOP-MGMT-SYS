@@ -58,7 +58,9 @@ class SavingsController extends Controller
     public function create(Request $request): Response
     {
         $user = $request->user();
-        $coopId = $request->query('coop_id');
+        $isCoopContext = $request->routeIs('cooperatives.finance.savings.*');
+        $coopContext = $isCoopContext ? $request->route('cooperative') : null;
+        $coopId = $isCoopContext ? $coopContext->id : $request->query('coop_id');
         $cooperative = $coopId ? \App\Models\Cooperative::select(['id', 'name'])->find((int) $coopId) : null;
 
         if (!$user?->can('open finance-savings-accounts')) {
@@ -83,6 +85,8 @@ class SavingsController extends Controller
             'members' => $membersQuery->get(),
             'interestRate' => 3.0,
             'coop' => $cooperative ? ['id' => $cooperative->id, 'name' => $cooperative->name] : null,
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
@@ -143,9 +147,16 @@ class SavingsController extends Controller
 
         $safeReturnTo = $this->resolveInternalReturnTo($request);
 
-        return $safeReturnTo
-            ? redirect()->to($safeReturnTo)->with('success', 'Savings account created successfully.')
-            : redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account created successfully.');
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'Savings account created successfully.');
+        }
+
+        if ($request->routeIs('cooperatives.finance.savings.*')) {
+            $cooperative = $request->route('cooperative');
+            return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account created successfully.');
+        }
+
+        return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account created successfully.');
     }
 
     public function show(MemberSavings $savings, Request $request): Response
@@ -177,8 +188,13 @@ class SavingsController extends Controller
             abort(403);
         }
 
+        $isCoopContext = $request->routeIs('cooperatives.finance.savings.*');
+        $coopContext = $isCoopContext ? $request->route('cooperative') : null;
+
         return Inertia::render('Finance/Savings/Edit', [
             'savings' => $savings->load(['cooperative:id,name']),
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
@@ -208,9 +224,16 @@ class SavingsController extends Controller
 
         $safeReturnTo = $this->resolveInternalReturnTo($request);
 
-        return $safeReturnTo
-            ? redirect()->to($safeReturnTo)->with('success', 'Savings account updated successfully.')
-            : redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account updated successfully.');
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'Savings account updated successfully.');
+        }
+
+        if ($request->routeIs('cooperatives.finance.savings.*')) {
+            $cooperative = $request->route('cooperative');
+            return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account updated successfully.');
+        }
+
+        return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account updated successfully.');
     }
 
     public function destroy(MemberSavings $savings, Request $request): RedirectResponse
@@ -235,8 +258,12 @@ class SavingsController extends Controller
             'Savings'
         );
 
-        return redirect()->route('finance.savings.index')
-            ->with('success', 'Savings account closed successfully.');
+        if ($request->routeIs('cooperatives.finance.savings.*')) {
+            $cooperative = $request->route('cooperative');
+            return redirect()->route('cooperatives.finance.savings.index', ['cooperative' => $cooperative->id])->with('success', 'Savings account closed successfully.');
+        }
+
+        return redirect()->route('finance.savings.index')->with('success', 'Savings account closed successfully.');
     }
 
     public function calculateInterest(Request $request, MemberSavings $savings): RedirectResponse

@@ -6,6 +6,7 @@ import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge'
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Eye, Landmark, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import Swal from 'sweetalert2';
 
 interface Cooperative {
     id: number;
@@ -32,9 +33,9 @@ const canCreate = computed(() => permissions.value.includes('create finance-memb
 const canEdit = computed(() => permissions.value.includes('update finance-member-loans'));
 const canDelete = computed(() => permissions.value.includes('delete finance-member-loans'));
 
-const createHref = computed(() => `/finance/loans/create?coop_id=${props.cooperative.id}`);
-const viewHref = (loanId: number) => `/finance/loans/${loanId}?coop_id=${props.cooperative.id}`;
-const editHref = (loanId: number) => `/finance/loans/${loanId}/edit?coop_id=${props.cooperative.id}`;
+const createHref = computed(() => `/cooperatives/${props.cooperative.id}/finance/loans/create`);
+const viewHref = (loanId: number) => `/cooperatives/${props.cooperative.id}/finance/loans/${loanId}`;
+const editHref = (loanId: number) => `/cooperatives/${props.cooperative.id}/finance/loans/${loanId}/edit`;
 
 const formatDate = (value: string | null | undefined) => {
     if (!value) return 'N/A';
@@ -48,13 +49,23 @@ const formatDate = (value: string | null | undefined) => {
 const deleteLoan = (loanId: number) => {
     if (!canDelete.value) return;
 
-    if (!window.confirm('Delete this loan?')) {
-        return;
-    }
+    void Swal.fire({
+        title: 'Delete Loan?',
+        text: 'This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            return;
+        }
 
-    router.delete(`/finance/loans/${loanId}`, {
-        preserveScroll: true,
-        data: { coop_id: props.cooperative.id },
+        router.delete(`/cooperatives/${props.cooperative.id}/finance/loans/${loanId}`, {
+            preserveScroll: true,
+        });
     });
 };
 </script>

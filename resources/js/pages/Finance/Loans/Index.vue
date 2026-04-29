@@ -6,6 +6,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Filter, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import Swal from 'sweetalert2';
 
 interface Loan {
     id: number;
@@ -72,11 +73,22 @@ const deleteLoan = (loanId: number) => {
         return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this loan?')) {
-        return;
-    }
+    void Swal.fire({
+        title: 'Delete Loan?',
+        text: 'This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            return;
+        }
 
-    router.delete(`/finance/loans/${loanId}`);
+        router.delete(`/finance/loans/${loanId}`);
+    });
 };
 
 </script>

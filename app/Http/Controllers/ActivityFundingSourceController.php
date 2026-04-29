@@ -56,6 +56,20 @@ class ActivityFundingSourceController extends Controller
             : 'activity-funding-sources.index';
     }
 
+    private function resolveIndexRedirect(Request $request, string $message): RedirectResponse
+    {
+        if ($request->routeIs('cooperatives.finance.funding-sources.*')) {
+            $cooperative = $request->route('cooperative');
+            return redirect()->route('cooperatives.finance.funding-sources.index', ['cooperative' => $cooperative->id])->with('success', $message);
+        }
+
+        if ($request->routeIs('finance.funding-sources.*')) {
+            return redirect()->route('finance.funding-sources.index')->with('success', $message);
+        }
+
+        return redirect()->route('activity-funding-sources.index')->with('success', $message);
+    }
+
     private function syncActivityFundingSourceSummary(?int $activityId): void
     {
         if (!$activityId) {
@@ -172,6 +186,8 @@ class ActivityFundingSourceController extends Controller
         }
 
         $user = auth()->user();
+        $isCoopContext = $request->routeIs('cooperatives.finance.funding-sources.*');
+        $coopContext = $isCoopContext ? $request->route('cooperative') : null;
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
@@ -190,6 +206,8 @@ class ActivityFundingSourceController extends Controller
                 'coop_id' => $member->coop_id,
             ]),
             'cooperatives' => $cooperativesQuery->get(),
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
@@ -283,8 +301,7 @@ class ActivityFundingSourceController extends Controller
         ActivityFundingSource::create($validated);
         $this->syncActivityFundingSourceSummary($activity?->id);
 
-        return redirect()->route($this->resolveIndexRoute($request))
-            ->with('success', 'Funding source added successfully.');
+        return $this->resolveIndexRedirect($request, 'Funding source added successfully.');
     }
 
     /**
@@ -303,6 +320,8 @@ class ActivityFundingSourceController extends Controller
         }
 
         $this->enforceCoopScope($activityFundingSource->coop_id);
+        $isCoopContext = request()->routeIs('cooperatives.finance.funding-sources.*');
+        $coopContext = $isCoopContext ? request()->route('cooperative') : null;
 
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
@@ -323,6 +342,8 @@ class ActivityFundingSourceController extends Controller
                 'coop_id' => $member->coop_id,
             ]),
             'cooperatives' => $cooperativesQuery->get(),
+            'isCoopContext' => $isCoopContext,
+            'coopContext' => $coopContext,
         ]);
     }
 
@@ -425,8 +446,7 @@ class ActivityFundingSourceController extends Controller
             $this->syncActivityFundingSourceSummary($newActivityId);
         }
 
-        return redirect()->route($this->resolveIndexRoute($request))
-            ->with('success', 'Funding source updated successfully.');
+        return $this->resolveIndexRedirect(request(), 'Funding source updated successfully.');
     }
 
     /**

@@ -32,9 +32,9 @@ const canCreate = computed(() => permissions.value.includes('open finance-saving
 const canEdit = computed(() => permissions.value.includes('update finance-savings-accounts'));
 const canDelete = computed(() => permissions.value.includes('close finance-savings-accounts'));
 
-const createHref = computed(() => `/finance/savings/create?coop_id=${props.cooperative.id}`);
-const viewHref = (savingsId: number) => `/finance/savings/${savingsId}?coop_id=${props.cooperative.id}`;
-const editHref = (savingsId: number) => `/finance/savings/${savingsId}/edit?coop_id=${props.cooperative.id}`;
+const createHref = computed(() => `/cooperatives/${props.cooperative.id}/finance/savings/create`);
+const viewHref = (savingsId: number) => `/cooperatives/${props.cooperative.id}/finance/savings/${savingsId}`;
+const editHref = (savingsId: number) => `/cooperatives/${props.cooperative.id}/finance/savings/${savingsId}/edit`;
 
 const deleteSavings = (savingsId: number) => {
     if (!canDelete.value) return;
@@ -43,9 +43,8 @@ const deleteSavings = (savingsId: number) => {
         return;
     }
 
-    router.delete(`/finance/savings/${savingsId}`, {
+    router.delete(`/cooperatives/${props.cooperative.id}/finance/savings/${savingsId}`, {
         preserveScroll: true,
-        data: { coop_id: props.cooperative.id },
     });
 };
 </script>

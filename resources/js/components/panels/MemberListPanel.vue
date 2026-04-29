@@ -475,7 +475,7 @@ const submitCreateAccount = () => {
                                         <UserPlus class="h-4 w-4" />
                                         Create Account
                                     </Button>
-                                    <Link v-if="canReadMemberLoans" :href="cooperativeId ? `/finance/loans/create?coop_id=${cooperativeId}&member_id=${member.id}` : `/finance/loans/create?member_id=${member.id}`">
+                                    <Link v-if="canReadMemberLoans" :href="cooperativeId ? `/cooperatives/${cooperativeId}/finance/loans/create?member_id=${member.id}` : `/finance/loans/create?member_id=${member.id}`">
                                         <Button
                                             variant="outline"
                                             size="sm"
