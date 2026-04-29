@@ -54,6 +54,18 @@ interface Accreditation {
     remarks: string | null;
 }
 
+interface KeyOfficer {
+    id: number;
+    position: string;
+    status: string;
+    term_start: string | null;
+    term_end: string | null;
+    member?: {
+        id: number;
+        full_name: string;
+    } | null;
+}
+
 
 const props = defineProps<{
     cooperative: Cooperative;
@@ -189,6 +201,8 @@ const props = defineProps<{
         activity_id: number | null;
         activity?: { title?: string } | null;
     }>;
+    chairperson: KeyOfficer | null;
+    generalManager: KeyOfficer | null;
     trainingFilters: {
         search?: string;
         status?: string;
@@ -235,6 +249,7 @@ const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { cooperativeManagementLabel } = useCoopLabel();
 const canEditCoop = computed(() => permissions.value.includes('update coop-master-profile'));
+const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
@@ -264,6 +279,21 @@ const cooperativeBasePath = computed(() => {
 });
 
 const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) => type.name) || []);
+
+const chairperson = computed(() => props.chairperson);
+const generalManager = computed(() => props.generalManager);
+
+const leaderTerm = (officer: KeyOfficer | null) => {
+    if (!officer) {
+        return 'N/A';
+    }
+
+    if (officer.term_start && officer.term_end) {
+        return `${formatDate(officer.term_start)} - ${formatDate(officer.term_end)}`;
+    }
+
+    return officer.term_start ? `${formatDate(officer.term_start)} - Present` : 'N/A';
+};
 
 const classificationLabel = computed(() => {
     switch (props.cooperative.classification) {
@@ -544,6 +574,42 @@ const statusBadgeClass = computed(() => {
                                     <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
                                         <dt class="font-semibold text-muted-foreground">Address</dt>
                                         <dd class="font-semibold">{{ formatFullAddress(cooperative) }}</dd>
+                                    </div>
+                                </dl>
+                            </section>
+
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Key Leadership</h3>
+                                    <div v-if="canCreateOfficer" class="flex flex-wrap gap-2">
+                                        <Link :href="`/officers/create?coop_id=${cooperative.id}&position=Chairperson&return_to=${encodeURIComponent(currentUrl)}`">
+                                            <Button size="sm" variant="outline" class="gap-2">
+                                                Assign Chairperson
+                                            </Button>
+                                        </Link>
+                                        <Link :href="`/officers/create?coop_id=${cooperative.id}&position=General%20Manager&return_to=${encodeURIComponent(currentUrl)}`">
+                                            <Button size="sm" variant="outline" class="gap-2">
+                                                Assign General Manager
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </div>
+                                <dl class="mt-4 space-y-3 text-base text-foreground">
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Chairperson</dt>
+                                        <dd class="font-semibold">{{ chairperson?.member?.full_name || 'Unassigned' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">Chairperson Term</dt>
+                                        <dd class="font-semibold">{{ leaderTerm(chairperson || null) }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">General Manager</dt>
+                                        <dd class="font-semibold">{{ generalManager?.member?.full_name || 'Unassigned' }}</dd>
+                                    </div>
+                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
+                                        <dt class="font-semibold text-muted-foreground">General Manager Term</dt>
+                                        <dd class="font-semibold">{{ leaderTerm(generalManager || null) }}</dd>
                                     </div>
                                 </dl>
                             </section>

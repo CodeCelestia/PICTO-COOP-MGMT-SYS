@@ -177,6 +177,26 @@ class Cooperative extends Model
         return $this->hasMany(Officer::class, 'coop_id');
     }
 
+    public function currentChairperson(): ?Officer
+    {
+        return $this->officers()
+            ->with('member')
+            ->active()
+            ->positionIn(['chairperson', 'chairman'])
+            ->orderByDesc('term_start')
+            ->first();
+    }
+
+    public function currentGeneralManager(): ?Officer
+    {
+        return $this->officers()
+            ->with('member')
+            ->active()
+            ->positionIn(['general manager', 'general-manager', 'gm'])
+            ->orderByDesc('term_start')
+            ->first();
+    }
+
     public function committeeMembers(): HasMany
     {
         return $this->hasMany(CommitteeMember::class, 'coop_id');

@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\CoopScoped;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -19,7 +22,6 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property \Illuminate\Support\Carbon|null $term_end
  * @property string|null $status
  */
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Officer extends Model
 {
@@ -74,6 +76,25 @@ class Officer extends Model
     public function cooperative(): BelongsTo
     {
         return $this->belongsTo(Cooperative::class, 'coop_id');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', 'Active');
+    }
+
+    public function scopePosition(Builder $query, string $position): Builder
+    {
+        return $query->whereRaw('LOWER(position) = ?', [Str::lower($position)]);
+    }
+
+    public function scopePositionIn(Builder $query, array $positions): Builder
+    {
+        return $query->where(function (Builder $query) use ($positions) {
+            foreach ($positions as $position) {
+                $query->orWhereRaw('LOWER(position) = ?', [Str::lower($position)]);
+            }
+        });
     }
 
     /**

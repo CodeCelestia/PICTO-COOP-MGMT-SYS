@@ -25,6 +25,7 @@ interface MemberOption {
     id: number;
     name: string;
     coop_id: number;
+    role_names: string[];
 }
 
 interface Props {
@@ -40,10 +41,14 @@ const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const initialCoopId = computed(() => queryParams.value.get('coop_id') || props.cooperatives[0]?.id?.toString() || '');
+const initialPosition = computed(() => queryParams.value.get('position') || '');
+
 const form = useForm({
-    coop_id: props.cooperatives[0]?.id?.toString() || '',
+    coop_id: initialCoopId.value,
     member_id: '',
-    position: '',
+    position: initialPosition.value,
     committee: '',
     term_start: '',
     term_end: '',
@@ -125,12 +130,15 @@ const { goBack, returnToHref } = useCreateBack({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="member in filteredMembers" :key="member.id" :value="member.id.toString()">
-                                            {{ member.name }}
+                                            <div class="flex flex-col gap-0.5 text-sm">
+                                                <span>{{ member.name }}</span>
+                                                <span class="text-xs text-muted-foreground">{{ member.role_names.join(', ') }}</span>
+                                            </div>
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <p v-if="filteredMembers.length === 0" class="mt-1 text-sm text-muted-foreground">
-                                    No members with Officer role found. Please assign the Officer role to a member first before adding them as an officer.
+                                    No members with Officer, Chairperson, or General Manager role found. Please assign one of those roles to a member first before adding them as an officer.
                                 </p>
                                 <p v-if="form.errors.member_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.member_id }}

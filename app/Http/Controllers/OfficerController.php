@@ -116,8 +116,9 @@ class OfficerController extends Controller
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
+            ->with('roles')
             ->whereHas('roles', function ($query) {
-                $query->where('name', 'Officer');
+                $query->whereIn('name', ['Officer', 'Chairperson', 'General Manager']);
             })
             ->orderBy('last_name');
 
@@ -133,6 +134,7 @@ class OfficerController extends Controller
                     'id' => $member->id,
                     'name' => $member->full_name,
                     'coop_id' => $member->coop_id,
+                    'role_names' => $member->roles->pluck('name')->values()->all(),
                 ];
             }),
         ]);
@@ -178,11 +180,11 @@ class OfficerController extends Controller
         }
 
         $hasOfficerRole = $member?->roles()
-            ->where('name', 'Officer')
+            ->whereIn('name', ['Officer', 'Chairperson', 'General Manager'])
             ->exists() ?? false;
 
         if (!$hasOfficerRole) {
-            return back()->withErrors(['member_id' => 'Selected member does not have the Officer role.']);
+            return back()->withErrors(['member_id' => 'Selected member does not have an officer-related role.']);
         }
 
         $reason = $validated['reason_for_change'] ?? null;
@@ -227,8 +229,9 @@ class OfficerController extends Controller
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
+            ->with('roles')
             ->whereHas('roles', function ($roleQuery) {
-                $roleQuery->where('name', 'Officer');
+                $roleQuery->whereIn('name', ['Officer', 'Chairperson', 'General Manager']);
             })
             ->orderBy('last_name');
 
@@ -245,6 +248,7 @@ class OfficerController extends Controller
                     'id' => $member->id,
                     'name' => $member->full_name,
                     'coop_id' => $member->coop_id,
+                    'role_names' => $member->roles->pluck('name')->values()->all(),
                 ];
             }),
             'termHistory' => $officer->termHistory()
@@ -307,11 +311,11 @@ class OfficerController extends Controller
         }
 
         $hasOfficerRole = $member?->roles()
-            ->where('name', 'Officer')
+            ->whereIn('name', ['Officer', 'Chairperson', 'General Manager'])
             ->exists() ?? false;
 
         if (!$hasOfficerRole) {
-            return back()->withErrors(['member_id' => 'Selected member does not have the Officer role.']);
+            return back()->withErrors(['member_id' => 'Selected member does not have an officer-related role.']);
         }
 
         $reason = $validated['reason_for_change'] ?? null;

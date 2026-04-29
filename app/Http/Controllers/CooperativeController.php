@@ -467,6 +467,9 @@ class CooperativeController extends Controller
             }])->findOrFail($user->coop_id);
         }
 
+        $chairperson = $cooperative->currentChairperson();
+        $generalManager = $cooperative->currentGeneralManager();
+
         $memberSearch = $request->input('members_search');
         $memberStatus = $request->input('members_membership_status');
         $memberType = $request->input('members_membership_type');
@@ -683,6 +686,28 @@ class CooperativeController extends Controller
             'savings' => $savings,
             'financialRecords' => $financialRecords,
             'fundingSources' => $fundingSources,
+            'chairperson' => $chairperson ? [
+                'id' => $chairperson->id,
+                'position' => $chairperson->position,
+                'status' => $chairperson->status,
+                'term_start' => optional($chairperson->term_start)->toDateString(),
+                'term_end' => optional($chairperson->term_end)->toDateString(),
+                'member' => $chairperson->member ? [
+                    'id' => $chairperson->member->id,
+                    'full_name' => $chairperson->member->full_name,
+                ] : null,
+            ] : null,
+            'generalManager' => $generalManager ? [
+                'id' => $generalManager->id,
+                'position' => $generalManager->position,
+                'status' => $generalManager->status,
+                'term_start' => optional($generalManager->term_start)->toDateString(),
+                'term_end' => optional($generalManager->term_end)->toDateString(),
+                'member' => $generalManager->member ? [
+                    'id' => $generalManager->member->id,
+                    'full_name' => $generalManager->member->full_name,
+                ] : null,
+            ] : null,
             'loanTypePermissions' => [
                 'can_create' => $user?->can('create finance-member-loans') ?? false,
                 'can_edit' => $user?->can('update finance-member-loans') ?? false,

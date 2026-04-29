@@ -32,6 +32,7 @@ interface MemberOption {
     id: number;
     name: string;
     coop_id: number;
+    role_names: string[];
 }
 
 interface Officer {
@@ -189,12 +190,15 @@ const formatDateTime = (date: string | null) => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem v-for="member in filteredMembers" :key="member.id" :value="member.id.toString()">
-                                            {{ member.name }}
+                                            <div class="flex flex-col gap-0.5 text-sm">
+                                                <span>{{ member.name }}</span>
+                                                <span class="text-xs text-muted-foreground">{{ member.role_names.join(', ') }}</span>
+                                            </div>
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <p v-if="filteredMembers.length === 0" class="mt-1 text-sm text-muted-foreground">
-                                    No members with Officer role found. Please assign the Officer role to a member first before adding them as an officer.
+                                    No members with Officer, Chairperson, or General Manager role found. Please assign one of those roles to a member before editing this officer.
                                 </p>
                                 <p v-if="form.errors.member_id" class="mt-1 text-sm text-red-500">
                                     {{ form.errors.member_id }}
