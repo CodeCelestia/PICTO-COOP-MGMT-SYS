@@ -51,6 +51,10 @@ interface Props {
     };
     baseUrl?: string;
     queryPrefix?: string;
+    cooperative?: {
+        id: number;
+        name?: string;
+    } | null;
 }
 
 const props = defineProps<Props>();
@@ -69,6 +73,7 @@ const canCreateUserAccounts = computed(() => permissions.value.includes('create 
 const canReadMemberLoans = computed(() => permissions.value.includes('read finance-member-loans'));
 const canBulkDelete = computed(() => canDeleteMember.value);
 const showActions = computed(() => canViewMember.value || canEditMember.value || canReadMemberLoans.value || canCreateUserAccounts.value || canDeleteMember.value);
+const cooperativeId = computed(() => props.cooperative?.id || new URLSearchParams(window.location.search).get('coop_id'));
 const currentUrl = computed(() => {
     const value = page.url || '';
     return value.startsWith('/') ? value : '';
@@ -470,7 +475,7 @@ const submitCreateAccount = () => {
                                         <UserPlus class="h-4 w-4" />
                                         Create Account
                                     </Button>
-                                    <Link v-if="canReadMemberLoans" :href="`/finance/loans?member_id=${member.id}`">
+                                    <Link v-if="canReadMemberLoans" :href="cooperativeId ? `/finance/loans/create?coop_id=${cooperativeId}&member_id=${member.id}` : `/finance/loans/create?member_id=${member.id}`">
                                         <Button
                                             variant="outline"
                                             size="sm"

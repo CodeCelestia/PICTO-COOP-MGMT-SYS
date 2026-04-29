@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref } from 'vue';
-import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, Eye, File, FileText, Image, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { useCreateBack } from '@/composables/useCreateBack';
-import { useRoute } from 'vue-router';
 
 type LoanAttachment = {
     path: string;
@@ -28,19 +27,25 @@ const props = defineProps<{
     cooperative_id?: number | null;
 }>();
 
-const isFromCoopContext = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return !!coopId;
-});
-
 const coopIdFromUrl = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return coopId ? parseInt(coopId) : null;
 });
 
+const coopContextId = computed(() => coopIdFromUrl.value || props.loan.cooperative?.id || props.cooperative_id || props.loan.coop_id || null);
+const isCoopContext = computed(() => coopContextId.value !== null);
+
+const backHref = computed(() => {
+    if (isCoopContext.value && coopContextId.value) {
+        return `/cooperatives/${coopContextId.value}?tab=finance`;
+    }
+
+    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
+});
+
 const fallbackHref = computed(() => {
-    if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/finance/loans/${props.loan.id}?coop_id=${coopIdFromUrl.value}`;
+    if (isCoopContext.value && coopContextId.value) {
+        return `/cooperatives/${coopContextId.value}?tab=finance`;
     }
 
     return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
@@ -58,18 +63,9 @@ const form = useForm({
     attachments_removed: [] as string[],
 });
 
-const attachmentInputRef = ref<HTMLInputElement | null>(null);
 const previewUrls = new Map<File, string>();
 const existingAttachments = ref<LoanAttachment[]>([...(props.loan.attachments || [])]);
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-
-const backHref = computed(() => {
-    if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/finance/loans/${props.loan.id}?coop_id=${coopIdFromUrl.value}`;
-    }
-
-    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
-});
 
 const getAttachmentLabel = (attachment: LoanAttachment) => {
     const extension = attachment.extension.toUpperCase();
@@ -140,12 +136,6 @@ const openAttachmentPreview = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const existingAttachmentItems = computed(() => existingAttachments.value.map((attachment) => ({
-    ...attachment,
-    label: getAttachmentLabel(attachment),
-    icon: getFileIcon(attachment.name),
-})));
-
 const newAttachmentItems = computed(() => form.attachments.map((file, index) => ({
     file,
     index,
@@ -155,23 +145,13 @@ const newAttachmentItems = computed(() => form.attachments.map((file, index) => 
     icon: getFileIcon(file.name),
 })));
 
-const onAttachmentsChange = (event: Event) => {
+const handleNewFiles = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const selectedFiles = target.files ? Array.from(target.files) : [];
 
-    selectedFiles.forEach((file) => {
-        if (file.size > MAX_FILE_SIZE_BYTES) {
-            return;
-        }
-
-        form.attachments.push(file);
-    });
+    form.attachments = selectedFiles.filter((file) => file.size <= MAX_FILE_SIZE_BYTES);
 
     target.value = '';
-};
-
-const triggerAttachmentPicker = () => {
-    attachmentInputRef.value?.click();
 };
 
 const removeNewAttachment = (index: number) => {
@@ -204,16 +184,22 @@ const submit = () => {
 <template>
     <Head :title="`Finance - Edit Loan #${loan.id}`" />
 
-    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isCoopContext">
         <div class="max-w-2xl space-y-6">
-            <div v-if="isFromCoopContext" class="flex items-center gap-4">
+            <div v-if="isCoopContext" class="flex items-center justify-between gap-4">
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ loan.cooperative?.name || 'Cooperative' }}</a>
+                    <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ loan.cooperative?.name || 'Cooperative' }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Edit Loan #{{ loan.id }}</span>
                 </nav>
+                <Link :href="backHref">
+                    <Button variant="outline" size="sm" class="gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back
+                    </Button>
+                </Link>
             </div>
             <h1 class="text-2xl font-semibold">Edit Loan #{{ loan.id }}</h1>
 
@@ -246,67 +232,40 @@ const submit = () => {
                 </div>
 
                 <div>
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <label class="block text-sm">File Attachments</label>
-                        <span class="text-xs text-muted-foreground">Maximum file size: 5MB per file</span>
+                    <div v-if="existingAttachments.length > 0">
+                        <p class="mb-2 text-sm font-medium">Current Attachments</p>
+                        <ul class="space-y-1">
+                            <li v-for="file in existingAttachments" :key="file.path" class="flex items-center gap-2">
+                                <a :href="file.url" target="_blank" class="text-primary text-sm underline">{{ file.name }}</a>
+                                <button type="button" @click="removeExistingAttachment(file.path)" class="text-xs text-red-500">Remove</button>
+                            </li>
+                        </ul>
                     </div>
 
-                    <input ref="attachmentInputRef" type="file" multiple class="hidden" @change="onAttachmentsChange" />
+                    <div class="mt-3">
+                        <label class="text-sm font-medium">Add New Files (Optional)</label>
+                        <input type="file" multiple @change="handleNewFiles" class="mt-1 block w-full text-sm" />
+                    </div>
 
-                    <div class="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-4">
-                        <div class="flex items-center gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background hover:bg-foreground/90" @click="triggerAttachmentPicker">
-                                <Plus class="h-4 w-4" />
-                                Add File
-                            </button>
-                            <p class="text-xs text-muted-foreground">You may upload one or more supporting files.</p>
-                        </div>
-
-                        <div v-if="existingAttachmentItems.length === 0 && newAttachmentItems.length === 0" class="rounded-md border border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
-                            No files attached yet.
-                        </div>
-
-                        <div v-else class="space-y-2">
-                            <div v-for="attachment in existingAttachmentItems" :key="attachment.path" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">{{ attachment.label }}</Badge>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground">{{ attachment.name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ attachment.path }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="openAttachmentPreview(attachment.url)">
-                                        <Eye class="h-3.5 w-3.5" />
-                                        Preview
-                                    </button>
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5" @click="removeExistingAttachment(attachment.path)">
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                        Remove
-                                    </button>
+                    <div v-if="newAttachmentItems.length > 0" class="mt-3 space-y-2">
+                        <div v-for="attachment in newAttachmentItems" :key="`${attachment.name}-${attachment.index}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 items-start gap-3">
+                                <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">{{ attachment.label }}</Badge>
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-medium text-foreground">{{ attachment.name }}</p>
+                                    <p class="text-xs text-muted-foreground">{{ attachment.sizeLabel }}</p>
                                 </div>
                             </div>
 
-                            <div v-for="attachment in newAttachmentItems" :key="`${attachment.name}-${attachment.index}`" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">{{ attachment.label }}</Badge>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground">{{ attachment.name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ attachment.sizeLabel }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="openAttachmentPreview(getAttachmentPreviewUrl(attachment.file))">
-                                        <Eye class="h-3.5 w-3.5" />
-                                        Preview
-                                    </button>
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5" @click="removeNewAttachment(attachment.index)">
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                        Remove
-                                    </button>
-                                </div>
+                            <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="openAttachmentPreview(getAttachmentPreviewUrl(attachment.file))">
+                                    <Eye class="h-3.5 w-3.5" />
+                                    Preview
+                                </button>
+                                <button type="button" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5" @click="removeNewAttachment(attachment.index)">
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                    Remove
+                                </button>
                             </div>
                         </div>
                     </div>

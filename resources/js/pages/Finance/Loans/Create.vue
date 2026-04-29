@@ -5,36 +5,54 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
 import { useCreateBack } from '@/composables/useCreateBack';
 
+type LoanTypeOption = {
+    id: number;
+    name: string;
+    cooperative_id: number;
+    classification: 'micro' | 'small' | 'medium' | 'large' | null;
+};
+
+type CooperativeMemberOption = {
+    id: number;
+    first_name: string;
+    last_name: string;
+    coop_id: number;
+    cooperative?: {
+        classification: 'micro' | 'small' | 'medium' | 'large' | null;
+    } | null;
+};
+
+type CooperativeOption = {
+    id: number;
+    name: string;
+    classification: 'micro' | 'small' | 'medium' | 'large' | null;
+    members: CooperativeMemberOption[];
+    loan_types: LoanTypeOption[];
+};
+
+type PreselectedCooperativeOption = {
+    id: number;
+    name: string;
+    classification: 'micro' | 'small' | 'medium' | 'large' | null;
+    members: CooperativeMemberOption[];
+    loanTypes: LoanTypeOption[];
+};
+
 const props = defineProps<{
-    members: Array<{
-        id: number;
-        first_name: string;
-        last_name: string;
-        coop_id: number;
-        cooperative?: {
-            classification: 'micro' | 'small' | 'medium' | 'large' | null;
-        } | null;
-    }>;
-    loanTypes: Array<{
-        id: number;
-        name: string;
-        cooperative_id: number;
-        classification: 'micro' | 'small' | 'medium' | 'large' | null;
-    }>;
-    cooperatives: Array<{
-        id: number;
-        name: string;
-        classification: 'micro' | 'small' | 'medium' | 'large' | null;
-        members: Array<{ id: number; first_name: string; last_name: string; coop_id: number }>;
-        loan_types: Array<{ id: number; name: string; cooperative_id: number; classification: 'micro' | 'small' | 'medium' | 'large' | null }>;
-    }>;
+    members: CooperativeMemberOption[];
+    loanTypes: LoanTypeOption[];
+    cooperatives: CooperativeOption[];
     showCooperativePicker: boolean;
     preselectedCoopId?: number | null;
     preselectedMemberId?: number | null;
-    preselectedCoop?: { id: number; name: string; members: any[]; loanTypes: any[] } | null;
+    preselectedCoop?: PreselectedCooperativeOption | null;
 }>();
 
-const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/finance/loans' });
+const { goBack, returnToHref } = useCreateBack({
+    fallbackHref: '/finance/loans',
+    cooperativeId: computed(() => props.preselectedCoopId),
+    cooperativeTab: 'finance',
+});
 
 const form = useForm({
     coop_id: props.preselectedCoopId ?? '',
@@ -171,13 +189,27 @@ const selectedMember = computed(() => {
     return availableMembers.value.find((member) => String(member.id) === String(form.member_id)) || null;
 });
 
-const filteredLoanTypes = computed(() => {
+const selectedCooperativeLoanTypes = computed(() => {
     if (isFromCoopContext.value) {
         return props.preselectedCoop?.loanTypes || [];
     }
 
+    const cooperative = selectedCooperative.value as CooperativeOption | null;
+    return cooperative?.loan_types || [];
+});
+
+const selectedCooperativeClassification = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoop?.classification || null;
+    }
+
+    const cooperative = selectedCooperative.value as CooperativeOption | null;
+    return cooperative?.classification || null;
+});
+
+const filteredLoanTypes = computed(() => {
     const sourceLoanTypes = props.showCooperativePicker
-        ? (selectedCooperative.value?.loan_types || [])
+        ? selectedCooperativeLoanTypes.value
         : props.loanTypes;
 
     if (!selectedMember.value && !props.showCooperativePicker) {
@@ -189,10 +221,10 @@ const filteredLoanTypes = computed(() => {
     }
 
     const cooperativeClassification = props.showCooperativePicker
-        ? selectedCooperative.value?.classification || null
+        ? selectedCooperativeClassification.value
         : selectedMember.value?.cooperative?.classification || null;
 
-    return sourceLoanTypes.filter((loanType) => {
+    return sourceLoanTypes.filter((loanType: { id: number; cooperative_id: number; classification: 'micro' | 'small' | 'medium' | 'large' | null }) => {
         if (selectedMember.value && loanType.cooperative_id !== selectedMember.value.coop_id) {
             return false;
         }
@@ -214,7 +246,7 @@ watch(() => form.coop_id, () => {
     form.loan_type_id = '';
 });
 
-watch(filteredLoanTypes, (loanTypes) => {
+watch(filteredLoanTypes, (loanTypes: Array<{ id: number }>) => {
     if (!form.loan_type_id) {
         return;
     }
@@ -238,7 +270,7 @@ const submit = () => {
 
 const handleBackClick = () => {
     if (isFromCoopContext.value && props.preselectedCoopId) {
-        window.location.href = `/cooperatives/${props.preselectedCoopId}?tab=members`;
+        window.location.href = `/cooperatives/${props.preselectedCoopId}?tab=finance`;
     } else {
         goBack();
     }

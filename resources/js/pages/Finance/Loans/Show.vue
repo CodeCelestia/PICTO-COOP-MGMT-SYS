@@ -1,20 +1,11 @@
 <script setup lang="ts">
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Eye, Pencil } from 'lucide-vue-next';
+import { ArrowLeft, Pencil } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-
-type LoanAttachment = {
-    path: string;
-    name: string;
-    url: string;
-    extension: string;
-};
 
 const props = defineProps<{
     loan: {
@@ -30,10 +21,17 @@ const props = defineProps<{
         disbursement_date?: string | null;
         member?: { first_name?: string; last_name?: string };
         loan_type?: { name?: string };
-        attachments?: LoanAttachment[];
+        cooperative?: { id?: number; name?: string } | null;
+        attachments?: Array<{
+            path: string;
+            name: string;
+            url: string;
+            extension: string;
+        }>;
     };
     from?: string | null;
     cooperative_id?: number | null;
+    memberLoanCount: number;
     repaymentSchedule: Array<{
         id: number;
         payment_number: number | null;
@@ -53,33 +51,30 @@ const props = defineProps<{
 
 const currentUrl = window.location.pathname + window.location.search;
 
-const isFromCoopContext = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return !!coopId;
-});
-
 const coopIdFromUrl = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return coopId ? parseInt(coopId) : null;
 });
 
+const coopContextId = computed(() => coopIdFromUrl.value || props.loan.coop_id || props.cooperative_id || null);
+const isCoopContext = computed(() => coopContextId.value !== null);
 const cooperativeName = computed(() => props.loan.cooperative?.name || 'Cooperative');
 
 const backHref = computed(() => {
-    if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+    if (isCoopContext.value && coopContextId.value) {
+        return `/cooperatives/${coopContextId.value}?tab=finance`;
     }
 
     if (props.from === 'coop' && props.cooperative_id) {
-        return `/cooperatives/${props.cooperative_id}?tab=members`;
+        return `/cooperatives/${props.cooperative_id}?tab=finance`;
     }
 
     return '/finance/loans';
 });
 
 const editHref = computed(() => {
-    if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/finance/loans/${props.loan.id}/edit?coop_id=${coopIdFromUrl.value}`;
+    if (isCoopContext.value && coopContextId.value) {
+        return `/finance/loans/${props.loan.id}/edit?coop_id=${coopContextId.value}`;
     }
 
     if (props.from === 'coop' && props.cooperative_id) {
@@ -88,8 +83,6 @@ const editHref = computed(() => {
 
     return currentUrl ? `/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${props.loan.id}/edit`;
 });
-
-const attachments = computed(() => props.loan.attachments || []);
 
 const approveForm = useForm({ remarks: '' });
 const disburseForm = useForm({ amount: Number(props.loan.principal), disbursement_method: 'cash', remarks: '' });
@@ -108,36 +101,18 @@ const formatDate = (value: string | null | undefined) => {
         year: 'numeric',
     });
 };
-
-const getAttachmentLabel = (attachment: LoanAttachment) => {
-    const extension = attachment.extension.toUpperCase();
-
-    if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP', 'SVG'].includes(extension)) {
-        return 'IMG';
-    }
-
-    if (extension === 'PDF') {
-        return 'PDF';
-    }
-
-    return extension || 'FILE';
-};
-
-const previewAttachment = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-};
 </script>
 
 <template>
     <Head :title="`Finance - ${loan.member?.first_name || ''} ${loan.member?.last_name || ''} - Loan #${memberLoanCount}`" />
 
-    <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
+    <FinanceShellLayout active-tab="loans" :hide-tabs="isCoopContext">
         <div class="space-y-6">
-            <div v-if="isFromCoopContext" class="flex items-center justify-between gap-4">
+            <div v-if="isCoopContext" class="flex items-center justify-between gap-4">
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Loan #{{ loan.id }}</span>
                 </nav>
@@ -218,35 +193,18 @@ const previewAttachment = (url: string) => {
             </div>
 
             <div class="rounded-lg border bg-card p-4">
-                <div class="mb-3 flex items-center justify-between gap-3">
-                    <h2 class="font-semibold">File Attachments</h2>
-                    <span class="text-xs text-muted-foreground">View only</span>
+                <div v-if="loan.attachments && loan.attachments.length > 0">
+                    <h3 class="mb-2 text-sm font-semibold">Attachments</h3>
+                    <ul class="space-y-2">
+                        <li v-for="file in loan.attachments" :key="file.path" class="flex items-center gap-2">
+                            <a :href="file.url" target="_blank" class="text-primary text-sm underline">
+                                {{ file.name }}
+                            </a>
+                            <span class="text-xs text-muted-foreground">.{{ file.extension }}</span>
+                        </li>
+                    </ul>
                 </div>
-
-                <div v-if="attachments.length === 0" class="rounded-md border border-dashed border-border bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                    No files attached to this loan.
-                </div>
-
-                <div v-else class="space-y-2">
-                    <div v-for="attachment in attachments" :key="attachment.path" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex min-w-0 items-start gap-3">
-                            <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">
-                                {{ getAttachmentLabel(attachment) }}
-                            </Badge>
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-medium text-foreground">{{ attachment.name }}</p>
-                                <p class="text-xs text-muted-foreground">{{ attachment.path }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="previewAttachment(attachment.url)">
-                                <Eye class="h-3.5 w-3.5" />
-                                Preview
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <div v-else class="text-sm text-muted-foreground">No files attached.</div>
             </div>
 
             <div class="grid gap-4 xl:grid-cols-3">
