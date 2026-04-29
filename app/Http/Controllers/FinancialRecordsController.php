@@ -42,9 +42,25 @@ class FinancialRecordsController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        // Load cooperatives for global (non-coop) context drill-down
+        $cooperatives = collect();
+        if (!$request->filled('coop_id')) {
+            $cooperativesQuery = \App\Models\Cooperative::query()
+                ->select(['id', 'name', 'status'])
+                ->where('status', 'Active')
+                ->orderBy('name');
+
+            if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+                $cooperativesQuery->where('id', $user->coop_id);
+            }
+
+            $cooperatives = $cooperativesQuery->get();
+        }
+
         return Inertia::render('Finance/FinancialRecords/Index', [
             'records' => $records,
             'cooperative' => $cooperative,
+            'cooperatives' => $cooperatives,
             'filters' => $request->only(['search', 'type']),
             'permissions' => [
                 'can_create' => $user?->can('create finance-ledger-entries') ?? false,

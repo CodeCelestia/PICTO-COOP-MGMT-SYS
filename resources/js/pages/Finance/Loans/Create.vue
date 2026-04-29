@@ -3,7 +3,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
-import { useCreateBack } from '@/composables/useCreateBack';
+import Swal from 'sweetalert2';
 
 type LoanTypeOption = {
     id: number;
@@ -48,15 +48,12 @@ const props = defineProps<{
     preselectedCoop?: PreselectedCooperativeOption | null;
 }>();
 
-const { goBack, returnToHref } = useCreateBack({
-    fallbackHref: '/finance/loans',
-    cooperativeId: computed(() => props.preselectedCoopId),
-    cooperativeTab: 'finance',
-});
+const returnToParam = new URLSearchParams(window.location.search).get('return_to');
+const returnToContext = returnToParam === 'members' || returnToParam === 'finance' ? returnToParam : null;
 
 const form = useForm({
     coop_id: props.preselectedCoopId ?? '',
-    return_to: returnToHref.value,
+    return_to: returnToContext ?? '',
     member_id: props.preselectedMemberId ?? '',
     loan_type_id: '',
     principal: '',
@@ -201,7 +198,7 @@ const searchableMembers = computed(() => {
     const query = memberSearchQuery.value.trim().toLowerCase();
 
     if (!query) {
-        return availableMembers.value;
+        return [];
     }
 
     return availableMembers.value.filter((member) => formatMemberName(member).toLowerCase().includes(query));
@@ -303,12 +300,36 @@ const submit = () => {
     });
 };
 
-const handleBackClick = () => {
+const backHref = computed(() => {
     if (isFromCoopContext.value && props.preselectedCoopId) {
-        window.location.href = `/cooperatives/${props.preselectedCoopId}?tab=finance`;
-    } else {
-        goBack();
+        if (returnToContext === 'members') {
+            return `/cooperatives/${props.preselectedCoopId}?tab=members`;
+        }
+
+        return `/cooperatives/${props.preselectedCoopId}/finance/loans`;
     }
+
+    return '/finance/loans';
+});
+
+const handleBackClick = async () => {
+    if (form.isDirty) {
+        const result = await Swal.fire({
+            title: 'Discard changes?',
+            text: 'You have unsaved changes that will be lost.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, discard',
+            cancelButtonText: 'Keep editing',
+            confirmButtonColor: '#dc2626',
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+    }
+
+    window.location.href = backHref.value;
 };
 </script>
 

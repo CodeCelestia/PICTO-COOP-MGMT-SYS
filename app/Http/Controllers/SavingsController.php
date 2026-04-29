@@ -33,6 +33,10 @@ class SavingsController extends Controller
             $query->where('account_status', $request->string('status'));
         }
 
+        if ($request->filled('member_id')) {
+            $query->where('member_id', (int) $request->input('member_id'));
+        }
+
         if ($request->filled('coop_id')) {
             $query->where('coop_id', (int) $request->input('coop_id'));
             $cooperative = \App\Models\Cooperative::select(['id', 'name'])->find($request->integer('coop_id'));
@@ -40,9 +44,25 @@ class SavingsController extends Controller
 
         $savings = $query->latest()->paginate(15)->withQueryString();
 
+        // Load cooperatives for global (non-coop) context drill-down
+        $cooperatives = collect();
+        if (!$request->filled('coop_id') && !$this->isMemberOnly($user)) {
+            $cooperativesQuery = \App\Models\Cooperative::query()
+                ->select(['id', 'name', 'status'])
+                ->where('status', 'Active')
+                ->orderBy('name');
+
+            if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+                $cooperativesQuery->where('id', $user->coop_id);
+            }
+
+            $cooperatives = $cooperativesQuery->get();
+        }
+
         return Inertia::render('Finance/Savings/Index', [
             'savings' => $savings,
             'cooperative' => $cooperative,
+            'cooperatives' => $cooperatives,
             'accountStatuses' => ['Active', 'Dormant', 'Closed'],
             'filters' => $request->only(['status']),
             'permissions' => [

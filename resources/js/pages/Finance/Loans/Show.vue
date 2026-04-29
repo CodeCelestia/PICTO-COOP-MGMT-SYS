@@ -4,8 +4,10 @@ import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Pencil } from 'lucide-vue-next';
+import { ArrowLeft, Pencil, Eye, File, FileText, Image } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import Swal from 'sweetalert2';
 
 const props = defineProps<{
     loan: {
@@ -88,9 +90,50 @@ const approveForm = useForm({ remarks: '' });
 const disburseForm = useForm({ amount: Number(props.loan.principal), disbursement_method: 'cash', remarks: '' });
 const paymentForm = useForm({ amount: 0, paid_at: '', remarks: '' });
 
-const approve = () => approveForm.post(`/finance/loans/${props.loan.id}/approve`);
-const disburse = () => disburseForm.post(`/finance/loans/${props.loan.id}/disburse`);
-const recordPayment = () => paymentForm.post(`/finance/loans/${props.loan.id}/payments`);
+const approve = async () => {
+    const result = await Swal.fire({
+        title: 'Approve this loan?',
+        text: 'This action will mark the loan as approved.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+    });
+
+    if (result.isConfirmed) {
+        approveForm.post(`/finance/loans/${props.loan.id}/approve`);
+    }
+};
+
+const disburse = async () => {
+    const result = await Swal.fire({
+        title: 'Disburse this loan?',
+        text: 'This action will disburse the loan to the member.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Disburse',
+        cancelButtonText: 'Cancel',
+    });
+
+    if (result.isConfirmed) {
+        disburseForm.post(`/finance/loans/${props.loan.id}/disburse`);
+    }
+};
+
+const recordPayment = async () => {
+    const result = await Swal.fire({
+        title: 'Record this payment?',
+        text: 'This action will record the payment against the loan.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Record',
+        cancelButtonText: 'Cancel',
+    });
+
+    if (result.isConfirmed) {
+        paymentForm.post(`/finance/loans/${props.loan.id}/payments`);
+    }
+};
 const isLifecycleLocked = ['Active', 'Completed'].includes(props.loan.status);
 
 const formatDate = (value: string | null | undefined) => {
@@ -100,6 +143,28 @@ const formatDate = (value: string | null | undefined) => {
         day: '2-digit',
         year: 'numeric',
     });
+};
+
+const getAttachmentLabel = (attachment: { extension: string }) => {
+    const extension = attachment.extension.toUpperCase();
+    if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP', 'SVG'].includes(extension)) {
+        return 'IMG';
+    }
+    if (extension === 'PDF') {
+        return 'PDF';
+    }
+    return extension || 'FILE';
+};
+
+const getAttachmentIcon = (attachment: { extension: string }) => {
+    const extension = attachment.extension.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
+        return Image;
+    }
+    if (extension === 'pdf') {
+        return FileText;
+    }
+    return File;
 };
 </script>
 
@@ -154,6 +219,19 @@ const formatDate = (value: string | null | undefined) => {
                 </div>
             </div>
 
+            <div class="rounded-lg border bg-card p-4">
+                <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-muted-foreground">Cooperative</p>
+                        <p class="text-base font-semibold text-foreground">{{ loan.cooperative?.name || 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-muted-foreground">Member</p>
+                        <p class="text-base font-semibold text-foreground">{{ loan.member?.first_name }} {{ loan.member?.last_name }}</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div class="rounded-lg border bg-card p-4 text-sm">
                     <div class="text-muted-foreground">Loan Amount</div>
@@ -194,15 +272,22 @@ const formatDate = (value: string | null | undefined) => {
 
             <div class="rounded-lg border bg-card p-4">
                 <div v-if="loan.attachments && loan.attachments.length > 0">
-                    <h3 class="mb-2 text-sm font-semibold">Attachments</h3>
-                    <ul class="space-y-2">
-                        <li v-for="file in loan.attachments" :key="file.path" class="flex items-center gap-2">
-                            <a :href="file.url" target="_blank" class="text-primary text-sm underline">
-                                {{ file.name }}
-                            </a>
-                            <span class="text-xs text-muted-foreground">.{{ file.extension }}</span>
-                        </li>
-                    </ul>
+                    <h3 class="mb-3 text-sm font-semibold">Attachments</h3>
+                    <div class="space-y-2">
+                        <div v-for="file in loan.attachments" :key="file.path" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 items-start gap-3">
+                                <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">{{ getAttachmentLabel(file) }}</Badge>
+                                <component :is="getAttachmentIcon(file)" class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground sm:hidden" />
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-medium text-foreground">{{ file.name }}</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="window.open(file.url, '_blank', 'noopener,noreferrer')" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted">
+                                <Eye class="h-3.5 w-3.5" />
+                                Preview
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div v-else class="text-sm text-muted-foreground">No files attached.</div>
             </div>
@@ -219,7 +304,7 @@ const formatDate = (value: string | null | undefined) => {
                         Approval is disabled because this loan is already {{ loan.status }}.
                     </p>
                     <textarea v-model="approveForm.remarks" rows="3" class="mt-3 w-full rounded-md border px-3 py-2 text-sm" placeholder="Approval remarks"></textarea>
-                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="approveForm.processing || isLifecycleLocked">Approve</button>
+                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="approveForm.processing || isLifecycleLocked">{{ approveForm.processing ? 'Processing...' : 'Approve' }}</button>
                 </form>
 
                 <form
@@ -238,14 +323,14 @@ const formatDate = (value: string | null | undefined) => {
                         <option value="check">Check</option>
                         <option value="bank_transfer">Bank Transfer</option>
                     </select>
-                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="disburseForm.processing || isLifecycleLocked">Disburse</button>
+                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="disburseForm.processing || isLifecycleLocked">{{ disburseForm.processing ? 'Processing...' : 'Disburse' }}</button>
                 </form>
 
                 <form v-if="permissions.can_record_payment" class="rounded-lg border bg-card p-4" @submit.prevent="recordPayment">
                     <h2 class="font-semibold">Record Payment</h2>
                     <input v-model.number="paymentForm.amount" type="number" step="0.01" class="mt-3 w-full rounded-md border px-3 py-2 text-sm" placeholder="Amount" />
                     <input v-model="paymentForm.paid_at" type="date" class="mt-3 w-full rounded-md border px-3 py-2 text-sm" />
-                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="paymentForm.processing">Save Payment</button>
+                    <button type="submit" class="mt-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" :disabled="paymentForm.processing">{{ paymentForm.processing ? 'Processing...' : 'Save Payment' }}</button>
                 </form>
             </div>
 

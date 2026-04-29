@@ -902,6 +902,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('recycle-bin', [RecycleBinController::class, 'destroy'])
         ->middleware('permission:delete recycle-bin')
         ->name('recycle-bin.destroy');
+
+    // API Routes for Finance Drill-Down
+    Route::get('/api/cooperatives/{cooperative}/members', function (\App\Models\Cooperative $cooperative) {
+        return $cooperative->members()
+            ->select('id', 'first_name', 'last_name', 'coop_id')
+            ->where('membership_status', 'Active')
+            ->orderBy('last_name')
+            ->get();
+    })->name('api.cooperatives.members');
 });
 
 require __DIR__.'/settings.php';

@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useCreateBack } from '@/composables/useCreateBack';
 
 type LoanAttachment = {
@@ -201,7 +202,10 @@ const submit = () => {
                     </Button>
                 </Link>
             </div>
-            <h1 class="text-2xl font-semibold">Edit Loan #{{ loan.id }}</h1>
+            <div>
+                <h1 class="text-2xl font-semibold">Edit Loan #{{ loan.id }}</h1>
+                <p class="mt-1 text-sm text-muted-foreground">Member: <span class="font-medium text-foreground">{{ loan.member?.first_name }} {{ loan.member?.last_name }}</span></p>
+            </div>
 
             <form class="space-y-4 rounded-lg border bg-card p-4" @submit.prevent="submit">
                 <div>
@@ -234,12 +238,27 @@ const submit = () => {
                 <div>
                     <div v-if="existingAttachments.length > 0">
                         <p class="mb-2 text-sm font-medium">Current Attachments</p>
-                        <ul class="space-y-1">
-                            <li v-for="file in existingAttachments" :key="file.path" class="flex items-center gap-2">
-                                <a :href="file.url" target="_blank" class="text-primary text-sm underline">{{ file.name }}</a>
-                                <button type="button" @click="removeExistingAttachment(file.path)" class="text-xs text-red-500">Remove</button>
-                            </li>
-                        </ul>
+                        <div class="space-y-2">
+                            <div v-for="file in existingAttachments" :key="file.path" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex min-w-0 items-start gap-3">
+                                    <Badge class="rounded-md px-2 py-0.5 text-xs font-medium">{{ getAttachmentLabel(file) }}</Badge>
+                                    <component :is="getAttachmentIcon(file)" class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground sm:hidden" />
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-foreground">{{ file.name }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    <button type="button" @click="window.open(file.url, '_blank', 'noopener,noreferrer')" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted">
+                                        <Eye class="h-3.5 w-3.5" />
+                                        Preview
+                                    </button>
+                                    <button type="button" @click="removeExistingAttachment(file.path)" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5">
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mt-3">

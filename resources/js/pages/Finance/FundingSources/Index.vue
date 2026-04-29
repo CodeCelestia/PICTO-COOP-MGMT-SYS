@@ -3,10 +3,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
-import { Head, Link } from '@inertiajs/vue3';
-import { Eye, Plus } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Eye, Plus, ArrowLeft } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const isFromCoopContext = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
@@ -18,6 +18,25 @@ const coopIdFromUrl = computed(() => {
     return coopId ? parseInt(coopId) : null;
 });
 const currentUrl = window.location.pathname + window.location.search;
+
+const isGlobalMode = computed(() => !coopIdFromUrl.value);
+const showCooperativesList = computed(() => isGlobalMode.value && !selectedCoop.value);
+const showFundingSourcesList = computed(() => isGlobalMode.value ? !!selectedCoop.value : true);
+
+const selectCoop = (coop: Cooperative) => {
+    selectedCoop.value = coop;
+    router.get('/finance/funding-sources', {
+        coop_id: coop.id,
+    }, {
+        preserveState: false,
+        preserveScroll: false,
+    });
+};
+
+const backToCooperatives = () => {
+    selectedCoop.value = null;
+    window.scrollTo(0, 0);
+};
 
 interface FundingSource {
     id: number;
@@ -32,11 +51,17 @@ interface FundingSource {
     cooperative?: { name?: string };
 }
 
+interface Cooperative {
+    id: number;
+    name: string;
+}
+
 defineProps<{
     fundingSources: {
         data: FundingSource[];
     };
     cooperative?: { id: number; name: string } | null;
+    cooperatives?: Array<{ id: number; name: string; status: string }>;
     permissions: {
         can_create: boolean;
         can_edit: boolean;
@@ -44,6 +69,8 @@ defineProps<{
         can_approve: boolean;
     };
 }>();
+
+const selectedCoop = ref<Cooperative | null>(null);
 
 const categoryLabel = (category: FundingSource['category']) => {
     if (category === 'member_concern') return 'Member Concern';
@@ -82,7 +109,31 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
             </Link>
         </div>
 
-        <div class="mt-6 overflow-hidden rounded-lg border bg-card">
+        <!-- Global Mode: Cooperatives List -->
+        <div v-if="showCooperativesList" class="mt-6">
+            <h2 class="mb-4 text-lg font-semibold">Select a Cooperative</h2>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div v-for="coop in cooperatives" :key="coop.id" class="cursor-pointer rounded-lg border bg-card p-4 transition hover:border-primary hover:bg-primary/5" @click="selectCoop(coop)">
+                    <h3 class="font-medium text-foreground">{{ coop.name }}</h3>
+                    <p class="mt-1 text-xs text-muted-foreground">Click to view funding sources</p>
+                </div>
+            </div>
+            <div v-if="!cooperatives || cooperatives.length === 0" class="rounded-lg border bg-card p-6 text-center text-muted-foreground">
+                No cooperatives available.
+            </div>
+        </div>
+
+        <!-- Funding Sources List (shown in coop context or after coop selection in global mode) -->
+        <div v-if="showFundingSourcesList" class="mt-6">
+            <div v-if="isGlobalMode && selectedCoop" class="mb-4 flex items-center gap-2">
+                <Button variant="outline" size="sm" @click="backToCooperatives" class="gap-2">
+                    <ArrowLeft class="h-4 w-4" />
+                    Back to Cooperatives
+                </Button>
+                <h2 class="text-lg font-semibold">Funding Sources for {{ selectedCoop.name }}</h2>
+            </div>
+
+            <div class="overflow-hidden rounded-lg border bg-card">
             <table class="w-full text-sm">
                 <thead class="bg-muted/40">
                     <tr>
@@ -136,6 +187,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </FinanceShellLayout>
 </template>

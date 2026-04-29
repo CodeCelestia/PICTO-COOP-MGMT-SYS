@@ -157,6 +157,7 @@ class LoansController extends \App\Http\Controllers\Controller
             ->orderBy('created_at', 'desc');
 
         $filterStatus = $request->query('status');
+        $filtMemberId = $request->query('member_id');
         $coopId = $request->query('coop_id') ?? ($cooperative?->id ?? null);
 
         if ($coopId) {
@@ -169,6 +170,10 @@ class LoansController extends \App\Http\Controllers\Controller
 
         if ($filterStatus) {
             $query->where('status', $filterStatus);
+        }
+
+        if ($filtMemberId) {
+            $query->where('member_id', (int) $filtMemberId);
         }
 
         $loans = $query->paginate(15)->withQueryString();
@@ -184,9 +189,25 @@ class LoansController extends \App\Http\Controllers\Controller
             'can_record_payment' => $user?->can('record-payment finance-member-loans'),
         ];
 
+        // Load cooperatives for global (non-coop) context drill-down
+        $cooperatives = collect();
+        if (!$isCoopContext && !$coopId) {
+            $cooperativesQuery = Cooperative::query()
+                ->select(['id', 'name', 'status'])
+                ->where('status', 'Active')
+                ->orderBy('name');
+
+            if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+                $cooperativesQuery->where('id', $user->coop_id);
+            }
+
+            $cooperatives = $cooperativesQuery->get();
+        }
+
         return Inertia::render('Finance/Loans/Index', [
             'loans' => $loans,
             'cooperative' => $coopContext ? ['id' => $coopContext->id, 'name' => $coopContext->name] : null,
+            'cooperatives' => $cooperatives,
             'statuses' => $statuses,
             'filters' => ['status' => $filterStatus],
             'permissions' => $permissions,
@@ -274,17 +295,26 @@ class LoansController extends \App\Http\Controllers\Controller
             'Loans'
         );
 
-        $safeReturnTo = $this->resolveInternalReturnTo($request);
+        $returnTo = $request->input('return_to', 'finance');
+        $cooperative = $request->route('cooperative');
+        $cooperativeId = $cooperative instanceof Cooperative
+            ? $cooperative->id
+            : (is_numeric($cooperative) ? (int) $cooperative : null);
 
-        if ($safeReturnTo) {
-            return redirect()->to($safeReturnTo)->with('success', 'Loan application created successfully.');
+        if ($cooperativeId && $returnTo === 'members') {
+            return redirect()
+                ->route('cooperatives.show', ['cooperative' => $cooperativeId, 'tab' => 'members'])
+                ->with('success', 'Loan created successfully.');
         }
 
-        if ($request->routeIs('cooperatives.finance.loans.*')) {
-            return $this->resolveRedirect($request, 'show', ['loan' => $loan->id])->with('success', 'Loan application created successfully.');
+        if ($cooperativeId) {
+            return redirect()
+                ->route('cooperatives.finance.loans.show', ['cooperative' => $cooperativeId, 'loan' => $loan->id])
+                ->with('success', 'Loan created successfully.');
         }
 
-        return redirect()->route('finance.loans.show', $loan)->with('success', 'Loan application created successfully.');
+        return redirect()->route('finance.loans.show', $loan)
+            ->with('success', 'Loan created successfully.');
     }
 
     public function show(Request $request, Cooperative $cooperative, MemberLoan $loan): \Inertia\Response
