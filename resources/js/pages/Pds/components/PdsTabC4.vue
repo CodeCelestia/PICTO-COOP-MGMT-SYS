@@ -19,6 +19,16 @@ const yesNoQuestions = [
     { key: 'q41', details: 'q41_details', text: '41. Are you a solo parent?' },
 ] as const;
 
+const emit = defineEmits<{
+    (e: 'update-field', key: string, value: any): void
+    (e: 'add-special-skill'): void
+    (e: 'remove-special-skill', index: number): void
+    (e: 'add-recognition'): void
+    (e: 'remove-recognition', index: number): void
+    (e: 'add-membership'): void
+    (e: 'remove-membership', index: number): void
+}>()
+
 const props = defineProps<{
     form: any;
 }>();
@@ -27,12 +37,22 @@ const detailDraft = reactive<Record<string, string>>(
     Object.fromEntries(yesNoQuestions.map((question) => [question.details, props.form[question.details] || ''])),
 );
 
+const updateField = (key: string, value: any) => {
+    emit('update-field', key, value);
+};
+
+const updateArrayAt = (key: string, index: number, value: any) => {
+    const arr = Array.isArray(props.form[key]) ? [...props.form[key]] : [];
+    arr[index] = value;
+    emit('update-field', key, arr);
+};
+
 const syncDetail = (detailsKey: string, value: string) => {
     if (props.form[detailsKey] === value) {
         return;
     }
 
-    props.form[detailsKey] = value;
+    emit('update-field', detailsKey, value);
 };
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -77,26 +97,26 @@ onUnmounted(() => {
             <h2 class="mb-4 text-lg font-semibold text-foreground">Other Information</h2>
 
             <div class="mb-5">
-                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Special Skills</h3><Button type="button" variant="outline" @click="form.special_skills.push('')">Add</Button></div>
-                <div v-for="(row, index) in form.special_skills" :key="`skill-${index}`" class="mb-2 flex gap-2">
-                    <Input v-model="form.special_skills[index]" />
-                    <Button type="button" variant="destructive" size="sm" @click="form.special_skills.splice(index, 1)">Remove</Button>
+                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Special Skills</h3><Button type="button" variant="outline" @click="emit('add-special-skill')">Add</Button></div>
+                <div v-for="(row, index) in props.form.special_skills" :key="`skill-${index}`" class="mb-2 flex gap-2">
+                    <Input :model-value="row" @update:model-value="(val) => updateArrayAt('special_skills', index, val)" />
+                    <Button type="button" variant="destructive" size="sm" @click="emit('remove-special-skill', index)">Remove</Button>
                 </div>
             </div>
 
             <div class="mb-5">
-                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Recognitions</h3><Button type="button" variant="outline" @click="form.recognitions.push('')">Add</Button></div>
-                <div v-for="(row, index) in form.recognitions" :key="`recognition-${index}`" class="mb-2 flex gap-2">
-                    <Input v-model="form.recognitions[index]" />
-                    <Button type="button" variant="destructive" size="sm" @click="form.recognitions.splice(index, 1)">Remove</Button>
+                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Recognitions</h3><Button type="button" variant="outline" @click="emit('add-recognition')">Add</Button></div>
+                <div v-for="(row, index) in props.form.recognitions" :key="`recognition-${index}`" class="mb-2 flex gap-2">
+                    <Input :model-value="row" @update:model-value="(val) => updateArrayAt('recognitions', index, val)" />
+                    <Button type="button" variant="destructive" size="sm" @click="emit('remove-recognition', index)">Remove</Button>
                 </div>
             </div>
 
             <div>
-                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Memberships</h3><Button type="button" variant="outline" @click="form.memberships.push('')">Add</Button></div>
-                <div v-for="(row, index) in form.memberships" :key="`membership-${index}`" class="mb-2 flex gap-2">
-                    <Input v-model="form.memberships[index]" />
-                    <Button type="button" variant="destructive" size="sm" @click="form.memberships.splice(index, 1)">Remove</Button>
+                <div class="mb-2 flex items-center justify-between"><h3 class="font-semibold">Memberships</h3><Button type="button" variant="outline" @click="emit('add-membership')">Add</Button></div>
+                <div v-for="(row, index) in props.form.memberships" :key="`membership-${index}`" class="mb-2 flex gap-2">
+                    <Input :model-value="row" @update:model-value="(val) => updateArrayAt('memberships', index, val)" />
+                    <Button type="button" variant="destructive" size="sm" @click="emit('remove-membership', index)">Remove</Button>
                 </div>
             </div>
         </section>
@@ -106,13 +126,13 @@ onUnmounted(() => {
             <div v-for="question in yesNoQuestions" :key="question.key" class="mb-4 rounded-md border border-border bg-muted/30 p-4">
                 <Label class="mb-2 block">{{ question.text }}</Label>
                 <div class="flex gap-4">
-                    <label class="flex items-center gap-2"><input type="radio" :name="question.key" value="Yes" v-model="form[question.key]" /> Yes</label>
-                    <label class="flex items-center gap-2"><input type="radio" :name="question.key" value="No" v-model="form[question.key]" /> No</label>
+                    <label class="flex items-center gap-2"><input type="radio" :name="question.key" value="Yes" :checked="props.form[question.key] === 'Yes'" @change="() => updateField(question.key, 'Yes')" /> Yes</label>
+                    <label class="flex items-center gap-2"><input type="radio" :name="question.key" value="No" :checked="props.form[question.key] === 'No'" @change="() => updateField(question.key, 'No')" /> No</label>
                 </div>
                 <InputError :message="form.errors[question.key]" />
                 <div v-if="form[question.key] === 'Yes'" class="mt-3">
                     <Label>Details</Label>
-                    <Textarea v-model="detailDraft[question.details]" rows="2" />
+                    <Textarea :model-value="detailDraft[question.details]" @update:model-value="(val) => { detailDraft[question.details] = val }" rows="2" />
                 </div>
             </div>
         </section>

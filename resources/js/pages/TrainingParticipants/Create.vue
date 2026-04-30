@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useForm, router, usePage } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Users, Save, X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';

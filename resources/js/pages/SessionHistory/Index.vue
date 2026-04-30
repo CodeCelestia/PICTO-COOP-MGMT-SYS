@@ -4,11 +4,7 @@ import { Activity, Filter, Search, Calendar, Monitor, MapPin, Clock } from 'luci
 import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+// Collapsible imports removed (unused)
 import { Input } from '@/components/ui/input';
 import {
     Select,

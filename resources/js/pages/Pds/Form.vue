@@ -249,6 +249,10 @@ const mergedData = props.pds
 
 const form = useForm(mergedData);
 
+const updateField = (key: string, value: any) => {
+    (form as Record<string, any>)[key] = value;
+};
+
 const findRegionCodeByProvince = async (provinceName: string): Promise<string | null> => {
     for (const region of regions.value) {
         await fetchProvinces(region.code);
@@ -649,9 +653,36 @@ const tabs = [
                     v-model:selected-perm-city-code="selectedPermCityCode"
                     v-model:copy-permanent-address="copyPermanentAddress"
                 />
-                <PdsTabC2 v-if="openedTabs.has('c2')" v-show="activeTab === 'c2'" :form="form" />
-                <PdsTabC3 v-if="openedTabs.has('c3')" v-show="activeTab === 'c3'" :form="form" />
-                <PdsTabC4 v-if="openedTabs.has('c4')" v-show="activeTab === 'c4'" :form="form" />
+                <PdsTabC2
+                    v-if="openedTabs.has('c2')"
+                    v-show="activeTab === 'c2'"
+                    :form="form"
+                    @add-eligibility="() => form.eligibility.push({ name: '', rating: '', exam_date: '', exam_place: '', license_number: '', license_validity: '' })"
+                    @remove-eligibility="(i) => form.eligibility.splice(i, 1)"
+                    @add-work-experience="() => form.work_experience.push({ date_from: '', date_to: '', position_title: '', dept_agency: '', monthly_salary: '', salary_grade: '', status_appointment: '', govt_service: '' })"
+                    @remove-work-experience="(i) => form.work_experience.splice(i, 1)"
+                />
+                <PdsTabC3
+                    v-if="openedTabs.has('c3')"
+                    v-show="activeTab === 'c3'"
+                    :form="form"
+                    @add-voluntary-work="() => form.voluntary_work.push({ organization: '', date_from: '', date_to: '', hours: '', position: '' })"
+                    @remove-voluntary-work="(i) => form.voluntary_work.splice(i, 1)"
+                    @add-learning-development="() => form.learning_development.push({ title: '', date_from: '', date_to: '', hours: '', type: '', conducted_by: '' })"
+                    @remove-learning-development="(i) => form.learning_development.splice(i, 1)"
+                />
+                <PdsTabC4
+                    v-if="openedTabs.has('c4')"
+                    v-show="activeTab === 'c4'"
+                    :form="form"
+                    @update-field="updateField"
+                    @add-special-skill="() => form.special_skills.push('')"
+                    @remove-special-skill="(i) => form.special_skills.splice(i, 1)"
+                    @add-recognition="() => form.recognitions.push('')"
+                    @remove-recognition="(i) => form.recognitions.splice(i, 1)"
+                    @add-membership="() => form.memberships.push('')"
+                    @remove-membership="(i) => form.memberships.splice(i, 1)"
+                />
 
                 <section class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-5">
                     <div class="flex flex-wrap gap-3">

@@ -215,12 +215,7 @@ const moduleSelectionRatio = (moduleKey: string) => {
     return (moduleSelectedCount(moduleKey) / total) * 100;
 };
 
-const selectModulePermissions = (moduleKey: string) => {
-    const permissions = permissionGroups.value[moduleKey] ?? [];
-    const next = new Set(form.permission_ids);
-    permissions.forEach((permission) => next.add(permission.id));
-    form.permission_ids = Array.from(next);
-};
+// removed unused selectModulePermissions (not referenced)
 
 const clearModulePermissions = (moduleKey: string) => {
     const permissions = permissionGroups.value[moduleKey] ?? [];

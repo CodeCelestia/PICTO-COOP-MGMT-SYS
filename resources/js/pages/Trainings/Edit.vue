@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
+import { AlertCircle, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCoopLabel } from '@/composables/useCoopLabel';
-import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { notifyError, notifySuccess } from '@/lib/alerts';
 import { dateInputValue } from '@/utils/date';
@@ -114,7 +113,7 @@ const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
 
 // Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll, cancel)
-const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel: handleCancelComposable, showErrorShake } = useFormUx(form);
+const { isDirty, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
 
 // Mark the form as clean after initial prefill (so changes are only tracked from here on)
 onMounted(async () => {
@@ -145,10 +144,6 @@ const membersByCoop = ref<Record<number, CooperativeMembersGroup>>({});
 const activeCoopId = ref<number | null>(null);
 const isLoadingMembers = ref(false);
 const fetchVersion = ref(0);
-
-const initialSnapshot = JSON.stringify(form);
-
-const hasUnsavedChanges = () => JSON.stringify(form) !== initialSnapshot;
 
 const cancel = async () => {
     // If form has unsaved changes, show SweetAlert first

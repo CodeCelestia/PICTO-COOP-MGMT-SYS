@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import Swal from 'sweetalert2';
+import { AlertCircle, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
@@ -91,8 +90,8 @@ const form = useForm({
     status: 'Planned',
 });
 
-// Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll, cancel)
-const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel: handleCancelComposable, showErrorShake } = useFormUx(form);
+// Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
+const { markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
@@ -259,7 +258,6 @@ const isPartialSelectedForCoop = (coopId: number) => {
     return selectedCount > 0 && selectedCount < group.members.length;
 };
 
-const isMemberSelected = (memberId: number) => form.member_ids.includes(memberId);
 
 const addMemberSelection = (memberId: number) => {
     if (!form.member_ids.includes(memberId)) {
@@ -468,7 +466,7 @@ const cancel = () => {
         try {
             const url = new URL(href, window.location.origin);
             return url.origin === window.location.origin && url.pathname.startsWith('/');
-        } catch (e) {
+        } catch (_e) {
             return false;
         }
     };
