@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, FileX, Lock, Monitor, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, ClipboardList, Download, Eye, FileX, Image, Lock, Monitor, Plus, Save, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onUnmounted, onMounted, ref, watch, nextTick } from 'vue';
 import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
@@ -80,8 +80,25 @@ interface Activity {
     implementing_partner: string | null;
     outcomes: string | null;
     outcomes_attachment_path?: string | null;
+    outcomes_attachments?: StoredAttachment[];
     remarks: string | null;
     funding_sources?: FundingSourceRecord[];
+    image_attachments?: ImageAttachment[];
+}
+
+interface StoredAttachment {
+    id?: number;
+    path: string;
+    filename: string;
+    url: string;
+    size: number;
+}
+
+interface ImageAttachment {
+    id: number;
+    filename: string;
+    url: string;
+    size: number;
 }
 
 interface FundingSourceRecord {
@@ -176,8 +193,11 @@ const form = useForm({
     venue: props.activity.venue || '',
     implementing_partner: props.activity.implementing_partner || '',
     outcomes: props.activity.outcomes || '',
-    outcomes_attachment: null as File | null,
+    outcomes_attachment: [] as File[],
+    removed_outcomes_paths: [] as string[],
     outcomes_attachment_removed: false,
+    image_attachments: [] as File[],
+    removed_image_ids: [] as number[],
     remarks: props.activity.remarks || '',
     funding_sources: (props.activity.funding_sources || []).map((source) => ({
         id: source.id,
@@ -204,10 +224,13 @@ const fundingStatusOptions = ['Released', 'Pending', 'Partially Released'];
 // Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
 const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, showErrorShake } = useFormUx(form);
 const maxFundingSourceFiles = 3;
+const MAX_OUTCOMES_FILES = 3;
+const MAX_IMAGES = 3;
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const fundingFileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
+const imageFileInputRef = ref<HTMLInputElement | null>(null);
 const fileObjectUrls = new Map<File, string>();
 
 const initialSnapshot = JSON.stringify(form);
@@ -253,7 +276,9 @@ const cancel = async () => {
 
 // Mark the form as clean after initial prefill (so changes are only tracked from here on)
 onMounted(async () => {
+    isPreFilling.value = true;
     await nextTick();
+    isPreFilling.value = false;
     markClean();
 });
 
@@ -388,7 +413,31 @@ const addFundingSource = () => {
 };
 
 const showFileSizeError = (fileName: string) => {
-    notifyError(`"${fileName}" exceeds the ${MAX_FILE_SIZE_MB}MB limit. Please upload a smaller file.`);
+    Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        html: `
+            <p>The file you selected is too large:</p>
+            <p class="font-semibold mt-1">"${fileName}"</p>
+            <p class="mt-2">Maximum allowed size is <b>${MAX_FILE_SIZE_MB}MB</b> per file. Please choose a smaller file.</p>
+        `,
+        confirmButtonText: 'OK, got it',
+        confirmButtonColor: '#ef4444',
+    });
+};
+
+const showImageSizeError = (fileName: string) => {
+    Swal.fire({
+        icon: 'error',
+        title: 'Image Too Large',
+        html: `
+            <p>The image you selected is too large:</p>
+            <p class="font-semibold mt-1">"${fileName}"</p>
+            <p class="mt-2">Maximum allowed size is <b>${MAX_FILE_SIZE_MB}MB</b> per image. Please choose a smaller image.</p>
+        `,
+        confirmButtonText: 'OK, got it',
+        confirmButtonColor: '#ef4444',
+    });
 };
 
 const isFileTooLarge = (file: File) => {
@@ -583,39 +632,41 @@ const fundingSourceFiles = (source: FundingSourceFormRow): FileDisplayItem[] => 
     return [...existing, ...pending];
 };
 
-const outcomesExistingName = computed(() => {
-    const path = props.activity.outcomes_attachment_path;
-    return path ? path.split('/').pop() || 'Outcomes attachment' : '';
+const outcomesExistingAttachments = computed<FileDisplayItem[]>(() => {
+    const storedAttachments = props.activity.outcomes_attachments || [];
+    const fallbackAttachment = props.activity.outcomes_attachment_path
+        ? [{
+            path: props.activity.outcomes_attachment_path,
+            filename: props.activity.outcomes_attachment_path.split('/').pop() || 'Outcomes attachment',
+            url: `/storage/${props.activity.outcomes_attachment_path}`,
+            size: 0,
+        }]
+        : [];
+
+    return [...storedAttachments, ...fallbackAttachment]
+        .filter((attachment) => !form.removed_outcomes_paths.includes(attachment.path))
+        .map((attachment) => ({
+            name: attachment.filename,
+            sizeLabel: attachment.size > 0 ? formatFileSize(attachment.size) : 'Saved file',
+            extension: getFileExtension(attachment.filename),
+            previewUrl: attachment.url,
+            url: attachment.url,
+            path: attachment.path,
+            isExisting: true,
+        }));
 });
 
-const outcomesExistingFile = computed<FileDisplayItem | null>(() => {
-    const path = props.activity.outcomes_attachment_path;
-    if (!path || form.outcomes_attachment_removed || form.outcomes_attachment) return null;
-
-    const name = outcomesExistingName.value;
-    return {
-        name,
-        sizeLabel: 'Saved file',
-        extension: getFileExtension(name),
-        previewUrl: `/storage/${path}`,
-        url: `/storage/${path}`,
-        path,
-        isExisting: true,
-    };
-});
-
-const outcomesNewFile = computed<FileDisplayItem | null>(() => {
-    if (!form.outcomes_attachment) return null;
-
-    return {
-        name: form.outcomes_attachment.name,
-        sizeLabel: formatFileSize(form.outcomes_attachment.size),
-        extension: getFileExtension(form.outcomes_attachment.name),
-        previewUrl: getAttachmentPreviewUrl(form.outcomes_attachment),
-        pendingIndex: 0,
+const outcomesFiles = computed<FileDisplayItem[]>(() => [
+    ...outcomesExistingAttachments.value,
+    ...form.outcomes_attachment.map((file, pendingIndex) => ({
+        name: file.name,
+        sizeLabel: formatFileSize(file.size),
+        extension: getFileExtension(file.name),
+        previewUrl: getAttachmentPreviewUrl(file),
+        pendingIndex,
         isExisting: false,
-    };
-});
+    })),
+]);
 
 onUnmounted(() => {
     fileObjectUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -624,19 +675,24 @@ onUnmounted(() => {
 
 const updateOutcomesAttachment = (event: Event) => {
     const input = event.target as HTMLInputElement | null;
-    const nextFile = input?.files?.[0] || null;
+    const files = input?.files ? Array.from(input.files) : [];
 
-    if (nextFile && isFileTooLarge(nextFile)) {
-        if (input) input.value = '';
-        return;
+    for (const file of files) {
+        if (outcomesFiles.value.length >= MAX_OUTCOMES_FILES) {
+            break;
+        }
+
+        if (isFileTooLarge(file)) {
+            continue;
+        }
+
+        form.outcomes_attachment.push(file);
     }
 
-    form.outcomes_attachment = nextFile;
     if (input) input.value = '';
-
-    if (nextFile) {
+    if (files.length > 0 && form.outcomes_attachment.length > 0) {
         form.outcomes_attachment_removed = false;
-        notifySuccess('Outcomes attachment added.');
+        notifySuccess('Outcomes attachment(s) added.');
     }
 };
 
@@ -644,17 +700,157 @@ const triggerOutcomesFilePicker = () => {
     outcomesFileInputRef.value?.click();
 };
 
-const removeOutcomesAttachment = async () => {
+const removeNewOutcomesAttachment = async (index: number) => {
+    if (index < 0 || index >= form.outcomes_attachment.length) return;
     const ok = await confirmAction({
         title: 'Remove attachment?',
-        text: 'This will clear the selected outcomes file.',
+        text: 'This will remove the selected outcomes file.',
         confirmButtonText: 'Remove file',
     });
     if (!ok) return;
 
-    form.outcomes_attachment = null;
-    form.outcomes_attachment_removed = true;
+    const file = form.outcomes_attachment[index];
+    const url = fileObjectUrls.get(file);
+    if (url) {
+        URL.revokeObjectURL(url);
+        fileObjectUrls.delete(file);
+    }
+
+    form.outcomes_attachment.splice(index, 1);
 };
+
+const removeExistingOutcomesAttachment = async (path: string) => {
+    const ok = await confirmAction({
+        title: 'Remove attachment?',
+        text: 'This will remove the selected outcomes file.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
+
+    if (!form.removed_outcomes_paths.includes(path)) {
+        form.removed_outcomes_paths.push(path);
+    }
+};
+
+const restoreExistingOutcomesAttachment = (path: string) => {
+    const index = form.removed_outcomes_paths.indexOf(path);
+    if (index > -1) {
+        form.removed_outcomes_paths.splice(index, 1);
+    }
+};
+
+const getImageExtension = (filename: string) => {
+    return filename.split('.').pop()?.toUpperCase() || 'IMG';
+};
+
+const showImageTypeError = (fileName: string) => {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Invalid File Type',
+        html: `
+            <p>"${fileName}" is not a supported image format.</p>
+            <p class="mt-2">Accepted formats: <b>JPG, JPEG, PNG, GIF, WEBP</b></p>
+        `,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#f59e0b',
+    });
+};
+
+const isValidImageType = (file: File): boolean => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        showImageTypeError(file.name);
+        return false;
+    }
+    return true;
+};
+
+const existingImages = computed(() => (props.activity.image_attachments || []).map((img) => ({
+    id: img.id,
+    name: img.filename,
+    size: img.size,
+    previewUrl: img.url,
+    isExisting: true,
+})));
+
+const imageGridClass = computed(() => {
+    const count = displayedExistingImages.value.length + form.image_attachments.length;
+    if (count === 1) return 'grid grid-cols-1 gap-2';
+    if (count === 2) return 'grid grid-cols-2 gap-2';
+    if (count === 3) return 'grid grid-cols-3 gap-2';
+    return 'grid grid-cols-1 gap-2';
+});
+
+const triggerImageFilePicker = () => {
+    imageFileInputRef.value?.click();
+};
+
+const updateImageAttachment = (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    const files = input?.files ? Array.from(input.files) : [];
+    
+    for (const file of files) {
+        if (displayedExistingImages.value.length + form.image_attachments.length >= MAX_IMAGES) break;
+        
+        if (!isValidImageType(file)) {
+            continue;
+        }
+        
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            showImageSizeError(file.name);
+            continue;
+        }
+        
+        form.image_attachments.push(file);
+    }
+    
+    if (input) input.value = '';
+    if (files.length > 0) notifySuccess('Image(s) added successfully.');
+};
+
+const removeImageAttachment = async (index: number) => {
+    const ok = await confirmAction({
+        title: 'Remove image?',
+        text: 'This will remove the selected image.',
+        confirmButtonText: 'Remove image',
+    });
+    if (!ok) return;
+    
+    const file = form.image_attachments[index];
+    if (file) {
+        const url = fileObjectUrls.get(file);
+        if (url) {
+            URL.revokeObjectURL(url);
+            fileObjectUrls.delete(file);
+        }
+    }
+    
+    form.image_attachments.splice(index, 1);
+};
+
+const removeExistingImage = async (imageId: number) => {
+    const ok = await confirmAction({
+        title: 'Delete image?',
+        text: 'This will permanently delete the image.',
+        confirmButtonText: 'Delete image',
+    });
+    if (!ok) return;
+    
+    if (!form.removed_image_ids.includes(imageId)) {
+        form.removed_image_ids.push(imageId);
+    }
+};
+
+const restoreExistingImage = (imageId: number) => {
+    const index = form.removed_image_ids.indexOf(imageId);
+    if (index > -1) {
+        form.removed_image_ids.splice(index, 1);
+    }
+};
+
+const displayedExistingImages = computed(() => {
+    return existingImages.value.filter((img) => !form.removed_image_ids.includes(img.id));
+});
 
 const removeFundingSource = async (index: number) => {
     const ok = await confirmAction({
@@ -691,8 +887,10 @@ const submit = () => {
             attachments: source.attachments.filter((file): file is File => Boolean(file)),
             attachments_removed: source.attachments_removed || [],
         })),
-        outcomes_attachment: data.outcomes_attachment || null,
-        outcomes_attachment_removed: data.outcomes_attachment_removed || false,
+        outcomes_attachment: data.outcomes_attachment,
+        removed_outcomes_paths: data.removed_outcomes_paths || [],
+        image_attachments: data.image_attachments || [],
+        removed_image_ids: data.removed_image_ids || [],
     })).put(`/activities/${props.activity.id}`, {
         preserveScroll: true,
         onSuccess: () => {
@@ -768,27 +966,27 @@ const submit = () => {
                                 <p v-if="form.errors.status" class="mt-1 text-sm text-red-500">{{ form.errors.status }}</p>
                             </div>
                             <div>
-                                <Label for="date_started">Start Date</Label>
+                                <Label for="date_started">Start Date <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="date_started" v-model="form.date_started" type="date" :class="inputErrorClass('date_started')" @input="clearError('date_started')" />
                                 <p v-if="form.errors.date_started" class="mt-1 text-sm text-red-500">{{ form.errors.date_started }}</p>
                             </div>
                             <div>
-                                <Label for="date_ended">End Date</Label>
+                                <Label for="date_ended">End Date <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="date_ended" v-model="form.date_ended" type="date" :class="inputErrorClass('date_ended')" @input="clearError('date_ended')" />
                                 <p v-if="form.errors.date_ended" class="mt-1 text-sm text-red-500">{{ form.errors.date_ended }}</p>
                             </div>
                             <div class="md:col-span-2">
-                                <Label for="description">Description / Objective</Label>
+                                <Label for="description">Description / Objective <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Textarea id="description" v-model="form.description" :class="inputErrorClass('description')" @input="clearError('description')" placeholder="Brief description or objective of the activity" />
                                 <p v-if="form.errors.description" class="mt-1 text-sm text-red-500">{{ form.errors.description }}</p>
                             </div>
                             <div>
-                                <Label for="venue">Venue</Label>
+                                <Label for="venue">Venue <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="venue" v-model="form.venue" :class="inputErrorClass('venue')" @input="clearError('venue')" placeholder="Enter venue or location" />
                                 <p v-if="form.errors.venue" class="mt-1 text-sm text-red-500">{{ form.errors.venue }}</p>
                             </div>
                             <div>
-                                <Label for="implementing_partner">Implementing Partner</Label>
+                                <Label for="implementing_partner">Implementing Partner <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="implementing_partner" v-model="form.implementing_partner" :class="inputErrorClass('implementing_partner')" @input="clearError('implementing_partner')" placeholder="Enter implementing partner" />
                                 <p v-if="form.errors.implementing_partner" class="mt-1 text-sm text-red-500">{{ form.errors.implementing_partner }}</p>
                             </div>
@@ -803,7 +1001,7 @@ const submit = () => {
                     </CardHeader>
                     <CardContent class="space-y-4 pt-0">
                         <div>
-                            <Label for="coop_picker">{{ cooperativeLabel }}</Label>
+                            <Label for="coop_picker">{{ cooperativeLabel }} <span class="text-red-500">*</span></Label>
                             <Button
                                 id="coop_picker"
                                 type="button"
@@ -831,7 +1029,7 @@ const submit = () => {
                         </div>
 
                         <div>
-                            <Label for="responsible_officer_id">Responsible Officer</Label>
+                            <Label for="responsible_officer_id">Responsible Officer <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                             <Select v-model="form.responsible_officer_id" @update:modelValue="clearError('responsible_officer_id')">
                                 <SelectTrigger id="responsible_officer_id" :class="inputErrorClass('responsible_officer_id')">
                                     <SelectValue placeholder="Select officer" />
@@ -862,12 +1060,12 @@ const submit = () => {
                                 </div>
                                 <div class="grid gap-4">
                                     <div>
-                                        <Label for="budget">Budget</Label>
+                                        <Label for="budget">Budget <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="budget" v-model="form.budget" type="number" min="0" step="0.01" :class="inputErrorClass('budget')" @input="clearError('budget')" placeholder="0.00" />
                                         <p v-if="form.errors.budget" class="mt-1 text-sm text-red-500">{{ form.errors.budget }}</p>
                                     </div>
                                     <div>
-                                        <Label for="actual_expense">Actual Expense</Label>
+                                        <Label for="actual_expense">Actual Expense <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="actual_expense" v-model="form.actual_expense" type="number" min="0" step="0.01" :class="inputErrorClass('actual_expense')" @input="clearError('actual_expense')" placeholder="0.00" />
                                         <p v-if="form.errors.actual_expense" class="mt-1 text-sm text-red-500">{{ form.errors.actual_expense }}</p>
                                     </div>
@@ -881,22 +1079,22 @@ const submit = () => {
                                 </div>
                                 <div class="grid gap-4">
                                     <div>
-                                        <Label for="target_member_beneficiaries">Target Member Beneficiaries</Label>
+                                        <Label for="target_member_beneficiaries">Target Member Beneficiaries <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="target_member_beneficiaries" v-model="form.target_member_beneficiaries" type="number" min="0" :class="inputErrorClass('target_member_beneficiaries')" @input="clearError('target_member_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.target_member_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.target_member_beneficiaries }}</p>
                                     </div>
                                     <div>
-                                        <Label for="actual_member_beneficiaries">Actual Member Beneficiaries</Label>
+                                        <Label for="actual_member_beneficiaries">Actual Member Beneficiaries <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="actual_member_beneficiaries" v-model="form.actual_member_beneficiaries" type="number" min="0" :class="inputErrorClass('actual_member_beneficiaries')" @input="clearError('actual_member_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.actual_member_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.actual_member_beneficiaries }}</p>
                                     </div>
                                     <div>
-                                        <Label for="target_community_beneficiaries">Target Community Beneficiaries</Label>
+                                        <Label for="target_community_beneficiaries">Target Community Beneficiaries <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="target_community_beneficiaries" v-model="form.target_community_beneficiaries" type="number" min="0" :class="inputErrorClass('target_community_beneficiaries')" @input="clearError('target_community_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.target_community_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.target_community_beneficiaries }}</p>
                                     </div>
                                     <div>
-                                        <Label for="actual_community_beneficiaries">Actual Community Beneficiaries</Label>
+                                        <Label for="actual_community_beneficiaries">Actual Community Beneficiaries <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                         <Input id="actual_community_beneficiaries" v-model="form.actual_community_beneficiaries" type="number" min="0" :class="inputErrorClass('actual_community_beneficiaries')" @input="clearError('actual_community_beneficiaries')" placeholder="0" />
                                         <p v-if="form.errors.actual_community_beneficiaries" class="mt-1 text-sm text-red-500">{{ form.errors.actual_community_beneficiaries }}</p>
                                     </div>
@@ -920,99 +1118,145 @@ const submit = () => {
                                             <Upload class="h-5 w-5" />
                                         </div>
                                         <div>
-                                            <h3 class="text-sm font-semibold text-foreground">Outcomes Attachment</h3>
+                                            <h3 class="text-sm font-semibold text-foreground">Outcomes Attachment <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></h3>
                                             <p class="text-xs text-muted-foreground">PDF, Word, Excel, presentation, or image files are supported.</p>
                                         </div>
                                     </div>
-                                    <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateOutcomesAttachment" />
+                                    <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" multiple @change="updateOutcomesAttachment" />
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <Button type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
+                                        <Button v-if="outcomesFiles.length < MAX_OUTCOMES_FILES" type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
                                             <Plus class="h-3.5 w-3.5" />
                                             Add File
                                         </Button>
-                                        <span class="text-xs text-muted-foreground">Maximum file size: {{ MAX_FILE_SIZE_MB }}MB per file</span>
+                                        <span class="text-xs text-muted-foreground">{{ outcomesFiles.length }}/3 files</span>
                                     </div>
 
-                                    <div v-if="!outcomesExistingFile && !outcomesNewFile" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                    <div v-if="outcomesFiles.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                                         No file added yet. Use the file input above to add a supporting document.
                                     </div>
 
-                                    <div v-if="outcomesExistingFile" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
-                                        <div class="flex min-w-0 flex-1 items-center gap-2">
-                                            <component :is="getFileTypeConfig(outcomesExistingFile.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(outcomesExistingFile.name).iconColorClass" />
-                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(outcomesExistingFile.name).badgeClass">
-                                                {{ outcomesExistingFile.extension }}
-                                            </span>
-                                            <div class="min-w-0">
-                                                <p class="truncate font-medium text-foreground" :title="outcomesExistingFile.name">{{ outcomesExistingFile.name }}</p>
-                                                <p class="text-xs text-muted-foreground">{{ outcomesExistingFile.sizeLabel }}</p>
+                                    <div v-else class="space-y-2">
+                                        <div v-for="(file, index) in outcomesFiles" :key="`${file.name}-${index}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                            <div class="flex min-w-0 flex-1 items-center gap-2">
+                                                <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                                <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                    {{ file.extension }}
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <p class="truncate font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                                    <p class="text-xs text-muted-foreground">{{ file.sizeLabel }}</p>
+                                                </div>
                                             </div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file.name, file.previewUrl)">
+                                                            <Eye class="h-3.5 w-3.5" />
+                                                            Preview
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Preview file in new tab</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="file.isExisting ? removeExistingOutcomesAttachment(file.path || '') : removeNewOutcomesAttachment(file.pendingIndex ?? 0)">
+                                                            <Trash2 class="h-3.5 w-3.5" />
+                                                            Remove
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Remove this file</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(outcomesExistingFile.name, outcomesExistingFile.previewUrl)">
-                                                        <Eye class="h-3.5 w-3.5" />
-                                                        Preview
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Preview file in new tab</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="removeOutcomesAttachment">
-                                                        <Trash2 class="h-3.5 w-3.5" />
-                                                        Remove
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Remove this file</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
                                     </div>
-
-                                    <div v-if="outcomesNewFile" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
-                                        <div class="flex min-w-0 flex-1 items-center gap-2">
-                                            <component :is="getFileTypeConfig(outcomesNewFile.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(outcomesNewFile.name).iconColorClass" />
-                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(outcomesNewFile.name).badgeClass">
-                                                {{ outcomesNewFile.extension }}
-                                            </span>
-                                            <div class="min-w-0">
-                                                <p class="truncate font-medium text-foreground" :title="outcomesNewFile.name">{{ outcomesNewFile.name }}</p>
-                                                <p class="text-xs text-muted-foreground">{{ outcomesNewFile.sizeLabel }}</p>
-                                            </div>
-                                        </div>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(outcomesNewFile.name, outcomesNewFile.previewUrl)">
-                                                        <Eye class="h-3.5 w-3.5" />
-                                                        Preview
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Preview file in new tab</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="removeOutcomesAttachment">
-                                                        <Trash2 class="h-3.5 w-3.5" />
-                                                        Remove
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Remove this file</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
+                                    <p v-if="outcomesFiles.length >= MAX_OUTCOMES_FILES" class="text-xs text-muted-foreground text-center">
+                                        Maximum 3 files reached. Remove a file to add another.
+                                    </p>
                                     <p v-if="form.errors.outcomes_attachment" class="text-sm text-red-500">{{ form.errors.outcomes_attachment }}</p>
+                                </div>
+
+                                <div class="space-y-4 rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-background text-purple-500">
+                                            <Image class="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-foreground">Photo / Image Attachments <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></h3>
+                                            <p class="text-xs text-muted-foreground">Upload photos or images related to this activity. Maximum 3 images, up to 5MB each. Supported formats: JPG, JPEG, PNG, GIF, WEBP</p>
+                                        </div>
+                                    </div>
+                                    <input ref="imageFileInputRef" type="file" class="hidden" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" multiple @change="updateImageAttachment" />
+                                    <div v-if="displayedExistingImages.length === 0 && form.image_attachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-8 text-center text-sm text-muted-foreground">
+                                        <div class="flex flex-col items-center">
+                                            <Image class="h-10 w-10 mb-3 opacity-30" />
+                                            <p class="font-medium">No images added yet</p>
+                                            <p class="text-xs mt-1">Click "Add Image" to upload photos</p>
+                                            <Button type="button" variant="outline" size="sm" class="mt-4 gap-1" @click="triggerImageFilePicker">
+                                                <Plus class="h-3.5 w-3.5" />
+                                                Add Image
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div v-else :class="imageGridClass" class="h-48">
+                                        <div v-for="image in displayedExistingImages" :key="`existing-${image.id}`" class="group relative overflow-hidden rounded-lg border bg-muted shadow-sm h-full">
+                                            <img :src="image.previewUrl" :alt="image.name" class="h-full w-full object-cover" />
+                                            <div class="absolute inset-0 bg-black/0 transition-all duration-200 group-hover:bg-black/50" />
+                                            <button
+                                                @click="removeExistingImage(image.id)"
+                                                type="button"
+                                                class="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors duration-150 hover:bg-red-500"
+                                                title="Delete image">
+                                                <Trash2 class="h-3.5 w-3.5" />
+                                            </button>
+                                            <div class="absolute left-2 top-2 z-10">
+                                                <span class="inline-flex items-center rounded-md bg-purple-500/90 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
+                                                    {{ getImageExtension(image.name) }}
+                                                </span>
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-2 pb-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                <p class="truncate text-xs font-medium text-white" :title="image.name">{{ image.name }}</p>
+                                                <p class="text-xs text-white/70">{{ formatFileSize(image.size) }}</p>
+                                            </div>
+                                        </div>
+                                        <div v-for="(file, index) in form.image_attachments" :key="`new-${file.name}-${index}`" class="group relative overflow-hidden rounded-lg border bg-muted shadow-sm h-full">
+                                            <img :src="getAttachmentPreviewUrl(file)" :alt="file.name" class="h-full w-full object-cover" />
+                                            <div class="absolute inset-0 bg-black/0 transition-all duration-200 group-hover:bg-black/50" />
+                                            <button
+                                                @click="removeImageAttachment(index)"
+                                                type="button"
+                                                class="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors duration-150 hover:bg-red-500"
+                                                title="Remove image">
+                                                <X class="h-3.5 w-3.5" />
+                                            </button>
+                                            <div class="absolute left-2 top-2 z-10">
+                                                <span class="inline-flex items-center rounded-md bg-purple-500/90 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
+                                                    {{ getImageExtension(file.name) }}
+                                                </span>
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-2 pb-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                <p class="truncate text-xs font-medium text-white" :title="file.name">{{ file.name }}</p>
+                                                <p class="text-xs text-white/70">{{ formatFileSize(file.size) }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-if="displayedExistingImages.length + form.image_attachments.length > 0" class="flex flex-wrap items-center gap-2">
+                                        <Button v-if="displayedExistingImages.length + form.image_attachments.length < MAX_IMAGES" type="button" variant="outline" size="sm" class="gap-1" @click="triggerImageFilePicker">
+                                            <Plus class="h-3.5 w-3.5" />
+                                            Add Image
+                                        </Button>
+                                        <span class="text-xs text-muted-foreground">{{ displayedExistingImages.length + form.image_attachments.length }} / {{ MAX_IMAGES }} images</span>
+                                    </div>
+                                    <p v-if="displayedExistingImages.length + form.image_attachments.length >= MAX_IMAGES" class="text-xs text-muted-foreground text-center mt-2 py-2">
+                                        Maximum 3 images reached. Remove an image to add another.
+                                    </p>
                                 </div>
 
                                 <div class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                    <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments</h3>
+                                    <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments <span class="text-xs text-muted-foreground font-normal ml-1 normal-case">(Optional)</span></h3>
                                     <p class="mt-1 text-xs text-muted-foreground">Each funding source can include supporting files.</p>
                                 </div>
                                 <Button type="button" variant="outline" class="gap-2" @click="addFundingSource">
@@ -1059,22 +1303,22 @@ const submit = () => {
 
                                         <div class="grid gap-4 md:grid-cols-2">
                                             <div>
-                                                <Label :for="`funding_allocated_${index}`">Amount Allocated</Label>
+                                                <Label :for="`funding_allocated_${index}`">Amount Allocated <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                                 <Input :id="`funding_allocated_${index}`" v-model="source.amount_allocated" type="number" min="0" step="0.01" placeholder="0.00" />
                                             </div>
                                             <div>
-                                                <Label :for="`funding_released_${index}`">Amount Released</Label>
+                                                <Label :for="`funding_released_${index}`">Amount Released <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                                 <Input :id="`funding_released_${index}`" v-model="source.amount_released" type="number" min="0" step="0.01" placeholder="0.00" />
                                             </div>
                                         </div>
 
                                         <div>
-                                            <Label :for="`funding_remarks_${index}`">Notes</Label>
+                                            <Label :for="`funding_remarks_${index}`">Notes <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                             <Input :id="`funding_remarks_${index}`" v-model="source.remarks" placeholder="Optional notes" />
                                         </div>
 
                                             <div>
-                                                <Label class="mb-2 block">Files</Label>
+                                                <Label class="mb-2 block">Files <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                                 <div class="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
                                                     <input :ref="(el) => setFundingFileInputRef(index, el as HTMLInputElement | null)" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" @change="updateFundingSourceAttachment($event, index)" />
 
@@ -1173,12 +1417,12 @@ const submit = () => {
                     </CardHeader>
                     <CardContent class="space-y-4 pt-0">
                         <div>
-                            <Label for="outcomes">Outcomes</Label>
+                            <Label for="outcomes">Outcomes <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                             <Textarea id="outcomes" v-model="form.outcomes" :class="inputErrorClass('outcomes')" @input="clearError('outcomes')" placeholder="Key outputs or outcomes" />
                             <p v-if="form.errors.outcomes" class="mt-1 text-sm text-red-500">{{ form.errors.outcomes }}</p>
                         </div>
                         <div>
-                            <Label for="remarks">Remarks</Label>
+                            <Label for="remarks">Remarks <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                             <Textarea id="remarks" v-model="form.remarks" :class="inputErrorClass('remarks')" @input="clearError('remarks')" placeholder="Additional notes" />
                             <p v-if="form.errors.remarks" class="mt-1 text-sm text-red-500">{{ form.errors.remarks }}</p>
                         </div>

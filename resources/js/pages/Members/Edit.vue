@@ -507,7 +507,7 @@ const toggleRole = (roleId: number) => {
                         </h2>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="email">Email <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
+                                <Label for="email">Email <span class="text-red-500 ml-0.5">*</span></Label>
                                 <Input
                                     id="email"
                                     v-model="form.email"
@@ -635,7 +635,6 @@ const toggleRole = (roleId: number) => {
                                     <SelectContent>
                                         <SelectItem value="Regular">Regular</SelectItem>
                                         <SelectItem value="Associate">Associate</SelectItem>
-                                        <SelectItem value="Honorary">Honorary</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <p v-if="form.errors.membership_type" class="mt-1 text-sm text-red-500">

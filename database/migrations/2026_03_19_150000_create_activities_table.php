@@ -32,6 +32,8 @@ return new class extends Migration
             $table->string('venue')->nullable();
             $table->text('outcomes')->nullable();
             $table->string('outcomes_attachment_path')->nullable();
+            $table->json('outcomes_attachments')->nullable();
+            $table->json('image_attachments')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
             $table->softDeletes();

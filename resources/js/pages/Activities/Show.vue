@@ -3,11 +3,14 @@ import { Link } from '@inertiajs/vue3';
 import {
     AlertCircle,
     ArrowLeft,
+    Banknote,
     ClipboardList,
     Download,
     Eye,
     FileX,
+    Image,
     Monitor,
+    Paperclip,
     Pencil,
     Search,
 } from 'lucide-vue-next';
@@ -26,6 +29,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import {
     Tooltip,
     TooltipContent,
@@ -81,6 +85,13 @@ interface AttachmentItem {
     funder_name?: string | null;
 }
 
+interface ImageAttachment {
+    id: number;
+    filename: string;
+    url: string;
+    size: number;
+}
+
 interface PreviewUnavailableFile {
     name: string;
     url: string;
@@ -91,6 +102,7 @@ const props = defineProps<{
     cooperatives: CooperativeSummary[];
     outcomesAttachments: AttachmentItem[];
     fundingAttachments: AttachmentItem[];
+    imageAttachments?: ImageAttachment[];
 }>();
 
 const EMPTY_VALUE = '—';
@@ -138,6 +150,14 @@ const legendGroups = getLegendFileTypeGroups();
 const showPreviewUnavailableModal = ref(false);
 const previewUnavailableFile = ref<PreviewUnavailableFile | null>(null);
 
+const imageGridClass = computed(() => {
+    const count = props.imageAttachments?.length ?? 0;
+    if (count === 1) return 'grid grid-cols-1 gap-2';
+    if (count === 2) return 'grid grid-cols-2 gap-2';
+    if (count >= 3) return 'grid grid-cols-3 gap-2';
+    return 'grid grid-cols-1 gap-2';
+});
+
 const previewUnavailableFileConfig = computed(() => {
     if (!previewUnavailableFile.value) {
         return null;
@@ -180,6 +200,31 @@ const downloadFileFromUrl = (url: string, name: string) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+const getVarianceClass = (budget: string | number | null, expense: string | number | null): string => {
+    if (!budget || !expense) return 'text-muted-foreground';
+    const diff = Number(budget) - Number(expense);
+    if (diff > 0) return 'text-green-600 dark:text-green-400';
+    if (diff < 0) return 'text-red-600 dark:text-red-400';
+    return 'text-muted-foreground';
+};
+
+const getVarianceText = (budget: string | number | null, expense: string | number | null): string => {
+    if (!budget || !expense) return '—';
+    const diff = Number(budget) - Number(expense);
+    const formatted = '₱' + Math.abs(diff).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (diff > 0) return formatted + ' under budget';
+    if (diff < 0) return formatted + ' over budget';
+    return 'On budget';
+};
+
+const previewImageAttachment = (image: ImageAttachment) => {
+    window.open(image.url, '_blank', 'noopener,noreferrer');
+};
+
+const downloadImageAttachment = (image: ImageAttachment) => {
+    downloadFileFromUrl(image.url, image.filename);
 };
 
 const handleAttachmentPreview = (file: AttachmentItem) => {
@@ -552,47 +597,27 @@ const textOrDash = (value: string | null | undefined) => {
                             </section>
 
                             <section class="space-y-3">
-                                <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Funding Source Attachments</h3>
-                                <div v-if="fundingAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
-                                    No attachments uploaded
+                                <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Photo / Image Attachments</h3>
+                                <div v-if="!imageAttachments || imageAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                    No images uploaded
                                 </div>
-                                <div v-else class="space-y-2">
-                                    <div v-for="file in fundingAttachments" :key="`funding-${file.path}-${file.funding_source_id || 0}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
-                                        <div class="flex min-w-0 flex-1 items-center gap-2">
-                                            <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
-                                            <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
-                                                {{ getFileExtension(file.name) }}
-                                            </span>
-                                            <div class="min-w-0">
-                                                <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
-                                                <p class="text-xs text-muted-foreground">
-                                                    {{ formatAttachmentSize(file.size) }}
-                                                    <span v-if="file.funder_name"> • {{ file.funder_name }}</span>
-                                                </p>
-                                            </div>
+                                <div v-else :class="imageGridClass" class="h-48">
+                                    <div v-for="image in imageAttachments" :key="image.id" class="group relative overflow-hidden rounded-lg border bg-muted/30 h-full">
+                                        <img :src="image.url" :alt="image.filename" class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                                        <div class="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/55" />
+                                        <div class="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                            <Button type="button" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-gray-900 hover:bg-blue-500 hover:text-white font-medium text-xs shadow-lg transition-all duration-150 active:scale-95" @click="previewImageAttachment(image)" title="View full image">
+                                                <Eye class="h-4 w-4 shrink-0" />
+                                                <span>View</span>
+                                            </Button>
+                                            <a :href="image.url" :download="image.filename" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-gray-900 hover:bg-green-500 hover:text-white font-medium text-xs shadow-lg transition-all duration-150 active:scale-95" title="Download image">
+                                                <Download class="h-4 w-4 shrink-0" />
+                                                <span>Download</span>
+                                            </a>
                                         </div>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file)">
-                                                        <Eye class="h-3.5 w-3.5" />
-                                                        Preview
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Preview file in new tab</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger as-child>
-                                                    <Button type="button" size="sm" class="h-7 gap-1 border border-green-200 bg-green-50 px-2 text-xs text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400" @click="downloadAttachment(file)">
-                                                        <Download class="h-3.5 w-3.5" />
-                                                        Download
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Download this file</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        <div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent px-2 py-1">
+                                            <p class="truncate text-xs font-medium text-white" :title="image.filename">{{ image.filename }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -610,6 +635,126 @@ const textOrDash = (value: string | null | undefined) => {
                                 </div>
                             </div>
                         </aside>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card class="border-border/80 bg-card/95 shadow-sm">
+                <CardHeader class="space-y-1 pb-4">
+                    <CardTitle class="flex items-center gap-2 text-xl">
+                        <Banknote class="h-5 w-5 text-green-500" />
+                        Funding Source
+                    </CardTitle>
+                    <CardDescription>
+                        Financial information and funding attachments for this activity.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-6 pt-0">
+                    <!-- Financial Details Section -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                            Financial Details
+                        </h4>
+                        <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                            <!-- Budget -->
+                            <div>
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Budget
+                                </dt>
+                                <dd class="text-sm font-semibold mt-1">
+                                    {{ activity.budget
+                                        ? '₱' + Number(activity.budget).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        : '—' }}
+                                </dd>
+                            </div>
+
+                            <!-- Actual Expense -->
+                            <div>
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Actual Expense
+                                </dt>
+                                <dd class="text-sm font-semibold mt-1">
+                                    {{ activity.actual_expense
+                                        ? '₱' + Number(activity.actual_expense).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        : '—' }}
+                                </dd>
+                            </div>
+
+                            <!-- Variance -->
+                            <div v-if="activity.budget && activity.actual_expense">
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Variance
+                                </dt>
+                                <dd class="text-sm font-semibold mt-1" :class="getVarianceClass(activity.budget, activity.actual_expense)">
+                                    {{ getVarianceText(activity.budget, activity.actual_expense) }}
+                                </dd>
+                            </div>
+
+                            <!-- Funding Source -->
+                            <div v-if="activity.funding_source">
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Funding Source
+                                </dt>
+                                <dd class="text-sm font-medium mt-1">
+                                    {{ activity.funding_source ?? '—' }}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Funding Attachments Section -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <Paperclip class="h-4 w-4" />
+                            Funding Attachments
+                        </h4>
+
+                        <div v-if="fundingAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-center text-sm text-muted-foreground">
+                            <Paperclip class="h-7 w-7 mx-auto mb-2 opacity-30" />
+                            <p>No funding attachments uploaded</p>
+                        </div>
+
+                        <div v-else class="space-y-2">
+                            <div v-for="file in fundingAttachments" :key="`funding-${file.path}-${file.funding_source_id || 0}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                <div class="flex min-w-0 flex-1 items-center gap-2">
+                                    <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                    <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                        {{ getFileExtension(file.name) }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ formatAttachmentSize(file.size) }}
+                                            <span v-if="file.funder_name"> • {{ file.funder_name }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file)">
+                                                <Eye class="h-3.5 w-3.5" />
+                                                Preview
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Preview file in new tab</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <Button type="button" size="sm" class="h-7 gap-1 border border-green-200 bg-green-50 px-2 text-xs text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400" @click="downloadAttachment(file)">
+                                                <Download class="h-3.5 w-3.5" />
+                                                Download
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Download this file</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

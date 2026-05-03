@@ -60,6 +60,8 @@ class Activity extends Model
         'implementing_partner',
         'outcomes',
         'outcomes_attachment_path',
+        'outcomes_attachments',
+        'image_attachments',
         'remarks',
     ];
 
@@ -70,6 +72,8 @@ class Activity extends Model
             'date_ended' => 'date',
             'budget' => 'decimal:2',
             'actual_expense' => 'decimal:2',
+            'outcomes_attachments' => 'array',
+            'image_attachments' => 'array',
         ];
     }
 

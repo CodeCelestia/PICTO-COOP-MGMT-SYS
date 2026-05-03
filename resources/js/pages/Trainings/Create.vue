@@ -2,6 +2,7 @@
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { AlertCircle, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
+import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
@@ -91,7 +92,7 @@ const form = useForm({
 });
 
 // Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
-const { markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
+const { isDirty, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
 
 const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
@@ -458,6 +459,48 @@ const submit = async () => {
 };
 
 const cancel = () => {
+    if (isDirty.value) {
+        Swal.fire({
+            title: 'Discard changes?',
+            text: 'You have unsaved changes. Are you sure you want to discard them?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Discard',
+            cancelButtonText: 'Keep editing',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            const params = new URLSearchParams(page.url.split('?')[1] || '');
+            const returnTo = params.get('return_to');
+
+            const isValidReturnTo = (href: string | null) => {
+                if (!href) return false;
+                try {
+                    const url = new URL(href, window.location.origin);
+                    return url.origin === window.location.origin && url.pathname.startsWith('/');
+                } catch (_e) {
+                    return false;
+                }
+            };
+
+            if (isValidReturnTo(returnTo)) {
+                router.get(returnTo as string);
+                return;
+            }
+
+            if (isCooperativeContext) {
+                const coopId = lockedCooperative.value?.id || (selectedCoopIds.value.length ? selectedCoopIds.value[0] : null);
+                if (coopId) {
+                    router.get(`/cooperatives/${coopId}`);
+                    return;
+                }
+            }
+
+            router.get('/trainings');
+        });
+        return;
+    }
+
     const params = new URLSearchParams(page.url.split('?')[1] || '');
     const returnTo = params.get('return_to');
 
@@ -536,17 +579,17 @@ const cancel = () => {
                                 <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.target_group }}</p>
                             </div>
                             <div>
-                                <Label for="date_conducted"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Date Conducted</Label>
+                                <Label for="date_conducted">Date Conducted <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="date_conducted" v-model="form.date_conducted" type="date" :class="inputErrorClass('date_conducted')" @input="clearError('date_conducted')" />
                                 <p v-if="form.errors.date_conducted" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.date_conducted }}</p>
                             </div>
                             <div>
-                                <Label for="venue"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Venue</Label>
+                                <Label for="venue">Venue <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="venue" v-model="form.venue" placeholder="Training venue" :class="inputErrorClass('venue')" @input="clearError('venue')" />
                                 <p v-if="form.errors.venue" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.venue }}</p>
                             </div>
                             <div>
-                                <Label for="facilitator"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Facilitator</Label>
+                                <Label for="facilitator">Facilitator <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="facilitator" v-model="form.facilitator" placeholder="Provider or facilitator" :class="inputErrorClass('facilitator')" @input="clearError('facilitator')" />
                                 <p v-if="form.errors.facilitator" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.facilitator }}</p>
                             </div>
@@ -563,7 +606,7 @@ const cancel = () => {
                                 <p v-if="form.errors.status" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.status }}</p>
                             </div>
                             <div class="md:col-span-2">
-                                <Label for="skills_targeted"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Skills Targeted</Label>
+                                <Label for="skills_targeted">Skills Targeted <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Textarea id="skills_targeted" v-model="form.skills_targeted" placeholder="Skills targeted by the training" :class="inputErrorClass('skills_targeted')" @input="clearError('skills_targeted')" />
                                 <p v-if="form.errors.skills_targeted" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.skills_targeted }}</p>
                             </div>
@@ -578,7 +621,7 @@ const cancel = () => {
                     </CardHeader>
                     <CardContent class="space-y-4 pt-0">
                         <div ref="cooperativeSectionRef">
-                            <Label for="coop_picker">Cooperatives</Label>
+                            <Label for="coop_picker">Cooperatives <span class="text-red-500">*</span></Label>
                             <Button
                                 id="coop_picker"
                                 type="button"
@@ -823,25 +866,24 @@ const cancel = () => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="no_of_participants"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Number of Participants</Label>
+                                <Label for="no_of_participants">Number of Participants <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="no_of_participants" v-model="form.no_of_participants" type="number" min="0" placeholder="0" :class="inputErrorClass('no_of_participants')" @input="clearError('no_of_participants')" />
                                 <p v-if="form.errors.no_of_participants" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.no_of_participants }}</p>
                             </div>
                             <div>
-                                <Label for="follow_up_date"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Follow-Up Date</Label>
+                                <Label for="follow_up_date">Follow-Up Date <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="follow_up_date" v-model="form.follow_up_date" type="date" :class="inputErrorClass('follow_up_date')" @input="clearError('follow_up_date')" />
                                 <p v-if="form.errors.follow_up_date" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_date }}</p>
                             </div>
                             <div class="md:col-span-2">
-                                <Label for="follow_up_remarks"><span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span> Follow-Up Remarks</Label>
+                                <Label for="follow_up_remarks">Follow-Up Remarks <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                                 <Input id="follow_up_remarks" v-model="form.follow_up_remarks" placeholder="Follow-up remarks or notes" :class="inputErrorClass('follow_up_remarks')" @input="clearError('follow_up_remarks')" />
                                 <p v-if="form.errors.follow_up_remarks" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_remarks }}</p>
                             </div>
                             <div class="md:col-span-2">
                                 <Label for="follow_up_needed" class="flex items-center gap-2 text-sm text-foreground/80">
-                                    <span class="text-xs text-muted-foreground font-normal">(Optional)</span>
                                     <Checkbox id="follow_up_needed" v-model:checked="form.follow_up_needed" @update:checked="clearError('follow_up_needed')" />
-                                    <span>Follow-up needed</span>
+                                    <span>Follow-up needed <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></span>
                                 </Label>
                                 <p v-if="form.errors.follow_up_needed" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.follow_up_needed }}</p>
                             </div>

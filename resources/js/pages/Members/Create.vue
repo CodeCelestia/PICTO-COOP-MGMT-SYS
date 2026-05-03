@@ -297,7 +297,7 @@ const toggleRole = (roleId: number) => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="email">Email Address <span class="ml-1 text-xs text-muted-foreground">(Optional)</span></Label>
+                                <Label for="email">Email Address <span class="text-red-500 ml-0.5">*</span></Label>
                                 <Input id="email" v-model="form.email" type="email" placeholder="member@example.com" :class="inputErrorClass('email')" @input="clearError('email')" />
                                 <p class="mt-1 text-xs text-muted-foreground">This will be used as the account email.</p>
                                 <p v-if="form.errors.email" class="mt-1 text-sm text-red-500">{{ form.errors.email }}</p>
@@ -391,7 +391,6 @@ const toggleRole = (roleId: number) => {
                                     <SelectContent>
                                         <SelectItem value="Regular">Regular</SelectItem>
                                         <SelectItem value="Associate">Associate</SelectItem>
-                                        <SelectItem value="Honorary">Honorary</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <p v-if="form.errors.membership_type" class="mt-1 text-sm text-red-500">{{ form.errors.membership_type }}</p>

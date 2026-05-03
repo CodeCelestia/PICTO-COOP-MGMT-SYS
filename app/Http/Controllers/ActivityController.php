@@ -261,10 +261,25 @@ class ActivityController extends Controller
         };
 
         $outcomesAttachments = $groupedActivities
-            ->map(function ($item) use ($buildAttachment) {
-                return $buildAttachment($item->outcomes_attachment_path, null, [
-                    'source_activity_id' => $item->id,
-                ]);
+            ->flatMap(function ($item) use ($buildAttachment) {
+                $storedAttachments = collect($item->outcomes_attachments ?? []);
+
+                if ($storedAttachments->isEmpty() && !empty($item->outcomes_attachment_path)) {
+                    $storedAttachments = collect([[
+                        'filename' => basename($item->outcomes_attachment_path),
+                        'path' => $item->outcomes_attachment_path,
+                        'url' => Storage::disk('public')->url($item->outcomes_attachment_path),
+                        'size' => Storage::disk('public')->exists($item->outcomes_attachment_path)
+                            ? Storage::disk('public')->size($item->outcomes_attachment_path)
+                            : null,
+                    ]]);
+                }
+
+                return $storedAttachments->map(function (array $attachment) use ($buildAttachment, $item) {
+                    return $buildAttachment($attachment['path'] ?? null, $attachment['filename'] ?? null, [
+                        'source_activity_id' => $item->id,
+                    ]);
+                });
             })
             ->filter()
             ->unique('path')
@@ -326,6 +341,17 @@ class ActivityController extends Controller
             'attachments' => $outcomesAttachments
                 ->map(fn (array $file) => array_merge($file, ['section' => 'outcomes']))
                 ->concat($fundingAttachments->map(fn (array $file) => array_merge($file, ['section' => 'funding'])))
+                ->values(),
+            'imageAttachments' => collect($primaryActivity->image_attachments ?? [])
+                ->map(function ($img, $index) {
+                    return [
+                        'id' => $img['id'] ?? $index,
+                        'filename' => $img['filename'] ?? 'Image',
+                        'url' => $img['url'] ?? '',
+                        'size' => $img['size'] ?? 0,
+                    ];
+                })
+                ->filter(fn ($img) => !empty($img['url']))
                 ->values(),
         ]);
     }
@@ -552,7 +578,10 @@ class ActivityController extends Controller
             'venue' => ['nullable', 'string', 'max:255'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
-            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
+            'outcomes_attachment' => ['nullable', 'array', 'max:3'],
+            'outcomes_attachment.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
+            'image_attachments' => ['nullable', 'array', 'max:3'],
+            'image_attachments.*' => ['file', 'max:5120', 'mimes:jpg,jpeg,png,gif,webp'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
@@ -599,8 +628,39 @@ class ActivityController extends Controller
         }
 
         if ($request->hasFile('outcomes_attachment')) {
-            $validated['outcomes_attachment_path'] = $request->file('outcomes_attachment')
-                ->store('activity-outcomes-attachments', 'public');
+            $outcomesAttachments = [];
+            foreach ($request->file('outcomes_attachment') as $file) {
+                $path = $file->store('activity-outcomes-attachments', 'public');
+                $outcomesAttachments[] = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $file->getSize(),
+                ];
+            }
+
+            $validated['outcomes_attachment_path'] = $outcomesAttachments[0]['path'] ?? null;
+            $validated['outcomes_attachments'] = $outcomesAttachments;
+        } else {
+            $validated['outcomes_attachment_path'] = null;
+            $validated['outcomes_attachments'] = null;
+        }
+
+        if ($request->hasFile('image_attachments')) {
+            $imagePaths = [];
+            $imageId = 1;
+            foreach ($request->file('image_attachments') as $image) {
+                $path = $image->store('activity-images', 'public');
+                $imagePaths[] = [
+                    'id' => $imageId++,
+                    'filename' => $image->getClientOriginalName(),
+                    'url' => '/storage/'.$path,
+                    'size' => $image->getSize(),
+                ];
+            }
+            $validated['image_attachments'] = $imagePaths;
+        } else {
+            $validated['image_attachments'] = null;
         }
 
         $fundingSources = $validated['funding_sources'] ?? [];
@@ -616,7 +676,7 @@ class ActivityController extends Controller
                 $fundingSources[$index]['attachment_names'] = $names;
             }
         }
-        unset($validated['funding_sources'], $validated['coop_ids']);
+        unset($validated['funding_sources'], $validated['coop_ids'], $validated['removed_outcomes_paths']);
 
         $createdCount = 0;
 
@@ -724,6 +784,18 @@ class ActivityController extends Controller
             'activity' => array_merge($activity->toArray(), [
                 'date_started' => optional($activity->date_started)->format('Y-m-d'),
                 'date_ended' => optional($activity->date_ended)->format('Y-m-d'),
+                'outcomes_attachments' => collect($activity->outcomes_attachments ?? [])
+                    ->map(function ($attachment) {
+                        return [
+                            'id' => $attachment['id'] ?? null,
+                            'filename' => $attachment['filename'] ?? basename($attachment['path'] ?? ''),
+                            'url' => $attachment['url'] ?? Storage::disk('public')->url($attachment['path'] ?? ''),
+                            'size' => $attachment['size'] ?? null,
+                            'path' => $attachment['path'] ?? null,
+                        ];
+                    })
+                    ->values()
+                    ->all(),
                 'funding_sources' => $activity->fundingSources->map(function ($source) {
                     return array_merge($source->toArray(), [
                         'date_released' => optional($source->date_released)->format('Y-m-d'),
@@ -784,8 +856,15 @@ class ActivityController extends Controller
             'venue' => ['nullable', 'string', 'max:255'],
             'implementing_partner' => ['nullable', 'string', 'max:255'],
             'outcomes' => ['nullable', 'string'],
-            'outcomes_attachment' => ['nullable', 'file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
+            'outcomes_attachment' => ['nullable', 'array', 'max:3'],
+            'outcomes_attachment.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'outcomes_attachment_removed' => ['nullable', 'boolean'],
+            'removed_outcomes_paths' => ['nullable', 'array'],
+            'removed_outcomes_paths.*' => ['string'],
+            'image_attachments' => ['nullable', 'array', 'max:3'],
+            'image_attachments.*' => ['file', 'max:5120', 'mimes:jpg,jpeg,png,gif,webp'],
+            'removed_image_ids' => ['nullable', 'array'],
+            'removed_image_ids.*' => ['integer'],
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.id' => ['nullable', 'integer'],
@@ -841,19 +920,82 @@ class ActivityController extends Controller
 
         $oldValues = $activity->getAttributes();
 
-        $validated['outcomes_attachment_path'] = $activity->outcomes_attachment_path;
-        if ($request->hasFile('outcomes_attachment')) {
-            if (!empty($activity->outcomes_attachment_path)) {
-                Storage::disk('public')->delete($activity->outcomes_attachment_path);
-            }
-            $validated['outcomes_attachment_path'] = $request->file('outcomes_attachment')
-                ->store('activity-outcomes-attachments', 'public');
-        } elseif (!empty($validated['outcomes_attachment_removed'])) {
-            if (!empty($activity->outcomes_attachment_path)) {
-                Storage::disk('public')->delete($activity->outcomes_attachment_path);
-            }
-            $validated['outcomes_attachment_path'] = null;
+        $existingOutcomesAttachments = collect($activity->outcomes_attachments ?? []);
+        if ($existingOutcomesAttachments->isEmpty() && !empty($activity->outcomes_attachment_path)) {
+            $existingOutcomesAttachments = collect([[
+                'filename' => basename($activity->outcomes_attachment_path),
+                'path' => $activity->outcomes_attachment_path,
+                'url' => Storage::disk('public')->url($activity->outcomes_attachment_path),
+                'size' => Storage::disk('public')->exists($activity->outcomes_attachment_path)
+                    ? Storage::disk('public')->size($activity->outcomes_attachment_path)
+                    : null,
+            ]]);
         }
+
+        $removedOutcomesPaths = collect($validated['removed_outcomes_paths'] ?? [])
+            ->filter()
+            ->values();
+
+        if ($removedOutcomesPaths->isNotEmpty()) {
+            $existingOutcomesAttachments = $existingOutcomesAttachments
+                ->reject(fn ($attachment) => $removedOutcomesPaths->contains($attachment['path'] ?? null))
+                ->values();
+        }
+
+        if ($request->hasFile('outcomes_attachment')) {
+            $newOutcomesAttachments = [];
+            foreach ($request->file('outcomes_attachment') as $file) {
+                $path = $file->store('activity-outcomes-attachments', 'public');
+                $newOutcomesAttachments[] = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $file->getSize(),
+                ];
+            }
+
+            $existingOutcomesAttachments = $existingOutcomesAttachments->concat($newOutcomesAttachments)->values();
+        }
+
+        $validated['outcomes_attachment_path'] = $existingOutcomesAttachments->first()['path'] ?? null;
+        $validated['outcomes_attachments'] = $existingOutcomesAttachments->isNotEmpty()
+            ? $existingOutcomesAttachments->values()->all()
+            : null;
+
+        $existingImages = $activity->image_attachments ?? [];
+        $removedImageIds = $validated['removed_image_ids'] ?? [];
+        
+        if (!empty($removedImageIds)) {
+            $remainingImages = array_filter($existingImages, function ($img) use ($removedImageIds) {
+                return !in_array($img['id'] ?? null, $removedImageIds);
+            });
+            $existingImages = array_values($remainingImages);
+        }
+
+        if ($request->hasFile('image_attachments')) {
+            $newImages = [];
+            $maxId = 0;
+            foreach ($existingImages as $img) {
+                if (isset($img['id']) && $img['id'] > $maxId) {
+                    $maxId = $img['id'];
+                }
+            }
+            
+            foreach ($request->file('image_attachments') as $image) {
+                $path = $image->store('activity-images', 'public');
+                $maxId++;
+                $newImages[] = [
+                    'id' => $maxId,
+                    'filename' => $image->getClientOriginalName(),
+                    'url' => '/storage/'.$path,
+                    'size' => $image->getSize(),
+                ];
+            }
+            $existingImages = array_merge($existingImages, $newImages);
+        }
+
+        $validated['image_attachments'] = !empty($existingImages) ? $existingImages : null;
+        unset($validated['removed_image_ids']);
 
         $fundingSources = $validated['funding_sources'] ?? [];
         foreach ($fundingSources as $index => $source) {
