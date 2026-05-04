@@ -885,34 +885,7 @@ const selectedCooperativeLabel = computed(() => {
                 </CardContent>
             </Card>
 
-            <div class="grid gap-6 xl:grid-cols-2">
-                <Card class="border-border/80 bg-card/95 shadow-sm">
-                    <CardHeader class="space-y-1 pb-4">
-                        <CardTitle class="text-xl">Budget &amp; Beneficiaries</CardTitle>
-                        <CardDescription>Summary values for the linked training records.</CardDescription>
-                    </CardHeader>
-                    <CardContent class="space-y-4 pt-0">
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div class="rounded-xl border border-border bg-muted/20 p-4">
-                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Beneficiaries</p>
-                                <p class="mt-1 text-lg font-semibold text-foreground">{{ participantCount }}</p>
-                                <p class="text-sm text-muted-foreground">Participants recorded</p>
-                            </div>
-                            <div class="rounded-xl border border-border bg-muted/20 p-4">
-                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Linked Records</p>
-                                <p class="mt-1 text-lg font-semibold text-foreground">{{ linkedTrainingCount }}</p>
-                                <p class="text-sm text-muted-foreground">Training rows grouped together</p>
-                            </div>
-                            <div class="rounded-xl border border-border bg-muted/20 p-4 sm:col-span-2">
-                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Budget</p>
-                                <p class="mt-1 text-sm font-medium text-foreground">Not tracked in this module yet.</p>
-                                <p class="text-sm text-muted-foreground">No dedicated training budget field exists in the current data model.</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card class="border-border/80 bg-card/95 shadow-sm">
+            <Card class="border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
                             <Paperclip class="h-5 w-5" />
@@ -1009,8 +982,7 @@ const selectedCooperativeLabel = computed(() => {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
-            </div>
+            </Card>
 
             <Card class="border-border/80 bg-card/95 shadow-sm">
                 <CardHeader class="space-y-1 pb-4">
@@ -1020,6 +992,14 @@ const selectedCooperativeLabel = computed(() => {
                 <CardContent class="space-y-4 pt-0">
                     <div class="grid gap-4 md:grid-cols-2">
                         <div class="rounded-xl border border-border bg-muted/20 p-4">
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Participants</p>
+                            <p class="mt-1 text-sm font-semibold text-foreground">{{ participantCount }}</p>
+                        </div>
+                        <div class="rounded-xl border border-border bg-muted/20 p-4">
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">No. of Participants</p>
+                            <p class="mt-1 text-sm font-medium text-foreground">{{ training.no_of_participants ?? '—' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-border bg-muted/20 p-4">
                             <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Follow-up Needed</p>
                             <p class="mt-1 text-sm font-medium text-foreground">{{ training.follow_up_needed ? 'Yes' : 'No' }}</p>
                         </div>
@@ -1027,10 +1007,11 @@ const selectedCooperativeLabel = computed(() => {
                             <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Follow-up Date</p>
                             <p class="mt-1 text-sm font-medium text-foreground">{{ formatDate(training.follow_up_date) }}</p>
                         </div>
-                        <div class="rounded-xl border border-border bg-muted/20 p-4 md:col-span-2">
-                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Follow-up Remarks</p>
-                            <p class="mt-1 whitespace-pre-wrap text-sm text-foreground">{{ textOrDash(training.follow_up_remarks) }}</p>
-                        </div>
+                    </div>
+
+                    <div>
+                        <dt class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Remarks / Notes</dt>
+                        <dd class="text-sm leading-relaxed text-foreground">{{ textOrDash(training.follow_up_remarks) }}</dd>
                     </div>
                 </CardContent>
             </Card>

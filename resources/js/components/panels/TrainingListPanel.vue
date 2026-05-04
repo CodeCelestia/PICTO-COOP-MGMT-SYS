@@ -499,7 +499,7 @@ const getTrainingStatusClass = (status: string | null | undefined): string => {
                             <TableHead>Training</TableHead>
                             <TableHead :class="isSidebarCreateView ? 'text-center' : ''">{{ isSidebarCreateView ? 'No. Cooperatives Participating' : 'Cooperative' }}</TableHead>
                             <TableHead>Date</TableHead>
-                            <TableHead>Target Group</TableHead>
+                            <TableHead class="min-w-55">Target Group</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead v-if="showActions" class="text-center">Actions</TableHead>
                         </TableRow>
@@ -593,25 +593,37 @@ const getTrainingStatusClass = (status: string | null | undefined): string => {
                                     </Tooltip>
                                 </TooltipProvider>
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">
-                                <TooltipProvider :delay-duration="150">
-                                    <div v-if="parseTargetGroupsFromString(training.target_group).length > 3" class="inline-flex items-center gap-2">
+                            <TableCell class="min-w-55 text-sm text-muted-foreground">
+                                <div v-if="parseTargetGroupsFromString(training.target_group).length > 0" class="flex flex-wrap items-center gap-1.5">
+                                    <Badge
+                                        v-for="group in parseTargetGroupsFromString(training.target_group).slice(0, 1)"
+                                        :key="group"
+                                        variant="outline"
+                                        class="inline-flex items-center rounded-full border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                                    >
+                                        {{ group }}
+                                    </Badge>
+
+                                    <TooltipProvider v-if="parseTargetGroupsFromString(training.target_group).length > 1" :delay-duration="150">
                                         <Tooltip>
                                             <TooltipTrigger as-child>
-                                                <Badge variant="secondary">+{{ parseTargetGroupsFromString(training.target_group).length - 3 }} more</Badge>
+                                                <Badge
+                                                    variant="secondary"
+                                                    class="inline-flex cursor-help items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                                >
+                                                    +{{ parseTargetGroupsFromString(training.target_group).length - 1 }} more
+                                                </Badge>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <div class="space-y-1 text-sm">
-                                                    <p class="font-medium">Target Groups:</p>
+                                                <div class="max-w-xs space-y-1 text-sm">
+                                                    <p class="font-medium">Target Groups</p>
                                                     <p>{{ parseTargetGroupsFromString(training.target_group).join(', ') }}</p>
                                                 </div>
                                             </TooltipContent>
                                         </Tooltip>
-                                    </div>
-                                    <div v-else>
-                                        {{ training.target_group }}
-                                    </div>
-                                </TooltipProvider>
+                                    </TooltipProvider>
+                                </div>
+                                <span v-else class="text-muted-foreground">—</span>
                             </TableCell>
                             <TableCell class="text-center">
                                 <span :class="getTrainingStatusClass(training.status)"
