@@ -21,6 +21,9 @@ return new class extends Migration
             $table->boolean('follow_up_needed')->default(false);
             $table->date('follow_up_date')->nullable();
             $table->text('follow_up_remarks')->nullable();
+            $table->string('outcomes_attachment_path')->nullable();
+            $table->json('outcomes_attachments')->nullable();
+            $table->json('image_attachments')->nullable();
             $table->enum('status', ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending']);
             $table->timestamps();
             $table->softDeletes();

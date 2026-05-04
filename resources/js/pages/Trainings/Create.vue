@@ -1,7 +1,28 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { AlertCircle, Check, CheckCircle2, GraduationCap, Lock, MinusCircle, Save, Search, UserCheck, UserPlus, Users, X } from 'lucide-vue-next';
-import { computed, nextTick, ref, watch } from 'vue';
+import {
+    AlertCircle,
+    Check,
+    CheckCircle2,
+    Download,
+    Eye,
+    FileX,
+    GraduationCap,
+    Image,
+    Lock,
+    MinusCircle,
+    Monitor,
+    Plus,
+    Save,
+    Search,
+    Trash2,
+    Upload,
+    UserCheck,
+    UserPlus,
+    Users,
+    X,
+} from 'lucide-vue-next';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
@@ -10,6 +31,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -20,9 +49,21 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 // Explicit cancel navigation below (no history.back)
 import AppLayout from '@/layouts/AppLayout.vue';
-import { notifyError, notifySuccess } from '@/lib/alerts';
+import {
+    getFileExtension,
+    getFileTypeConfig,
+    getLegendFileTypeGroups,
+    getPreviewSuggestion,
+} from '@/lib/activityFileTypes';
+import { confirmAction, notifyError, notifySuccess } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;
@@ -48,6 +89,19 @@ interface CooperativeMembersGroup {
 
 interface MembersByCooperativesResponse {
     cooperatives: CooperativeMembersGroup[];
+}
+
+interface FileDisplayItem {
+    name: string;
+    sizeLabel: string;
+    extension: string;
+    previewUrl: string;
+    pendingIndex: number;
+}
+
+interface PreviewUnavailableFile {
+    name: string;
+    url: string;
 }
 
 interface Props {
@@ -89,6 +143,8 @@ const form = useForm({
     follow_up_needed: false,
     follow_up_date: '',
     follow_up_remarks: '',
+    outcomes_attachments: [] as File[],
+    image_attachments: [] as File[],
     status: 'Planned',
 });
 
@@ -99,13 +155,265 @@ const parseTargetGroups = (value: string | null | undefined) => {
 const isTargetGroupDialogOpen = ref(false);
 const selectedTargetGroups = ref<string[]>(parseTargetGroups(form.target_group));
 
+const showFileSizeError = (file: File) => {
+    Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        html: `
+            <p>The file you selected is too large:</p>
+            <p class="font-semibold mt-1">"${file.name}"</p>
+            <p class="text-sm text-gray-500 mt-1">File size: ${(file.size / 1024 / 1024).toFixed(2)}MB</p>
+            <p class="mt-2">Maximum allowed size is <b>${MAX_FILE_SIZE_MB}MB</b> per file. Please choose a smaller file.</p>
+        `,
+        confirmButtonText: 'OK, got it',
+        confirmButtonColor: '#ef4444',
+    });
+};
+
+const showImageSizeError = (fileName: string) => {
+    Swal.fire({
+        icon: 'error',
+        title: 'Image Too Large',
+        html: `
+            <p>The image you selected is too large:</p>
+            <p class="font-semibold mt-1">"${fileName}"</p>
+            <p class="mt-2">Maximum allowed size is <b>${MAX_FILE_SIZE_MB}MB</b> per image. Please choose a smaller image.</p>
+        `,
+        confirmButtonText: 'OK, got it',
+        confirmButtonColor: '#ef4444',
+    });
+};
+
+const isFileTooLarge = (file: File) => {
+    if (file.size <= MAX_FILE_SIZE_BYTES) {
+        return false;
+    }
+
+    showFileSizeError(file);
+    return true;
+};
+
+const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getAttachmentPreviewUrl = (file: File) => {
+    const existing = fileObjectUrls.get(file);
+    if (existing) {
+        return existing;
+    }
+
+    const url = URL.createObjectURL(file);
+    fileObjectUrls.set(file, url);
+    return url;
+};
+
+const legendGroups = getLegendFileTypeGroups();
+const showPreviewUnavailableModal = ref(false);
+const previewUnavailableFile = ref<PreviewUnavailableFile | null>(null);
+
+const previewUnavailableFileConfig = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return null;
+    }
+
+    return getFileTypeConfig(previewUnavailableFile.value.name);
+});
+
+const previewUnavailableSuggestion = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return '';
+    }
+
+    return getPreviewSuggestion(previewUnavailableFile.value.name);
+});
+
+const openAttachmentPreview = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const handleAttachmentPreview = (name: string, url: string) => {
+    const config = getFileTypeConfig(name);
+    if (config.previewable) {
+        openAttachmentPreview(url);
+        return;
+    }
+
+    previewUnavailableFile.value = { name, url };
+    showPreviewUnavailableModal.value = true;
+};
+
+const closePreviewUnavailableModal = () => {
+    showPreviewUnavailableModal.value = false;
+    previewUnavailableFile.value = null;
+};
+
+const downloadFromUrl = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const downloadPreviewUnavailableFile = () => {
+    if (!previewUnavailableFile.value) {
+        return;
+    }
+
+    downloadFromUrl(previewUnavailableFile.value.url, previewUnavailableFile.value.name);
+    closePreviewUnavailableModal();
+};
+
+const buildFileDisplayItem = (file: File, pendingIndex: number): FileDisplayItem => ({
+    name: file.name,
+    sizeLabel: formatFileSize(file.size),
+    extension: getFileExtension(file.name),
+    previewUrl: getAttachmentPreviewUrl(file),
+    pendingIndex,
+});
+
+const outcomesAttachments = computed(() => form.outcomes_attachments
+    .map((file, index) => buildFileDisplayItem(file, index)));
+
+const imageGridClass = computed(() => {
+    const count = form.image_attachments.length;
+    if (count === 1) return 'grid grid-cols-1 gap-2';
+    if (count === 2) return 'grid grid-cols-2 gap-2';
+    if (count === 3) return 'grid grid-cols-3 gap-2';
+    return 'grid grid-cols-1 gap-2';
+});
+
+const getImageExtension = (filename: string) => {
+    return filename.split('.').pop()?.toUpperCase() || 'IMG';
+};
+
+const showImageTypeError = (fileName: string) => {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Invalid File Type',
+        html: `
+            <p>"${fileName}" is not a supported image format.</p>
+            <p class="mt-2">Accepted formats: <b>JPG, JPEG, PNG, GIF, WEBP</b></p>
+        `,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#f59e0b',
+    });
+};
+
+const isValidImageType = (file: File): boolean => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        showImageTypeError(file.name);
+        return false;
+    }
+    return true;
+};
+
+const triggerOutcomesFilePicker = () => {
+    outcomesFileInputRef.value?.click();
+};
+
+const updateOutcomesAttachment = (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    const files = input?.files ? Array.from(input.files) : [];
+
+    for (const file of files) {
+        if (form.outcomes_attachments.length >= MAX_OUTCOMES_FILES) {
+            break;
+        }
+
+        if (isFileTooLarge(file)) {
+            continue;
+        }
+
+        form.outcomes_attachments.push(file);
+    }
+
+    if (input) input.value = '';
+    if (files.length > 0 && form.outcomes_attachments.length > 0) {
+        notifySuccess('Outcomes attachment(s) added.');
+    }
+};
+
+const removeOutcomesAttachment = async (index: number) => {
+    if (index < 0 || index >= form.outcomes_attachments.length) return;
+    const ok = await confirmAction({
+        title: 'Remove attachment?',
+        text: 'This will remove the selected outcomes file.',
+        confirmButtonText: 'Remove file',
+    });
+    if (!ok) return;
+
+    form.outcomes_attachments.splice(index, 1);
+};
+
+const triggerImageFilePicker = () => {
+    imageFileInputRef.value?.click();
+};
+
+const updateImageAttachment = (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    const files = input?.files ? Array.from(input.files) : [];
+
+    for (const file of files) {
+        if (form.image_attachments.length >= MAX_IMAGES) break;
+
+        if (!isValidImageType(file)) {
+            continue;
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            showImageSizeError(file.name);
+            continue;
+        }
+
+        form.image_attachments.push(file);
+    }
+
+    if (input) input.value = '';
+    if (files.length > 0) notifySuccess('Image(s) added successfully.');
+};
+
+const removeImageAttachment = async (index: number) => {
+    const ok = await confirmAction({
+        title: 'Remove image?',
+        text: 'This will remove the selected image.',
+        confirmButtonText: 'Remove image',
+    });
+    if (!ok) return;
+
+    const file = form.image_attachments[index];
+    if (file) {
+        const url = fileObjectUrls.get(file);
+        if (url) {
+            URL.revokeObjectURL(url);
+            fileObjectUrls.delete(file);
+        }
+    }
+
+    form.image_attachments.splice(index, 1);
+};
+
 // Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
 const { isDirty, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
+const MAX_OUTCOMES_FILES = 3;
+const MAX_IMAGES = 3;
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const isCooperativeDialogOpen = ref(false);
 const selectedCoopIds = ref<string[]>(form.coop_ids);
 const trainingFormRef = ref<HTMLFormElement | null>(null);
 const cooperativeSectionRef = ref<HTMLElement | null>(null);
+const outcomesFileInputRef = ref<HTMLInputElement | null>(null);
+const imageFileInputRef = ref<HTMLInputElement | null>(null);
+const fileObjectUrls = new Map<File, string>();
 // cancel() below will navigate to validated return_to / cooperative show / trainings index
 
 const selectedCooperatives = computed(() => {
@@ -125,6 +433,11 @@ watch(selectedTargetGroups, (values) => {
     form.target_group = values.join(',');
     clearError('target_group');
 }, { deep: true, immediate: true });
+
+onUnmounted(() => {
+    fileObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    fileObjectUrls.clear();
+});
 const lockedCooperative = computed(() => {
     if (!lockedCooperativeId.value) return null;
     return props.cooperatives.find((coop) => String(coop.id) === lockedCooperativeId.value) || null;
@@ -475,6 +788,8 @@ const submit = async () => {
         target_group: selectedTargetGroups.value.join(','),
         no_of_participants: String(form.member_ids.length),
         return_to: returnToHref.value,
+        outcomes_attachments: data.outcomes_attachments,
+        image_attachments: data.image_attachments || [],
     })).post('/trainings', {
         preserveScroll: true,
         onSuccess: () => {
@@ -887,6 +1202,149 @@ const cancel = () => {
 
                 <Card class="border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
+                        <CardTitle class="text-xl">Attachments / Supporting Documents</CardTitle>
+                        <CardDescription>Upload outcome documents and image evidence for this training.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="pt-0">
+                        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
+                            <div class="space-y-6">
+                                <div class="space-y-4 rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-background text-muted-foreground">
+                                            <Upload class="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-foreground">Outcomes Attachment <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></h3>
+                                            <p class="text-xs text-muted-foreground">Upload outcome documents. Max 3 files, 5MB each.</p>
+                                        </div>
+                                    </div>
+                                    <input ref="outcomesFileInputRef" type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" multiple @change="updateOutcomesAttachment" />
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <Button v-if="outcomesAttachments.length < MAX_OUTCOMES_FILES" type="button" variant="outline" size="sm" class="gap-1" @click="triggerOutcomesFilePicker">
+                                            <Plus class="h-3.5 w-3.5" />
+                                            Add File
+                                        </Button>
+                                        <span class="text-xs text-muted-foreground">{{ outcomesAttachments.length }}/3 files</span>
+                                    </div>
+                                    <div v-if="outcomesAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                        No file added yet. Use the file input above to add a supporting document.
+                                    </div>
+                                    <div v-else class="space-y-2">
+                                        <div v-for="(file, index) in outcomesAttachments" :key="`${file.name}-${index}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                            <div class="flex min-w-0 flex-1 items-center gap-2">
+                                                <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                                <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                    {{ file.extension }}
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <p class="truncate font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                                    <p class="text-xs text-muted-foreground">{{ file.sizeLabel }}</p>
+                                                </div>
+                                            </div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file.name, file.previewUrl)">
+                                                            <Eye class="h-3.5 w-3.5" />
+                                                            Preview
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Preview file in new tab</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-red-200 bg-red-50 px-2 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400" @click="removeOutcomesAttachment(index)">
+                                                            <Trash2 class="h-3.5 w-3.5" />
+                                                            Remove
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Remove this file</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </div>
+                                    <p v-if="outcomesAttachments.length >= MAX_OUTCOMES_FILES" class="text-xs text-muted-foreground text-center">
+                                        Maximum 3 files reached. Remove a file to add another.
+                                    </p>
+                                </div>
+
+                                <div class="space-y-4 rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-background text-purple-500">
+                                            <Image class="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-foreground">Photo / Image Attachments <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></h3>
+                                            <p class="text-xs text-muted-foreground">Upload photos. Max 3 images, 5MB each. JPG, PNG, GIF, WEBP only.</p>
+                                        </div>
+                                    </div>
+                                    <input ref="imageFileInputRef" type="file" class="hidden" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" multiple @change="updateImageAttachment" />
+                                    <div v-if="form.image_attachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-8 text-center text-sm text-muted-foreground">
+                                        <div class="flex flex-col items-center">
+                                            <Image class="h-10 w-10 mb-3 opacity-30" />
+                                            <p class="font-medium">No images added yet</p>
+                                            <p class="text-xs mt-1">Click "Add Image" to upload photos</p>
+                                            <Button type="button" variant="outline" size="sm" class="mt-4 gap-1" @click="triggerImageFilePicker">
+                                                <Plus class="h-3.5 w-3.5" />
+                                                Add Image
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div v-else :class="imageGridClass" class="h-48">
+                                        <div v-for="(file, index) in form.image_attachments" :key="`${file.name}-${index}`" class="group relative overflow-hidden rounded-lg border bg-muted shadow-sm h-full">
+                                            <img :src="getAttachmentPreviewUrl(file)" :alt="file.name" class="h-full w-full object-cover" />
+                                            <div class="absolute inset-0 bg-black/0 transition-all duration-200 group-hover:bg-black/50" />
+                                            <button
+                                                @click="removeImageAttachment(index)"
+                                                type="button"
+                                                class="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors duration-150 hover:bg-red-500"
+                                                title="Remove image">
+                                                <X class="h-3.5 w-3.5" />
+                                            </button>
+                                            <div class="absolute left-2 top-2 z-10">
+                                                <span class="inline-flex items-center rounded-md bg-purple-500/90 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
+                                                    {{ getImageExtension(file.name) }}
+                                                </span>
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-2 pb-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                <p class="truncate text-xs font-medium text-white" :title="file.name">{{ file.name }}</p>
+                                                <p class="text-xs text-white/70">{{ formatFileSize(file.size) }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p v-if="form.image_attachments.length >= MAX_IMAGES" class="text-xs text-muted-foreground text-center mt-2 py-2">
+                                        Maximum 3 images reached. Remove an image to add another.
+                                    </p>
+                                    <div v-if="form.image_attachments.length > 0" class="flex flex-wrap items-center gap-2">
+                                        <Button v-if="form.image_attachments.length < MAX_IMAGES" type="button" variant="outline" size="sm" class="gap-1" @click="triggerImageFilePicker">
+                                            <Plus class="h-3.5 w-3.5" />
+                                            Add Image
+                                        </Button>
+                                        <span class="text-xs text-muted-foreground">{{ form.image_attachments.length }} / {{ MAX_IMAGES }} images added</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <aside class="rounded-lg border border-border/70 bg-muted/20 p-4 lg:border-l lg:pl-4">
+                                <h4 class="mb-3 text-sm font-semibold text-muted-foreground">File Types</h4>
+                                <div class="space-y-2">
+                                    <div v-for="group in legendGroups" :key="group.key" class="rounded-md border border-border/60 bg-background/70 px-2 py-2">
+                                        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ group.label }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <component :is="group.icon" class="h-8 w-8 shrink-0" :class="group.iconColorClass" />
+                                            <Badge variant="outline" class="font-semibold" :class="group.badgeClass">{{ group.badgeText }}</Badge>
+                                        </div>
+                                    </div>
+                                </div>
+                            </aside>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card class="border-border/80 bg-card/95 shadow-sm">
+                    <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="text-xl">Additional Notes / Remarks</CardTitle>
                         <CardDescription>Keep follow-up notes and scheduling details together.</CardDescription>
                     </CardHeader>
@@ -953,5 +1411,48 @@ const cancel = () => {
             @update:open="(value) => isTargetGroupDialogOpen = value"
             @confirm="confirmTargetGroups"
         />
+
+        <Dialog :open="showPreviewUnavailableModal" @update:open="(open: boolean) => !open && closePreviewUnavailableModal()">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <FileX class="h-4 w-4 text-amber-500" />
+                        Preview Not Available
+                    </DialogTitle>
+                    <DialogDescription>
+                        This file type cannot be previewed in the browser.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="previewUnavailableFile && previewUnavailableFileConfig" class="space-y-3">
+                    <div class="rounded-md border border-border/70 bg-muted/30 p-3">
+                        <p class="truncate text-sm font-medium text-foreground" :title="previewUnavailableFile.name">{{ previewUnavailableFile.name }}</p>
+                        <div class="mt-2 flex items-center gap-2">
+                            <component :is="previewUnavailableFileConfig.icon" class="h-8 w-8" :class="previewUnavailableFileConfig.iconColorClass" />
+                            <Badge variant="outline" class="font-semibold" :class="previewUnavailableFileConfig.badgeClass">{{ previewUnavailableFileConfig.extension }}</Badge>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">
+                        <p class="flex items-center gap-2 text-sm font-medium">
+                            <AlertCircle class="h-4 w-4" />
+                            Suggested app
+                        </p>
+                        <p class="mt-1 flex items-center gap-2 text-sm">
+                            <Monitor class="h-4 w-4" />
+                            {{ previewUnavailableSuggestion }}
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" @click="closePreviewUnavailableModal">Cancel</Button>
+                    <Button type="button" class="gap-2" @click="downloadPreviewUnavailableFile">
+                        <Download class="h-4 w-4" />
+                        Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

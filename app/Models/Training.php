@@ -44,6 +44,9 @@ class Training extends Model
         'follow_up_needed',
         'follow_up_date',
         'follow_up_remarks',
+        'outcomes_attachment_path',
+        'outcomes_attachments',
+        'image_attachments',
         'status',
     ];
 
@@ -53,6 +56,8 @@ class Training extends Model
             'date_conducted' => 'date',
             'follow_up_date' => 'date',
             'follow_up_needed' => 'boolean',
+            'outcomes_attachments' => 'array',
+            'image_attachments' => 'array',
         ];
     }
 

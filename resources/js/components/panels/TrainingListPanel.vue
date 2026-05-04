@@ -334,6 +334,32 @@ const bulkDeleteTrainings = async () => {
     await runBulkDelete(idsToDelete, (id) => `/trainings/${id}`);
     clearSelection();
 };
+
+const parseTargetGroupsFromString = (value: string | null | undefined): string[] => {
+    if (!value) return [];
+    return value.split(',').map((g) => g.trim()).filter((g) => g.length > 0);
+};
+
+const getTrainingStatusClass = (status: string | null | undefined): string => {
+    const normalized = status?.toLowerCase().trim() || '';
+    switch (normalized) {
+        case 'planned':
+        case 'scheduled':
+            return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+        case 'completed':
+        case 'finished':
+            return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
+        case 'archived':
+            return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+        case 'cancelled':
+        case 'canceled':
+            return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+        case 'follow-up pending':
+            return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+        default:
+            return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+    }
+};
 </script>
 
 <template>
@@ -567,8 +593,32 @@ const bulkDeleteTrainings = async () => {
                                     </Tooltip>
                                 </TooltipProvider>
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ training.target_group }}</TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ training.status }}</TableCell>
+                            <TableCell class="text-sm text-muted-foreground">
+                                <TooltipProvider :delay-duration="150">
+                                    <div v-if="parseTargetGroupsFromString(training.target_group).length > 3" class="inline-flex items-center gap-2">
+                                        <Tooltip>
+                                            <TooltipTrigger as-child>
+                                                <Badge variant="secondary">+{{ parseTargetGroupsFromString(training.target_group).length - 3 }} more</Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div class="space-y-1 text-sm">
+                                                    <p class="font-medium">Target Groups:</p>
+                                                    <p>{{ parseTargetGroupsFromString(training.target_group).join(', ') }}</p>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    <div v-else>
+                                        {{ training.target_group }}
+                                    </div>
+                                </TooltipProvider>
+                            </TableCell>
+                            <TableCell class="text-center">
+                                <span :class="getTrainingStatusClass(training.status)"
+                                      class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap">
+                                    {{ training.status ?? '—' }}
+                                </span>
+                            </TableCell>
                             <TableCell v-if="showActions" class="text-center">
                                 <TooltipProvider :delay-duration="150">
                                     <div class="flex flex-wrap justify-center gap-2">

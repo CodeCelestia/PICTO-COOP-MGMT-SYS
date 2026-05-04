@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Traits\LogsActivityWithChanges;
@@ -421,6 +422,10 @@ class TrainingController extends Controller
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_remarks' => ['nullable', 'string'],
+            'outcomes_attachments' => ['nullable', 'array', 'max:3'],
+            'outcomes_attachments.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
+            'image_attachments' => ['nullable', 'array', 'max:3'],
+            'image_attachments.*' => ['image', 'max:5120', 'mimes:jpeg,jpg,png,gif,webp'],
             'status' => ['required', Rule::in(['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
@@ -461,6 +466,117 @@ class TrainingController extends Controller
         $validated['follow_up_needed'] = (bool) ($validated['follow_up_needed'] ?? false);
         if (!$validated['follow_up_needed']) {
             $validated['follow_up_date'] = null;
+        }
+
+        $existingOutcomesAttachments = collect($training->outcomes_attachments ?? []);
+        if ($existingOutcomesAttachments->isEmpty() && !empty($training->outcomes_attachment_path)) {
+            $path = $training->outcomes_attachment_path;
+            $existingOutcomesAttachments = collect([[
+                'filename' => basename($path),
+                'path' => $path,
+                'url' => Storage::disk('public')->url($path),
+                'size' => Storage::disk('public')->exists($path)
+                    ? Storage::disk('public')->size($path)
+                    : null,
+            ]]);
+        }
+
+        $removedOutcomesPaths = collect($validated['removed_outcomes_attachment_paths'] ?? [])
+            ->filter()
+            ->values();
+
+        if ($removedOutcomesPaths->isNotEmpty()) {
+            $removedOutcomesPaths->each(fn ($path) => Storage::disk('public')->delete($path));
+            $existingOutcomesAttachments = $existingOutcomesAttachments
+                ->reject(fn ($attachment) => $removedOutcomesPaths->contains($attachment['path'] ?? null))
+                ->values();
+        }
+
+        if ($request->hasFile('outcomes_attachments')) {
+            $newOutcomesAttachments = [];
+            foreach ($request->file('outcomes_attachments') as $file) {
+                $path = $file->store('training-outcomes-attachments', 'public');
+                $newOutcomesAttachments[] = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $file->getSize(),
+                ];
+            }
+
+            $existingOutcomesAttachments = $existingOutcomesAttachments->concat($newOutcomesAttachments)->values();
+        }
+
+        $validated['outcomes_attachment_path'] = $existingOutcomesAttachments->first()['path'] ?? null;
+        $validated['outcomes_attachments'] = $existingOutcomesAttachments->isNotEmpty()
+            ? $existingOutcomesAttachments->values()->all()
+            : null;
+
+        $existingImages = collect($training->image_attachments ?? []);
+        $removedImagePaths = collect($validated['removed_image_attachment_paths'] ?? [])
+            ->filter()
+            ->values();
+
+        if ($removedImagePaths->isNotEmpty()) {
+            $removedImagePaths->each(fn ($path) => Storage::disk('public')->delete($path));
+            $existingImages = $existingImages
+                ->reject(fn ($img) => $removedImagePaths->contains($img['path'] ?? null))
+                ->values();
+        }
+
+        if ($request->hasFile('image_attachments')) {
+            $newImages = [];
+            foreach ($request->file('image_attachments') as $image) {
+                $path = $image->store('training-images', 'public');
+                $newImages[] = [
+                    'filename' => $image->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $image->getSize(),
+                ];
+            }
+            $existingImages = $existingImages->concat($newImages)->values();
+        }
+
+        $validated['image_attachments'] = $existingImages->isNotEmpty()
+            ? $existingImages->values()->all()
+            : null;
+
+        unset($validated['removed_outcomes_attachment_paths'], $validated['removed_image_attachment_paths']);
+
+        if ($request->hasFile('outcomes_attachments')) {
+            $outcomesAttachments = [];
+            foreach ($request->file('outcomes_attachments') as $file) {
+                $path = $file->store('training-outcomes-attachments', 'public');
+                $outcomesAttachments[] = [
+                    'filename' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $file->getSize(),
+                ];
+            }
+
+            $validated['outcomes_attachment_path'] = $outcomesAttachments[0]['path'] ?? null;
+            $validated['outcomes_attachments'] = $outcomesAttachments;
+        } else {
+            $validated['outcomes_attachment_path'] = null;
+            $validated['outcomes_attachments'] = null;
+        }
+
+        if ($request->hasFile('image_attachments')) {
+            $imageAttachments = [];
+            foreach ($request->file('image_attachments') as $image) {
+                $path = $image->store('training-images', 'public');
+                $imageAttachments[] = [
+                    'filename' => $image->getClientOriginalName(),
+                    'path' => $path,
+                    'url' => '/storage/'.$path,
+                    'size' => $image->getSize(),
+                ];
+            }
+            $validated['image_attachments'] = $imageAttachments;
+        } else {
+            $validated['image_attachments'] = null;
         }
 
         $memberIds = collect($validated['member_ids'] ?? [])
@@ -582,11 +698,54 @@ class TrainingController extends Controller
             ->values()
             ->all();
 
+        $outcomesAttachments = collect($training->outcomes_attachments ?? []);
+        if ($outcomesAttachments->isEmpty() && !empty($training->outcomes_attachment_path)) {
+            $path = $training->outcomes_attachment_path;
+            $outcomesAttachments = collect([[
+                'filename' => basename($path),
+                'path' => $path,
+                'url' => Storage::disk('public')->url($path),
+                'size' => Storage::disk('public')->exists($path)
+                    ? Storage::disk('public')->size($path)
+                    : null,
+            ]]);
+        }
+
+        $mappedOutcomesAttachments = $outcomesAttachments
+            ->map(function ($attachment) {
+                $path = $attachment['path'] ?? null;
+                return [
+                    'filename' => $attachment['filename'] ?? ($path ? basename($path) : 'Outcomes attachment'),
+                    'url' => $attachment['url'] ?? ($path ? Storage::disk('public')->url($path) : ''),
+                    'size' => $attachment['size'] ?? null,
+                    'path' => $path,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $mappedImageAttachments = collect($training->image_attachments ?? [])
+            ->map(function ($img, $index) {
+                $path = $img['path'] ?? null;
+                return [
+                    'id' => $img['id'] ?? $index,
+                    'filename' => $img['filename'] ?? ($path ? basename($path) : 'Image'),
+                    'url' => $img['url'] ?? ($path ? Storage::disk('public')->url($path) : ''),
+                    'size' => $img['size'] ?? null,
+                    'path' => $path,
+                ];
+            })
+            ->filter(fn ($img) => !empty($img['url']))
+            ->values()
+            ->all();
+
         return Inertia::render('Trainings/Edit', [
             'training' => array_merge($training->toArray(), [
                 'date_conducted' => optional($training->date_conducted)->format('Y-m-d'),
                 'follow_up_date' => optional($training->follow_up_date)->format('Y-m-d'),
                 'target_group_labels' => $this->normalizeTrainingTargetGroups($training->target_group),
+                'outcomes_attachments' => $mappedOutcomesAttachments,
+                'image_attachments' => $mappedImageAttachments,
             ]),
             'cooperatives' => $cooperatives,
             'selected_member_ids' => $selectedMemberIds,
@@ -625,6 +784,14 @@ class TrainingController extends Controller
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
             'follow_up_remarks' => ['nullable', 'string'],
+            'outcomes_attachments' => ['nullable', 'array', 'max:3'],
+            'outcomes_attachments.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
+            'removed_outcomes_attachment_paths' => ['nullable', 'array'],
+            'removed_outcomes_attachment_paths.*' => ['string'],
+            'image_attachments' => ['nullable', 'array', 'max:3'],
+            'image_attachments.*' => ['image', 'max:5120', 'mimes:jpeg,jpg,png,gif,webp'],
+            'removed_image_attachment_paths' => ['nullable', 'array'],
+            'removed_image_attachment_paths.*' => ['string'],
             'status' => ['required', Rule::in(['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'])],
         ]);
 
@@ -710,6 +877,9 @@ class TrainingController extends Controller
             'follow_up_needed',
             'follow_up_date',
             'follow_up_remarks',
+            'outcomes_attachment_path',
+            'outcomes_attachments',
+            'image_attachments',
             'status',
         ]);
 
@@ -865,6 +1035,66 @@ class TrainingController extends Controller
             ];
         })->values();
 
+        $buildAttachment = function (?string $path, ?string $name = null, array $extra = []) {
+            if (empty($path)) {
+                return null;
+            }
+
+            $disk = Storage::disk('public');
+            $exists = $disk->exists($path);
+
+            return array_merge([
+                'path' => $path,
+                'name' => $name ?: basename($path),
+                'url' => $exists ? $disk->url($path) : null,
+                'size' => $exists ? $disk->size($path) : null,
+            ], $extra);
+        };
+
+        $outcomesAttachments = $trainingRecords
+            ->flatMap(function ($item) use ($buildAttachment) {
+                $storedAttachments = collect($item->outcomes_attachments ?? []);
+
+                if ($storedAttachments->isEmpty() && !empty($item->outcomes_attachment_path)) {
+                    $storedAttachments = collect([[
+                        'filename' => basename($item->outcomes_attachment_path),
+                        'path' => $item->outcomes_attachment_path,
+                        'url' => Storage::disk('public')->url($item->outcomes_attachment_path),
+                        'size' => Storage::disk('public')->exists($item->outcomes_attachment_path)
+                            ? Storage::disk('public')->size($item->outcomes_attachment_path)
+                            : null,
+                    ]]);
+                }
+
+                return $storedAttachments->map(function (array $attachment) use ($buildAttachment) {
+                    return $buildAttachment($attachment['path'] ?? null, $attachment['filename'] ?? null);
+                });
+            })
+            ->filter()
+            ->unique('path')
+            ->values();
+
+        $imageAttachments = $trainingRecords
+            ->flatMap(function ($item) use ($buildAttachment) {
+                return collect($item->image_attachments ?? [])->map(function (array $image) use ($buildAttachment) {
+                    return $buildAttachment($image['path'] ?? null, $image['filename'] ?? null);
+                });
+            })
+            ->filter()
+            ->unique('path')
+            ->values()
+            ->map(function (array $image, int $index) {
+                return [
+                    'id' => $index,
+                    'filename' => $image['name'] ?? 'Image',
+                    'url' => $image['url'] ?? '',
+                    'size' => $image['size'] ?? null,
+                    'path' => $image['path'] ?? null,
+                ];
+            })
+            ->filter(fn ($img) => !empty($img['url']))
+            ->values();
+
         return Inertia::render('Trainings/Show', [
             'training' => [
                 'id' => $primaryTraining->id,
@@ -894,7 +1124,8 @@ class TrainingController extends Controller
             'participantCount' => $participants->count(),
             'total_participants' => $participants->count(),
             'linkedTrainingCount' => $trainingRecords->count(),
-            'attachments' => [],
+            'outcomesAttachments' => $outcomesAttachments,
+            'imageAttachments' => $imageAttachments,
         ]);
     }
 

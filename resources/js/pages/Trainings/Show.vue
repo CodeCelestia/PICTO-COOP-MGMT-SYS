@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import {
+    AlertCircle,
     ArrowLeft,
     Building2,
     CalendarDays,
     ChevronLeft,
     ChevronRight,
     ClipboardList,
+    Download,
+    Eye,
+    FileX,
     GraduationCap,
+    Monitor,
     Pencil,
     Paperclip,
     Search,
@@ -20,7 +25,28 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+    getFileExtension,
+    getFileTypeConfig,
+    getLegendFileTypeGroups,
+    getPreviewSuggestion,
+} from '@/lib/activityFileTypes';
 
 interface Cooperative {
     id: number;
@@ -36,6 +62,7 @@ interface Cooperative {
 interface Participant {
     id: number;
     member_id: number | null;
+    member_code?: string | null;
     full_name: string;
     first_name?: string | null;
     last_name?: string | null;
@@ -54,6 +81,26 @@ interface ParticipantGroup {
     classification?: string | null;
     participants_count: number;
     participants: Participant[];
+}
+
+interface AttachmentItem {
+    path: string;
+    name: string;
+    url: string | null;
+    size: number | null;
+}
+
+interface ImageAttachment {
+    id: number;
+    filename: string;
+    url: string;
+    size: number | null;
+    path?: string | null;
+}
+
+interface PreviewUnavailableFile {
+    name: string;
+    url: string;
 }
 
 interface Training {
@@ -81,7 +128,8 @@ interface Props {
     participantCount: number;
     total_participants?: number;
     linkedTrainingCount: number;
-    attachments: Array<Record<string, unknown>>;
+    outcomesAttachments: AttachmentItem[];
+    imageAttachments?: ImageAttachment[];
 }
 
 const props = defineProps<Props>();
@@ -132,8 +180,115 @@ const targetGroupDisplay = computed(() => {
         return labels.join(', ');
     }
 
-    return textOrDash(props.training.target_group);
+    // Parse raw target_group string if labels not available
+    const rawValue = props.training.target_group || '';
+    if (rawValue) {
+        const groups = rawValue.split(',').map((g) => g.trim()).filter((g) => g.length > 0);
+        return groups.length > 0 ? groups.join(', ') : textOrDash(rawValue);
+    }
+
+    return textOrDash(rawValue);
 });
+
+const formatAttachmentSize = (bytes: number | null) => {
+    if (bytes === null || bytes === undefined) return 'Size unavailable';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const legendGroups = getLegendFileTypeGroups();
+const showPreviewUnavailableModal = ref(false);
+const previewUnavailableFile = ref<PreviewUnavailableFile | null>(null);
+
+const imageGridClass = computed(() => {
+    const count = props.imageAttachments?.length ?? 0;
+    if (count === 1) return 'grid grid-cols-1 gap-2';
+    if (count === 2) return 'grid grid-cols-2 gap-2';
+    if (count >= 3) return 'grid grid-cols-3 gap-2';
+    return 'grid grid-cols-1 gap-2';
+});
+
+const previewUnavailableFileConfig = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return null;
+    }
+
+    return getFileTypeConfig(previewUnavailableFile.value.name);
+});
+
+const previewUnavailableSuggestion = computed(() => {
+    if (!previewUnavailableFile.value) {
+        return '';
+    }
+
+    return getPreviewSuggestion(previewUnavailableFile.value.name);
+});
+
+const openAttachmentPreview = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const downloadAttachment = (file: AttachmentItem) => {
+    if (!file.url) return;
+
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = file.name || 'attachment';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const downloadFileFromUrl = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = name || 'attachment';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const previewImageAttachment = (image: ImageAttachment) => {
+    window.open(image.url, '_blank', 'noopener,noreferrer');
+};
+
+const downloadImageAttachment = (image: ImageAttachment) => {
+    downloadFileFromUrl(image.url, image.filename);
+};
+
+const handleAttachmentPreview = (file: AttachmentItem) => {
+    if (!file.url) {
+        return;
+    }
+
+    const config = getFileTypeConfig(file.name);
+    if (config.previewable) {
+        openAttachmentPreview(file.url);
+        return;
+    }
+
+    previewUnavailableFile.value = { name: file.name, url: file.url };
+    showPreviewUnavailableModal.value = true;
+};
+
+const closePreviewUnavailableModal = () => {
+    showPreviewUnavailableModal.value = false;
+    previewUnavailableFile.value = null;
+};
+
+const downloadPreviewUnavailableFile = () => {
+    if (!previewUnavailableFile.value) {
+        return;
+    }
+
+    downloadFileFromUrl(previewUnavailableFile.value.url, previewUnavailableFile.value.name);
+    closePreviewUnavailableModal();
+};
 
 const normalize = (value: string | null | undefined) => (value || '').toLowerCase();
 
@@ -763,21 +918,94 @@ const selectedCooperativeLabel = computed(() => {
                             <Paperclip class="h-5 w-5" />
                             Attachments / Supporting Documents
                         </CardTitle>
-                        <CardDescription>Uploaded files can be listed here when the module starts storing them.</CardDescription>
+                        <CardDescription>Download uploaded outcomes and image files for this training.</CardDescription>
                     </CardHeader>
-                    <CardContent class="space-y-4 pt-0">
-                        <div v-if="attachments.length === 0" class="rounded-xl border border-dashed border-border bg-muted/10 px-6 py-10 text-center text-sm text-muted-foreground">
-                            <Paperclip class="mx-auto mb-2 h-6 w-6" />
-                            No attachments are stored for this training record.
-                        </div>
-                        <div v-else class="space-y-3">
-                            <div
-                                v-for="(attachment, index) in attachments"
-                                :key="index"
-                                class="rounded-xl border border-border bg-card p-4"
-                            >
-                                <p class="font-medium text-foreground">Supporting document {{ index + 1 }}</p>
-                                <p class="text-sm text-muted-foreground">{{ attachment }}</p>
+                    <CardContent class="pt-0">
+                        <div class="flex gap-6">
+                            <div class="flex-1 space-y-6">
+                                <section class="space-y-3">
+                                    <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Outcomes Attachments</h3>
+                                    <div v-if="outcomesAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                        No attachments uploaded
+                                    </div>
+                                    <div v-else class="space-y-2">
+                                        <div v-for="file in outcomesAttachments" :key="`outcomes-${file.path}`" class="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/50">
+                                            <div class="flex min-w-0 flex-1 items-center gap-2">
+                                                <component :is="getFileTypeConfig(file.name).icon" class="h-8 w-8 shrink-0" :class="getFileTypeConfig(file.name).iconColorClass" />
+                                                <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getFileTypeConfig(file.name).badgeClass">
+                                                    {{ getFileExtension(file.name) }}
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <p class="truncate text-sm font-medium text-foreground" :title="file.name">{{ file.name }}</p>
+                                                    <p class="text-xs text-muted-foreground">{{ formatAttachmentSize(file.size) }}</p>
+                                                </div>
+                                            </div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-sky-200 bg-sky-50 px-2 text-xs text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30" @click="handleAttachmentPreview(file)">
+                                                            <Eye class="h-3.5 w-3.5" />
+                                                            Preview
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Preview file in new tab</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <Button type="button" size="sm" class="h-7 gap-1 border border-green-200 bg-green-50 px-2 text-xs text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400" @click="downloadAttachment(file)">
+                                                            <Download class="h-3.5 w-3.5" />
+                                                            Download
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Download this file</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <Separator />
+
+                                <section class="space-y-3">
+                                    <h3 class="text-sm font-semibold uppercase tracking-wide text-foreground">Photo / Image Attachments</h3>
+                                    <div v-if="!imageAttachments || imageAttachments.length === 0" class="rounded-lg border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                                        No images uploaded
+                                    </div>
+                                    <div v-else :class="imageGridClass" class="h-48">
+                                        <div v-for="image in imageAttachments" :key="image.id" class="group relative overflow-hidden rounded-lg border bg-muted/30 h-full">
+                                            <img :src="image.url" :alt="image.filename" class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                                            <div class="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/55" />
+                                            <div class="absolute inset-0 flex items-center justify-center gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                <Button type="button" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-gray-900 hover:bg-blue-500 hover:text-white font-medium text-xs shadow-lg transition-all duration-150 active:scale-95" @click="previewImageAttachment(image)" title="View full image">
+                                                    <Eye class="h-4 w-4 shrink-0" />
+                                                    <span>View Full</span>
+                                                </Button>
+                                                <Button type="button" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-gray-900 hover:bg-green-500 hover:text-white font-medium text-xs shadow-lg transition-all duration-150 active:scale-95" @click="downloadImageAttachment(image)" title="Download image">
+                                                    <Download class="h-4 w-4 shrink-0" />
+                                                    <span>Download</span>
+                                                </Button>
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent px-2 py-1">
+                                                <p class="truncate text-xs font-medium text-white" :title="image.filename">{{ image.filename }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div class="w-52 border-l pl-4">
+                                <h4 class="mb-3 text-sm font-semibold text-muted-foreground">File Types</h4>
+                                <div class="space-y-2">
+                                    <div v-for="group in legendGroups" :key="group.key" class="rounded-md border border-border/60 bg-background/70 px-2 py-2">
+                                        <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{{ group.label }}</p>
+                                        <div class="flex items-center gap-2">
+                                            <component :is="group.icon" class="h-8 w-8 shrink-0" :class="group.iconColorClass" />
+                                            <Badge variant="outline" class="font-semibold" :class="group.badgeClass">{{ group.badgeText }}</Badge>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -807,5 +1035,48 @@ const selectedCooperativeLabel = computed(() => {
                 </CardContent>
             </Card>
         </div>
+
+        <Dialog :open="showPreviewUnavailableModal" @update:open="(open: boolean) => !open && closePreviewUnavailableModal()">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <FileX class="h-4 w-4 text-amber-500" />
+                        Preview Not Available
+                    </DialogTitle>
+                    <DialogDescription>
+                        This file type cannot be previewed in the browser.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div v-if="previewUnavailableFile && previewUnavailableFileConfig" class="space-y-3">
+                    <div class="rounded-md border border-border/70 bg-muted/30 p-3">
+                        <p class="truncate text-sm font-medium text-foreground" :title="previewUnavailableFile.name">{{ previewUnavailableFile.name }}</p>
+                        <div class="mt-2 flex items-center gap-2">
+                            <component :is="previewUnavailableFileConfig.icon" class="h-8 w-8" :class="previewUnavailableFileConfig.iconColorClass" />
+                            <Badge variant="outline" class="font-semibold" :class="previewUnavailableFileConfig.badgeClass">{{ previewUnavailableFileConfig.extension }}</Badge>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">
+                        <p class="flex items-center gap-2 text-sm font-medium">
+                            <AlertCircle class="h-4 w-4" />
+                            Suggested app
+                        </p>
+                        <p class="mt-1 flex items-center gap-2 text-sm">
+                            <Monitor class="h-4 w-4" />
+                            {{ previewUnavailableSuggestion }}
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" @click="closePreviewUnavailableModal">Cancel</Button>
+                    <Button type="button" class="gap-2" @click="downloadPreviewUnavailableFile">
+                        <Download class="h-4 w-4" />
+                        Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

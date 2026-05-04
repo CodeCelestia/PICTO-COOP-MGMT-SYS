@@ -298,6 +298,28 @@ const formatOfficerName = (activity: Activity) => {
     return activity.responsible_officer?.member?.full_name || 'N/A';
 };
 
+const getActivityStatusClass = (status: string | null | undefined): string => {
+    const normalized = status?.toLowerCase().trim() || '';
+    switch (normalized) {
+        case 'planned':
+        case 'scheduled':
+            return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+        case 'in progress':
+        case 'ongoing':
+            return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+        case 'completed':
+        case 'finished':
+            return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
+        case 'archived':
+            return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+        case 'cancelled':
+        case 'canceled':
+            return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+        default:
+            return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+    }
+};
+
 const cooperativesParticipatingCount = (activity: Activity) => {
     return Number(activity.cooperatives_count ?? activity.cooperatives_participating_count ?? 0);
 };
@@ -628,7 +650,12 @@ const bulkDeleteActivities = async () => {
                             <TableCell class="text-sm text-muted-foreground">
                                 {{ formatDateRange(activity.date_started, activity.date_ended) }}
                             </TableCell>
-                            <TableCell class="text-sm text-muted-foreground">{{ activity.status }}</TableCell>
+                            <TableCell class="text-center">
+                                <span :class="getActivityStatusClass(activity.status)"
+                                      class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border whitespace-nowrap">
+                                    {{ activity.status ?? '—' }}
+                                </span>
+                            </TableCell>
                             <TableCell class="text-sm text-muted-foreground">{{ formatOfficerName(activity) }}</TableCell>
                             <TableCell v-if="showActions" class="text-center align-top">
                                 <TooltipProvider :delay-duration="150">
