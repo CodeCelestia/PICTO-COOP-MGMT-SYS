@@ -375,7 +375,7 @@ class DashboardController extends Controller
             ),
             'training_target_group' => $this->sanitizeFilter(
                 request('training_target_group'),
-                ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other']
+                ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'FisherFolk', 'New Members', 'Other']
             ),
         ];
     }

@@ -218,7 +218,7 @@ class MemberSeeder extends Seeder
                 'share_capital' => 5500.00,
                 'educational_attainment' => 'High School',
                 'primary_livelihood' => 'Fish vending',
-                'sector' => 'Fishfolk',
+                'sector' => 'FisherFolk',
             ],
             [
                 'coop_id' => $bulacan?->id,
@@ -239,7 +239,7 @@ class MemberSeeder extends Seeder
                 'share_capital' => 8000.00,
                 'educational_attainment' => 'Elementary',
                 'primary_livelihood' => 'Fisherman',
-                'sector' => 'Fishfolk',
+                'sector' => 'FisherFolk',
             ],
             [
                 'coop_id' => $picto?->id,
@@ -282,7 +282,7 @@ class MemberSeeder extends Seeder
                 'share_capital' => 5000.00,
                 'educational_attainment' => 'High School',
                 'primary_livelihood' => 'Fishing',
-                'sector' => 'Fishfolk',
+                'sector' => 'FisherFolk',
             ],
             [
                 'coop_id' => $batangas?->id,

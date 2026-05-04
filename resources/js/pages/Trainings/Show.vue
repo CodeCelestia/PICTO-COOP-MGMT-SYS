@@ -65,6 +65,7 @@ interface Training {
     skills_targeted: string | null;
     venue: string | null;
     target_group: string;
+    target_group_labels?: string[];
     no_of_participants: number | null;
     follow_up_needed: boolean;
     follow_up_date: string | null;
@@ -123,6 +124,16 @@ const textOrDash = (value: string | number | null | undefined) => {
 
     return String(value);
 };
+
+const targetGroupDisplay = computed(() => {
+    const labels = props.training.target_group_labels || [];
+
+    if (labels.length) {
+        return labels.join(', ');
+    }
+
+    return textOrDash(props.training.target_group);
+});
 
 const normalize = (value: string | null | undefined) => (value || '').toLowerCase();
 
@@ -470,7 +481,7 @@ const selectedCooperativeLabel = computed(() => {
                         </div>
                         <div class="rounded-xl border border-border bg-muted/20 p-4">
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Target Group</dt>
-                            <dd class="mt-1 text-sm font-medium text-foreground">{{ training.target_group }}</dd>
+                            <dd class="mt-1 text-sm font-medium text-foreground">{{ targetGroupDisplay }}</dd>
                         </div>
                         <div class="rounded-xl border border-border bg-muted/20 p-4 sm:col-span-2">
                             <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Skills Targeted</dt>

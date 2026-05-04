@@ -333,6 +333,13 @@ class ActivityController extends Controller
                 'remarks' => $primaryActivity->remarks,
                 'responsible_officer' => $primaryActivity->responsibleOfficer?->member?->full_name,
                 'cooperatives_count' => $cooperatives->count(),
+                // Include funding source records for frontend display
+                'fundingSources' => $primaryActivity->fundingSources->map(function ($source) {
+                    return array_merge($source->toArray(), [
+                        'date_released' => optional($source->date_released)->format('Y-m-d'),
+                    ]);
+                })->values()->all(),
+                'fundingSource' => optional($primaryActivity->fundingSources->first()) ? array_merge($primaryActivity->fundingSources->first()->toArray(), ['date_released' => optional($primaryActivity->fundingSources->first()->date_released)->format('Y-m-d')]) : null,
             ],
             'cooperatives' => $cooperatives,
             'participantsCount' => $groupedActivities->sum(fn ($item) => $item->participants->count()),
@@ -419,10 +426,14 @@ class ActivityController extends Controller
 
         $allMembers = $cooperative->members()
             ->where('membership_status', 'Active')
-            ->select('id', 'first_name', 'last_name', 'coop_id', 'gender', 'date_joined', 'membership_status')
+            ->select('id', 'first_name', 'last_name', 'coop_id', 'gender', 'date_joined', 'membership_status', 'membership_type', 'sector')
             ->orderBy('last_name', 'asc')
             ->orderBy('first_name', 'asc')
             ->get();
+
+        $membershipTypes = ['Regular', 'Associate'];
+
+        $sectors = ['Farmer', 'FisherFolk', 'Employee', 'Entrepreneur', 'Youth', 'Women', 'Senior Citizen', 'PWD', 'Other'];
 
         $selectedMemberIds = ActivityParticipant::query()
             ->whereIn('activity_id', $targetActivityIds)
@@ -443,6 +454,8 @@ class ActivityController extends Controller
                 'name' => $cooperative->name,
             ],
             'allMembers' => $allMembers,
+            'membershipTypes' => $membershipTypes,
+            'sectors' => $sectors,
             'selectedMemberIds' => $selectedMemberIds,
             'isCooperativeContext' => true,
         ]);
@@ -591,6 +604,10 @@ class ActivityController extends Controller
             'funding_sources.*.date_released' => ['nullable', 'date'],
             'funding_sources.*.status' => ['required', Rule::in(['Released', 'Pending', 'Partially Released'])],
             'funding_sources.*.remarks' => ['nullable', 'string'],
+            'funding_sources.*.attachment_paths' => ['nullable', 'array'],
+            'funding_sources.*.attachment_paths.*' => ['string'],
+            'funding_sources.*.attachment_names' => ['nullable', 'array'],
+            'funding_sources.*.attachment_names.*' => ['string'],
             'funding_sources.*.attachments' => ['nullable', 'array', 'max:3'],
             'funding_sources.*.attachments.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'],
             'funding_sources.*.attachments_removed' => ['nullable', 'array'],
@@ -694,7 +711,7 @@ class ActivityController extends Controller
                 $activity = Activity::create($payload);
                 $createdCount++;
 
-                foreach ($fundingSources as $source) {
+                foreach ($fundingSources as $index => $source) {
                     $activity->fundingSources()->create([
                         'coop_id' => $activity->coop_id,
                         'funder_name' => $source['funder_name'],
@@ -796,7 +813,8 @@ class ActivityController extends Controller
                     })
                     ->values()
                     ->all(),
-                'funding_sources' => $activity->fundingSources->map(function ($source) {
+                // Load only the primary (first) funding source for the edit UI
+                'funding_sources' => $activity->fundingSources->take(1)->map(function ($source) {
                     return array_merge($source->toArray(), [
                         'date_released' => optional($source->date_released)->format('Y-m-d'),
                     ]);
@@ -868,6 +886,7 @@ class ActivityController extends Controller
             'remarks' => ['nullable', 'string'],
             'funding_sources' => ['nullable', 'array'],
             'funding_sources.*.id' => ['nullable', 'integer'],
+            'funding_sources.*.coop_id' => ['nullable', 'integer', 'exists:cooperatives,id'],
             'funding_sources.*.funder_name' => ['required', 'string', 'max:255'],
             'funding_sources.*.funder_type' => ['required', Rule::in(['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'])],
             'funding_sources.*.amount_allocated' => ['nullable', 'numeric', 'min:0'],
@@ -997,32 +1016,12 @@ class ActivityController extends Controller
         $validated['image_attachments'] = !empty($existingImages) ? $existingImages : null;
         unset($validated['removed_image_ids']);
 
-        $fundingSources = $validated['funding_sources'] ?? [];
-        foreach ($fundingSources as $index => $source) {
-            if ($request->hasFile("funding_sources.{$index}.attachments")) {
-                $paths = [];
-                $names = [];
-                foreach ($request->file("funding_sources.{$index}.attachments") as $file) {
-                    $paths[] = $file->store('funding-source-attachments', 'public');
-                    $names[] = $file->getClientOriginalName();
-                }
-                $fundingSources[$index]['attachment_paths'] = $paths;
-                $fundingSources[$index]['attachment_names'] = $names;
-            }
-        }
+        $fundingSources = collect($validated['funding_sources'] ?? [])->values();
 
         unset($validated['funding_sources'], $validated['coop_ids']);
 
-        DB::transaction(function () use ($activity, $validated, $selectedCoopIds, $fundingSources, $linkedActivities, $oldValues) {
+        DB::transaction(function () use ($activity, $validated, $selectedCoopIds, $fundingSources, $linkedActivities, $linkedActivityIds, $oldValues, $request) {
             $updatedCurrentActivity = null;
-
-            foreach ($linkedActivities as $linkedActivity) {
-                if (! $selectedCoopIds->contains((int) $linkedActivity->coop_id)) {
-                    $linkedActivity->fundingSources()->delete();
-                    $linkedActivity->delete();
-                }
-            }
-
             foreach ($selectedCoopIds as $selectedCoopId) {
                 $payload = $validated;
                 $payload['coop_id'] = (int) $selectedCoopId;
@@ -1034,28 +1033,123 @@ class ActivityController extends Controller
                     }
 
                     $linkedActivity->update($payload);
-                    $linkedActivity->fundingSources()->delete();
                 } else {
                     $linkedActivity = Activity::create($payload);
                 }
 
-                foreach ($fundingSources as $source) {
-                    $linkedActivity->fundingSources()->create([
-                        'coop_id' => $linkedActivity->coop_id,
-                        'funder_name' => $source['funder_name'],
-                        'funder_type' => $source['funder_type'],
-                        'amount_allocated' => $source['amount_allocated'] ?? null,
-                        'amount_released' => $source['amount_released'] ?? null,
-                        'date_released' => $source['date_released'] ?? null,
-                        'status' => $source['status'],
-                        'remarks' => $source['remarks'] ?? null,
-                        'attachment_paths' => $source['attachment_paths'] ?? null,
-                        'attachment_names' => $source['attachment_names'] ?? [],
-                    ]);
-                }
-
                 if ($linkedActivity->is($activity)) {
                     $updatedCurrentActivity = $linkedActivity;
+                }
+            }
+
+            // Apply shared funding source data to ALL funding rows for the linked activities
+            $submittedSource = $fundingSources->first();
+            if (!empty($submittedSource)) {
+                // Build the payload shared across all funding rows
+                $sharedData = [
+                    'category' => $submittedSource['category'] ?? 'activity',
+                    'funder_name' => $submittedSource['funder_name'] ?? null,
+                    'funder_type' => $submittedSource['funder_type'] ?? null,
+                    'amount_allocated' => $submittedSource['amount_allocated'] ?? null,
+                    'amount_released' => $submittedSource['amount_released'] ?? null,
+                    'date_released' => $submittedSource['date_released'] ?? null,
+                    'status' => $submittedSource['status'] ?? null,
+                    'remarks' => $submittedSource['remarks'] ?? null,
+                ];
+
+                // Collect the final set of activities (one per selected cooperative)
+                $activityByCoop = [];
+                foreach ($selectedCoopIds as $sid) {
+                    $linked = $linkedActivities->get((int) $sid);
+                    if ($linked) {
+                        $activityByCoop[(int) $sid] = $linked;
+                    } else {
+                        $payload = $validated;
+                        $payload['coop_id'] = (int) $sid;
+                        $activityByCoop[(int) $sid] = Activity::create($payload);
+                    }
+                }
+
+                $finalActivityIds = collect($activityByCoop)->pluck('id')->values()->all();
+
+                // Fetch all existing funding rows across the linked activities
+                $allFundingSources = ActivityFundingSource::query()
+                    ->whereIn('activity_id', $finalActivityIds)
+                    ->withoutTrashed()
+                    ->get();
+
+                // Determine base attachments from the first existing funding source if present
+                $existingFirst = $allFundingSources->first();
+                $existingPaths = $existingFirst ? array_values((array) ($existingFirst->attachment_paths ?? [])) : [];
+                $existingNames = $existingFirst ? array_values((array) ($existingFirst->attachment_names ?? [])) : [];
+
+                $removedPaths = collect($submittedSource['attachments_removed'] ?? [])->filter()->values()->all();
+
+                $keptPaths = [];
+                $keptNames = [];
+                foreach ($existingPaths as $i => $path) {
+                    if (in_array($path, $removedPaths, true)) {
+                        Storage::disk('public')->delete($path);
+                        continue;
+                    }
+
+                    $keptPaths[] = $path;
+                    $keptNames[] = $existingNames[$i] ?? basename($path);
+                }
+
+                $newPaths = [];
+                $newNames = [];
+                if ($request->hasFile('funding_sources.0.attachments')) {
+                    foreach ($request->file('funding_sources.0.attachments') as $file) {
+                        $path = $file->store('funding-source-attachments', 'public');
+                        $newPaths[] = $path;
+                        $newNames[] = $file->getClientOriginalName();
+                    }
+                }
+
+                // If there were no existing files and the submitted source already contains paths, prefer them
+                if (empty($keptPaths) && empty($newPaths) && !empty($submittedSource['attachment_paths'] ?? [])) {
+                    $finalPaths = array_values((array) ($submittedSource['attachment_paths'] ?? []));
+                    $finalNames = array_values((array) ($submittedSource['attachment_names'] ?? []));
+                } else {
+                    $finalPaths = array_merge($keptPaths, $newPaths);
+                    $finalNames = array_merge($keptNames, $newNames);
+                }
+
+                // Update existing funding rows
+                foreach ($allFundingSources as $fs) {
+                    $fs->update(array_merge($sharedData, [
+                        'attachment_paths' => !empty($finalPaths) ? $finalPaths : null,
+                        'attachment_names' => !empty($finalNames) ? $finalNames : null,
+                    ]));
+                }
+
+                // Create missing funding rows for activities that don't have one
+                $existingActivityIds = $allFundingSources->pluck('activity_id')->map(fn($v) => (int) $v)->all();
+                foreach ($activityByCoop as $coopId => $act) {
+                    if (!in_array((int) $act->id, $existingActivityIds, true)) {
+                        $act->fundingSources()->create(array_merge($sharedData, [
+                            'coop_id' => $act->coop_id,
+                            'attachment_paths' => !empty($finalPaths) ? $finalPaths : null,
+                            'attachment_names' => !empty($finalNames) ? $finalNames : null,
+                        ]));
+                    }
+                }
+
+                // Soft-delete funding rows that belong to activities no longer selected
+                $allExistingActivityIds = ActivityFundingSource::query()
+                    ->whereIn('activity_id', $linkedActivityIds)
+                    ->withoutTrashed()
+                    ->pluck('activity_id')
+                    ->map(fn($v) => (int) $v)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $finalIds = $finalActivityIds;
+                $toRemove = array_values(array_diff($allExistingActivityIds, $finalIds));
+                if (!empty($toRemove)) {
+                    ActivityFundingSource::whereIn('activity_id', $toRemove)->delete();
                 }
             }
 

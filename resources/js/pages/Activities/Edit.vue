@@ -103,6 +103,7 @@ interface ImageAttachment {
 
 interface FundingSourceRecord {
     id: number;
+    coop_id: number;
     funder_name: string;
     funder_type: string;
     amount_allocated: string | null;
@@ -116,6 +117,7 @@ interface FundingSourceRecord {
 
 interface FundingSourceFormRow {
     id?: number;
+    coop_id?: number;
     funder_name: string;
     funder_type: string;
     amount_allocated: string;
@@ -201,6 +203,7 @@ const form = useForm({
     remarks: props.activity.remarks || '',
     funding_sources: (props.activity.funding_sources || []).map((source) => ({
         id: source.id,
+        coop_id: source.coop_id,
         funder_name: source.funder_name,
         funder_type: source.funder_type,
         amount_allocated: source.amount_allocated || '',
@@ -397,6 +400,7 @@ const saveFundingSource = (index: number) => {
 
 const addFundingSource = () => {
     form.funding_sources.push({
+        coop_id: Number(selectedCoopIds.value[0] || form.coop_id || props.activity.coop_id),
         funder_name: '',
         funder_type: 'Government',
         amount_allocated: '',
@@ -880,6 +884,7 @@ const submit = () => {
         funding_source: data.funding_source || data.funding_sources[0]?.funder_name || '',
         funding_sources: data.funding_sources.map((source) => ({
             ...source,
+            coop_id: source.coop_id || Number(selectedCoopIds.value[0] || data.coop_id || props.activity.coop_id),
             amount_allocated: source.amount_allocated || null,
             amount_released: source.amount_released || null,
             date_released: source.date_released || null,

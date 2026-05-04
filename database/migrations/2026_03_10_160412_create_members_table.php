@@ -48,7 +48,7 @@ return new class extends Migration
             $table->string('primary_livelihood')->nullable();
             $table->enum('sector', [
                 'Farmer',
-                'Fishfolk',
+                'FisherFolk',
                 'Employee',
                 'Entrepreneur',
                 'Youth',

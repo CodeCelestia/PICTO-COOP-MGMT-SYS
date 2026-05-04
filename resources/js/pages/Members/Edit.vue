@@ -710,7 +710,7 @@ const toggleRole = (roleId: number) => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Farmer">Farmer</SelectItem>
-                                        <SelectItem value="Fishfolk">Fishfolk</SelectItem>
+                                        <SelectItem value="FisherFolk">FisherFolk</SelectItem>
                                         <SelectItem value="Employee">Employee</SelectItem>
                                         <SelectItem value="Entrepreneur">Entrepreneur</SelectItem>
                                         <SelectItem value="Youth">Youth</SelectItem>

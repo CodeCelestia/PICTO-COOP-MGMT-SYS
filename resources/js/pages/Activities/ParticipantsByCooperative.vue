@@ -44,6 +44,8 @@ interface Member {
     id: number;
     first_name: string;
     last_name: string;
+    membership_type?: string | null;
+    sector?: string | null;
     gender?: string | null;
     date_joined?: string | null;
 }
@@ -52,6 +54,8 @@ interface Props {
     activity: Activity;
     cooperative: Cooperative;
     allMembers: Member[];
+    membershipTypes?: string[];
+    sectors?: string[];
     selectedMemberIds: number[];
     isCooperativeContext?: boolean;
 }
@@ -80,8 +84,12 @@ const routeCooperativeId = computed<number | null>(() => {
 
 const cooperativeId = computed(() => routeCooperativeId.value ?? props.cooperative?.id ?? null);
 const isCooperativeContext = computed(() => Boolean(props.isCooperativeContext ?? cooperativeId.value));
+const membershipTypeOptions = computed(() => props.membershipTypes || ['Regular', 'Associate']);
+const sectorOptions = computed(() => props.sectors || ['Farmer', 'FisherFolk', 'Employee', 'Entrepreneur', 'Youth', 'Women', 'Senior Citizen', 'PWD', 'Other']);
 
 const search = ref('');
+const membershipTypeFilter = ref('all');
+const sectorFilter = ref('all');
 const genderFilter = ref('all');
 const selectedIds = ref<number[]>([...(props.selectedMemberIds || [])]);
 const isSaving = ref(false);
@@ -116,8 +124,18 @@ const selectedMembers = computed(() => {
 
 const filteredUnselectedMembers = computed(() => {
     let members = unselectedMembers.value;
+    const membershipType = membershipTypeFilter.value.trim().toLowerCase();
+    const sector = sectorFilter.value.trim().toLowerCase();
     const gender = genderFilter.value.trim().toLowerCase();
     const keyword = search.value.trim().toLowerCase();
+
+    if (membershipType !== 'all') {
+        members = members.filter((member) => (member.membership_type || '').toLowerCase() === membershipType);
+    }
+
+    if (sector !== 'all') {
+        members = members.filter((member) => (member.sector || '').toLowerCase() === sector);
+    }
 
     if (gender !== 'all') {
         members = members.filter((member) => (member.gender || '').toLowerCase() === gender);
@@ -270,6 +288,44 @@ const saveParticipants = () => {
         }
     );
 };
+
+const clearFilters = () => {
+    membershipTypeFilter.value = 'all';
+    sectorFilter.value = 'all';
+    genderFilter.value = 'all';
+    search.value = '';
+};
+
+const hasActiveFilters = computed(() => {
+    return membershipTypeFilter.value !== 'all'
+        || sectorFilter.value !== 'all'
+        || genderFilter.value !== 'all'
+        || search.value.trim().length > 0;
+});
+
+const availableMembersEmptyTitle = computed(() => {
+    if (!sortedMembers.value.length) {
+        return 'No active members are available';
+    }
+
+    if (hasActiveFilters.value) {
+        return 'No members match the selected filters';
+    }
+
+    return 'All members selected';
+});
+
+const availableMembersEmptyMessage = computed(() => {
+    if (!sortedMembers.value.length) {
+        return 'This cooperative currently has no active members to add as participants.';
+    }
+
+    if (hasActiveFilters.value) {
+        return 'Try adjusting the membership type, sector, gender, or search filters to see more members.';
+    }
+
+    return 'Use Deselect All to start over.';
+});
 </script>
 
 <template>
@@ -312,6 +368,40 @@ const saveParticipants = () => {
                         <Square class="h-4 w-4" />
                         Deselect All
                     </Button>
+                    <div class="w-[240px] shrink-0">
+                        <Select v-model="membershipTypeFilter">
+                            <SelectTrigger class="h-8 w-full min-w-[240px]">
+                                <SelectValue placeholder="All Membership Types" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Membership Types</SelectItem>
+                                <SelectItem
+                                    v-for="membershipType in membershipTypeOptions"
+                                    :key="`membership-type-${membershipType}`"
+                                    :value="membershipType"
+                                >
+                                    {{ membershipType }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div class="w-[220px] shrink-0">
+                        <Select v-model="sectorFilter">
+                            <SelectTrigger class="h-8 w-full min-w-[220px]">
+                                <SelectValue placeholder="All Sectors" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Sectors</SelectItem>
+                                <SelectItem
+                                    v-for="sector in sectorOptions"
+                                    :key="`sector-${sector}`"
+                                    :value="sector"
+                                >
+                                    {{ sector }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div class="w-40 shrink-0">
                         <Select v-model="genderFilter">
                             <SelectTrigger class="h-8 w-full">
@@ -329,6 +419,16 @@ const saveParticipants = () => {
                         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input v-model="search" placeholder="Search members..." class="h-8 pl-9 text-sm" />
                     </div>
+                    <Button
+                        v-if="hasActiveFilters"
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        class="h-8 px-3 text-muted-foreground hover:text-foreground"
+                        @click="clearFilters"
+                    >
+                        Clear Filters
+                    </Button>
                 </div>
 
                 <div v-if="isCooperativeContext" class="grid grid-cols-1 divide-y md:grid-cols-2 md:divide-x md:divide-y-0">
@@ -386,9 +486,10 @@ const saveParticipants = () => {
                                 </template>
 
                                 <div v-else class="flex flex-col items-center py-8 text-muted-foreground">
-                                    <CheckCircle2 class="mb-2 h-8 w-8 text-green-400" />
-                                    <p class="text-sm font-medium">All members selected</p>
-                                    <p class="text-xs">Use Deselect All to start over</p>
+                                    <CheckCircle2 v-if="sortedMembers.length" class="mb-2 h-8 w-8 text-green-400" />
+                                    <Users v-else class="mb-2 h-8 w-8 text-slate-400" />
+                                    <p class="text-sm font-medium">{{ availableMembersEmptyTitle }}</p>
+                                    <p class="text-xs text-center">{{ availableMembersEmptyMessage }}</p>
                                 </div>
                             </div>
 

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('facilitator')->nullable();
             $table->text('skills_targeted')->nullable();
             $table->string('venue')->nullable();
-            $table->enum('target_group', ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other']);
+            $table->text('target_group')->nullable();
             $table->unsignedInteger('no_of_participants')->nullable();
             $table->boolean('follow_up_needed')->default(false);
             $table->date('follow_up_date')->nullable();

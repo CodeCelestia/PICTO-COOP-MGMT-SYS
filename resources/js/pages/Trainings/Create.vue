@@ -5,6 +5,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
 import CooperativeMultiSelectDialog from '@/components/Cooperatives/CooperativeMultiSelectDialog.vue';
+import TargetGroupMultiSelectDialog from '@/components/Trainings/TargetGroupMultiSelectDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,10 +92,15 @@ const form = useForm({
     status: 'Planned',
 });
 
+const trainingTargetGroupOptions = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'FisherFolk', 'New Members', 'Other'];
+const parseTargetGroups = (value: string | null | undefined) => {
+    return [...new Set(String(value || '').split(',').map((item) => item.trim()).filter(Boolean))];
+};
+const isTargetGroupDialogOpen = ref(false);
+const selectedTargetGroups = ref<string[]>(parseTargetGroups(form.target_group));
+
 // Initialize useFormUx for UX handling (dirty tracking, error classes, shake/scroll)
 const { isDirty, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
-
-const targetGroups = ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'];
 const statusOptions = ['Planned', 'Completed', 'Archived', 'Cancelled', 'Follow-Up Pending'];
 const isCooperativeDialogOpen = ref(false);
 const selectedCoopIds = ref<string[]>(form.coop_ids);
@@ -106,6 +112,19 @@ const selectedCooperatives = computed(() => {
     const selectedSet = new Set(selectedCoopIds.value);
     return props.cooperatives.filter((coop) => selectedSet.has(String(coop.id)));
 });
+
+const selectedTargetGroupLabel = computed(() => {
+    if (!selectedTargetGroups.value.length) {
+        return 'Select target groups';
+    }
+
+    return selectedTargetGroups.value.join(', ');
+});
+
+watch(selectedTargetGroups, (values) => {
+    form.target_group = values.join(',');
+    clearError('target_group');
+}, { deep: true, immediate: true });
 const lockedCooperative = computed(() => {
     if (!lockedCooperativeId.value) return null;
     return props.cooperatives.find((coop) => String(coop.id) === lockedCooperativeId.value) || null;
@@ -275,6 +294,14 @@ const selectAllInCurrentCoop = () => {
     form.member_ids = [...new Set([...form.member_ids, ...source.map((member) => member.id)])];
 };
 
+const openTargetGroupDialog = () => {
+    isTargetGroupDialogOpen.value = true;
+};
+
+const confirmTargetGroups = (values: string[]) => {
+    selectedTargetGroups.value = [...new Set(values)];
+};
+
 const deselectAllInCurrentCoop = () => {
     const idsToRemove = new Set(selectedMembersForCoop.value.map((member) => member.id));
     form.member_ids = form.member_ids.filter((id) => !idsToRemove.has(id));
@@ -401,6 +428,14 @@ watch(selectedCoopIds, async (newVal) => {
     form.member_ids = form.member_ids.filter((memberId) => allowedMemberIds.has(memberId));
 }, { deep: true, immediate: true });
 
+watch(
+    () => form.member_ids.length,
+    (count) => {
+        form.no_of_participants = String(count);
+    },
+    { immediate: true }
+);
+
 const scrollToFirstInvalidField = async () => {
     await nextTick();
 
@@ -437,6 +472,8 @@ const submit = async () => {
         ...data,
         coop_id: selectedCoopIds.value[0] || '',
         coop_ids: [...selectedCoopIds.value],
+        target_group: selectedTargetGroups.value.join(','),
+        no_of_participants: String(form.member_ids.length),
         return_to: returnToHref.value,
     })).post('/trainings', {
         preserveScroll: true,
@@ -551,7 +588,7 @@ const cancel = () => {
             </Card>
 
             <form ref="trainingFormRef" @submit.prevent="submit" class="space-y-6" :class="{ 'animate-shake': showErrorShake }">
-                <Card class="w-full min-h-87.5 border-border/80 bg-card/95 shadow-sm">
+                <Card class="w-full flex max-h-[760px] flex-col overflow-hidden border-border/80 bg-card/95 shadow-sm">
                     <CardHeader class="space-y-1 pb-4">
                         <CardTitle class="flex items-center gap-2 text-xl">
                             <GraduationCap class="h-5 w-5" />
@@ -559,7 +596,7 @@ const cancel = () => {
                         </CardTitle>
                         <CardDescription>Capture the training title, type, date, and delivery details.</CardDescription>
                     </CardHeader>
-                    <CardContent class="space-y-5 pt-0">
+                    <CardContent class="flex min-h-0 flex-1 flex-col gap-5 pt-0">
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="title">Title <span class="text-red-500">*</span></Label>
@@ -568,14 +605,14 @@ const cancel = () => {
                             </div>
                             <div>
                                 <Label for="target_group">Target Group <span class="text-red-500">*</span></Label>
-                                <Select v-model="form.target_group" @update:modelValue="clearError('target_group')">
-                                    <SelectTrigger id="target_group" :class="inputErrorClass('target_group')">
-                                        <SelectValue placeholder="Select target group" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="option in targetGroups" :key="option" :value="option">{{ option }}</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Button id="target_group" type="button" variant="outline" class="h-11 w-full justify-between gap-3" :class="inputErrorClass('target_group')" @click="openTargetGroupDialog">
+                                    <span class="min-w-0 truncate text-left text-sm">{{ selectedTargetGroupLabel }}</span>
+                                    <span class="shrink-0 text-xs text-muted-foreground">{{ selectedTargetGroups.length }} selected</span>
+                                </Button>
+                                <div v-if="selectedTargetGroups.length" class="mt-2 flex flex-wrap gap-1.5">
+                                    <Badge v-for="group in selectedTargetGroups" :key="group" variant="secondary" class="max-w-full truncate">{{ group }}</Badge>
+                                </div>
+                                <p class="mt-1 text-xs text-muted-foreground">Choose one or more target groups from the modal.</p>
                                 <p v-if="form.errors.target_group" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.target_group }}</p>
                             </div>
                             <div>
@@ -666,10 +703,10 @@ const cancel = () => {
                             <p>Please select a cooperative above to view and add participants.</p>
                         </div>
 
-                        <div v-else class="grid gap-4" :class="hasCooperativeSidebar ? 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]' : 'grid-cols-1'">
+                        <div v-else class="grid min-h-0 gap-4" :class="hasCooperativeSidebar ? 'md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]' : 'grid-cols-1'">
                             <div v-if="hasCooperativeSidebar" class="space-y-2">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cooperatives</p>
-                                <div class="space-y-2 rounded-xl border border-border bg-card p-2.5">
+                                <div class="max-h-[24rem] space-y-2 overflow-y-auto rounded-xl border border-border bg-card p-2.5">
                                     <button
                                         v-for="group in selectedCooperativeGroups"
                                         :key="group.id"
@@ -700,7 +737,7 @@ const cancel = () => {
                                 </div>
                             </div>
 
-                            <div class="w-full space-y-3 rounded-xl border border-border bg-card p-3" :class="hasCooperativeSidebar ? '' : 'md:col-span-2'">
+                            <div class="flex min-h-0 w-full flex-col space-y-3 rounded-xl border border-border bg-card p-3" :class="hasCooperativeSidebar ? '' : 'md:col-span-2'">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                                     <div>
                                         <h3 class="text-base font-semibold text-foreground">
@@ -729,7 +766,7 @@ const cancel = () => {
                                     />
                                 </div>
 
-                                <div class="grid gap-0 overflow-hidden rounded-xl border border-border bg-card md:grid-cols-2 md:divide-x">
+                                <div class="grid min-h-0 gap-0 overflow-hidden rounded-xl border border-border bg-card md:grid-cols-2 md:divide-x">
                                     <div class="relative w-full">
                                         <div class="flex items-center justify-between border-b bg-muted/30 p-3">
                                             <div class="flex items-center gap-2">
@@ -840,17 +877,7 @@ const cancel = () => {
                                     Total selected: {{ form.member_ids.length }} members across {{ selectedCoopCount }} cooperatives
                                 </div>
 
-                                <div class="flex flex-wrap gap-2">
-                                    <button
-                                        v-for="group in selectedCooperativeGroups"
-                                        :key="`summary-${group.id}`"
-                                        type="button"
-                                        class="cursor-pointer rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-100 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/30"
-                                        @click="setActiveCooperative(group.id)"
-                                    >
-                                        {{ group.name }}: {{ selectedCountByCoop[group.id] || 0 }} selected
-                                    </button>
-                                </div>
+                                <!-- summary badges removed to reduce clutter when many cooperatives are selected -->
 
                                 <p v-if="form.errors.member_ids" class="text-sm text-red-500">{{ form.errors.member_ids }}</p>
                             </div>
@@ -866,8 +893,8 @@ const cancel = () => {
                     <CardContent class="space-y-4 pt-0">
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <Label for="no_of_participants">Number of Participants <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></Label>
-                                <Input id="no_of_participants" v-model="form.no_of_participants" type="number" min="0" placeholder="0" :class="inputErrorClass('no_of_participants')" @input="clearError('no_of_participants')" />
+                                <Label for="no_of_participants">Number of Participants <span class="text-xs text-muted-foreground font-normal ml-1">(Auto-filled)</span></Label>
+                                <Input id="no_of_participants" v-model="form.no_of_participants" type="number" min="0" placeholder="0" readonly class="bg-muted/50" :class="inputErrorClass('no_of_participants')" />
                                 <p v-if="form.errors.no_of_participants" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5 shrink-0" />{{ form.errors.no_of_participants }}</p>
                             </div>
                             <div>
@@ -915,6 +942,16 @@ const cancel = () => {
             cancel-label="Cancel"
             @update:open="(value) => isCooperativeDialogOpen = value"
             @confirm="syncSelectedCooperatives"
+        />
+
+        <TargetGroupMultiSelectDialog
+            :open="isTargetGroupDialogOpen"
+            :selected-values="selectedTargetGroups"
+            :options="trainingTargetGroupOptions"
+            title="Select Target Groups"
+            description="Choose one or more target groups for this training session."
+            @update:open="(value) => isTargetGroupDialogOpen = value"
+            @confirm="confirmTargetGroups"
         />
     </AppLayout>
 </template>

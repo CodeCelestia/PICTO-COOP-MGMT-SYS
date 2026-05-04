@@ -272,8 +272,8 @@ class ActivityFundingSourceController extends Controller
             }
         }
 
-        $attachmentPaths = $activityFundingSource->attachment_paths ?? [];
-        $attachmentNames = $activityFundingSource->attachment_names ?? [];
+        $attachmentPaths = [];
+        $attachmentNames = [];
 
         if (!empty($validated['attachments_removed'])) {
             foreach ($validated['attachments_removed'] as $removedPath) {

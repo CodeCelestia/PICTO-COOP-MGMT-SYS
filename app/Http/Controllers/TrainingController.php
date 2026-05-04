@@ -84,6 +84,41 @@ class TrainingController extends Controller
         return Carbon::parse($value)->toDateString();
     }
 
+    private function trainingTargetGroupOptions(): array
+    {
+        return ['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'FisherFolk', 'New Members', 'Other'];
+    }
+
+    private function normalizeTrainingTargetGroups(mixed $value): array
+    {
+        $items = is_array($value)
+            ? $value
+            : preg_split('/\s*,\s*/', trim((string) $value), -1, PREG_SPLIT_NO_EMPTY);
+
+        return collect($items)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function serializeTrainingTargetGroups(array $groups): string
+    {
+        return implode(',', $groups);
+    }
+
+    private function isTrainingTargetGroupEnum(): bool
+    {
+        try {
+            $row = DB::selectOne("SHOW COLUMNS FROM trainings WHERE Field = 'target_group'");
+            if (! $row || empty($row->Type)) return false;
+            return str_starts_with(strtolower($row->Type), 'enum');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     private function buildMembersQuery()
     {
         $user = auth()->user();
@@ -136,7 +171,15 @@ class TrainingController extends Controller
         }
 
         if ($request->filled('target_group')) {
-            $baseQuery->where('target_group', $request->target_group);
+            $targetGroups = $this->normalizeTrainingTargetGroups($request->target_group);
+
+            if (!empty($targetGroups)) {
+                $baseQuery->where(function ($query) use ($targetGroups) {
+                    foreach ($targetGroups as $targetGroup) {
+                        $query->orWhereRaw("FIND_IN_SET(?, REPLACE(target_group, ', ', ',')) > 0", [$targetGroup]);
+                    }
+                });
+            }
         }
 
         if ($request->filled('coop_id') && !$this->isCoopAdmin()) {
@@ -373,7 +416,7 @@ class TrainingController extends Controller
             'facilitator' => ['nullable', 'string', 'max:255'],
             'skills_targeted' => ['nullable', 'string'],
             'venue' => ['nullable', 'string', 'max:255'],
-            'target_group' => ['required', Rule::in(['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'])],
+            'target_group' => ['required', 'string', 'max:255'],
             'no_of_participants' => ['nullable', 'integer', 'min:0'],
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
@@ -396,6 +439,20 @@ class TrainingController extends Controller
             return back()->withErrors([
                 'coop_ids' => 'Please select at least one cooperative.',
             ])->withInput();
+        }
+
+        $targetGroups = $this->normalizeTrainingTargetGroups($validated['target_group'] ?? null);
+        $invalidTargetGroups = array_values(array_diff($targetGroups, $this->trainingTargetGroupOptions()));
+        if (empty($targetGroups) || !empty($invalidTargetGroups)) {
+            return back()->withErrors([
+                'target_group' => 'Please select one or more valid target groups.',
+            ])->withInput();
+        }
+
+        if ($this->isTrainingTargetGroupEnum()) {
+            $validated['target_group'] = $targetGroups[0] ?? $this->trainingTargetGroupOptions()[0];
+        } else {
+            $validated['target_group'] = $this->serializeTrainingTargetGroups($targetGroups);
         }
 
         $validated['date_conducted'] = $this->normalizeDateInput($validated['date_conducted'] ?? null);
@@ -529,6 +586,7 @@ class TrainingController extends Controller
             'training' => array_merge($training->toArray(), [
                 'date_conducted' => optional($training->date_conducted)->format('Y-m-d'),
                 'follow_up_date' => optional($training->follow_up_date)->format('Y-m-d'),
+                'target_group_labels' => $this->normalizeTrainingTargetGroups($training->target_group),
             ]),
             'cooperatives' => $cooperatives,
             'selected_member_ids' => $selectedMemberIds,
@@ -562,7 +620,7 @@ class TrainingController extends Controller
             'facilitator' => ['nullable', 'string', 'max:255'],
             'skills_targeted' => ['nullable', 'string'],
             'venue' => ['nullable', 'string', 'max:255'],
-            'target_group' => ['required', Rule::in(['All Members', 'Officers Only', 'Women', 'Youth', 'Farmers', 'Fishfolk', 'New Members', 'Other'])],
+            'target_group' => ['required', 'string', 'max:255'],
             'no_of_participants' => ['nullable', 'integer', 'min:0'],
             'follow_up_needed' => ['nullable', 'boolean'],
             'follow_up_date' => ['nullable', 'date'],
@@ -588,6 +646,20 @@ class TrainingController extends Controller
             return back()->withErrors([
                 'coop_ids' => 'Please select at least one cooperative.',
             ])->withInput();
+        }
+
+        $targetGroups = $this->normalizeTrainingTargetGroups($validated['target_group'] ?? null);
+        $invalidTargetGroups = array_values(array_diff($targetGroups, $this->trainingTargetGroupOptions()));
+        if (empty($targetGroups) || !empty($invalidTargetGroups)) {
+            return back()->withErrors([
+                'target_group' => 'Please select one or more valid target groups.',
+            ])->withInput();
+        }
+
+        if ($this->isTrainingTargetGroupEnum()) {
+            $validated['target_group'] = $targetGroups[0] ?? $this->trainingTargetGroupOptions()[0];
+        } else {
+            $validated['target_group'] = $this->serializeTrainingTargetGroups($targetGroups);
         }
 
         $validated['date_conducted'] = $this->normalizeDateInput($validated['date_conducted'] ?? null);

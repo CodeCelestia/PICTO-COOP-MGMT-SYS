@@ -351,6 +351,34 @@ const cooperativeClassificationLabel = (classification: string | null | undefine
 const textOrDash = (value: string | null | undefined) => {
     return value && value.trim() ? value : EMPTY_VALUE;
 };
+
+const fundingSource = computed(() => {
+    // Prefer explicit fundingSources array if provided by backend
+    // Fall back to various possible keys and finally to null
+    // @ts-ignore
+    return (props.activity as any)?.fundingSources?.[0]
+        || (props.activity as any)?.funding_sources?.[0]
+        || (props.activity as any)?.fundingSource
+        || (props.activity as any)?.funding_source
+        || null;
+});
+
+const getFundingStatusClass = (status: string | null | undefined) => {
+    if (!status) return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+    switch ((status || '').toString().toLowerCase()) {
+        case 'released':
+        case 'approved':
+        case 'completed':
+            return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
+        case 'pending':
+            return 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+        case 'rejected':
+        case 'cancelled':
+            return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+        default:
+            return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+    }
+};
 </script>
 
 <template>
@@ -690,13 +718,37 @@ const textOrDash = (value: string | null | undefined) => {
                                 </dd>
                             </div>
 
-                            <!-- Funding Source -->
-                            <div v-if="activity.funding_source">
+                            <!-- Funder Name (prefer fundingSource.funder_name) -->
+                            <div>
                                 <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                    Funding Source
+                                    Funder Name
                                 </dt>
                                 <dd class="text-sm font-medium mt-1">
-                                    {{ activity.funding_source ?? '—' }}
+                                    {{ fundingSource?.funder_name ?? activity.funding_source ?? '—' }}
+                                </dd>
+                            </div>
+
+                            <!-- Funder Type -->
+                            <div>
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Funder Type
+                                </dt>
+                                <dd class="text-sm font-medium mt-1">
+                                    {{ fundingSource?.funder_type ?? '—' }}
+                                </dd>
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <dt class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Status
+                                </dt>
+                                <dd class="mt-1">
+                                    <span
+                                        :class="getFundingStatusClass(fundingSource?.status ?? activity.status)"
+                                        class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border">
+                                        {{ fundingSource?.status ?? activity.status ?? '—' }}
+                                    </span>
                                 </dd>
                             </div>
                         </dl>

@@ -632,7 +632,7 @@ class MemberController extends Controller
             'share_capital' => ['nullable', 'numeric', 'min:0'],
             'educational_attainment' => ['nullable', 'in:No Formal Education,Elementary,High School,Vocational,College,Post-Graduate'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
-            'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
+            'sector' => ['nullable', 'in:Farmer,FisherFolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ]);
@@ -894,7 +894,7 @@ class MemberController extends Controller
             'share_capital' => ['nullable', 'numeric', 'min:0'],
             'educational_attainment' => ['nullable', 'in:No Formal Education,Elementary,High School,Vocational,College,Post-Graduate'],
             'primary_livelihood' => ['nullable', 'string', 'max:255'],
-            'sector' => ['nullable', 'in:Farmer,Fishfolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
+            'sector' => ['nullable', 'in:Farmer,FisherFolk,Employee,Entrepreneur,Youth,Women,Senior Citizen,PWD,Other'],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', Rule::in($this->assignableMemberRoleIds())],
         ];
