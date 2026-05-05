@@ -266,6 +266,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('officers', [OfficerController::class, 'store'])
         ->middleware('permission:create officers-&-committees')
         ->name('officers.store');
+    Route::post('officers-bulk', [OfficerController::class, 'bulkStore'])
+        ->middleware('permission:create officers-&-committees')
+        ->name('officers.bulk-store');
     Route::get('officers/{officer}/edit', [OfficerController::class, 'edit'])
         ->middleware('permission:update officers-&-committees')
         ->name('officers.edit');
@@ -288,6 +291,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('committee-members', [CommitteeMemberController::class, 'store'])
         ->middleware('permission:create officers-&-committees')
         ->name('committee-members.store');
+    Route::post('committee-members-bulk', [CommitteeMemberController::class, 'bulkStore'])
+        ->middleware('permission:create officers-&-committees')
+        ->name('committee-members.bulk-store');
     Route::get('committee-members/{committeeMember}/edit', [CommitteeMemberController::class, 'edit'])
         ->middleware('permission:update officers-&-committees')
         ->name('committee-members.edit');

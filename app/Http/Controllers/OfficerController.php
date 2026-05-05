@@ -114,12 +114,9 @@ class OfficerController extends Controller
         }
 
         $user = auth()->user();
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
+        $cooperativesQuery = Cooperative::select('id', 'name', 'region', 'classification', 'status')->orderBy('name');
+        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id', 'gender', 'date_joined', 'membership_status')
             ->with('roles')
-            ->whereHas('roles', function ($query) {
-                $query->whereIn('name', ['Officer', 'Chairperson', 'General Manager']);
-            })
             ->orderBy('last_name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -134,6 +131,12 @@ class OfficerController extends Controller
                     'id' => $member->id,
                     'name' => $member->full_name,
                     'coop_id' => $member->coop_id,
+                    'first_name' => $member->first_name,
+                    'last_name' => $member->last_name,
+                    'gender' => $member->gender,
+                    'date_joined' => optional($member->date_joined)->toDateString(),
+                    'status' => $member->membership_status ?? 'Active',
+                    'member_code' => null,
                     'role_names' => $member->roles->pluck('name')->values()->all(),
                 ];
             }),
@@ -162,7 +165,7 @@ class OfficerController extends Controller
             'term_start' => ['nullable', 'date'],
             'term_end' => ['nullable', 'date', 'after_or_equal:term_start'],
             'status' => ['required', Rule::in(['Active', 'Retired', 'Removed', 'Resigned'])],
-            'reason_for_change' => ['nullable', 'string', 'max:500'],
+            'reason_for_change' => [Rule::requiredIf(fn () => strtolower((string) $request->input('status', '')) !== 'active'), 'nullable', 'string', 'max:500'],
             'election_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
         ]);
 
@@ -177,14 +180,6 @@ class OfficerController extends Controller
         $member = Member::find($validated['member_id']);
         if ($member && $member->coop_id !== (int) $validated['coop_id']) {
             return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
-        }
-
-        $hasOfficerRole = $member?->roles()
-            ->whereIn('name', ['Officer', 'Chairperson', 'General Manager'])
-            ->exists() ?? false;
-
-        if (!$hasOfficerRole) {
-            return back()->withErrors(['member_id' => 'Selected member does not have an officer-related role.']);
         }
 
         $reason = $validated['reason_for_change'] ?? null;
@@ -215,6 +210,95 @@ class OfficerController extends Controller
     }
 
     /**
+     * Store multiple officers in bulk.
+     */
+    public function bulkStore(Request $request): RedirectResponse
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
+            abort(403);
+        }
+
+        $user = auth()->user();
+        $coopId = $user?->coop_id;
+        $officers = $request->input('officers', []);
+
+        if (!is_array($officers) || count($officers) === 0) {
+            return back()->withErrors(['officers' => 'At least one officer is required.']);
+        }
+
+        // Validate and process each officer
+        $createdCount = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($officers, $coopId, &$createdCount, &$errors) {
+            foreach ($officers as $index => $officerData) {
+                $validator = Validator::make($officerData, [
+                    'coop_id' => $this->isCoopAdmin() && $coopId
+                        ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
+                        : ['required', 'exists:cooperatives,id'],
+                    'member_id' => ['required', 'exists:members,id'],
+                    'position' => ['required', 'string', 'max:100'],
+                    'committee' => ['nullable', 'string', 'max:100'],
+                    'term_start' => ['nullable', 'date'],
+                    'term_end' => ['nullable', 'date', 'after_or_equal:term_start'],
+                    'status' => ['required', Rule::in(['Active', 'Retired', 'Removed', 'Resigned'])],
+                    'reason_for_change' => [Rule::requiredIf(fn () => strtolower((string) ($officerData['status'] ?? '')) !== 'active'), 'nullable', 'string', 'max:500'],
+                    'election_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+                ]);
+
+                if ($validator->fails()) {
+                    $errors[$index] = $validator->errors()->first();
+                    continue;
+                }
+
+                $validated = $validator->validate();
+
+                if ($this->isCoopAdmin() && $coopId) {
+                    $validated['coop_id'] = $coopId;
+                }
+
+                $this->enforceCoopScope($validated['coop_id']);
+
+                $member = Member::find($validated['member_id']);
+                if ($member && $member->coop_id !== (int) $validated['coop_id']) {
+                    $errors[$index] = 'Selected member does not belong to this cooperative.';
+                    continue;
+                }
+
+                $reason = $validated['reason_for_change'] ?? null;
+                $electionYear = $validated['election_year'] ?? null;
+                unset($validated['reason_for_change'], $validated['election_year']);
+
+                $officer = Officer::create($validated);
+                $this->logTermHistory($officer, $validated, $reason ?: 'Initial appointment', $electionYear);
+
+                $this->logDetailedActivity(
+                    'created',
+                    $officer,
+                    [],
+                    $officer->fresh()->getAttributes(),
+                    'Officers'
+                );
+
+                $createdCount++;
+            }
+        });
+
+        if (count($errors) > 0) {
+            return back()->withErrors(['officers' => 'Created ' . $createdCount . ' officer(s). Some entries had errors.']);
+        }
+
+        $returnTo = $this->resolveInternalReturnTo($request);
+        $message = $createdCount === 1 ? 'Officer created successfully.' : $createdCount . ' officers created successfully.';
+
+        if ($returnTo) {
+            return redirect()->to($returnTo)->with('success', $message);
+        }
+
+        return redirect()->route('officers.index')->with('success', $message);
+    }
+
+    /**
      * Show the form for editing an officer.
      */
     public function edit(Officer $officer): Response
@@ -227,30 +311,21 @@ class OfficerController extends Controller
 
         $this->enforceCoopScope($officer->coop_id);
 
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')
-            ->with('roles')
-            ->whereHas('roles', function ($roleQuery) {
-                $roleQuery->whereIn('name', ['Officer', 'Chairperson', 'General Manager']);
-            })
-            ->orderBy('last_name');
+        $officer->load(['member', 'cooperative']);
+        $latestHistory = $officer->termHistory()->latest('recorded_at')->first();
 
-        if ($this->isCoopAdmin() && $user?->coop_id) {
-            $cooperativesQuery->where('id', $user->coop_id);
-            $membersQuery->where('coop_id', $user->coop_id);
-        }
+        $officer->setAttribute('reason_for_change', $latestHistory?->reason_for_change);
+        $officer->setAttribute('election_year', $latestHistory?->election_year);
 
         return Inertia::render('Officers/Edit', [
-            'officer' => $officer->load(['member', 'cooperative']),
-            'cooperatives' => $cooperativesQuery->get(),
-            'members' => $membersQuery->get()->map(function ($member) {
-                return [
-                    'id' => $member->id,
-                    'name' => $member->full_name,
-                    'coop_id' => $member->coop_id,
-                    'role_names' => $member->roles->pluck('name')->values()->all(),
-                ];
-            }),
+            'officer' => $officer,
+            'cooperative' => $officer->cooperative?->only([
+                'id',
+                'name',
+                'region',
+                'classification',
+                'status',
+            ]),
             'termHistory' => $officer->termHistory()
                 ->latest('recorded_at')
                 ->get()
@@ -289,13 +364,12 @@ class OfficerController extends Controller
             'coop_id' => $this->isCoopAdmin() && $coopId
                 ? ['required', 'exists:cooperatives,id', Rule::in([$coopId])]
                 : ['required', 'exists:cooperatives,id'],
-            'member_id' => ['required', 'exists:members,id'],
             'position' => ['required', 'string', 'max:100'],
             'committee' => ['nullable', 'string', 'max:100'],
             'term_start' => ['nullable', 'date'],
             'term_end' => ['nullable', 'date', 'after_or_equal:term_start'],
             'status' => ['required', Rule::in(['Active', 'Retired', 'Removed', 'Resigned'])],
-            'reason_for_change' => ['nullable', 'string', 'max:500'],
+            'reason_for_change' => [Rule::requiredIf(fn () => strtolower((string) $request->input('status', '')) !== 'active'), 'nullable', 'string', 'max:1000'],
             'election_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
         ]);
 
@@ -305,19 +379,6 @@ class OfficerController extends Controller
 
         $this->enforceCoopScope($validated['coop_id']);
 
-        $member = Member::find($validated['member_id']);
-        if ($member && $member->coop_id !== (int) $validated['coop_id']) {
-            return back()->withErrors(['member_id' => 'Selected member does not belong to this cooperative.']);
-        }
-
-        $hasOfficerRole = $member?->roles()
-            ->whereIn('name', ['Officer', 'Chairperson', 'General Manager'])
-            ->exists() ?? false;
-
-        if (!$hasOfficerRole) {
-            return back()->withErrors(['member_id' => 'Selected member does not have an officer-related role.']);
-        }
-
         $reason = $validated['reason_for_change'] ?? null;
         $electionYear = $validated['election_year'] ?? null;
         unset($validated['reason_for_change'], $validated['election_year']);
@@ -325,7 +386,6 @@ class OfficerController extends Controller
         $oldValues = $officer->getAttributes();
 
         $historySnapshot = array_intersect_key($validated, array_flip([
-            'member_id',
             'coop_id',
             'position',
             'committee',
