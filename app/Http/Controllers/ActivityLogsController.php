@@ -17,8 +17,16 @@ use Spatie\Activitylog\Models\Activity as ActivityLogEntry;
 
 class ActivityLogsController extends Controller
 {
+    private function authorizeAuditLogs(): void
+    {
+        if (! auth()->user()?->can('read audit-logs')) {
+            abort(403);
+        }
+    }
+
     public function index(Request $request): Response
     {
+        $this->authorizeAuditLogs();
         $tab = $request->input('tab', $request->route('tab', 'audit'));
 
         $auditData = null;

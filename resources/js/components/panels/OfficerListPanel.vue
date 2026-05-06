@@ -58,6 +58,20 @@ const currentUrl = page.url || '';
 const permissions = computed<string[]>(() => (page.props.auth?.permissions as string[]) || []);
 const { allCooperativesLabel } = useCoopLabel();
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
+const createOfficerHref = computed(() => {
+    const coopValue = hasCoopLock.value ? props.lockCoopId : (coopId.value !== 'all' ? coopId.value : '');
+    const params = new URLSearchParams();
+
+    if (coopValue) {
+        params.set('coop_id', coopValue);
+    }
+    if (currentUrl) {
+        params.set('return_to', currentUrl);
+    }
+
+    const queryString = params.toString();
+    return queryString ? `/officers/create?${queryString}` : '/officers/create';
+});
 const canEditOfficer = computed(() => permissions.value.includes('update officers-&-committees'));
 const canDeleteOfficer = computed(() => permissions.value.includes('delete officers-&-committees'));
 const canBulkDelete = computed(() => canDeleteOfficer.value);
@@ -181,7 +195,7 @@ const bulkDeleteOfficers = async () => {
                             Clear
                         </Button>
                     </div>
-                    <Link v-if="canCreateOfficer" :href="currentUrl ? `/officers/create?return_to=${encodeURIComponent(currentUrl)}` : '/officers/create'">
+                    <Link v-if="canCreateOfficer" :href="createOfficerHref">
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Officer

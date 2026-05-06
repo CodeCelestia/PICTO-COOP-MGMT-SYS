@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 import { ArrowLeft, Building2, Save, Users, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,13 +86,19 @@ const selectedMember = computed(() => selectedMembers.value[0] || null);
 const useMultiSelect = ref(false);
 
 const {
+    isDirty,
     markClean,
     inputErrorClass,
     clearError,
-    handleCancel,
     triggerErrorShake,
     showErrorShake,
 } = useFormUx(form);
+
+const { goBack } = useCreateBack({
+    fallbackHref: '/committee-members',
+    cooperativeId: computed(() => cooperative.value?.id || null),
+    cooperativeTab: 'committees',
+});
 
 const getInitials = (name?: string | null) => {
     if (!name) return '--';
@@ -186,8 +194,27 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    handleCancel({ confirmTitle: 'Discard committee member?', confirmText: 'Discard new committee member entry?' });
+const confirmDiscard = async () => {
+    if (!isDirty.value) {
+        return true;
+    }
+
+    const result = await Swal.fire({
+        title: 'Discard committee member?',
+        text: 'Discard new committee member entry?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Discard',
+        cancelButtonText: 'Keep editing',
+    });
+
+    return result.isConfirmed;
+};
+
+const cancel = async () => {
+    if (await confirmDiscard()) {
+        goBack();
+    }
 };
 </script>
 
@@ -200,7 +227,7 @@ const cancel = () => {
                         <h1 class="text-xl font-semibold">Add Committee Member</h1>
                         <p class="mt-1 text-sm text-muted-foreground">Assign a member to a committee in this cooperative.</p>
                     </div>
-                    <Button variant="outline" @click="handleCancel()">
+                    <Button variant="outline" @click="cancel">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         Back
                     </Button>
@@ -236,7 +263,7 @@ const cancel = () => {
                                 <label class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Selected Member</label>
                                 <div v-if="selectedMembers.length > 0" class="space-y-2 mt-2">
                                     <div v-for="(member, idx) in selectedMembers" :key="member.id" class="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
-                                        <div class="flex h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">{{ getInitials(member.name) }}</div>
+                                        <div class="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">{{ getInitials(member.name) }}</div>
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-medium">{{ member.name }}</p>
                                             <p class="text-xs text-muted-foreground">{{ member.member_code || (member.role_names ? member.role_names.join(', ') : '') }}</p>

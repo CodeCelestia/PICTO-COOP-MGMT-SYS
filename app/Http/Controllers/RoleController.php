@@ -12,11 +12,16 @@ use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    public function index(): Response
+    private function authorizeManagePermissions(): void
     {
-        if (!auth()->user()?->can('manage-permissions')) {
+        if (! auth()->user()?->can('manage-permissions')) {
             abort(403);
         }
+    }
+
+    public function index(): Response
+    {
+        $this->authorizeManagePermissions();
 
         $roles = Role::with('permissions')
             ->orderBy('level')
@@ -49,9 +54,7 @@ class RoleController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        if (!$request->user()?->can('manage-permissions')) {
-            abort(403);
-        }
+        $this->authorizeManagePermissions();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('roles', 'name')],
@@ -80,9 +83,7 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
-        if (!$request->user()?->can('manage-permissions')) {
-            abort(403);
-        }
+        $this->authorizeManagePermissions();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('roles', 'name')->ignore($role->id)],
@@ -110,9 +111,7 @@ class RoleController extends Controller
 
     public function destroy(Role $role): RedirectResponse
     {
-        if (!auth()->user()?->can('manage-permissions')) {
-            abort(403);
-        }
+        $this->authorizeManagePermissions();
 
         if ($role->users()->exists()) {
             return redirect()->back()->with('error', "Role '{$role->name}' cannot be deleted because it is assigned to users.");

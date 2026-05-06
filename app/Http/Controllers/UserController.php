@@ -13,15 +13,20 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    private function authorizeUserManagement(string $permission): void
+    {
+        if (! auth()->user()?->can($permission)) {
+            abort(403);
+        }
+    }
+
     private function resolveAccountType(?Role $role): string
     {
         return $role?->name ?? 'Member';
     }
     public function index()
     {
-        if (!auth()->user()?->can('read user-accounts')) {
-            abort(403);
-        }
+        $this->authorizeUserManagement('read user-accounts');
 
         $users = User::with('roles')->get()->map(function ($user) {
             return [
@@ -62,9 +67,7 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        if (!$request->user()?->can('create user-accounts')) {
-            abort(403, 'You do not have permission to create accounts or assign roles.');
-        }
+        $this->authorizeUserManagement('create user-accounts');
 
         $roleIds = $request->input('role_ids', []);
         $roles = Role::whereIn('id', $roleIds)->get();
@@ -113,9 +116,7 @@ class UserController extends Controller
 
     public function assignRole(Request $request, User $user)
     {
-        if (!$request->user()?->can('assign roles')) {
-            abort(403, 'You do not have permission to assign roles.');
-        }
+        $this->authorizeUserManagement('assign roles');
 
         $roleId = $request->input('role_id');
         $role = Role::findOrFail($roleId);
@@ -145,9 +146,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        if (!$request->user()?->can('update user-accounts')) {
-            abort(403);
-        }
+        $this->authorizeUserManagement('update user-accounts');
 
         $requiresCoop = ! $user->can('view-all-cooperatives');
 
@@ -170,9 +169,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if (!auth()->user()?->can('delete user-accounts')) {
-            abort(403);
-        }
+        $this->authorizeUserManagement('delete user-accounts');
 
         if (auth()->id() === $user->id) {
             abort(403);
@@ -185,9 +182,7 @@ class UserController extends Controller
 
     public function removeRole(Request $request, User $user)
     {
-        if (!$request->user()?->can('assign roles')) {
-            abort(403, 'You do not have permission to remove roles.');
-        }
+        $this->authorizeUserManagement('assign roles');
 
         $request->validate([
             'role_id' => 'required|exists:roles,id',

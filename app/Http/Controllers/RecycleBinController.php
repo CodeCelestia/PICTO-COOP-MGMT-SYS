@@ -37,9 +37,16 @@ use Spatie\Activitylog\Models\Activity as ActivityLog;
 
 class RecycleBinController extends Controller
 {
+    private function authorizeRecycleBin(string $permission): void
+    {
+        if (! auth()->user()?->can($permission)) {
+            abort(403);
+        }
+    }
+
     public function index(Request $request): Response
     {
-        abort_unless($request->user()?->can('read recycle-bin'), 403);
+        $this->authorizeRecycleBin('read recycle-bin');
 
         $filters = $request->only([
             'search',
@@ -184,7 +191,7 @@ class RecycleBinController extends Controller
 
     public function restore(Request $request)
     {
-        abort_unless($request->user()?->can('restore recycle-bin'), 403);
+        $this->authorizeRecycleBin('restore recycle-bin');
 
         $validated = $request->validate([
             'type' => ['required', 'string'],
@@ -216,7 +223,7 @@ class RecycleBinController extends Controller
 
     public function destroy(Request $request)
     {
-        abort_unless($request->user()?->can('delete recycle-bin'), 403);
+        $this->authorizeRecycleBin('delete recycle-bin');
 
         $validated = $request->validate([
             'type' => ['required', 'string'],

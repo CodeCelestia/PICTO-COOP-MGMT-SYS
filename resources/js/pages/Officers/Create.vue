@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 import { ArrowLeft, Users, Save, X, Building2, AlertCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,11 @@ const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateOfficer = computed(() => permissions.value.includes('create officers-&-committees'));
 
 const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
-const initialCoopId = computed(() => queryParams.value.get('coop_id') || props.cooperatives[0]?.id?.toString() || '');
+const initialCoopId = computed(() => {
+    const coopId = queryParams.value.get('coop_id');
+    if (coopId) return coopId;
+    return props.cooperatives.length === 1 ? String(props.cooperatives[0].id) : '';
+});
 const initialPosition = computed(() => queryParams.value.get('position') || '');
 
 const form = useForm({
@@ -96,6 +101,10 @@ function selectMember(member: any) {
 function confirmMultipleMembers(members: any[]) {
     selectedMembers.value = members;
     useMultiSelect.value = true;
+    if (members.length === 1) {
+        form.member_id = String(members[0].id);
+        useMultiSelect.value = false;
+    }
     memberModalOpen.value = false;
 }
 
@@ -187,8 +196,23 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    handleCancel({ confirmTitle: 'Discard officer?', confirmText: 'Discard new officer entry?' });
+const cancel = async () => {
+    if (isDirty.value) {
+        const result = await Swal.fire({
+            title: 'Discard officer?',
+            text: 'Discard new officer entry?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Discard',
+            cancelButtonText: 'Keep editing',
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+    }
+
+    goBack();
 };
 
 const { goBack, returnToHref } = useCreateBack({
@@ -216,7 +240,7 @@ const getInitials = (name?: string | null) => {
                         <h1 class="text-xl font-semibold">Create Officer</h1>
                         <p class="text-sm text-muted-foreground mt-1">Register a new officer for this cooperative.</p>
                     </div>
-                    <Button variant="outline" @click="handleCancel()">
+                    <Button variant="outline" @click="cancel">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         Back
                     </Button>

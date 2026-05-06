@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 import { ArrowLeft, BadgeCheck, Briefcase, Building2, FileText, MapPin, Save, User, UserPlus, X } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { useFormUx } from '@/composables/useFormUx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -93,7 +95,13 @@ const form = useForm({
     return_to: '',
 });
 
-const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, markClean } = useFormUx(form);
+const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, markClean } = useFormUx(form);
+
+const { goBack } = useCreateBack({
+    fallbackHref: '/members',
+    cooperativeId: computed(() => cooperative.value?.id || null),
+    cooperativeTab: 'members',
+});
 
 const primaryLivelihoodTags = ref<string[]>([]);
 const newPrimaryLivelihood = ref('');
@@ -180,12 +188,28 @@ const submit = () => {
     });
 };
 
-const goBackToCooperativeMembers = () => {
-    window.history.back();
+const confirmDiscard = async () => {
+    if (!isDirty.value) {
+        return true;
+    }
+
+    const result = await Swal.fire({
+        title: 'Discard member registration?',
+        text: 'Discard new member entry?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Discard',
+        cancelButtonText: 'Keep editing',
+    });
+
+    return result.isConfirmed;
 };
 
-// use composable-provided handler which defaults to window.history.back()
-// `handleCancel` is provided by the composable
+const cancel = async () => {
+    if (await confirmDiscard()) {
+        goBack();
+    }
+};
 
 const toggleRole = (roleId: number) => {
     const index = form.role_ids.indexOf(roleId);
@@ -209,7 +233,7 @@ const toggleRole = (roleId: number) => {
                                 Fill in the member's details to register them under the selected cooperative.
                             </p>
                         </div>
-                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBackToCooperativeMembers">
+                        <Button variant="outline" size="sm" class="gap-2" type="button" @click="cancel">
                             <ArrowLeft class="h-4 w-4" />
                             Back
                         </Button>
@@ -523,7 +547,7 @@ const toggleRole = (roleId: number) => {
                 </Card>
 
                     <div class="flex justify-end gap-3 pt-0">
-                    <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
+                    <Button @click="cancel" type="button" variant="outline" class="gap-2">
                         <X class="h-4 w-4" />
                         Cancel
                     </Button>

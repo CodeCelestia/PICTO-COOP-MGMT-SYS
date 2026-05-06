@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Mail, Lock } from 'lucide-vue-next';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from 'lucide-vue-next';
+import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ defineProps<{
     canResetPassword: boolean;
     canRegister: boolean;
 }>();
+
+const passwordVisible = ref(false);
 </script>
 
 <template>
@@ -116,14 +119,22 @@ defineProps<{
                         </div>
                         <Input
                             id="password"
-                            type="password"
+                            :type="passwordVisible ? 'text' : 'password'"
                             name="password"
                             required
                             :tabindex="2"
                             autocomplete="current-password"
                             placeholder="••••••••"
-                            class="h-12 border-sky-200/20 bg-slate-900/50 pl-10 text-slate-100 placeholder:text-slate-400 focus:border-sky-400 focus:ring-sky-400"
+                            class="h-12 border-sky-200/20 bg-slate-900/50 pl-10 pr-12 text-slate-100 placeholder:text-slate-400 focus:border-sky-400 focus:ring-sky-400"
                         />
+                        <button
+                            type="button"
+                            @click="passwordVisible = !passwordVisible"
+                            class="absolute inset-y-0 right-3 inline-flex items-center text-slate-300 hover:text-slate-100"
+                            :aria-label="passwordVisible ? 'Hide password' : 'Show password'"
+                        >
+                            <component :is="passwordVisible ? EyeOff : Eye" class="h-5 w-5" />
+                        </button>
                     </div>
                     <InputError :message="errors.password" class="text-red-400" />
                 </div>

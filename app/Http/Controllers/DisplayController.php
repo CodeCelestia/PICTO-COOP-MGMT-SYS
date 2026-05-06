@@ -18,13 +18,24 @@ class DisplayController extends Controller
     ) {
     }
 
+    private function authorizeDisplay(): void
+    {
+        if (! auth()->user()?->can('manage-system-settings')) {
+            abort(403);
+        }
+    }
+
     public function index(): Response
     {
+        $this->authorizeDisplay();
+
         return Inertia::render('Display', $this->homepageDisplayService->payload());
     }
 
     public function storeCarouselPhoto(Request $request): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $validated = $request->validate([
             'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
@@ -52,6 +63,8 @@ class DisplayController extends Controller
 
     public function setDefaultCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $this->homepageDisplayService->setDefaultPhoto($carouselPhoto);
 
         return to_route('display.index')->with('success', 'Default photo updated successfully.');
@@ -59,6 +72,8 @@ class DisplayController extends Controller
 
     public function toggleCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $carouselPhoto->forceFill([
             'is_enabled' => ! $carouselPhoto->is_enabled,
         ])->save();
@@ -68,6 +83,8 @@ class DisplayController extends Controller
 
     public function destroyCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         if ($carouselPhoto->is_core) {
             return to_route('display.index')->with('error', 'Default photo cannot be deleted.');
         }
@@ -86,6 +103,8 @@ class DisplayController extends Controller
 
     public function storeWhatsNew(Request $request): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $validated = $request->validate([
             'version' => ['required', 'string', 'max:120'],
             'description' => ['required', 'string', 'max:5000'],
@@ -98,6 +117,8 @@ class DisplayController extends Controller
 
     public function updateWhatsNew(Request $request, HomepageWhatsNewEntry $whatsNewEntry): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $validated = $request->validate([
             'version' => ['required', 'string', 'max:120'],
             'description' => ['required', 'string', 'max:5000'],
@@ -110,6 +131,8 @@ class DisplayController extends Controller
 
     public function destroyWhatsNew(HomepageWhatsNewEntry $whatsNewEntry): RedirectResponse
     {
+        $this->authorizeDisplay();
+
         $whatsNewEntry->delete();
 
         return to_route('display.index')->with('success', 'Update deleted successfully.');

@@ -48,6 +48,7 @@ class PermissionSeeder extends Seeder
             'manage-permissions',
             'create user-accounts',
             'assign roles',
+            'read audit-logs',
             'read recycle-bin',
             'restore recycle-bin',
             'delete recycle-bin',
@@ -94,7 +95,7 @@ class PermissionSeeder extends Seeder
         // ===== SUPER ADMIN (Full system access) =====
         $superAdmin->syncPermissions(Permission::all());
 
-        // ===== PROVINCIAL ADMIN (All except global policy/permission controls and user management) =====
+        // ===== PROVINCIAL ADMIN (Full management access, only system pages: Activity Logs + Recycle Bin) =====
         $provincialAdmin->syncPermissions(
             Permission::whereNotIn('name', [
                 'manage-system-settings',
@@ -149,11 +150,6 @@ class PermissionSeeder extends Seeder
             'update training-&-capacity',
             'delete training-&-capacity',
             'export training-&-capacity',
-
-            // User Accounts - Create, Read, Update
-            'create user-accounts',
-            'read user-accounts',
-            'update user-accounts',
 
             // Reports & Dashboard - Full access to coop data
             'read reports-&-dashboard',

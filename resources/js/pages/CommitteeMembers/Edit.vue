@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm, usePage } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 import { ArrowLeft, Building2, Lock, Save, Users } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { useFormUx } from '@/composables/useFormUx';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -83,14 +85,20 @@ const form = useForm({
 });
 
 const {
+    isDirty,
     isPreFilling,
     markClean,
     inputErrorClass,
     clearError,
-    handleCancel,
     triggerErrorShake,
     showErrorShake,
 } = useFormUx(form);
+
+const { goBack } = useCreateBack({
+    fallbackHref: '/committee-members',
+    cooperativeId: computed(() => cooperative.value?.id || null),
+    cooperativeTab: 'committees',
+});
 
 const getInitials = (name?: string | null) => {
     if (!name) return '--';
@@ -131,8 +139,27 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    handleCancel({ confirmTitle: 'Discard committee member changes?', confirmText: 'You have unsaved changes. Are you sure you want to discard them?' });
+const confirmDiscard = async () => {
+    if (!isDirty.value) {
+        return true;
+    }
+
+    const result = await Swal.fire({
+        title: 'Discard committee member changes?',
+        text: 'You have unsaved changes. Are you sure you want to discard them?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Discard',
+        cancelButtonText: 'Keep editing',
+    });
+
+    return result.isConfirmed;
+};
+
+const cancel = async () => {
+    if (await confirmDiscard()) {
+        goBack();
+    }
 };
 
 onMounted(async () => {
@@ -164,7 +191,7 @@ watch(() => form.status, () => {
                         <h1 class="text-xl font-semibold">Edit Committee Member</h1>
                         <p class="mt-1 text-sm text-muted-foreground">Update committee assignment information for this cooperative.</p>
                     </div>
-                    <Button variant="outline" @click="handleCancel()">
+                    <Button variant="outline" @click="cancel">
                         <ArrowLeft class="mr-2 h-4 w-4" />
                         Back
                     </Button>

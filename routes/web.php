@@ -53,7 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('homepage', [HomepageController::class, 'index'])->name('homepage');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::middleware('role:Super Admin')->prefix('display')->name('display.')->group(function () {
+    Route::middleware('permission:manage-system-settings')->prefix('display')->name('display.')->group(function () {
         Route::get('/', [DisplayController::class, 'index'])->name('index');
         Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->name('carousel-photos.store');
         Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->name('carousel-photos.default');

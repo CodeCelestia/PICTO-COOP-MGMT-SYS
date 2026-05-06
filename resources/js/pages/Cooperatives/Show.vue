@@ -283,11 +283,23 @@ const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) 
 const chairperson = computed(() => props.chairperson);
 const generalManager = computed(() => props.generalManager);
 
+const officerCards = computed(() => props.officers.data || []);
+const keyLeadershipPositions = ['Chairperson', 'General Manager'];
+const otherOfficers = computed(() => officerCards.value.filter((officer) => !keyLeadershipPositions.includes(officer.position)));
+
 const leaderTerm = (officer: KeyOfficer | null) => {
     if (!officer) {
         return 'N/A';
     }
 
+    if (officer.term_start && officer.term_end) {
+        return `${formatDate(officer.term_start)} - ${formatDate(officer.term_end)}`;
+    }
+
+    return officer.term_start ? `${formatDate(officer.term_start)} - Present` : 'N/A';
+};
+
+const officerTerm = (officer: Officer) => {
     if (officer.term_start && officer.term_end) {
         return `${formatDate(officer.term_start)} - ${formatDate(officer.term_end)}`;
     }
@@ -594,24 +606,72 @@ const statusBadgeClass = computed(() => {
                                         </Link>
                                     </div>
                                 </div>
-                                <dl class="mt-4 space-y-3 text-base text-foreground">
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">Chairperson</dt>
-                                        <dd class="font-semibold">{{ chairperson?.member?.full_name || 'Unassigned' }}</dd>
+                                <div class="mt-4 grid gap-4">
+                                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+                                        <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Primary Leadership</p>
+                                            <div class="mt-4 space-y-4">
+                                                <div class="rounded-2xl bg-background/80 p-4">
+                                                    <div class="flex items-center justify-between gap-4">
+                                                        <div>
+                                                            <p class="text-sm font-semibold text-foreground">Chairperson</p>
+                                                            <p class="mt-2 text-lg font-semibold text-foreground">{{ chairperson?.member?.full_name || 'Unassigned' }}</p>
+                                                        </div>
+                                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="chairperson?.status === 'Active'">
+                                                            {{ chairperson?.status }}
+                                                        </span>
+                                                    </div>
+                                                    <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(chairperson || null) }}</p>
+                                                </div>
+                                                <div class="rounded-2xl bg-background/80 p-4">
+                                                    <div class="flex items-center justify-between gap-4">
+                                                        <div>
+                                                            <p class="text-sm font-semibold text-foreground">General Manager</p>
+                                                            <p class="mt-2 text-lg font-semibold text-foreground">{{ generalManager?.member?.full_name || 'Unassigned' }}</p>
+                                                        </div>
+                                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="generalManager?.status === 'Active'">
+                                                            {{ generalManager?.status }}
+                                                        </span>
+                                                    </div>
+                                                    <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(generalManager || null) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">All Officers</p>
+                                                    <p class="text-sm text-muted-foreground">A professional overview of assigned leadership roles.</p>
+                                                </div>
+                                                <span class="rounded-full bg-muted/20 px-3 py-1 text-xs font-semibold text-foreground">
+                                                    {{ officerCards.length }} total
+                                                </span>
+                                            </div>
+
+                                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                                <div v-if="officerCards.length === 0" class="rounded-2xl border border-dashed border-border/70 bg-background p-5 text-center text-sm text-muted-foreground">
+                                                    No officers have been assigned yet.
+                                                </div>
+                                                <div v-for="officer in officerCards" :key="officer.id" class="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p class="text-sm font-semibold text-foreground">{{ officer.position }}</p>
+                                                            <p class="mt-2 text-base font-semibold text-foreground">{{ officer.member.full_name }}</p>
+                                                        </div>
+                                                        <span :class="officer.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'" class="rounded-full px-2 py-1 text-[11px] font-semibold">
+                                                            {{ officer.status }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="mt-3 space-y-2 text-sm text-muted-foreground">
+                                                        <p>Term: {{ officerTerm(officer) }}</p>
+                                                        <p>Committee: {{ officer.committee || 'N/A' }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">Chairperson Term</dt>
-                                        <dd class="font-semibold">{{ leaderTerm(chairperson || null) }}</dd>
-                                    </div>
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">General Manager</dt>
-                                        <dd class="font-semibold">{{ generalManager?.member?.full_name || 'Unassigned' }}</dd>
-                                    </div>
-                                    <div class="grid gap-1 sm:grid-cols-[12rem_1fr] sm:items-start">
-                                        <dt class="font-semibold text-muted-foreground">General Manager Term</dt>
-                                        <dd class="font-semibold">{{ leaderTerm(generalManager || null) }}</dd>
-                                    </div>
-                                </dl>
+                                </div>
                             </section>
 
                             <section class="rounded-xl border border-border bg-background p-5 shadow-sm xl:col-span-2">

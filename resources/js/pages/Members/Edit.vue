@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 import { Users, Save, X, MapPin, Building2 } from 'lucide-vue-next';
 import { computed, onMounted, watch, ref } from 'vue';
 import { useFormUx } from '@/composables/useFormUx';
@@ -167,7 +168,30 @@ const form = useForm({
     return_to: '',
 });
 
-const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, handleCancel, markClean } = useFormUx(form);
+const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, markClean } = useFormUx(form);
+
+const confirmDiscard = async () => {
+    if (!isDirty.value) {
+        return true;
+    }
+
+    const result = await Swal.fire({
+        title: 'Discard member changes?',
+        text: 'You have unsaved changes. Are you sure you want to discard them?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Discard',
+        cancelButtonText: 'Keep editing',
+    });
+
+    return result.isConfirmed;
+};
+
+const cancel = async () => {
+    if (await confirmDiscard()) {
+        goBack();
+    }
+};
 
 const primaryLivelihoodTags = ref<string[]>(
     (props.member.primary_livelihood || '')
@@ -1048,7 +1072,7 @@ const toggleRole = (roleId: number) => {
 
                     <!-- Form Actions -->
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
