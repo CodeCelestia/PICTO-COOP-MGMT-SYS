@@ -128,6 +128,45 @@ class MemberPortalController extends Controller
         ]);
     }
 
+    public function trainings(Request $request): Response
+    {
+        $user = $request->user();
+
+        if (! $user?->member_id) {
+            abort(403);
+        }
+
+        $member = Member::with('cooperative')
+            ->where('id', $user->member_id)
+            ->firstOrFail();
+
+        $trainingParticipants = $member->trainingParticipants()
+            ->with(['training.cooperative'])
+            ->latest('created_at')
+            ->get()
+            ->map(function ($participant) {
+                return [
+                    'id' => $participant->id,
+                    'training' => [
+                        'id' => $participant->training?->id,
+                        'title' => $participant->training?->title,
+                        'date_conducted' => optional($participant->training?->date_conducted)->toDateString(),
+                        'status' => $participant->training?->status,
+                        'cooperative' => $participant->training?->cooperative?->name,
+                    ],
+                    'outcome' => $participant->outcome,
+                    'certificate_no' => $participant->certificate_no,
+                    'certificate_date' => optional($participant->certificate_date)->toDateString(),
+                    'remarks' => $participant->remarks,
+                ];
+            });
+
+        return Inertia::render('Members/PortalTrainings', [
+            'member' => $member,
+            'participants' => $trainingParticipants,
+        ]);
+    }
+
     public function loans(Request $request): Response
     {
         $user = $request->user();

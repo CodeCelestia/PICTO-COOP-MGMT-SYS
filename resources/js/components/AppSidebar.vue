@@ -40,8 +40,8 @@ const auth = computed(() => page.props.auth as {
     isCoopAdmin?: boolean;
 } | undefined);
 const authUser = computed(() => auth.value?.user);
-const roles = computed<string[]>(() => auth.value?.roles || []);
-const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const roles = computed((): string[] => auth.value?.roles || []);
+const permissions = computed((): string[] => auth.value?.permissions || []);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const isMember = computed(() => Boolean(authUser.value?.member_id));
 const isSuperAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'super admin'));
@@ -51,8 +51,8 @@ const can = (permission: string) => permissions.value.includes(permission);
 
 const canViewAllCoops = computed(() => can('view-all-cooperatives'));
 const canViewCoops = computed(() => can('read coop-master-profile') || can('view-all-cooperatives'));
-const canViewActivitiesProjects = computed(() => Boolean(auth.value?.permissions?.includes('read activities-&-projects')));
-const canViewTrainings = computed(() => Boolean(auth.value?.permissions?.includes('read training-&-capacity')));
+const canViewActivitiesProjects = computed(() => can('read activities-&-projects'));
+const canViewTrainings = computed(() => can('read training-&-capacity'));
 const canViewLoans = computed(() => can('read finance-member-loans') || can('apply-own finance-member-loans'));
 const canViewFinance = computed(() =>
     can('read financial-&-support')
@@ -66,10 +66,15 @@ const canManageUsers = computed(() => can('read user-accounts'));
 const canManagePermissions = computed(() => can('manage-permissions'));
 const canViewActivityLogs = computed(() => can('read audit-logs'));
 const canViewRecycleBin = computed(() => can('read recycle-bin'));
+const canViewMemberPortal = computed(() => isMember.value && can('read members-profile'));
+const canViewMemberServices = computed(() => canViewMemberPortal.value && can('read members-profile'));
+const canViewMemberActivities = computed(() => canViewMemberPortal.value && can('read members-profile'));
+const canViewMemberTrainings = computed(() => canViewMemberPortal.value && canViewTrainings.value);
+const canViewMemberLoans = computed(() => canViewMemberPortal.value && canViewLoans.value);
 const isMemberOnly = computed(() => isMember.value && !canManageUsers.value && !canManagePermissions.value && !canViewCoops.value);
 const { cooperativeLabel } = useCoopLabel();
 
-const mainNavItems = computed<NavItem[]>(() => {
+const mainNavItems = computed((): NavItem[] => {
     const homepageItem: NavItem = {
         title: 'Homepage',
         href: '/homepage',
@@ -116,20 +121,37 @@ const mainNavItems = computed<NavItem[]>(() => {
         const memberItems: NavItem[] = [
             homepageItem,
             dashboardItem,
-            myProfileItem,
-            {
+        ];
+
+        if (canViewMemberPortal.value) {
+            memberItems.push(myProfileItem);
+        }
+
+        if (canViewMemberServices.value) {
+            memberItems.push({
                 title: 'My Services',
                 href: '/member-portal/services',
                 icon: FileText,
-            },
-            {
+            });
+        }
+
+        if (canViewMemberActivities.value) {
+            memberItems.push({
                 title: 'My Activities',
                 href: '/member-portal/activities',
                 icon: FileText,
-            },
-        ];
+            });
+        }
 
-        if (canViewLoans.value) {
+        if (canViewMemberTrainings.value) {
+            memberItems.push({
+                title: 'My Trainings',
+                href: '/member-portal/trainings',
+                icon: GraduationCap,
+            });
+        }
+
+        if (canViewMemberLoans.value) {
             memberItems.push({
                 title: 'My Loans',
                 href: '/member-portal/loans',
@@ -201,7 +223,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     return items;
 });
 
-const footerNavItems = computed<NavItem[]>(() => {
+const footerNavItems = computed((): NavItem[] => {
     return [];
 });
 </script>

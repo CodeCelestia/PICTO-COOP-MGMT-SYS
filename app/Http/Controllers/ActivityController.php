@@ -94,6 +94,14 @@ class ActivityController extends Controller
         return Carbon::parse($value)->toDateString();
     }
 
+    private function publicDisk(): FilesystemAdapter
+    {
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        return $disk;
+    }
+
     /**
      * Display a listing of activities.
      */
@@ -268,9 +276,9 @@ class ActivityController extends Controller
                     $storedAttachments = collect([[
                         'filename' => basename($item->outcomes_attachment_path),
                         'path' => $item->outcomes_attachment_path,
-                        'url' => Storage::disk('public')->url($item->outcomes_attachment_path),
-                        'size' => Storage::disk('public')->exists($item->outcomes_attachment_path)
-                            ? Storage::disk('public')->size($item->outcomes_attachment_path)
+                        'url' => asset('storage/'.ltrim($item->outcomes_attachment_path, '/')),
+                        'size' => $this->publicDisk()->exists($item->outcomes_attachment_path)
+                            ? $this->publicDisk()->size($item->outcomes_attachment_path)
                             : null,
                     ]]);
                 }
@@ -335,11 +343,19 @@ class ActivityController extends Controller
                 'cooperatives_count' => $cooperatives->count(),
                 // Include funding source records for frontend display
                 'fundingSources' => $primaryActivity->fundingSources->map(function ($source) {
+                    if (! $source) {
+                        return null;
+                    }
+
                     return array_merge($source->toArray(), [
                         'date_released' => optional($source->date_released)->format('Y-m-d'),
                     ]);
-                })->values()->all(),
-                'fundingSource' => optional($primaryActivity->fundingSources->first()) ? array_merge($primaryActivity->fundingSources->first()->toArray(), ['date_released' => optional($primaryActivity->fundingSources->first()->date_released)->format('Y-m-d')]) : null,
+                })->filter()->values()->all(),
+                'fundingSource' => ($firstSource = $primaryActivity->fundingSources->first())
+                    ? array_merge($firstSource->toArray(), [
+                        'date_released' => optional($firstSource->date_released)->format('Y-m-d'),
+                    ])
+                    : null,
             ],
             'cooperatives' => $cooperatives,
             'participantsCount' => $groupedActivities->sum(fn ($item) => $item->participants->count()),
@@ -806,7 +822,7 @@ class ActivityController extends Controller
                         return [
                             'id' => $attachment['id'] ?? null,
                             'filename' => $attachment['filename'] ?? basename($attachment['path'] ?? ''),
-                            'url' => $attachment['url'] ?? Storage::disk('public')->url($attachment['path'] ?? ''),
+                            'url' => $attachment['url'] ?? asset('storage/'.ltrim($attachment['path'] ?? '', '/')),
                             'size' => $attachment['size'] ?? null,
                             'path' => $attachment['path'] ?? null,
                         ];
@@ -944,9 +960,9 @@ class ActivityController extends Controller
             $existingOutcomesAttachments = collect([[
                 'filename' => basename($activity->outcomes_attachment_path),
                 'path' => $activity->outcomes_attachment_path,
-                'url' => Storage::disk('public')->url($activity->outcomes_attachment_path),
-                'size' => Storage::disk('public')->exists($activity->outcomes_attachment_path)
-                    ? Storage::disk('public')->size($activity->outcomes_attachment_path)
+                'url' => asset('storage/'.ltrim($activity->outcomes_attachment_path, '/')),
+                'size' => $this->publicDisk()->exists($activity->outcomes_attachment_path)
+                    ? $this->publicDisk()->size($activity->outcomes_attachment_path)
                     : null,
             ]]);
         }
@@ -1073,6 +1089,8 @@ class ActivityController extends Controller
                 $finalActivityIds = collect($activityByCoop)->pluck('id')->values()->all();
 
                 // Fetch all existing funding rows across the linked activities
+                /** @var \Illuminate\Database\Eloquent\Collection<int, ActivityFundingSource> $allFundingSources */
+                /** @var \Illuminate\Database\Eloquent\Collection<int, ActivityFundingSource> $allFundingSources */
                 $allFundingSources = ActivityFundingSource::query()
                     ->whereIn('activity_id', $finalActivityIds)
                     ->withoutTrashed()
@@ -1118,6 +1136,7 @@ class ActivityController extends Controller
 
                 // Update existing funding rows
                 foreach ($allFundingSources as $fs) {
+                    /** @var ActivityFundingSource $fs */
                     $fs->update(array_merge($sharedData, [
                         'attachment_paths' => !empty($finalPaths) ? $finalPaths : null,
                         'attachment_names' => !empty($finalNames) ? $finalNames : null,

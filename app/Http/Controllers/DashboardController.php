@@ -59,6 +59,7 @@ class DashboardController extends Controller
             $memberRecentLoans = $memberData['memberRecentLoans'];
             $memberServicesCount = $memberData['memberServicesCount'];
             $memberActivitiesCount = $memberData['memberActivitiesCount'];
+            $memberTrainingsCount = $memberData['memberTrainingsCount'];
         }
 
         return Inertia::render('Dashboard', [
@@ -81,6 +82,7 @@ class DashboardController extends Controller
             'memberRecentLoans' => $memberRecentLoans,
             'memberServicesCount' => $memberServicesCount,
             'memberActivitiesCount' => $memberActivitiesCount,
+            'memberTrainingsCount' => $memberTrainingsCount,
         ]);
     }
 
@@ -224,6 +226,7 @@ class DashboardController extends Controller
         $memberRecentLoans = [];
         $memberServicesCount = 0;
         $memberActivitiesCount = 0;
+        $memberTrainingsCount = 0;
         $member = Member::with('cooperative')->find($memberId);
 
         if ($member) {
@@ -276,6 +279,7 @@ class DashboardController extends Controller
 
             $memberServicesCount = (int) $member->servicesAvailed()->count();
             $memberActivitiesCount = (int) $member->activityParticipants()->count();
+            $memberTrainingsCount = (int) $member->trainingParticipants()->count();
         }
 
         return [
@@ -285,6 +289,7 @@ class DashboardController extends Controller
             'memberRecentLoans' => $memberRecentLoans,
             'memberServicesCount' => $memberServicesCount,
             'memberActivitiesCount' => $memberActivitiesCount,
+            'memberTrainingsCount' => $memberTrainingsCount,
         ];
     }
 

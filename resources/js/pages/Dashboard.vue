@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { 
     Users, 
     TrendingUp, 
@@ -183,6 +183,7 @@ const props = defineProps<{
     memberRecentLoans?: MemberLoanSummary[];
     memberServicesCount?: number;
     memberActivitiesCount?: number;
+    memberTrainingsCount?: number;
     superAdminStats?: SuperAdminStats;
 }>();
 
@@ -205,41 +206,60 @@ type SummaryCard = {
     };
 };
 
+const page = usePage();
+const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canViewMemberServices = computed(() => permissions.value.includes('read members-profile'));
+const canViewMemberActivities = computed(() => permissions.value.includes('read members-profile'));
+const canViewMemberLoans = computed(() => permissions.value.includes('read finance-member-loans') || permissions.value.includes('apply-own finance-member-loans'));
+const canViewMemberTrainings = computed(() => permissions.value.includes('read training-&-capacity'));
+
 const formatNumber = (value: number | null | undefined) =>
     new Intl.NumberFormat('en-US').format(value ?? 0);
 
 const summaryCards = computed<SummaryCard[]>(() => {
     if (props.isMember && props.memberProfile) {
-        return [
-            {
+        const cards: SummaryCard[] = [];
+
+        if (canViewMemberLoans.value) {
+            cards.push({
                 title: 'My Loans',
                 value: formatNumber(props.memberLoansCount || 0),
                 helper: 'Loan records',
                 icon: DollarSign,
                 accent: { bg: 'bg-emerald-100/70', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
-            },
-            {
+            });
+        }
+
+        if (canViewMemberActivities.value) {
+            cards.push({
                 title: 'My Activities',
                 value: formatNumber(props.memberActivitiesCount || 0),
                 helper: 'Participation entries',
                 icon: Activity,
                 accent: { bg: 'bg-blue-100/70', text: 'text-blue-700', ring: 'ring-blue-200/60' },
-            },
-            {
+            });
+        }
+
+        if (canViewMemberServices.value) {
+            cards.push({
                 title: 'My Services',
                 value: formatNumber(props.memberServicesCount || 0),
                 helper: 'Services availed',
                 icon: FileText,
                 accent: { bg: 'bg-violet-100/70', text: 'text-violet-700', ring: 'ring-violet-200/60' },
-            },
-            {
-                title: 'My Status',
-                value: props.memberProfile.membership_status || 'N/A',
-                helper: 'Membership standing',
-                icon: Shield,
-                accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
-            },
-        ];
+            });
+        }
+
+        cards.push({
+            title: 'My Trainings',
+            value: formatNumber(props.memberTrainingsCount || 0),
+            helper: 'Training participation',
+            icon: GraduationCap,
+            accent: { bg: 'bg-orange-100/70', text: 'text-orange-700', ring: 'ring-orange-200/60' },
+        });
+
+        return cards;
     }
 
     if (props.isSuperAdmin && props.superAdminStats) {
@@ -933,65 +953,6 @@ const getMembershipBadgeColor = (status: string | null) => {
 
                 <!-- Member Dashboard -->
                 <div v-if="props.isMember" class="md:col-span-2 grid gap-4">
-                    <div class="grid gap-4 lg:grid-cols-2">
-                        <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h2 class="text-lg font-semibold text-foreground">My Profile</h2>
-                                    <p class="text-sm text-muted-foreground">Personal information on record.</p>
-                                </div>
-                                <Badge class="rounded-full bg-primary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary-foreground">
-                                    {{ props.memberProfile?.membership_status || 'N/A' }}
-                                </Badge>
-                            </div>
-
-                            <div v-if="props.memberProfile" class="mt-5 text-sm text-foreground">
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Name</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.name }}</span>
-                                </div>
-                                <div class="border-t border-border/70" />
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Email</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.email || 'N/A' }}</span>
-                                </div>
-                                <div class="border-t border-border/70" />
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Phone</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.phone || 'N/A' }}</span>
-                                </div>
-                                <div class="border-t border-border/70" />
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Date joined</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.date_joined || 'N/A' }}</span>
-                                </div>
-                            </div>
-                        </Card>
-
-                        <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
-                            <div>
-                                <h2 class="text-lg font-semibold text-foreground">Membership</h2>
-                                <p class="text-sm text-muted-foreground">Your membership classification.</p>
-                            </div>
-                            <div v-if="props.memberProfile" class="mt-5 text-sm text-foreground">
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Type</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.membership_type || 'N/A' }}</span>
-                                </div>
-                                <div class="border-t border-border/70" />
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Sector</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.sector || 'N/A' }}</span>
-                                </div>
-                                <div class="border-t border-border/70" />
-                                <div class="flex items-center justify-between py-2">
-                                    <span class="text-muted-foreground">Status</span>
-                                    <span class="font-medium text-foreground">{{ props.memberProfile.membership_status || 'N/A' }}</span>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-
                     <Card class="gap-0 rounded-lg border border-border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
@@ -1012,6 +973,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                     <div class="mt-1 text-xs text-muted-foreground">Participation records</div>
                                     <div class="mt-3">
                                         <Button
+                                            v-if="canViewMemberActivities"
                                             as-child
                                             variant="outline"
                                             size="sm"
@@ -1033,6 +995,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                     <div class="mt-1 text-xs text-muted-foreground">Services availed</div>
                                     <div class="mt-3">
                                         <Button
+                                            v-if="canViewMemberServices"
                                             as-child
                                             variant="outline"
                                             size="sm"
@@ -1053,6 +1016,7 @@ const getMembershipBadgeColor = (status: string | null) => {
                                 <p class="text-sm text-muted-foreground">Your loan applications and balances.</p>
                             </div>
                             <Button
+                                v-if="canViewMemberLoans"
                                 as-child
                                 variant="outline"
                                 size="sm"

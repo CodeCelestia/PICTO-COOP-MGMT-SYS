@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     ChevronDown,
     CircleHelp,
@@ -61,7 +61,20 @@ const isCreateChildItem = (item: NavItem) => {
     return CREATE_CHILD_PATH_PREFIXES.some((prefix) => url === prefix || url.startsWith(`${prefix}/`));
 };
 
-const createChildItems = computed<NavItem[]>(() => props.items.filter((item) => isCreateChildItem(item)));
+const page = usePage();
+const auth = computed(() => page.props.auth as { roles?: string[] } | undefined);
+const roles = computed<string[]>(() => auth.value?.roles || []);
+const isSuperAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'super admin'));
+const isProvincialAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'provincial admin'));
+const canSeeCreateDropdown = computed(() => isSuperAdmin.value || isProvincialAdmin.value);
+
+const createChildItems = computed<NavItem[]>(() => {
+    if (!canSeeCreateDropdown.value) {
+        return [];
+    }
+
+    return props.items.filter((item) => isCreateChildItem(item));
+});
 
 const hasActiveCreateChild = computed(() => createChildItems.value.some((item) => isItemActive(item)));
 
@@ -155,6 +168,10 @@ const closeCreateFlyout = () => {
 };
 
 const shouldRenderCreateMenuAtIndex = (items: NavItem[], index: number) => {
+    if (!canSeeCreateDropdown.value) {
+        return false;
+    }
+
     const item = items[index];
 
     if (!item || !isCreateChildItem(item)) {
@@ -165,6 +182,10 @@ const shouldRenderCreateMenuAtIndex = (items: NavItem[], index: number) => {
 };
 
 const shouldSkipCreateChildAtIndex = (items: NavItem[], index: number) => {
+    if (!canSeeCreateDropdown.value) {
+        return false;
+    }
+
     const item = items[index];
 
     if (!item || !isCreateChildItem(item)) {
@@ -207,6 +228,10 @@ const sectionedItems = computed<SectionWithItems[]>(() => {
             return path !== '/dashboard' && path !== '/homepage';
         })
         .forEach((item) => {
+            if (isCreateChildItem(item) && !canSeeCreateDropdown.value) {
+                return;
+            }
+
             const url = toUrl(item.href);
 
             const isManagementSection =

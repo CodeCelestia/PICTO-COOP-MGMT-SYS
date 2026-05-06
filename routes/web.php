@@ -243,6 +243,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('member-portal/activities', [MemberPortalController::class, 'activityParticipants'])
         ->middleware('permission:read members-profile')
         ->name('member-portal.activities');
+    Route::get('member-portal/trainings', [MemberPortalController::class, 'trainings'])
+        ->middleware('permission:read training-&-capacity')
+        ->name('member-portal.trainings');
     Route::get('member-portal/loans', [MemberPortalController::class, 'loans'])
         ->middleware('permission:read finance-member-loans|apply-own finance-member-loans')
         ->name('member-portal.loans');

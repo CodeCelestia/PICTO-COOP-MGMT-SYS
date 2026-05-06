@@ -44,6 +44,8 @@ interface Member {
     birth_date: string | null;
     gender: string | null;
     address: string | null;
+    membership_type: string | null;
+    sector: string | null;
     region: string | null;
     province: string | null;
     city_municipality: string | null;
@@ -87,6 +89,14 @@ const props = defineProps<{
     activitiesCount: number;
 }>();
 
+const page = usePage();
+const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const canViewMemberServices = computed(() => permissions.value.includes('read members-profile'));
+const canViewMemberActivities = computed(() => permissions.value.includes('read members-profile'));
+const canViewMemberTrainings = computed(() => permissions.value.includes('read training-&-capacity'));
+const canViewMemberLoans = computed(() => permissions.value.includes('read finance-member-loans') || permissions.value.includes('apply-own finance-member-loans'));
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'My Profile', href: '/member-portal' },
 ];
@@ -103,6 +113,8 @@ const profileOverview = ref({
     barangay: props.member.barangay ?? '',
     phone: props.member.phone ?? '',
     email: props.member.email ?? '',
+    membership_type: props.member.membership_type ?? '',
+    sector: props.member.sector ?? '',
 });
 
 const form = useForm({
@@ -120,7 +132,6 @@ const form = useForm({
     profile_photo: null as File | null,
 });
 
-const page = usePage();
 const authUser = computed(() => page.props.auth?.user as { name?: string; avatar?: string } | undefined);
 const { getInitials } = useInitials();
 const { regions, provinces, cities, barangays, loading, fetchRegions, fetchProvinces, fetchCities, fetchBarangays } = usePsgc();
@@ -362,6 +373,19 @@ const formatDateTime = (date: string | null) => {
     });
 };
 
+const formatDate = (date: string | null) => {
+    if (!date) return 'N/A';
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) {
+        return date;
+    }
+    return parsed.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
 </script>
 
 <template>
@@ -433,8 +457,16 @@ const formatDateTime = (date: string | null) => {
                             <p class="text-base font-medium text-foreground">{{ profileOverview.gender || 'N/A' }}</p>
                         </div>
                         <div class="space-y-1.5">
+                            <p class="text-sm font-medium text-muted-foreground">Membership Type</p>
+                            <p class="text-base font-medium text-foreground">{{ profileOverview.membership_type || 'N/A' }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <p class="text-sm font-medium text-muted-foreground">Sector</p>
+                            <p class="text-base font-medium text-foreground">{{ profileOverview.sector || 'N/A' }}</p>
+                        </div>
+                        <div class="space-y-1.5">
                             <p class="text-sm font-medium text-muted-foreground">Birth Date</p>
-                            <p class="text-base font-medium text-foreground">{{ profileOverview.birth_date || 'N/A' }}</p>
+                            <p class="text-base font-medium text-foreground">{{ profileOverview.birth_date ? formatDate(profileOverview.birth_date) : 'N/A' }}</p>
                         </div>
                         <div class="space-y-1.5">
                             <p class="text-sm font-medium text-muted-foreground">Cooperative</p>
@@ -460,9 +492,13 @@ const formatDateTime = (date: string | null) => {
                             <div class="text-lg font-semibold text-foreground">{{ cooperative.name }}</div>
                         </div>
                         <div class="grid gap-4">
-                            <div v-if="cooperative.registration_number">
-                                <div class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Registration No.</div>
-                                <div class="text-base font-medium text-foreground">{{ cooperative.registration_number }}</div>
+                            <div v-if="cooperative.email">
+                                <div class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Email</div>
+                                <div class="text-base font-medium text-foreground">{{ cooperative.email }}</div>
+                            </div>
+                            <div v-if="cooperative.phone">
+                                <div class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Phone Number</div>
+                                <div class="text-base font-medium text-foreground">{{ cooperative.phone }}</div>
                             </div>
                             <div v-if="cooperative.coop_type">
                                 <div class="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Type</div>
@@ -498,19 +534,26 @@ const formatDateTime = (date: string | null) => {
                     <CardDescription class="text-sm text-muted-foreground">View your service availments and participation history.</CardDescription>
                 </CardHeader>
 
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="rounded-lg border border-border bg-background/60 p-4">
+                <div class="grid gap-4 md:grid-cols-3">
+                    <div class="rounded-lg border border-border bg-background/60 p-4" v-if="canViewMemberServices">
                         <div class="text-sm text-muted-foreground">Services Availed</div>
                         <div class="mt-2 text-2xl font-semibold text-foreground">{{ servicesCount }}</div>
                         <Link href="/member-portal/services" class="mt-4 inline-flex">
                             <Button variant="outline">View Services</Button>
                         </Link>
                     </div>
-                    <div class="rounded-lg border border-border bg-background/60 p-4">
+                    <div class="rounded-lg border border-border bg-background/60 p-4" v-if="canViewMemberActivities">
                         <div class="text-sm text-muted-foreground">Activity Participation</div>
                         <div class="mt-2 text-2xl font-semibold text-foreground">{{ activitiesCount }}</div>
                         <Link href="/member-portal/activities" class="mt-4 inline-flex">
                             <Button variant="outline">View Activities</Button>
+                        </Link>
+                    </div>
+                    <div class="rounded-lg border border-border bg-background/60 p-4" v-if="canViewMemberTrainings">
+                        <div class="text-sm text-muted-foreground">Training Attendance</div>
+                        <div class="mt-2 text-2xl font-semibold text-foreground">View trainings</div>
+                        <Link href="/member-portal/trainings" class="mt-4 inline-flex">
+                            <Button variant="outline">View Trainings</Button>
                         </Link>
                     </div>
                 </div>

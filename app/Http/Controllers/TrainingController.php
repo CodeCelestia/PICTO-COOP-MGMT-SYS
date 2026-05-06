@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -83,6 +84,14 @@ class TrainingController extends Controller
         }
 
         return Carbon::parse($value)->toDateString();
+    }
+
+    private function publicDisk(): FilesystemAdapter
+    {
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('public');
+
+        return $disk;
     }
 
     private function trainingTargetGroupOptions(): array
@@ -468,28 +477,13 @@ class TrainingController extends Controller
             $validated['follow_up_date'] = null;
         }
 
-        $existingOutcomesAttachments = collect($training->outcomes_attachments ?? []);
-        if ($existingOutcomesAttachments->isEmpty() && !empty($training->outcomes_attachment_path)) {
-            $path = $training->outcomes_attachment_path;
-            $existingOutcomesAttachments = collect([[
-                'filename' => basename($path),
-                'path' => $path,
-                'url' => Storage::disk('public')->url($path),
-                'size' => Storage::disk('public')->exists($path)
-                    ? Storage::disk('public')->size($path)
-                    : null,
-            ]]);
-        }
-
+        $existingOutcomesAttachments = collect();
         $removedOutcomesPaths = collect($validated['removed_outcomes_attachment_paths'] ?? [])
             ->filter()
             ->values();
 
         if ($removedOutcomesPaths->isNotEmpty()) {
             $removedOutcomesPaths->each(fn ($path) => Storage::disk('public')->delete($path));
-            $existingOutcomesAttachments = $existingOutcomesAttachments
-                ->reject(fn ($attachment) => $removedOutcomesPaths->contains($attachment['path'] ?? null))
-                ->values();
         }
 
         if ($request->hasFile('outcomes_attachments')) {
@@ -504,7 +498,7 @@ class TrainingController extends Controller
                 ];
             }
 
-            $existingOutcomesAttachments = $existingOutcomesAttachments->concat($newOutcomesAttachments)->values();
+            $existingOutcomesAttachments = collect($newOutcomesAttachments);
         }
 
         $validated['outcomes_attachment_path'] = $existingOutcomesAttachments->first()['path'] ?? null;
@@ -512,7 +506,7 @@ class TrainingController extends Controller
             ? $existingOutcomesAttachments->values()->all()
             : null;
 
-        $existingImages = collect($training->image_attachments ?? []);
+        $existingImages = collect();
         $removedImagePaths = collect($validated['removed_image_attachment_paths'] ?? [])
             ->filter()
             ->values();
@@ -704,9 +698,9 @@ class TrainingController extends Controller
             $outcomesAttachments = collect([[
                 'filename' => basename($path),
                 'path' => $path,
-                'url' => Storage::disk('public')->url($path),
-                'size' => Storage::disk('public')->exists($path)
-                    ? Storage::disk('public')->size($path)
+                'url' => asset('storage/'.ltrim($path, '/')),
+                'size' => $this->publicDisk()->exists($path)
+                    ? $this->publicDisk()->size($path)
                     : null,
             ]]);
         }
@@ -716,7 +710,7 @@ class TrainingController extends Controller
                 $path = $attachment['path'] ?? null;
                 return [
                     'filename' => $attachment['filename'] ?? ($path ? basename($path) : 'Outcomes attachment'),
-                    'url' => $attachment['url'] ?? ($path ? Storage::disk('public')->url($path) : ''),
+                    'url' => $attachment['url'] ?? ($path ? $this->publicDisk()->url($path) : ''),
                     'size' => $attachment['size'] ?? null,
                     'path' => $path,
                 ];
@@ -730,7 +724,7 @@ class TrainingController extends Controller
                 return [
                     'id' => $img['id'] ?? $index,
                     'filename' => $img['filename'] ?? ($path ? basename($path) : 'Image'),
-                    'url' => $img['url'] ?? ($path ? Storage::disk('public')->url($path) : ''),
+                    'url' => $img['url'] ?? ($path ? $this->publicDisk()->url($path) : ''),
                     'size' => $img['size'] ?? null,
                     'path' => $path,
                 ];
@@ -1046,7 +1040,7 @@ class TrainingController extends Controller
             return array_merge([
                 'path' => $path,
                 'name' => $name ?: basename($path),
-                'url' => $exists ? $disk->url($path) : null,
+                'url' => $exists ? asset('storage/'.ltrim($path, '/')) : null,
                 'size' => $exists ? $disk->size($path) : null,
             ], $extra);
         };
@@ -1059,9 +1053,9 @@ class TrainingController extends Controller
                     $storedAttachments = collect([[
                         'filename' => basename($item->outcomes_attachment_path),
                         'path' => $item->outcomes_attachment_path,
-                        'url' => Storage::disk('public')->url($item->outcomes_attachment_path),
-                        'size' => Storage::disk('public')->exists($item->outcomes_attachment_path)
-                            ? Storage::disk('public')->size($item->outcomes_attachment_path)
+                        'url' => asset('storage/'.ltrim($item->outcomes_attachment_path, '/')),
+                        'size' => $this->publicDisk()->exists($item->outcomes_attachment_path)
+                            ? $this->publicDisk()->size($item->outcomes_attachment_path)
                             : null,
                     ]]);
                 }
