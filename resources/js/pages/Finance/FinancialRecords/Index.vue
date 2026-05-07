@@ -19,8 +19,6 @@ const coopIdFromUrl = computed(() => {
 const currentUrl = window.location.pathname + window.location.search;
 
 const isGlobalMode = computed(() => !coopIdFromUrl.value);
-const showCooperativesList = computed(() => isGlobalMode.value && !selectedCoop.value);
-const showRecordsList = computed(() => isGlobalMode.value ? !!selectedCoop.value : true);
 
 const selectCoop = (coop: Cooperative) => {
     selectedCoop.value = coop;
@@ -41,6 +39,7 @@ interface FinancialRecord {
     id: number;
     period: string;
     type: string;
+    origin?: string | null;
     amount: string | null;
     source: string | null;
     purpose: string | null;
@@ -53,7 +52,7 @@ interface Cooperative {
     name: string;
 }
 
-defineProps<{
+const props = defineProps<{
     records: {
         data: FinancialRecord[];
     };
@@ -66,7 +65,16 @@ defineProps<{
     };
 }>();
 
-const selectedCoop = ref<Cooperative | null>(null);
+const selectedCoop = ref<Cooperative | null>((() => {
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    if (!param) return null;
+    return props.cooperatives?.find(c => c.id === parseInt(param)) ?? null;
+})());
+
+const activeCoop = computed(() => selectedCoop.value);
+
+const showCooperativesList = computed(() => isGlobalMode.value && !activeCoop.value);
+const showRecordsList = computed(() => isGlobalMode.value ? !!activeCoop.value : true);
 
 const formatTypeLabel = (value: string | null | undefined) => {
     if (!value) return 'Unknown';
@@ -142,12 +150,12 @@ const deleteRecord = (recordId: number) => {
 
         <!-- Records List (shown in coop context or after coop selection in global mode) -->
         <div v-if="showRecordsList" class="mt-6">
-            <div v-if="isGlobalMode && selectedCoop" class="mb-4 flex items-center gap-2">
+            <div v-if="isGlobalMode && activeCoop" class="mb-4 flex items-center gap-2">
                 <Button variant="outline" size="sm" @click="backToCooperatives" class="gap-2">
                     <ArrowLeft class="h-4 w-4" />
                     Back to Cooperatives
                 </Button>
-                <h2 class="text-lg font-semibold">Records for {{ selectedCoop.name }}</h2>
+                <h2 class="text-lg font-semibold">Financial Records for {{ activeCoop?.name }}</h2>
             </div>
 
             <div class="overflow-hidden rounded-lg border bg-card">
@@ -156,6 +164,7 @@ const deleteRecord = (recordId: number) => {
                         <tr>
                             <th class="px-4 py-3 text-left">Record</th>
                             <th class="px-4 py-3 text-left">Type</th>
+                            <th class="px-4 py-3 text-left">Origin</th>
                             <th class="px-4 py-3 text-left">Cooperative</th>
                             <th class="px-4 py-3 text-left">Source</th>
                             <th class="px-4 py-3 text-left">Amount</th>
@@ -170,6 +179,38 @@ const deleteRecord = (recordId: number) => {
                         <tr v-for="record in records.data" :key="record.id" class="border-t">
                             <td class="px-4 py-3">{{ recordDescription(record) }}</td>
                             <td class="px-4 py-3">{{ formatTypeLabel(record.type) }}</td>
+                            <td class="px-4 py-3">
+                                <span
+                                    v-if="record.origin === 'loan_disbursement'
+                                          || record.origin === 'loan_payment'
+                                          || record.origin === 'savings'"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5
+                                           text-xs font-medium bg-blue-100 text-blue-800
+                                           dark:bg-blue-900 dark:text-blue-200"
+                                >
+                                    {{
+                                        record.origin === 'loan_disbursement' ? 'Auto · Loan disbursed' :
+                                        record.origin === 'loan_payment'      ? 'Auto · Loan payment' :
+                                                                        'Auto · Savings'
+                                    }}
+                                </span>
+                                <span
+                                    v-else-if="record.origin === 'external_support'"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5
+                                           text-xs font-medium bg-green-100 text-green-800
+                                           dark:bg-green-900 dark:text-green-200"
+                                >
+                                    Auto · External support
+                                </span>
+                                <span
+                                    v-else
+                                    class="inline-flex items-center rounded-full px-2 py-0.5
+                                           text-xs font-medium bg-gray-100 text-gray-700
+                                           dark:bg-gray-800 dark:text-gray-300"
+                                >
+                                    Manual entry
+                                </span>
+                            </td>
                             <td class="px-4 py-3">{{ record.cooperative?.name || 'N/A' }}</td>
                             <td class="px-4 py-3">{{ record.source ? formatTypeLabel(record.source) : 'N/A' }}</td>
                             <td class="px-4 py-3">{{ formatPhilippinePeso(record.amount) }}</td>

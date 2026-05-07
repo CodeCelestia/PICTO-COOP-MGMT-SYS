@@ -20,8 +20,6 @@ const coopIdFromUrl = computed(() => {
 const currentUrl = window.location.pathname + window.location.search;
 
 const isGlobalMode = computed(() => !coopIdFromUrl.value);
-const showCooperativesList = computed(() => isGlobalMode.value && !selectedCoop.value);
-const showFundingSourcesList = computed(() => isGlobalMode.value ? !!selectedCoop.value : true);
 
 const selectCoop = (coop: Cooperative) => {
     selectedCoop.value = coop;
@@ -56,7 +54,7 @@ interface Cooperative {
     name: string;
 }
 
-defineProps<{
+const props = defineProps<{
     fundingSources: {
         data: FundingSource[];
     };
@@ -70,7 +68,16 @@ defineProps<{
     };
 }>();
 
-const selectedCoop = ref<Cooperative | null>(null);
+const selectedCoop = ref<Cooperative | null>((() => {
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    if (!param) return null;
+    return props.cooperatives?.find(c => c.id === parseInt(param)) ?? null;
+})());
+
+const activeCoop = computed(() => selectedCoop.value);
+
+const showCooperativesList = computed(() => isGlobalMode.value && !activeCoop.value);
+const showFundingSourcesList = computed(() => isGlobalMode.value ? !!activeCoop.value : true);
 
 const categoryLabel = (category: FundingSource['category']) => {
     if (category === 'member_concern') return 'Member Concern';
@@ -125,12 +132,12 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
 
         <!-- Funding Sources List (shown in coop context or after coop selection in global mode) -->
         <div v-if="showFundingSourcesList" class="mt-6">
-            <div v-if="isGlobalMode && selectedCoop" class="mb-4 flex items-center gap-2">
+            <div v-if="isGlobalMode && activeCoop" class="mb-4 flex items-center gap-2">
                 <Button variant="outline" size="sm" @click="backToCooperatives" class="gap-2">
                     <ArrowLeft class="h-4 w-4" />
                     Back to Cooperatives
                 </Button>
-                <h2 class="text-lg font-semibold">Funding Sources for {{ selectedCoop.name }}</h2>
+                <h2 class="text-lg font-semibold">Funding Sources for {{ activeCoop?.name }}</h2>
             </div>
 
             <div class="overflow-hidden rounded-lg border bg-card">

@@ -6,6 +6,7 @@ import { ArrowLeft, Eye, File, FileText, Image, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCreateBack } from '@/composables/useCreateBack';
+import Swal from 'sweetalert2';
 
 type LoanAttachment = {
     path: string;
@@ -38,7 +39,7 @@ const isCoopContext = computed(() => coopContextId.value !== null);
 
 const backHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}?tab=finance`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
     }
 
     return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
@@ -46,13 +47,13 @@ const backHref = computed(() => {
 
 const fallbackHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}?tab=finance`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
     }
 
     return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
 });
 
-const { goBack, returnToHref } = useCreateBack({ fallbackHref });
+const { returnToHref } = useCreateBack({ fallbackHref });
 
 const form = useForm({
     return_to: returnToHref.value,
@@ -63,6 +64,20 @@ const form = useForm({
     attachments: [] as File[],
     attachments_removed: [] as string[],
 });
+
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
+    window.location.href = backHref.value;
+};
 
 const previewUrls = new Map<File, string>();
 const existingAttachments = ref<LoanAttachment[]>([...(props.loan.attachments || [])]);
@@ -294,7 +309,7 @@ const submit = () => {
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
                         Save
                     </button>
-                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="goBack">Cancel</button>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleCancel">Cancel</button>
                 </div>
             </form>
         </div>

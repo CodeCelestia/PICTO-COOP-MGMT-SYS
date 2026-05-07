@@ -667,6 +667,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('calculate-interest');
     });
 
+    Route::get('finance/external-supports', [ExternalSupportController::class, 'index'])
+        ->middleware('permission:read financial-&-support')
+        ->name('finance.external-supports.index');
+
     // Finance: Reports
     Route::prefix('finance/reports')->name('finance.reports.')->group(function () {
         Route::get('statements', [FinanceReportsController::class, 'statements'])
@@ -854,6 +858,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:calculate-interest finance-savings-accounts|override finance-auto-jobs')
             ->name('calculate-interest');
     });
+
+    Route::prefix('cooperatives/{cooperative}/finance/external-supports')
+        ->name('cooperatives.finance.external-supports.')
+        ->group(function () {
+            Route::get('/', [ExternalSupportController::class, 'index'])
+                ->middleware('permission:read financial-&-support')
+                ->name('index');
+            Route::get('/create', [ExternalSupportController::class, 'create'])
+                ->middleware('permission:create financial-&-support')
+                ->name('create');
+            Route::post('/', [ExternalSupportController::class, 'store'])
+                ->middleware('permission:create financial-&-support')
+                ->name('store');
+            Route::get('/{externalSupport}/edit', [ExternalSupportController::class, 'edit'])
+                ->middleware('permission:update financial-&-support')
+                ->name('edit');
+            Route::put('/{externalSupport}', [ExternalSupportController::class, 'update'])
+                ->middleware('permission:update financial-&-support')
+                ->name('update');
+            Route::delete('/{externalSupport}', [ExternalSupportController::class, 'destroy'])
+                ->middleware('permission:delete financial-&-support')
+                ->name('destroy');
+        });
 
     // External Supports
     Route::get('external-supports/select', [ExternalSupportController::class, 'select'])

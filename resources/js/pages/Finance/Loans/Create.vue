@@ -306,29 +306,27 @@ const backHref = computed(() => {
             return `/cooperatives/${props.preselectedCoopId}?tab=members`;
         }
 
-        return `/cooperatives/${props.preselectedCoopId}/finance/loans`;
+        return `/cooperatives/${props.preselectedCoopId}?tab=finance&subtab=loans`;
     }
 
     return '/finance/loans';
 });
 
-const handleBackClick = async () => {
-    if (form.isDirty) {
-        const result = await Swal.fire({
-            title: 'Discard changes?',
-            text: 'You have unsaved changes that will be lost.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, discard',
-            cancelButtonText: 'Keep editing',
-            confirmButtonColor: '#dc2626',
-        });
+const handleBack = () => {
+    window.location.href = backHref.value;
+};
 
-        if (!result.isConfirmed) {
-            return;
-        }
-    }
-
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
     window.location.href = backHref.value;
 };
 </script>
@@ -346,7 +344,7 @@ const handleBackClick = async () => {
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">New Loan</span>
                 </nav>
-                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBackClick">
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBack">
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </button>
@@ -356,7 +354,7 @@ const handleBackClick = async () => {
                     <h1 class="text-2xl font-semibold">New Member Loan</h1>
                     <p class="text-sm text-muted-foreground">Fill out this short form to submit a loan application.</p>
                 </div>
-                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBackClick">
+                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBack">
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </button>
@@ -517,7 +515,7 @@ const handleBackClick = async () => {
                     <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
                         {{ form.processing ? 'Submitting...' : 'Submit Loan Application' }}
                     </button>
-                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleBackClick">Cancel</button>
+                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleCancel">Cancel</button>
                 </div>
             </form>
         </div>

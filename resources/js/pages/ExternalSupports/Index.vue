@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { LifeBuoy, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { LifeBuoy, Plus, Pencil, Trash2, Search, ArrowLeft } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
-import AppLayout from '@/layouts/AppLayout.vue';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -69,6 +69,7 @@ interface Props {
         coop_id?: string;
         per_page?: string;
     };
+    cooperative?: { id: number; name: string } | null;
 }
 
 const props = defineProps<Props>();
@@ -84,6 +85,40 @@ const canEdit = computed(() => permissions.value.includes('update financial-&-su
 const canDelete = computed(() => permissions.value.includes('delete financial-&-support'));
 const canBulkDelete = computed(() => canDelete.value);
 const showActions = computed(() => canEdit.value || canDelete.value);
+
+const coopIdFromUrl = computed(() => {
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    return param ? parseInt(param) : null;
+});
+
+const selectedCoop = ref<{ id: number; name: string } | null>((() => {
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    if (!param) return null;
+    return props.cooperatives?.find(c => c.id === parseInt(param)) ?? null;
+})());
+
+const activeCoop = computed(() => selectedCoop.value);
+
+const isGlobalMode = computed(() => !props.cooperative);
+const showCooperativesList = computed(() =>
+    isGlobalMode.value && !activeCoop.value
+);
+const showSupportsList = computed(() =>
+    isGlobalMode.value ? !!activeCoop.value : true
+);
+
+const selectCoop = (coop: { id: number; name: string }) => {
+    selectedCoop.value = coop;
+    router.get('/finance/external-supports', { coop_id: coop.id }, {
+        preserveState: false,
+        preserveScroll: false,
+    });
+};
+
+const backToCooperatives = () => {
+    selectedCoop.value = null;
+    window.scrollTo(0, 0);
+};
 
 const search = ref(props.filters.search || '');
 const supportType = ref(props.filters.support_type || 'all');
@@ -195,7 +230,7 @@ const bulkDeleteSupports = async () => {
 </script>
 
 <template>
-    <AppLayout>
+    <FinanceShellLayout active-tab="external-supports" :hide-tabs="false">
         <div class="space-y-6 p-4 sm:p-6">
             <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -217,13 +252,54 @@ const bulkDeleteSupports = async () => {
                     <Link href="/financial-records" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
                         View Financial Records
                     </Link>
-                    <Link v-if="canCreate" href="/external-supports/create">
+                        <Link
+                            v-if="canCreate"
+                            :href="selectedCoop ? `/external-supports/create?coop_id=${selectedCoop.id}` : '/external-supports/create'"
+                        >
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
                             Add Support
                         </Button>
                     </Link>
                 </div>
+                </div>
+
+            </div>
+
+            <div v-if="showCooperativesList" class="mt-6">
+                <h2 class="mb-4 text-lg font-semibold">Select a Cooperative</h2>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div
+                        v-for="coop in cooperatives"
+                        :key="coop.id"
+                        class="cursor-pointer rounded-lg border bg-card p-4
+                               transition hover:border-primary hover:bg-primary/5"
+                        @click="selectCoop(coop)"
+                    >
+                        <h3 class="font-medium text-foreground">{{ coop.name }}</h3>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            Click to view external support records
+                        </p>
+                    </div>
+                </div>
+                <div v-if="!cooperatives || cooperatives.length === 0"
+                     class="rounded-lg border bg-card p-6 text-center
+                            text-muted-foreground">
+                    No cooperatives available.
+                </div>
+            </div>
+
+            <div v-if="showSupportsList">
+                <div v-if="isGlobalMode && activeCoop"
+                     class="mb-4 flex items-center gap-2">
+                    <Button variant="outline" size="sm"
+                            @click="backToCooperatives" class="gap-2">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back to Cooperatives
+                    </Button>
+                    <h2 class="text-lg font-semibold">
+                        External Support for {{ activeCoop?.name }}
+                    </h2>
                 </div>
 
                 <FilterPanel
@@ -322,109 +398,109 @@ const bulkDeleteSupports = async () => {
                         <Button @click="resetFilters" variant="outline">Clear Filters</Button>
                     </div>
                 </FilterPanel>
-            </div>
 
-            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                <div class="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead v-if="canBulkDelete" class="w-12">
-                                <Checkbox
-                                    :model-value="allVisibleSelected"
-                                    :disabled="supports.data.length === 0"
-                                    aria-label="Select all external supports"
-                                    @update:model-value="toggleAll"
-                                />
-                            </TableHead>
-                            <TableHead class="text-muted-foreground">Provider</TableHead>
-                            <TableHead class="text-muted-foreground">Cooperative</TableHead>
-                            <TableHead class="text-muted-foreground">Support Type</TableHead>
-                            <TableHead class="text-muted-foreground">Amount</TableHead>
-                            <TableHead class="text-muted-foreground">Granted</TableHead>
-                            <TableHead class="text-muted-foreground">Status</TableHead>
-                            <TableHead class="text-muted-foreground">Linked Record</TableHead>
-                            <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow v-if="supports.data.length === 0">
-                                <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
-                                    No external support records found.
-                                </TableCell>
-                            </TableRow>
-                            <TableRow v-for="support in supports.data" :key="support.id">
-                                <TableCell v-if="canBulkDelete" class="w-12">
+                <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                    <div class="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead v-if="canBulkDelete" class="w-12">
                                     <Checkbox
-                                        :model-value="isSelected(support.id)"
-                                        :aria-label="`Select ${support.provider_name}`"
-                                        @update:model-value="(checked) => toggleOne(support.id, checked)"
+                                        :model-value="allVisibleSelected"
+                                        :disabled="supports.data.length === 0"
+                                        aria-label="Select all external supports"
+                                        @update:model-value="toggleAll"
                                     />
-                                </TableCell>
-                                <TableCell>
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300">
-                                            <LifeBuoy class="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                            <div class="font-medium text-foreground">{{ support.provider_name }}</div>
-                                            <div class="text-xs text-muted-foreground">{{ support.support_type }}</div>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ support.cooperative.name }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ support.support_type }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(support.amount) }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(support.date_granted) }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ support.status }}</TableCell>
-                                <TableCell class="text-sm text-muted-foreground">{{ recordLabel(support.financial_record) }}</TableCell>
-                                <TableCell v-if="showActions" class="text-center">
-                                    <div class="flex flex-wrap justify-center gap-2">
-                                        <Link v-if="canEdit" :href="currentUrl ? `/external-supports/${support.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/external-supports/${support.id}/edit`">
-                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
-                                                <Pencil class="h-4 w-4" />
-                                                Edit
-                                            </Button>
-                                        </Link>
-                                        <Button
-                                            v-if="canDelete"
-                                            @click="deleteSupport(support)"
-                                            variant="ghost"
-                                            size="sm"
-                                            class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </TableCell>
+                                </TableHead>
+                                <TableHead class="text-muted-foreground">Provider</TableHead>
+                                <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                                <TableHead class="text-muted-foreground">Support Type</TableHead>
+                                <TableHead class="text-muted-foreground">Amount</TableHead>
+                                <TableHead class="text-muted-foreground">Granted</TableHead>
+                                <TableHead class="text-muted-foreground">Status</TableHead>
+                                <TableHead class="text-muted-foreground">Linked Record</TableHead>
+                                <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
                             </TableRow>
-                        </TableBody>
-                    </Table>
-                </div>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-if="supports.data.length === 0">
+                                    <TableCell :colspan="(showActions ? 8 : 7) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
+                                        No external support records found.
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-for="support in supports.data" :key="support.id">
+                                    <TableCell v-if="canBulkDelete" class="w-12">
+                                        <Checkbox
+                                            :model-value="isSelected(support.id)"
+                                            :aria-label="`Select ${support.provider_name}`"
+                                            @update:model-value="(checked) => toggleOne(support.id, checked)"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300">
+                                                <LifeBuoy class="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-foreground">{{ support.provider_name }}</div>
+                                                <div class="text-xs text-muted-foreground">{{ support.support_type }}</div>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ support.cooperative.name }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ support.support_type }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ formatAmount(support.amount) }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ formatDate(support.date_granted) }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ support.status }}</TableCell>
+                                    <TableCell class="text-sm text-muted-foreground">{{ recordLabel(support.financial_record) }}</TableCell>
+                                    <TableCell v-if="showActions" class="text-center">
+                                        <div class="flex flex-wrap justify-center gap-2">
+                                            <Link v-if="canEdit" :href="currentUrl ? `/external-supports/${support.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/external-supports/${support.id}/edit`">
+                                                <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
+                                                    <Pencil class="h-4 w-4" />
+                                                    Edit
+                                                </Button>
+                                            </Link>
+                                            <Button
+                                                v-if="canDelete"
+                                                @click="deleteSupport(support)"
+                                                variant="ghost"
+                                                size="sm"
+                                                class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
 
-                <div v-if="supports.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="text-sm text-muted-foreground">
-                            Showing {{ (supports.current_page - 1) * supports.per_page + 1 }} to
-                            {{ Math.min(supports.current_page * supports.per_page, supports.total) }} of
-                            {{ supports.total }} supports
-                        </div>
-                        <div class="flex flex-wrap gap-2" aria-label="External supports pagination">
-                            <Button
-                                v-for="page in supports.last_page"
-                                :key="page"
-                                variant="outline"
-                                size="sm"
-                                :disabled="page === supports.current_page"
-                                @click="router.get('/external-supports', { ...filters, page }, { preserveScroll: true, preserveState: true })"
-                            >
-                                {{ page }}
-                            </Button>
+                    <div v-if="supports.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="text-sm text-muted-foreground">
+                                Showing {{ (supports.current_page - 1) * supports.per_page + 1 }} to
+                                {{ Math.min(supports.current_page * supports.per_page, supports.total) }} of
+                                {{ supports.total }} supports
+                            </div>
+                            <div class="flex flex-wrap gap-2" aria-label="External supports pagination">
+                                <Button
+                                    v-for="page in supports.last_page"
+                                    :key="page"
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="page === supports.current_page"
+                                    @click="router.get('/external-supports', { ...filters, page }, { preserveScroll: true, preserveState: true })"
+                                >
+                                    {{ page }}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </FinanceShellLayout>
 </template>

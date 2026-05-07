@@ -13,9 +13,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateBack } from '@/composables/useCreateBack';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction, notifySuccess } from '@/lib/alerts';
+import Swal from 'sweetalert2';
 
 interface Cooperative {
     id: number;
@@ -271,15 +271,37 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    goBack();
+const fundingCoopId = computed(() =>
+    selectedActivity.value?.coop_id || form.coop_id || null
+);
+
+const handleBack = () => {
+    if (page.url.startsWith('/cooperatives/') && fundingCoopId.value) {
+        window.location.href =
+            `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
+        return;
+    }
+    window.location.href = fundingSourceBasePath.value;
 };
 
-const { goBack } = useCreateBack({
-    fallbackHref: fundingSourceBasePath.value,
-    cooperativeId: computed(() => selectedActivity.value?.coop_id || form.coop_id || null),
-    cooperativeTab: 'activities-projects',
-});
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
+    if (page.url.startsWith('/cooperatives/') && fundingCoopId.value) {
+        window.location.href =
+            `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
+        return;
+    }
+    window.location.href = fundingSourceBasePath.value;
+};
 </script>
 
 <template>
@@ -290,7 +312,7 @@ const { goBack } = useCreateBack({
                     <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Funding Source</h1>
                     <p class="text-sm text-muted-foreground">Record funding source details for a cooperative or activity.</p>
                 </div>
-                <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
+                <Button variant="outline" size="sm" class="gap-2" type="button" @click="handleBack">
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </Button>
@@ -539,7 +561,7 @@ const { goBack } = useCreateBack({
                     </div>
 
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>

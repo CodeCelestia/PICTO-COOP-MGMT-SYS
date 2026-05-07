@@ -25,6 +25,7 @@ return new class extends Migration
             $table->enum('type_of_assistance', ['Grant', 'Loan', 'Training', 'Equipment', 'Technical Assistance', 'Other'])->nullable();
             $table->string('reference_doc')->nullable();
             $table->string('recorded_by')->nullable();
+            $table->string('origin')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

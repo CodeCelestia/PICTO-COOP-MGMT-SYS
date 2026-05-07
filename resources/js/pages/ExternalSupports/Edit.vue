@@ -13,8 +13,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateBack } from '@/composables/useCreateBack';
-import AppLayout from '@/layouts/AppLayout.vue';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import Swal from 'sweetalert2';
 
 interface Cooperative {
     id: number;
@@ -45,6 +45,7 @@ interface Props {
     support: ExternalSupport;
     cooperatives: Cooperative[];
     financialRecords: FinancialRecordOption[];
+    cooperative?: { id: number; name: string } | null;
 }
 
 const props = defineProps<Props>();
@@ -54,10 +55,16 @@ const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissi
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canUpdateSupport = computed(() => permissions.value.includes('update financial-&-support'));
-const { goBack } = useCreateBack({ fallbackHref: '/external-supports' });
+const coopIdFromUrl = computed(() => {
+    if (props.cooperative?.id) return props.cooperative.id;
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    return param ? parseInt(param) : null;
+});
+const isFromCoopContext = computed(() => coopIdFromUrl.value !== null);
+const isPerCoopRoute = computed(() => !!props.cooperative?.id);
 
 const form = useForm({
-    coop_id: props.support.coop_id.toString(),
+    coop_id: coopIdFromUrl.value?.toString() ?? '',
     financial_record_id: props.support.financial_record_id?.toString() || 'none',
     support_type: props.support.support_type,
     provider_name: props.support.provider_name,
@@ -86,13 +93,43 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    goBack();
+const handleBack = () => {
+    if (isPerCoopRoute.value) {
+        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=finance&subtab=external-support`;
+        return;
+    }
+    if (coopIdFromUrl.value) {
+        window.location.href = `/finance/external-supports?coop_id=${coopIdFromUrl.value}`;
+        return;
+    }
+    window.location.href = '/finance/external-supports';
+};
+
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
+    if (isPerCoopRoute.value) {
+        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=finance&subtab=external-support`;
+        return;
+    }
+    if (coopIdFromUrl.value) {
+        window.location.href = `/finance/external-supports?coop_id=${coopIdFromUrl.value}`;
+        return;
+    }
+    window.location.href = '/finance/external-supports';
 };
 </script>
 
 <template>
-    <AppLayout>
+    <FinanceShellLayout active-tab="external-supports" :hide-tabs="isFromCoopContext">
         <div class="space-y-6 p-4 sm:p-6">
             <div class="space-y-1">
                 <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Edit External Support</h1>
@@ -109,7 +146,7 @@ const cancel = () => {
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <Label for="coop_id">Cooperative</Label>
-                                <Select v-model="form.coop_id" :disabled="isCoopAdmin">
+                                <Select v-model="form.coop_id" :disabled="isCoopAdmin || isFromCoopContext">
                                     <SelectTrigger id="coop_id" :class="{ 'border-red-500': form.errors.coop_id }">
                                         <SelectValue placeholder="Select cooperative" />
                                     </SelectTrigger>
@@ -223,7 +260,7 @@ const cancel = () => {
                     </div>
 
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
@@ -235,5 +272,5 @@ const cancel = () => {
                 </form>
             </div>
         </div>
-    </AppLayout>
+    </FinanceShellLayout>
 </template>

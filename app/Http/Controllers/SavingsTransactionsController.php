@@ -61,6 +61,7 @@ class SavingsTransactionsController extends Controller
                 'purpose' => 'Savings account transaction',
                 'date_recorded' => now()->toDateString(),
                 'recorded_by' => $user?->name,
+                'origin' => 'savings',
             ]);
         });
 

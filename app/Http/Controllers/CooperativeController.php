@@ -686,6 +686,9 @@ class CooperativeController extends Controller
             'savings' => $savings,
             'financialRecords' => $financialRecords,
             'fundingSources' => $fundingSources,
+            'externalSupports' => \App\Models\ExternalSupport::where('coop_id', $cooperative->id)
+                ->orderByDesc('date_granted')
+                ->get(),
             'chairperson' => $chairperson ? [
                 'id' => $chairperson->id,
                 'position' => $chairperson->position,

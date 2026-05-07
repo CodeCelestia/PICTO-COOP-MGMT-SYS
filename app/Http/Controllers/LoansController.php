@@ -537,6 +537,7 @@ class LoansController extends \App\Http\Controllers\Controller
                 'date_recorded' => now()->toDateString(),
                 'reference_doc' => (string) $loan->id,
                 'recorded_by' => $request->user()?->name,
+                'origin' => 'loan_disbursement',
             ]);
         });
 

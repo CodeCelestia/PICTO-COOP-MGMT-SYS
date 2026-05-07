@@ -15,6 +15,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { confirmAction, notifySuccess } from '@/lib/alerts';
+import Swal from 'sweetalert2';
 
 interface Cooperative {
     id: number;
@@ -289,8 +290,27 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    router.get(fundingSourceBasePath.value);
+const fundingCoopId = computed(() =>
+    selectedActivity.value?.coop_id || form.coop_id || null
+);
+
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
+    if (page.url.startsWith('/cooperatives/') && fundingCoopId.value) {
+        window.location.href =
+            `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
+        return;
+    }
+    window.location.href = fundingSourceBasePath.value;
 };
 </script>
 
@@ -560,7 +580,7 @@ const cancel = () => {
                     </div>
 
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>

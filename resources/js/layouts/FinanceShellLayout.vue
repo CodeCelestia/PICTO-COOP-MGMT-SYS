@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
-type FinanceTabId = 'funding-sources' | 'financial-records' | 'loans' | 'savings' | 'reports';
+type FinanceTabId = 'funding-sources' | 'financial-records' | 'loans' | 'savings' | 'external-supports' | 'reports';
 
 const props = defineProps<{
     activeTab: FinanceTabId;
@@ -17,6 +17,7 @@ const financeTabs: LiftedTab[] = [
     { id: 'financial-records', label: 'Financial Records' },
     { id: 'loans', label: 'Loans' },
     { id: 'savings', label: 'Savings' },
+    { id: 'external-supports', label: 'External Support' },
     { id: 'reports', label: 'Reports' },
 ];
 
@@ -25,6 +26,7 @@ const tabHref: Record<FinanceTabId, string> = {
     'financial-records': '/finance/financial-records',
     loans: '/finance/loans',
     savings: '/finance/savings',
+    'external-supports': '/finance/external-supports',
     reports: '/finance/reports/statements',
 };
 
@@ -44,6 +46,10 @@ const tabHeader: Record<FinanceTabId, { title: string; subtitle: string }> = {
     savings: {
         title: 'Savings',
         subtitle: 'Manage member savings accounts and transactions',
+    },
+    'external-supports': {
+        title: 'External Support',
+        subtitle: 'Track external grants, training, and assistance',
     },
     reports: {
         title: 'Financial Reports',

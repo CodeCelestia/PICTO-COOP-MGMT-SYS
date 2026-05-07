@@ -80,6 +80,7 @@ class LoanPaymentsController extends Controller
                 'date_recorded' => $validated['paid_at'] ?? now()->toDateString(),
                 'reference_doc' => (string) $loan->id,
                 'recorded_by' => $user?->name,
+                'origin' => 'loan_payment',
             ]);
 
             if ($newBalance <= 0) {

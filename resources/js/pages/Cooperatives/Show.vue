@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Building2, ClipboardList, FileText, GraduationCap, HandCoins, Landmark, Pencil, PiggyBank, ShieldCheck, Users, UsersRound, Wallet } from 'lucide-vue-next';
+import { Building2, ClipboardList, FileText, GraduationCap, HandCoins, HandHeart, Landmark, Pencil, PiggyBank, ShieldCheck, Users, UsersRound, Wallet } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import LiftedTabs from '@/components/LiftedTabs.vue';
 import type { LiftedTab } from '@/components/LiftedTabs.vue';
 import ActivityListPanel from '@/components/panels/ActivityListPanel.vue';
 import FinanceFundingPanel from '@/components/panels/FinanceFundingPanel.vue';
+import FinanceExternalSupportPanel from '@/components/panels/FinanceExternalSupportPanel.vue';
 import FinanceLoanPanel from '@/components/panels/FinanceLoanPanel.vue';
 import FinanceRecordsPanel from '@/components/panels/FinanceRecordsPanel.vue';
 import FinanceSavingsPanel from '@/components/panels/FinanceSavingsPanel.vue';
@@ -201,6 +202,18 @@ const props = defineProps<{
         activity_id: number | null;
         activity?: { title?: string } | null;
     }>;
+    externalSupports: Array<{
+        id: number;
+        coop_id: number;
+        support_type: string;
+        provider_name: string;
+        amount: string | null;
+        date_granted: string | null;
+        date_completed: string | null;
+        status: string;
+        remarks: string | null;
+        financial_record_id: number | null;
+    }>;
     chairperson: KeyOfficer | null;
     generalManager: KeyOfficer | null;
     trainingFilters: {
@@ -242,6 +255,7 @@ const financeTabs: LiftedTab[] = [
     { id: 'savings', label: 'Savings', icon: PiggyBank },
     { id: 'financial-records', label: 'Financial Records', icon: FileText },
     { id: 'funding-sources', label: 'Funding Sources', icon: HandCoins },
+    { id: 'external-support', label: 'External Support', icon: HandHeart },
 ];
 
 const page = usePage();
@@ -254,7 +268,7 @@ const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
 const activeTab = ref('profile');
-const activeFinanceTab = ref<'loans' | 'savings' | 'financial-records' | 'funding-sources'>('loans');
+const activeFinanceTab = ref<'loans' | 'savings' | 'financial-records' | 'funding-sources' | 'external-support'>('loans');
 
 const addLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
@@ -932,6 +946,13 @@ const statusBadgeClass = computed(() => {
 
                         <div v-show="activeFinanceTab === 'funding-sources'">
                             <FinanceFundingPanel :cooperative="cooperative" :funding-sources="fundingSourcesForPanel" />
+                        </div>
+
+                        <div v-show="activeFinanceTab === 'external-support'">
+                            <FinanceExternalSupportPanel
+                                :cooperative="cooperative"
+                                :external-supports="externalSupports"
+                            />
                         </div>
                     </div>
                 </CardContent>

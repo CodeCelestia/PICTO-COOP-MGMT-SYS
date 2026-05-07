@@ -13,8 +13,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateBack } from '@/composables/useCreateBack';
-import AppLayout from '@/layouts/AppLayout.vue';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import Swal from 'sweetalert2';
 
 interface Cooperative {
     id: number;
@@ -27,17 +27,20 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const coopIdFromUrl = computed(() => {
+    const param = new URLSearchParams(window.location.search).get('coop_id');
+    return param ? parseInt(param) : null;
+});
+
 const page = usePage();
 const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissions?: string[] } | undefined);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateRecord = computed(() => permissions.value.includes('create financial-&-support'));
 
-const { goBack, returnToHref } = useCreateBack({ fallbackHref: '/financial-records' });
-
 const form = useForm({
     coop_id: props.cooperatives[0]?.id?.toString() || '',
-    return_to: returnToHref.value,
+    return_to: '',
     period: '',
     type: 'Income',
     amount: '',
@@ -56,6 +59,11 @@ const form = useForm({
 const typeOptions = ['Income', 'Expense', 'Grant', 'Loan', 'Support', 'Capital'];
 const assistanceTypes = ['Grant', 'Loan', 'Training', 'Equipment', 'Technical Assistance', 'Other'];
 
+const resolvedCoopId = computed(() =>
+    coopIdFromUrl.value
+    ?? (form.coop_id ? parseInt(String(form.coop_id)) : null)
+);
+
 const submit = () => {
     if (!canCreateRecord.value) return;
     form.post('/financial-records', {
@@ -63,20 +71,44 @@ const submit = () => {
     });
 };
 
-const cancel = () => {
-    goBack();
+const handleBack = () => {
+    if (resolvedCoopId.value) {
+        window.location.href =
+            `/cooperatives/${resolvedCoopId.value}?tab=finance&subtab=financial-records`;
+        return;
+    }
+    window.location.href = '/finance/financial-records';
+};
+
+const handleCancel = async () => {
+    const result = await Swal.fire({
+        title: 'Are you sure you want to cancel?',
+        text: 'Any unsaved changes will be lost.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep editing',
+        confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) { return; }
+    if (resolvedCoopId.value) {
+        window.location.href =
+            `/cooperatives/${resolvedCoopId.value}?tab=finance&subtab=financial-records`;
+        return;
+    }
+    window.location.href = '/finance/financial-records';
 };
 </script>
 
 <template>
-    <AppLayout>
+    <FinanceShellLayout active-tab="financial-records" :hide-tabs="!!resolvedCoopId">
         <div class="space-y-6 p-4 sm:p-6">
             <div class="flex items-start justify-between gap-4">
                 <div class="space-y-1">
                     <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Add Financial Record</h1>
                     <p class="text-sm text-muted-foreground">Record cooperative financial data.</p>
                 </div>
-                <Button variant="outline" size="sm" class="gap-2" type="button" @click="goBack">
+                <Button variant="outline" size="sm" class="gap-2" type="button" @click="handleBack">
                     <ArrowLeft class="h-4 w-4" />
                     Back
                 </Button>
@@ -232,7 +264,7 @@ const cancel = () => {
                     </div>
 
                     <div class="flex justify-end gap-3 border-t border-border pt-6">
-                        <Button @click="cancel" type="button" variant="outline" class="gap-2">
+                        <Button @click="handleCancel" type="button" variant="outline" class="gap-2">
                             <X class="h-4 w-4" />
                             Cancel
                         </Button>
@@ -244,5 +276,5 @@ const cancel = () => {
                 </form>
             </div>
         </div>
-    </AppLayout>
+    </FinanceShellLayout>
 </template>
