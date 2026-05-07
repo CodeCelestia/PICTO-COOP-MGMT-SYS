@@ -64,6 +64,10 @@ const resolvedCoopId = computed(() =>
     ?? (form.coop_id ? parseInt(String(form.coop_id)) : null)
 );
 
+const isPerCoopRoute = computed(() =>
+    window.location.pathname.startsWith('/cooperatives/')
+);
+
 const submit = () => {
     if (!canCreateRecord.value) return;
     form.post('/financial-records', {
@@ -72,12 +76,14 @@ const submit = () => {
 };
 
 const handleBack = () => {
-    if (resolvedCoopId.value) {
+    if (isPerCoopRoute.value && resolvedCoopId.value) {
         window.location.href =
             `/cooperatives/${resolvedCoopId.value}?tab=finance&subtab=financial-records`;
         return;
     }
-    window.location.href = '/finance/financial-records';
+    window.location.href = resolvedCoopId.value
+        ? `/finance/financial-records?coop_id=${resolvedCoopId.value}`
+        : '/finance/financial-records';
 };
 
 const handleCancel = async () => {
@@ -91,12 +97,14 @@ const handleCancel = async () => {
         confirmButtonColor: '#dc2626',
     });
     if (!result.isConfirmed) { return; }
-    if (resolvedCoopId.value) {
+    if (isPerCoopRoute.value && resolvedCoopId.value) {
         window.location.href =
             `/cooperatives/${resolvedCoopId.value}?tab=finance&subtab=financial-records`;
         return;
     }
-    window.location.href = '/finance/financial-records';
+    window.location.href = resolvedCoopId.value
+        ? `/finance/financial-records?coop_id=${resolvedCoopId.value}`
+        : '/finance/financial-records';
 };
 </script>
 

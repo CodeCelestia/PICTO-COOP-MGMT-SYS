@@ -294,6 +294,19 @@ const fundingCoopId = computed(() =>
     selectedActivity.value?.coop_id || form.coop_id || null
 );
 
+const handleBack = () => {
+    if (page.url.startsWith('/cooperatives/') && fundingCoopId.value) {
+        window.location.href =
+            `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
+        return;
+    }
+    const globalCoopId = fundingCoopId.value
+        ?? new URLSearchParams(window.location.search).get('coop_id');
+    window.location.href = globalCoopId
+        ? `${fundingSourceBasePath.value}?coop_id=${globalCoopId}`
+        : fundingSourceBasePath.value;
+};
+
 const handleCancel = async () => {
     const result = await Swal.fire({
         title: 'Are you sure you want to cancel?',
@@ -310,7 +323,11 @@ const handleCancel = async () => {
             `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
         return;
     }
-    window.location.href = fundingSourceBasePath.value;
+    const globalCoopId = fundingCoopId.value
+        ?? new URLSearchParams(window.location.search).get('coop_id');
+    window.location.href = globalCoopId
+        ? `${fundingSourceBasePath.value}?coop_id=${globalCoopId}`
+        : fundingSourceBasePath.value;
 };
 </script>
 

@@ -309,7 +309,11 @@ const backHref = computed(() => {
         return `/cooperatives/${props.preselectedCoopId}?tab=finance&subtab=loans`;
     }
 
-    return '/finance/loans';
+    const urlCoopId = new URLSearchParams(window.location.search)
+        .get('coop_id');
+    return urlCoopId
+        ? `/finance/loans?coop_id=${urlCoopId}`
+        : '/finance/loans';
 });
 
 const handleBack = () => {

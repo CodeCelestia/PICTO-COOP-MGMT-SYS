@@ -8,10 +8,9 @@ import { Eye, Plus, ArrowLeft } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { computed, ref } from 'vue';
 
-const isFromCoopContext = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return !!coopId;
-});
+const isFromCoopContext = computed(() =>
+    window.location.pathname.startsWith('/cooperatives/')
+);
 
 const coopIdFromUrl = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
@@ -32,8 +31,10 @@ const selectCoop = (coop: Cooperative) => {
 };
 
 const backToCooperatives = () => {
-    selectedCoop.value = null;
-    window.scrollTo(0, 0);
+    router.get(window.location.pathname, {}, {
+        preserveState: false,
+        preserveScroll: false,
+    });
 };
 
 interface FundingSource {
@@ -71,7 +72,9 @@ const props = defineProps<{
 const selectedCoop = ref<Cooperative | null>((() => {
     const param = new URLSearchParams(window.location.search).get('coop_id');
     if (!param) return null;
-    return props.cooperatives?.find(c => c.id === parseInt(param)) ?? null;
+    return props.cooperatives?.find(c => c.id === parseInt(param))
+        ?? props.cooperative
+        ?? null;
 })());
 
 const activeCoop = computed(() => selectedCoop.value);
@@ -132,7 +135,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
 
         <!-- Funding Sources List (shown in coop context or after coop selection in global mode) -->
         <div v-if="showFundingSourcesList" class="mt-6">
-            <div v-if="isGlobalMode && activeCoop" class="mb-4 flex items-center gap-2">
+            <div v-if="!isFromCoopContext && activeCoop" class="mb-4 flex items-center gap-2">
                 <Button variant="outline" size="sm" @click="backToCooperatives" class="gap-2">
                     <ArrowLeft class="h-4 w-4" />
                     Back to Cooperatives

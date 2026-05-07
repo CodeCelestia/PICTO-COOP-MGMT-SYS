@@ -91,10 +91,16 @@ const coopIdFromUrl = computed(() => {
     return param ? parseInt(param) : null;
 });
 
+const isFromCoopContext = computed(() =>
+    window.location.pathname.startsWith('/cooperatives/')
+);
+
 const selectedCoop = ref<{ id: number; name: string } | null>((() => {
     const param = new URLSearchParams(window.location.search).get('coop_id');
     if (!param) return null;
-    return props.cooperatives?.find(c => c.id === parseInt(param)) ?? null;
+    return props.cooperatives?.find(c => c.id === parseInt(param))
+        ?? props.cooperative
+        ?? null;
 })());
 
 const activeCoop = computed(() => selectedCoop.value);
@@ -116,8 +122,10 @@ const selectCoop = (coop: { id: number; name: string }) => {
 };
 
 const backToCooperatives = () => {
-    selectedCoop.value = null;
-    window.scrollTo(0, 0);
+    router.get(window.location.pathname, {}, {
+        preserveState: false,
+        preserveScroll: false,
+    });
 };
 
 const search = ref(props.filters.search || '');
@@ -230,7 +238,7 @@ const bulkDeleteSupports = async () => {
 </script>
 
 <template>
-    <FinanceShellLayout active-tab="external-supports" :hide-tabs="false">
+    <FinanceShellLayout active-tab="external-supports" :hide-tabs="isFromCoopContext">
         <div class="space-y-6 p-4 sm:p-6">
             <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -290,7 +298,7 @@ const bulkDeleteSupports = async () => {
             </div>
 
             <div v-if="showSupportsList">
-                <div v-if="isGlobalMode && activeCoop"
+                 <div v-if="!isFromCoopContext && activeCoop"
                      class="mb-4 flex items-center gap-2">
                     <Button variant="outline" size="sm"
                             @click="backToCooperatives" class="gap-2">

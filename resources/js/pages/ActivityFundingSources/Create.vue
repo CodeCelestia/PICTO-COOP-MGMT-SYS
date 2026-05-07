@@ -281,7 +281,11 @@ const handleBack = () => {
             `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
         return;
     }
-    window.location.href = fundingSourceBasePath.value;
+    const globalCoopId = fundingCoopId.value
+        ?? new URLSearchParams(window.location.search).get('coop_id');
+    window.location.href = globalCoopId
+        ? `${fundingSourceBasePath.value}?coop_id=${globalCoopId}`
+        : fundingSourceBasePath.value;
 };
 
 const handleCancel = async () => {
@@ -300,7 +304,11 @@ const handleCancel = async () => {
             `/cooperatives/${fundingCoopId.value}?tab=finance&subtab=funding-sources`;
         return;
     }
-    window.location.href = fundingSourceBasePath.value;
+    const globalCoopId = fundingCoopId.value
+        ?? new URLSearchParams(window.location.search).get('coop_id');
+    window.location.href = globalCoopId
+        ? `${fundingSourceBasePath.value}?coop_id=${globalCoopId}`
+        : fundingSourceBasePath.value;
 };
 </script>
 
