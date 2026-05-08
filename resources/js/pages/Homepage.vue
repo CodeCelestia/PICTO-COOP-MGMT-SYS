@@ -52,6 +52,8 @@ const syncedAt = ref<string>(props.syncedAt || new Date().toISOString());
 const currentIndex = ref(0);
 const isHoveringCarousel = ref(false);
 const manilaNow = ref(new Date());
+const isReloading = ref(false);
+const skipSync = ref(false);
 let carouselInterval: number | null = null;
 let dateTimeInterval: number | null = null;
 let homepagePollingInterval: number | null = null;
@@ -222,10 +224,14 @@ const startCarousel = () => {
 
     carouselInterval = window.setInterval(() => {
         goToNextSlide();
-    }, 5000);
+    }, 10000);
 };
 
 const refreshHomepageData = () => {
+    if (isReloading.value) return;
+    
+    isReloading.value = true;
+    skipSync.value = true;
     router.reload({
         only: ['carouselPhotos', 'whatsNewEntries', 'syncedAt'],
         onSuccess: () => {
@@ -238,6 +244,12 @@ const refreshHomepageData = () => {
             if (payload) {
                 hydrateFromPayload(payload);
             }
+            skipSync.value = false;
+            isReloading.value = false;
+        },
+        onError: () => {
+            skipSync.value = false;
+            isReloading.value = false;
         },
     });
 };
@@ -347,13 +359,16 @@ watch(
     },
 );
 
-watch([carouselPhotos, whatsNewEntries, syncedAt], syncPayloadLocally, { deep: true });
+watch([carouselPhotos, whatsNewEntries, syncedAt], () => {
+    if (!skipSync.value) {
+        syncPayloadLocally();
+    }
+}, { deep: true });
 
 onMounted(() => {
     hydrateFromStorageIfNewer();
     startCarousel();
     startDateTimeTicker();
-    startHomepagePolling();
 
     window.addEventListener(HOMEPAGE_DISPLAY_SYNC_EVENT, onHomepageDisplayUpdated as EventListener);
     window.addEventListener('storage', onStorageSynced);
@@ -362,7 +377,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
     stopCarousel();
     stopDateTimeTicker();
-    stopHomepagePolling();
 
     window.removeEventListener(HOMEPAGE_DISPLAY_SYNC_EVENT, onHomepageDisplayUpdated as EventListener);
     window.removeEventListener('storage', onStorageSynced);
@@ -374,7 +388,7 @@ onBeforeUnmount(() => {
         <Head title="Homepage" />
 
         <div class="space-y-6 p-4 sm:p-6">
-            <Card class="flex min-h-150 flex-col overflow-hidden border border-border/70">
+            <Card class="flex min-h-128 flex-col overflow-hidden border border-border/70">
                 <CardHeader class="space-y-1">
                     <CardTitle class="flex flex-col gap-1 text-base sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:text-xl">
                         <span>{{ welcomeBackText }}</span>
@@ -389,7 +403,7 @@ onBeforeUnmount(() => {
 
                 <CardContent class="flex-1 p-0">
                     <div
-                        class="relative h-full min-h-120 w-full overflow-hidden bg-muted sm:min-h-125 lg:min-h-130"
+                        class="relative h-100 w-full overflow-hidden bg-muted"
                         @mouseenter="isHoveringCarousel = true"
                         @mouseleave="isHoveringCarousel = false"
                     >

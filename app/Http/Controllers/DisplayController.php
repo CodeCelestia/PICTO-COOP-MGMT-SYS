@@ -18,29 +18,32 @@ class DisplayController extends Controller
     ) {
     }
 
-    private function authorizeDisplay(): void
+    private function authorizePermission(string $permission): void
     {
-        if (! auth()->user()?->can('manage-system-settings')) {
+        if (! auth()->user()?->can($permission)) {
             abort(403);
         }
     }
 
     public function index(): Response
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('view display');
 
-        return Inertia::render('Display', $this->homepageDisplayService->payload());
+        return Inertia::render('Display', array_merge($this->homepageDisplayService->payload(), [
+            'canManageCarousel' => auth()->user()?->can('manage carousel'),
+            'canManageWhatsNew' => auth()->user()?->can('manage whats new'),
+        ]));
     }
 
     public function storeCarouselPhoto(Request $request): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage carousel');
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ], [
             'photo.mimes' => 'Invalid file type. Allowed: JPG, JPEG, PNG, WEBP.',
-            'photo.max' => 'File too large. Max size is 2MB.',
+            'photo.max' => 'File too large. Maximum upload size is 5MB.',
         ]);
 
         $file = $validated['photo'];
@@ -63,7 +66,7 @@ class DisplayController extends Controller
 
     public function setDefaultCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage carousel');
 
         $this->homepageDisplayService->setDefaultPhoto($carouselPhoto);
 
@@ -72,7 +75,7 @@ class DisplayController extends Controller
 
     public function toggleCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage carousel');
 
         $carouselPhoto->forceFill([
             'is_enabled' => ! $carouselPhoto->is_enabled,
@@ -83,7 +86,7 @@ class DisplayController extends Controller
 
     public function destroyCarouselPhoto(HomepageCarouselPhoto $carouselPhoto): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage carousel');
 
         if ($carouselPhoto->is_core) {
             return to_route('display.index')->with('error', 'Default photo cannot be deleted.');
@@ -103,7 +106,7 @@ class DisplayController extends Controller
 
     public function storeWhatsNew(Request $request): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage whats new');
 
         $validated = $request->validate([
             'version' => ['required', 'string', 'max:120'],
@@ -117,7 +120,7 @@ class DisplayController extends Controller
 
     public function updateWhatsNew(Request $request, HomepageWhatsNewEntry $whatsNewEntry): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage whats new');
 
         $validated = $request->validate([
             'version' => ['required', 'string', 'max:120'],
@@ -131,7 +134,7 @@ class DisplayController extends Controller
 
     public function destroyWhatsNew(HomepageWhatsNewEntry $whatsNewEntry): RedirectResponse
     {
-        $this->authorizeDisplay();
+        $this->authorizePermission('manage whats new');
 
         $whatsNewEntry->delete();
 

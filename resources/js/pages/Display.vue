@@ -22,6 +22,8 @@ interface Props {
     carouselPhotos: HomepageCarouselPhoto[];
     whatsNewEntries: HomepageWhatsNewEntry[];
     syncedAt: string;
+    canManageCarousel: boolean;
+    canManageWhatsNew: boolean;
 }
 
 type PagePayload = {
@@ -43,6 +45,8 @@ const validationErrors = computed<Record<string, string>>(() => (page.props.erro
 const carouselPhotos = ref<HomepageCarouselPhoto[]>(props.carouselPhotos || []);
 const whatsNewEntries = ref<HomepageWhatsNewEntry[]>(props.whatsNewEntries || []);
 const syncedAt = ref<string>(props.syncedAt || new Date().toISOString());
+const canManageCarousel = computed(() => props.canManageCarousel);
+const canManageWhatsNew = computed(() => props.canManageWhatsNew);
 
 const versionInput = ref('');
 const descriptionInput = ref('');
@@ -53,7 +57,7 @@ const isUploadingPhoto = ref(false);
 const isSavingEntry = ref(false);
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const sortedCarouselPhotos = computed(() => {
     return [...carouselPhotos.value].sort((a, b) => {
@@ -72,6 +76,7 @@ const sortedWhatsNewEntries = computed(() => {
 });
 
 const isEditingEntry = computed(() => editingEntryId.value !== null);
+const displayGridClass = computed(() => (canManageWhatsNew.value ? 'xl:grid-cols-2' : 'xl:grid-cols-1'));
 
 const applyServerPayload = (payload: Record<string, unknown>) => {
     const nextCarouselPhotos = Array.isArray(payload.carouselPhotos) ? (payload.carouselPhotos as HomepageCarouselPhoto[]) : [];
@@ -157,11 +162,11 @@ const handleDescriptionKeydown = (event: KeyboardEvent) => {
 
 const getPhotoValidationMessage = (file: File): string | null => {
     if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
-        return 'Invalid file type. Allowed: JPG, JPEG, PNG, WEBP.';
+        return 'Invalid file type. Please upload a JPG, JPEG, PNG, or WEBP image.';
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
-        return 'File too large. Max size is 2MB.';
+        return 'File too large. Maximum upload size is 5MB.';
     }
 
     return null;
@@ -177,7 +182,11 @@ const handlePhotoSelected = (event: Event) => {
 
     const validationMessage = getPhotoValidationMessage(file);
     if (validationMessage) {
-        notifyError(validationMessage);
+        notifyError(validationMessage, {
+            title: 'Upload blocked',
+            icon: 'warning',
+            timer: 3500,
+        });
         clearSelectedFile();
         return;
     }
@@ -198,7 +207,10 @@ const handlePhotoSelected = (event: Event) => {
             },
             onError: (errors) => {
                 const fileError = errors.photo;
-                notifyError(fileError || 'Invalid file type. Allowed: JPG, JPEG, PNG, WEBP.');
+                notifyError(fileError || 'Upload failed. Please choose a JPG, JPEG, PNG, or WEBP image up to 5MB.', {
+                    title: 'Upload failed',
+                    timer: 3500,
+                });
             },
             onFinish: () => {
                 isUploadingPhoto.value = false;
@@ -396,8 +408,8 @@ watch(
                 </CardHeader>
             </Card>
 
-            <div class="grid gap-6 xl:grid-cols-2">
-                <Card class="border border-border/70">
+            <div class="grid gap-6" :class="displayGridClass">
+                <Card v-if="canManageCarousel" class="border border-border/70">
                     <CardHeader class="space-y-3">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div>
@@ -420,10 +432,10 @@ watch(
                         />
 
                         <p class="text-xs text-muted-foreground">
-                            Accepted formats: JPG, JPEG, PNG, WEBP. Maximum size: 2MB.
+                            Accepted formats: JPG, JPEG, PNG, WEBP. Maximum size: 5MB.
                         </p>
                         <p class="text-xs text-muted-foreground">
-                            Recommended image size: 1280×480px or wider (landscape orientation) for best display on the carousel.
+                            Recommended image size: 1200×400px or wider (landscape orientation) for best display on the carousel.
                         </p>
                     </CardHeader>
 
@@ -496,7 +508,7 @@ watch(
                     </CardContent>
                 </Card>
 
-                <Card class="border border-border/70">
+                <Card v-if="canManageWhatsNew" class="border border-border/70">
                     <CardHeader>
                         <CardTitle>What's New Management</CardTitle>
                         <CardDescription>Add, edit, and remove updates shown on Homepage.</CardDescription>

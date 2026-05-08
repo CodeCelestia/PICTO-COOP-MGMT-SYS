@@ -53,16 +53,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('homepage', [HomepageController::class, 'index'])->name('homepage');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::middleware('permission:manage-system-settings')->prefix('display')->name('display.')->group(function () {
+    Route::middleware('permission:view display')->prefix('display')->name('display.')->group(function () {
         Route::get('/', [DisplayController::class, 'index'])->name('index');
-        Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->name('carousel-photos.store');
-        Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->name('carousel-photos.default');
-        Route::patch('carousel-photos/{carouselPhoto}/toggle', [DisplayController::class, 'toggleCarouselPhoto'])->name('carousel-photos.toggle');
-        Route::delete('carousel-photos/{carouselPhoto}', [DisplayController::class, 'destroyCarouselPhoto'])->name('carousel-photos.destroy');
+        Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.store');
+        Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.default');
+        Route::patch('carousel-photos/{carouselPhoto}/toggle', [DisplayController::class, 'toggleCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.toggle');
+        Route::delete('carousel-photos/{carouselPhoto}', [DisplayController::class, 'destroyCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.destroy');
 
-        Route::post('whats-new', [DisplayController::class, 'storeWhatsNew'])->name('whats-new.store');
-        Route::put('whats-new/{whatsNewEntry}', [DisplayController::class, 'updateWhatsNew'])->name('whats-new.update');
-        Route::delete('whats-new/{whatsNewEntry}', [DisplayController::class, 'destroyWhatsNew'])->name('whats-new.destroy');
+        Route::post('whats-new', [DisplayController::class, 'storeWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.store');
+        Route::put('whats-new/{whatsNewEntry}', [DisplayController::class, 'updateWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.update');
+        Route::delete('whats-new/{whatsNewEntry}', [DisplayController::class, 'destroyWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.destroy');
     });
     
     // User Management (Provincial Admin & Super Admin)

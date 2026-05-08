@@ -7,6 +7,12 @@ type ConfirmOptions = {
     cancelButtonText?: string;
 };
 
+type NotifyErrorOptions = {
+    title?: string;
+    icon?: 'error' | 'warning' | 'info' | 'success' | 'question';
+    timer?: number;
+};
+
 export const confirmAction = async ({
     title,
     text,
@@ -38,12 +44,12 @@ export const notifySuccess = (message: string) => {
     });
 };
 
-export const notifyError = (message: string) => {
+export const notifyError = (message: string, options: NotifyErrorOptions = {}) => {
     void Swal.fire({
-        icon: 'error',
-        title: 'Error',
+        icon: options.icon || 'error',
+        title: options.title || 'Error',
         text: message,
-        timer: 3000,
+        timer: options.timer ?? 3000,
         timerProgressBar: true,
         showConfirmButton: false,
     });

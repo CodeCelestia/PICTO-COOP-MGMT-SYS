@@ -54,8 +54,10 @@ const selectedRoleId = ref<number | null>(null);
 const roleSearch = ref('');
 const permissionSearch = ref('');
 const ACCOUNT_ACCESS_MODULE_KEY = '__account_access__';
+const DISPLAY_MODULE_KEY = 'display';
 const RECYCLE_BIN_MODULE_KEY = 'recycle-bin';
 const ACCOUNT_ACCESS_PERMISSIONS = ['create user-accounts', 'assign roles'];
+const DISPLAY_PERMISSIONS = ['view display', 'manage carousel', 'manage whats new'];
 const isPermissionExplorerOpen = ref(false);
 const isCreateRoleDialogOpen = ref(false);
 const isModuleDialogOpen = ref(false);
@@ -88,6 +90,8 @@ const permissionGroups = computed(() => {
     props.permissions.forEach((permission) => {
         const moduleKey = ACCOUNT_ACCESS_PERMISSIONS.includes(permission.name)
             ? ACCOUNT_ACCESS_MODULE_KEY
+            : DISPLAY_PERMISSIONS.includes(permission.name)
+                ? DISPLAY_MODULE_KEY
             : permission.name.includes(' recycle-bin')
                 ? RECYCLE_BIN_MODULE_KEY
                 : (permission.name.split(' ').slice(1).join(' ') || 'general');
@@ -158,6 +162,9 @@ const activeModuleTotalCount = computed(() => activeModulePermissions.value.leng
 const formatModuleLabel = (moduleKey: string) => {
     if (moduleKey === ACCOUNT_ACCESS_MODULE_KEY) {
         return 'Account Access';
+    }
+    if (moduleKey === DISPLAY_MODULE_KEY) {
+        return 'Display';
     }
     if (moduleKey === RECYCLE_BIN_MODULE_KEY) {
         return 'Recycle Bin';

@@ -44,6 +44,9 @@ class PermissionSeeder extends Seeder
         // Add some special permissions
         $specialPermissions = [
             'manage-system-settings',
+            'view display',
+            'manage carousel',
+            'manage whats new',
             'view-all-cooperatives',
             'manage-permissions',
             'create user-accounts',
@@ -99,6 +102,7 @@ class PermissionSeeder extends Seeder
         $provincialAdmin->syncPermissions(
             Permission::whereNotIn('name', [
                 'manage-system-settings',
+                'manage whats new',
                 'manage-permissions',
                 'create user-accounts',
                 'read user-accounts',
