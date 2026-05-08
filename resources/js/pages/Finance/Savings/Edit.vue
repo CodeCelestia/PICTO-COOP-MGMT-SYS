@@ -3,6 +3,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { useCreateBack } from '@/composables/useCreateBack';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     savings: {
@@ -13,6 +14,8 @@ const props = defineProps<{
         cooperative?: { name?: string } | null;
     };
 }>();
+
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 
 const isFromCoopContext = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
@@ -28,7 +31,7 @@ const cooperativeName = computed(() => props.savings.cooperative?.name || 'Coope
 
 const fallbackHref = computed(() => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/finance/savings/${props.savings.id}?coop_id=${coopIdFromUrl.value}`;
+        return `/cooperatives/${coopSlug.value}/finance/savings/${props.savings.id}`;
     }
     return `/finance/savings/${props.savings.id}`;
 });
@@ -43,7 +46,7 @@ const form = useForm({
 
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=savings`;
     } else {
         goBack();
     }
@@ -63,7 +66,7 @@ const submit = () => {
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Edit Savings</span>
                 </nav>

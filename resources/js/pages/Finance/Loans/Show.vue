@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Pencil, Eye, File, FileText, Image } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,8 @@ const props = defineProps<{
     };
 }>();
 
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+
 const currentUrl = window.location.pathname + window.location.search;
 
 const coopIdFromUrl = computed(() => {
@@ -64,11 +66,11 @@ const cooperativeName = computed(() => props.loan.cooperative?.name || 'Cooperat
 
 const backHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}?tab=finance`;
+        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
     if (props.from === 'coop' && props.cooperative_id) {
-        return `/cooperatives/${props.cooperative_id}?tab=finance`;
+        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
     return '/finance/loans';
@@ -76,11 +78,11 @@ const backHref = computed(() => {
 
 const editHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/finance/loans/${props.loan.id}/edit?coop_id=${coopContextId.value}`;
+        return `/cooperatives/${coopSlug.value}/finance/loans/${props.loan.id}/edit`;
     }
 
     if (props.from === 'coop' && props.cooperative_id) {
-        return `/finance/loans/${props.loan.id}/edit?coop_id=${props.cooperative_id}`;
+        return `/cooperatives/${coopSlug.value}/finance/loans/${props.loan.id}/edit`;
     }
 
     return currentUrl ? `/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${props.loan.id}/edit`;
@@ -177,7 +179,7 @@ const getAttachmentIcon = (attachment: { extension: string }) => {
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Loan #{{ loan.id }}</span>
                 </nav>

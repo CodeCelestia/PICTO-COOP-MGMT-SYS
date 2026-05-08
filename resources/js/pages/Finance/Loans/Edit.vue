@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref } from 'vue';
 import { ArrowLeft, Eye, File, FileText, Image, Trash2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,8 @@ const props = defineProps<{
     cooperative_id?: number | null;
 }>();
 
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+
 const coopIdFromUrl = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return coopId ? parseInt(coopId) : null;
@@ -39,18 +42,18 @@ const isCoopContext = computed(() => coopContextId.value !== null);
 
 const backHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
-    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
+    return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
 });
 
 const fallbackHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
-    return `/finance/loans/${props.loan.id}${props.from === 'coop' && props.cooperative_id ? `?coop_id=${props.cooperative_id}` : ''}`;
+    return `/cooperatives/${coopSlug.value}/finance/loans/${props.loan.id}`;
 });
 
 const { returnToHref } = useCreateBack({ fallbackHref });
@@ -206,7 +209,7 @@ const submit = () => {
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ loan.cooperative?.name || 'Cooperative' }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ loan.cooperative?.name || 'Cooperative' }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Edit Loan #{{ loan.id }}</span>
                 </nav>

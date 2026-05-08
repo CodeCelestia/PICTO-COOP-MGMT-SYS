@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { computed as vueComputed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const isFromCoopContext = vueComputed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
@@ -23,6 +24,8 @@ const coopIdFromUrl = vueComputed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return coopId ? parseInt(coopId) : null;
 });
+
+const coopSlug = vueComputed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 import { computed, ref } from 'vue';
 
 interface FundingSource {
@@ -55,7 +58,7 @@ const props = defineProps<{
 const { goBack } = useCreateBack({ fallbackHref: '/finance/funding-sources' });
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=funding-sources`;
         return;
     }
 
@@ -110,7 +113,7 @@ const activityLabel = (source: FundingSource) => {
                     <div v-if="isFromCoopContext" class="mb-2 flex items-center gap-2 text-sm">
                         <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                         <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">Cooperative</a>
+                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">Cooperative</a>
                         <span class="text-muted-foreground">/</span>
                         <span class="text-foreground">Funding Source</span>
                     </div>

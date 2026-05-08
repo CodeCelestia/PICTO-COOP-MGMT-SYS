@@ -44,7 +44,10 @@ class LoansController extends \App\Http\Controllers\Controller
         $preselectedCoop = null;
 
         if ($isCoopContext && $cooperative instanceof \App\Models\Cooperative) {
-            $cooperative->load(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)]);
+            $cooperative->load([
+                'members' => fn ($q) => $q->where('membership_status', 'Active')->orderBy('last_name'),
+                'loanTypes' => fn ($q) => $q->where('is_active', true)
+            ]);
             $preselectedCoop = [
                 'id' => $cooperative->id,
                 'name' => $cooperative->name,
@@ -52,7 +55,10 @@ class LoansController extends \App\Http\Controllers\Controller
                 'loanTypes' => $cooperative->loanTypes,
             ];
         } elseif ($preselectedCoopId) {
-            $preselectedCoopModel = \App\Models\Cooperative::with(['members', 'loanTypes' => fn ($q) => $q->where('is_active', true)])->find($preselectedCoopId);
+            $preselectedCoopModel = \App\Models\Cooperative::with([
+                'members' => fn ($q) => $q->where('membership_status', 'Active')->orderBy('last_name'),
+                'loanTypes' => fn ($q) => $q->where('is_active', true)
+            ])->find($preselectedCoopId);
 
             $preselectedCoop = $preselectedCoopModel ? [
                 'id' => $preselectedCoopModel->id,
@@ -67,20 +73,26 @@ class LoansController extends \App\Http\Controllers\Controller
             ? (int) $preselectedMemberId
             : null;
 
+        // Resolve cooperative ID from route param or query param
+        $routeCoopId = $cooperative instanceof \App\Models\Cooperative
+            ? $cooperative->id
+            : (is_numeric($cooperative) ? (int)$cooperative : null);
+        $resolvedCoopId = $routeCoopId ?? ($coopId ? (int)$coopId : null);
+
         $membersQuery = Member::query()
             ->select(['id', 'first_name', 'last_name', 'coop_id'])
             ->with('cooperative:id,classification')
             ->where('membership_status', 'Active')
             ->orderBy('last_name');
 
-        if ($coopId) {
-            $membersQuery->where('coop_id', (int) $coopId);
+        if ($resolvedCoopId) {
+            $membersQuery->where('coop_id', $resolvedCoopId);
+        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $membersQuery->where('coop_id', $user->coop_id);
         }
 
         if ($this->isMemberOnly($user) && $user?->member_id) {
             $membersQuery->where('id', $user->member_id);
-        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
-            $membersQuery->where('coop_id', $user->coop_id);
         }
 
         $loanTypesQuery = LoanType::query()
@@ -88,11 +100,9 @@ class LoansController extends \App\Http\Controllers\Controller
             ->where('is_active', true)
             ->orderBy('name');
 
-        if ($coopId) {
-            $loanTypesQuery->where('cooperative_id', (int) $coopId);
-        }
-
-        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+        if ($resolvedCoopId) {
+            $loanTypesQuery->where('cooperative_id', $resolvedCoopId);
+        } elseif ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
             $loanTypesQuery->where('cooperative_id', $user->coop_id);
         }
 
@@ -319,6 +329,9 @@ class LoansController extends \App\Http\Controllers\Controller
 
     public function show(Request $request, Cooperative $cooperative, MemberLoan $loan): \Inertia\Response
     {
+        if ($cooperative === 'my') {
+            $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+        }
         $this->enforceLoanAccess($loan, $request->user());
 
         if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $loan->coop_id) {
@@ -355,6 +368,9 @@ class LoansController extends \App\Http\Controllers\Controller
 
     public function edit(Request $request, Cooperative $cooperative, MemberLoan $loan): \Inertia\Response
     {
+        if ($cooperative === 'my') {
+            $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+        }
         $this->enforceLoanAccess($loan, $request->user());
 
         if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $loan->coop_id) {
@@ -377,6 +393,9 @@ class LoansController extends \App\Http\Controllers\Controller
 
     public function update(Request $request, Cooperative $cooperative, MemberLoan $loan): RedirectResponse
     {
+        if ($cooperative === 'my') {
+            $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+        }
         if (!$request->user()?->can('update finance-member-loans')) {
             abort(403, 'You do not have permission to update loans.');
         }
@@ -440,6 +459,9 @@ class LoansController extends \App\Http\Controllers\Controller
 
     public function destroy(Request $request, Cooperative $cooperative, MemberLoan $loan): RedirectResponse
     {
+        if ($cooperative === 'my') {
+            $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+        }
         if (!$request->user()?->can('delete finance-member-loans')) {
             abort(403, 'You do not have permission to delete loans.');
         }

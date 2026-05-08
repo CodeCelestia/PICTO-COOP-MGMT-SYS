@@ -168,6 +168,9 @@ class FinancialRecordController extends Controller
 
         if (request()->routeIs('cooperatives.finance.financial-records.*')) {
             $cooperative = request()->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record created successfully.');
         }
 
@@ -246,6 +249,9 @@ class FinancialRecordController extends Controller
 
         if (request()->routeIs('cooperatives.finance.financial-records.*')) {
             $cooperative = request()->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record updated successfully.');
         }
 
@@ -264,6 +270,9 @@ class FinancialRecordController extends Controller
 
         if (request()->routeIs('cooperatives.finance.financial-records.*')) {
             $cooperative = request()->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record deleted successfully.');
         }
 

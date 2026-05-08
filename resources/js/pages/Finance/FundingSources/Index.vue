@@ -7,6 +7,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Plus, ArrowLeft } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { computed, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const isFromCoopContext = computed(() =>
     window.location.pathname.startsWith('/cooperatives/')
@@ -17,6 +18,8 @@ const coopIdFromUrl = computed(() => {
     return coopId ? parseInt(coopId) : null;
 });
 const currentUrl = window.location.pathname + window.location.search;
+
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 
 const isGlobalMode = computed(() => !coopIdFromUrl.value);
 
@@ -104,14 +107,14 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                     <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
                         <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                         <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
+                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
                         <span class="text-muted-foreground">/</span>
                         <span class="text-foreground">Funding Sources</span>
                     </div>
                 <h1 class="text-2xl font-semibold">Funding Sources</h1>
                 <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
             </div>
-            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/finance/funding-sources/create?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create')">
+            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/funding-sources/create` : (currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create')">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     New Funding Source
@@ -186,7 +189,7 @@ const categoryBadgeClass = (category: FundingSource['category']) => {
                         <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_released) }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="currentUrl ? `/finance/funding-sources/${item.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/funding-sources/${item.id}`">
+                                <Link :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/funding-sources/${item.id}` : (currentUrl ? `/finance/funding-sources/${item.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/funding-sources/${item.id}`)">
                                     <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                         <Eye class="h-4 w-4" />
                                         View

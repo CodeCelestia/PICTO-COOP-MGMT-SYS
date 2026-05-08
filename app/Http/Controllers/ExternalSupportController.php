@@ -52,6 +52,9 @@ class ExternalSupportController extends Controller
         if ($param instanceof \App\Models\Cooperative) {
             return $param;
         }
+        if ($param === 'my') {
+            return \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+        }
         if (is_numeric($param)) {
             return \App\Models\Cooperative::find($param);
         }

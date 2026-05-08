@@ -41,6 +41,7 @@ const auth = computed(() => page.props.auth as { isCoopAdmin?: boolean; permissi
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const permissions = computed<string[]>(() => auth.value?.permissions || []);
 const canCreateSupport = computed(() => permissions.value.includes('create financial-&-support'));
+const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
 
 const coopIdFromUrl = computed(() => {
     if (props.cooperative?.id) return props.cooperative.id;
@@ -83,11 +84,11 @@ const submit = () => {
 const handleBack = () => {
     if (isPerCoopRoute.value) {
         window.location.href =
-            `/cooperatives/${coopIdFromUrl.value}?tab=finance&subtab=external-support`;
+            `/cooperatives/${coopSlug.value}?tab=finance&subtab=external-support`;
         return;
     }
     if (coopIdFromUrl.value) {
-        window.location.href = `/finance/external-supports?coop_id=${coopIdFromUrl.value}`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=external-support`;
         return;
     }
     window.location.href = '/finance/external-supports';
@@ -106,11 +107,11 @@ const handleCancel = async () => {
     if (!result.isConfirmed) { return; }
     if (isPerCoopRoute.value) {
         window.location.href =
-            `/cooperatives/${coopIdFromUrl.value}?tab=finance&subtab=external-support`;
+            `/cooperatives/${coopSlug.value}?tab=finance&subtab=external-support`;
         return;
     }
     if (coopIdFromUrl.value) {
-        window.location.href = `/finance/external-supports?coop_id=${coopIdFromUrl.value}`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=external-support`;
         return;
     }
     window.location.href = '/finance/external-supports';

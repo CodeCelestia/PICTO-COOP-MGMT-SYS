@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import MemberSelectDialog from '@/components/Officers/MemberSelectDialog.vue';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Button } from '@/components/ui/button';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 
 type LoanTypeOption = {
@@ -38,6 +40,19 @@ type PreselectedCooperativeOption = {
     loanTypes: LoanTypeOption[];
 };
 
+type MemberDialogOption = {
+    id: number;
+    name: string;
+    coop_id: number;
+    role_names: string[];
+    member_code?: string | null;
+    gender?: string | null;
+    date_joined?: string | null;
+    status?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+};
+
 const props = defineProps<{
     members: CooperativeMemberOption[];
     loanTypes: LoanTypeOption[];
@@ -47,6 +62,8 @@ const props = defineProps<{
     preselectedMemberId?: number | null;
     preselectedCoop?: PreselectedCooperativeOption | null;
 }>();
+
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 
 const returnToParam = new URLSearchParams(window.location.search).get('return_to');
 const returnToContext = returnToParam === 'members' || returnToParam === 'finance' ? returnToParam : null;
@@ -157,11 +174,8 @@ onUnmounted(() => {
 });
 
 const isFromCoopContext = computed(() => !!props.preselectedCoopId);
-const hasPreselectedMember = computed(() => props.preselectedMemberId !== null && props.preselectedMemberId !== undefined);
 
 const formatMemberName = (member: CooperativeMemberOption) => `${member.first_name} ${member.last_name}`;
-
-const memberSearchQuery = ref('');
 
 const selectedCooperative = computed(() => {
     if (isFromCoopContext.value) {
@@ -187,34 +201,52 @@ const availableMembers = computed(() => {
     return props.members;
 });
 
+const memberDialogMembers = computed<MemberDialogOption[]>(() => availableMembers.value.map((member) => ({
+    id: member.id,
+    name: formatMemberName(member),
+    coop_id: member.coop_id,
+    role_names: [],
+    member_code: null,
+    gender: null,
+    date_joined: null,
+    status: 'Active',
+    first_name: member.first_name,
+    last_name: member.last_name,
+})));
+
+const memberModalOpen = ref(false);
+const memberModalCooperativeId = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoopId ?? null;
+    }
+
+    return form.coop_id || null;
+});
+
+const canOpenMemberModal = computed(() => isFromCoopContext.value || Boolean(form.coop_id));
+
 const selectedMember = computed(() => {
     return availableMembers.value.find((member) => String(member.id) === String(form.member_id)) || null;
 });
 
-const selectedCooperativeName = computed(() => props.preselectedCoop?.name || 'Selected cooperative');
+const selectedCooperativeName = computed(() => {
+    if (isFromCoopContext.value) {
+        return props.preselectedCoop?.name || 'Selected cooperative';
+    }
+
+    return selectedCooperative.value?.name || 'Selected cooperative';
+});
 const selectedMemberName = computed(() => selectedMember.value ? formatMemberName(selectedMember.value) : 'Selected member');
 
-const searchableMembers = computed(() => {
-    const query = memberSearchQuery.value.trim().toLowerCase();
-
-    if (!query) {
-        return [];
-    }
-
-    return availableMembers.value.filter((member) => formatMemberName(member).toLowerCase().includes(query));
-});
-
-const selectMember = (member: CooperativeMemberOption) => {
-    form.member_id = member.id;
-    memberSearchQuery.value = formatMemberName(member);
-    form.loan_type_id = '';
+const openMemberModal = () => {
+    memberModalOpen.value = true;
 };
 
-watch(selectedMember, (member) => {
-    if (isFromCoopContext.value && !hasPreselectedMember.value && member) {
-        memberSearchQuery.value = formatMemberName(member);
-    }
-}, { immediate: true });
+const selectMember = (member: MemberDialogOption) => {
+    form.member_id = member.id;
+    form.loan_type_id = '';
+    memberModalOpen.value = false;
+};
 
 const selectedCooperativeLoanTypes = computed(() => {
     if (isFromCoopContext.value) {
@@ -303,16 +335,16 @@ const submit = () => {
 const backHref = computed(() => {
     if (isFromCoopContext.value && props.preselectedCoopId) {
         if (returnToContext === 'members') {
-            return `/cooperatives/${props.preselectedCoopId}?tab=members`;
+            return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
         }
 
-        return `/cooperatives/${props.preselectedCoopId}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
     const urlCoopId = new URLSearchParams(window.location.search)
         .get('coop_id');
     return urlCoopId
-        ? `/finance/loans?coop_id=${urlCoopId}`
+        ? `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`
         : '/finance/loans';
 });
 
@@ -344,7 +376,7 @@ const handleCancel = async () => {
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${preselectedCoopId}`" class="text-primary hover:underline">{{ preselectedCoop?.name }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ preselectedCoop?.name }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">New Loan</span>
                 </nav>
@@ -384,44 +416,30 @@ const handleCancel = async () => {
 
                 <div>
                     <label class="mb-1 block text-sm font-medium">Member</label>
-                    <div v-if="isFromCoopContext && hasPreselectedMember" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                        {{ selectedMemberName }}
-                    </div>
-                    <div v-else-if="isFromCoopContext" class="space-y-2">
-                        <input
-                            v-model="memberSearchQuery"
-                            type="text"
-                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                            placeholder="Search members"
-                        />
-                        <div class="max-h-56 overflow-y-auto rounded-md border border-input bg-background">
-                            <button
-                                v-for="member in searchableMembers"
-                                :key="member.id"
-                                type="button"
-                                class="flex w-full items-center justify-between gap-3 border-b border-input px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted/60"
-                                @click="selectMember(member)"
-                            >
-                                <span class="font-medium text-foreground">{{ formatMemberName(member) }}</span>
-                                <span class="text-xs text-muted-foreground">Select</span>
-                            </button>
-                            <div v-if="searchableMembers.length === 0" class="px-3 py-4 text-sm text-muted-foreground">
-                                No members found.
+                    <div v-if="selectedMember" class="mt-2 space-y-2 rounded-lg border border-border bg-background p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                <Users class="h-4 w-4" />
                             </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium text-foreground">{{ selectedMemberName }}</p>
+                                <p class="truncate text-xs text-muted-foreground">
+                                    {{ selectedMember.cooperative?.classification ? `${selectedMember.cooperative.classification} cooperative` : 'Member selected' }}
+                                </p>
+                            </div>
+                            <Button type="button" variant="outline" size="sm" class="shrink-0" :disabled="!canOpenMemberModal" @click="openMemberModal">
+                                Change Member
+                            </Button>
                         </div>
-                        <p class="text-xs text-muted-foreground">Search and select a member from this cooperative.</p>
-                        <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
                     </div>
-                    <template v-else>
-                        <select v-model="form.member_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.coop_id">
-                            <option value="">Select member</option>
-                            <option v-for="member in availableMembers" :key="member.id" :value="member.id">
-                                {{ member.first_name }} {{ member.last_name }}
-                            </option>
-                        </select>
-                        <p class="mt-1 text-xs text-muted-foreground">Choose the member requesting the loan.</p>
-                        <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
-                    </template>
+                    <div v-else class="mt-2">
+                        <Button type="button" variant="outline" class="w-full justify-start text-muted-foreground" :disabled="!canOpenMemberModal" @click="openMemberModal">
+                            <Users class="mr-2 h-4 w-4" />
+                            Select Member...
+                        </Button>
+                        <p class="mt-1 text-xs text-muted-foreground">Search and choose a member from this cooperative.</p>
+                    </div>
+                    <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
                 </div>
 
                 <div>
@@ -522,6 +540,18 @@ const handleCancel = async () => {
                     <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleCancel">Cancel</button>
                 </div>
             </form>
+
+            <MemberSelectDialog
+                v-model:open="memberModalOpen"
+                :members="memberDialogMembers"
+                :cooperative-id="memberModalCooperativeId"
+                :selected-member-id="form.member_id"
+                :cooperative-name="selectedCooperativeName"
+                title="Select Member"
+                description="Search and choose a member for this loan application."
+                :loading="false"
+                @select="selectMember"
+            />
         </div>
     </FinanceShellLayout>
 </template>

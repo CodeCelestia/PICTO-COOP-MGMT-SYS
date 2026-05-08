@@ -4,12 +4,15 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, ArrowUpLeft } from 'lucide-vue-next';
 import { useCreateBack } from '@/composables/useCreateBack';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 defineProps<{
     members: Array<{ id: number; first_name: string; last_name: string }>;
     interestRate: number;
     coop?: { id: number; name: string } | null;
 }>();
+
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 
 const isFromCoopContext = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
@@ -32,7 +35,7 @@ const form = useForm({
 
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=savings`;
     } else {
         goBack();
     }
@@ -52,7 +55,7 @@ const submit = () => {
                 <nav class="flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ coop?.name || 'Cooperative' }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ coop?.name || 'Cooperative' }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Open Savings</span>
                 </nav>

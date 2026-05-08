@@ -5,6 +5,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { Eye, Pencil, Plus, Trash2, ArrowLeft } from 'lucide-vue-next';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { computed, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const isFromCoopContext = computed(() =>
     window.location.pathname.startsWith('/cooperatives/')
@@ -16,6 +17,8 @@ const coopIdFromUrl = computed(() => {
 });
 
 const currentUrl = window.location.pathname + window.location.search;
+
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
 
 const isGlobalMode = computed(() => !coopIdFromUrl.value);
 
@@ -122,14 +125,14 @@ const deleteRecord = (recordId: number) => {
                     <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
                         <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                         <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
+                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
                         <span class="text-muted-foreground">/</span>
                         <span class="text-foreground">Financial Records</span>
                     </div>
                 <h1 class="text-2xl font-semibold">Financial Records</h1>
                 <p class="text-sm text-muted-foreground">Loan and savings records are posted automatically. Use manual entries here for other finance transactions.</p>
             </div>
-            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/finance/financial-records/create?coop_id=${coopIdFromUrl}` : (currentUrl ? `/finance/financial-records/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/financial-records/create')">
+            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/financial-records/create` : (currentUrl ? `/finance/financial-records/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/financial-records/create')">
                 <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                     <Plus class="h-4 w-4" />
                     Add Manual Entry
@@ -220,7 +223,7 @@ const deleteRecord = (recordId: number) => {
                             <td class="px-4 py-3">{{ formatDate(record.date_recorded) }}</td>
                             <td class="px-4 py-3 text-center">
                                 <div class="flex flex-wrap items-center justify-center gap-2">
-                                    <Link :href="currentUrl ? `/finance/financial-records/${record.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/financial-records/${record.id}`">
+                                    <Link :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/financial-records/${record.id}` : (currentUrl ? `/finance/financial-records/${record.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/financial-records/${record.id}`)">
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
                                             <Eye class="h-4 w-4" />
                                             View
@@ -228,7 +231,7 @@ const deleteRecord = (recordId: number) => {
                                     </Link>
                                     <Link
                                         v-if="permissions.can_edit"
-                                        :href="currentUrl ? `/finance/financial-records/${record.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/financial-records/${record.id}/edit`"
+                                        :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/financial-records/${record.id}/edit` : (currentUrl ? `/finance/financial-records/${record.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/financial-records/${record.id}/edit`)"
                                     >
                                         <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
                                             <Pencil class="h-4 w-4" />

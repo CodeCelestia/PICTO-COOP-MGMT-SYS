@@ -77,6 +77,13 @@ class SavingsController extends Controller
 
     public function create(Request $request): Response
     {
+        if ($request->routeIs('cooperatives.finance.savings.*')) {
+            $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+                // Note: we cannot override the route parameter, so pass the resolved model to the view
+            }
+        }
         $user = $request->user();
         $isCoopContext = $request->routeIs('cooperatives.finance.savings.*');
         $coopContext = $isCoopContext ? $request->route('cooperative') : null;
@@ -173,6 +180,9 @@ class SavingsController extends Controller
 
         if ($request->routeIs('cooperatives.finance.savings.*')) {
             $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account created successfully.');
         }
 
@@ -202,6 +212,12 @@ class SavingsController extends Controller
 
     public function edit(MemberSavings $savings, Request $request): Response
     {
+        if ($request->routeIs('cooperatives.finance.savings.*')) {
+            $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
+        }
         $this->enforceSavingsAccess($savings, $request->user());
 
         if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $savings->coop_id) {
@@ -250,6 +266,9 @@ class SavingsController extends Controller
 
         if ($request->routeIs('cooperatives.finance.savings.*')) {
             $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account updated successfully.');
         }
 
@@ -280,6 +299,9 @@ class SavingsController extends Controller
 
         if ($request->routeIs('cooperatives.finance.savings.*')) {
             $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.savings.index', ['cooperative' => $cooperative->id])->with('success', 'Savings account closed successfully.');
         }
 

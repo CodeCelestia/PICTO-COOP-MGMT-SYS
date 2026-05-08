@@ -4,6 +4,7 @@ import { useCreateBack } from '@/composables/useCreateBack';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps<{
     savings: {
@@ -34,6 +35,8 @@ const props = defineProps<{
     };
 }>();
 
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+
 const isFromCoopContext = computed(() => {
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return !!coopId;
@@ -51,7 +54,7 @@ const currentUrl = window.location.pathname + window.location.search;
 
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=savings`;
     } else {
         goBack();
     }
@@ -83,7 +86,7 @@ const calculateInterest = () => {
                 <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
                     <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                     <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Savings {{ savings.account_number }}</span>
                 </div>
@@ -95,7 +98,7 @@ const calculateInterest = () => {
                 </div>
             </div>
             <div class="flex gap-2">
-                <Link v-if="permissions.can_edit" :href="`/finance/savings/${savings.id}/edit${isFromCoopContext && coopIdFromUrl ? `?coop_id=${coopIdFromUrl}` : (currentUrl ? `?return_to=${encodeURIComponent(currentUrl)}` : '')}`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
+                <Link v-if="permissions.can_edit" :href="`/cooperatives/${coopSlug.value}/finance/savings/${savings.id}/edit`" class="rounded-md border px-3 py-2 text-sm">Edit</Link>
                 <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="handleBackClick">Back</button>
             </div>
         </div>

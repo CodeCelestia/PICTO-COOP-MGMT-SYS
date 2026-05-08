@@ -60,6 +60,9 @@ class ActivityFundingSourceController extends Controller
     {
         if ($request->routeIs('cooperatives.finance.funding-sources.*')) {
             $cooperative = $request->route('cooperative');
+            if ($cooperative === 'my') {
+                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
+            }
             return redirect()->route('cooperatives.finance.funding-sources.index', ['cooperative' => $cooperative->id])->with('success', $message);
         }
 

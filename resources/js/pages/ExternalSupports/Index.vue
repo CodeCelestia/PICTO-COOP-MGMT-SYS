@@ -91,6 +91,8 @@ const coopIdFromUrl = computed(() => {
     return param ? parseInt(param) : null;
 });
 
+const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
+
 const isFromCoopContext = computed(() =>
     window.location.pathname.startsWith('/cooperatives/')
 );
@@ -262,7 +264,7 @@ const bulkDeleteSupports = async () => {
                     </Link>
                         <Link
                             v-if="canCreate"
-                            :href="selectedCoop ? `/external-supports/create?coop_id=${selectedCoop.id}` : '/external-supports/create'"
+                            :href="selectedCoop ? `/cooperatives/${coopSlug.value}/finance/external-supports/create` : '/external-supports/create'"
                         >
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />

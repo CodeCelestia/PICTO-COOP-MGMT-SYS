@@ -4,6 +4,7 @@ import { useCreateBack } from '@/composables/useCreateBack';
 import { Head, Link } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 
 interface FinancialRecord {
@@ -28,10 +29,12 @@ defineProps<{
     };
 }>();
 
+const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+
 const { goBack } = useCreateBack({ fallbackHref: '/finance/financial-records' });
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopIdFromUrl.value}?tab=members`;
+        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=financial-records`;
         return;
     }
 
@@ -102,7 +105,7 @@ const coopIdFromUrl = computed(() => {
                     <div v-if="isFromCoopContext" class="mb-2 flex items-center gap-2 text-sm">
                         <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                         <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">Cooperative</a>
+                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">Cooperative</a>
                         <span class="text-muted-foreground">/</span>
                         <span class="text-foreground">Financial Record</span>
                     </div>
