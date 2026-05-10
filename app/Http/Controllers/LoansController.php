@@ -317,6 +317,13 @@ class LoansController extends \App\Http\Controllers\Controller
                 ->with('success', 'Loan created successfully.');
         }
 
+        if ($cooperativeId && $request->routeIs('cooperatives.finance.loans.*')) {
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=loans to stay in component
+            return redirect()
+                ->to("/cooperatives/{$cooperativeId}?tab=finance&subtab=loans")
+                ->with('success', 'Loan created successfully.');
+        }
+
         if ($cooperativeId) {
             return redirect()
                 ->route('cooperatives.finance.loans.show', ['cooperative' => $cooperativeId, 'loan' => $loan->id])
@@ -451,7 +458,9 @@ class LoansController extends \App\Http\Controllers\Controller
         }
 
         if ($request->routeIs('cooperatives.finance.loans.*')) {
-            return redirect()->route('cooperatives.finance.loans.show', ['cooperative' => $cooperative->id, 'loan' => $loan->id])->with('success', 'Loan updated successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=loans to stay in component
+            return redirect()->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=loans")
+                ->with('success', 'Loan updated successfully.');
         }
 
         return redirect()->route('finance.loans.show', $loan)->with('success', 'Loan updated successfully.');
@@ -480,7 +489,9 @@ class LoansController extends \App\Http\Controllers\Controller
         );
 
         if ($request->routeIs('cooperatives.finance.loans.*')) {
-            return redirect()->route('cooperatives.finance.loans.index', ['cooperative' => $cooperative->id])->with('success', 'Loan deleted successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=loans to stay in component
+            return redirect()->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=loans")
+                ->with('success', 'Loan deleted successfully.');
         }
 
         return redirect()->route('finance.loans.index')->with('success', 'Loan deleted successfully.');

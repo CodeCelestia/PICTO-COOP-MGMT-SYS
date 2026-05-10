@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cooperative;
 use App\Models\ActivityFundingSource;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -72,9 +73,13 @@ class FundingSourcesController extends Controller
         ]);
     }
 
-    public function show(ActivityFundingSource $fundingSource)
+    public function show(Request $request, Cooperative $cooperative, ActivityFundingSource $fundingSource)
     {
         $user = request()->user();
+
+        if ($cooperative->id !== $fundingSource->coop_id) {
+            abort(404);
+        }
 
         if (request()->filled('coop_id') && (int) request()->input('coop_id') !== $fundingSource->coop_id) {
             abort(403);

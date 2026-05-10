@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Building2, ClipboardList, FileText, GraduationCap, HandCoins, HandHeart, Landmark, Pencil, PiggyBank, ShieldCheck, Users, UsersRound, Wallet } from 'lucide-vue-next';
+import { Building2, ClipboardList, Crown, FileText, GraduationCap, HandCoins, HandHeart, Landmark, Pencil, PiggyBank, ShieldCheck, UserCog, Users, UsersRound, Wallet } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import LiftedTabs from '@/components/LiftedTabs.vue';
 import type { LiftedTab } from '@/components/LiftedTabs.vue';
@@ -255,7 +255,7 @@ const financeTabs: LiftedTab[] = [
     { id: 'savings', label: 'Savings', icon: PiggyBank },
     { id: 'financial-records', label: 'Financial Records', icon: FileText },
     { id: 'funding-sources', label: 'Funding Sources', icon: HandCoins },
-    { id: 'external-support', label: 'External Support', icon: HandHeart },
+    { id: 'external-supports', label: 'External Supports', icon: HandHeart },
 ];
 
 const page = usePage();
@@ -268,7 +268,7 @@ const canCreateLoanType = computed(() => props.loanTypePermissions.can_create);
 const canEditLoanType = computed(() => props.loanTypePermissions.can_edit);
 const canDeleteLoanType = computed(() => props.loanTypePermissions.can_delete);
 const activeTab = ref('profile');
-const activeFinanceTab = ref<'loans' | 'savings' | 'financial-records' | 'funding-sources' | 'external-support'>('loans');
+const activeFinanceTab = ref<'loans' | 'savings' | 'financial-records' | 'funding-sources' | 'external-supports'>('loans');
 
 const addLoanTypeForm = useForm({
     cooperative_id: props.cooperative.id,
@@ -604,83 +604,83 @@ const statusBadgeClass = computed(() => {
                                 </dl>
                             </section>
 
-                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm xl:col-span-2">
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Key Leadership</h3>
                                     <div v-if="canCreateOfficer" class="flex flex-wrap gap-2">
                                         <Link :href="`/officers/create?coop_id=${cooperative.id}&position=Chairperson&return_to=${encodeURIComponent(currentUrl)}`">
                                             <Button size="sm" variant="outline" class="gap-2">
+                                                <Crown class="h-4 w-4" />
                                                 Assign Chairperson
                                             </Button>
                                         </Link>
                                         <Link :href="`/officers/create?coop_id=${cooperative.id}&position=General%20Manager&return_to=${encodeURIComponent(currentUrl)}`">
                                             <Button size="sm" variant="outline" class="gap-2">
+                                                <UserCog class="h-4 w-4" />
                                                 Assign General Manager
                                             </Button>
                                         </Link>
                                     </div>
                                 </div>
-                                <div class="mt-4 grid gap-4">
-                                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
-                                        <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
-                                            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Primary Leadership</p>
-                                            <div class="mt-4 space-y-4">
-                                                <div class="rounded-2xl bg-background/80 p-4">
-                                                    <div class="flex items-center justify-between gap-4">
-                                                        <div>
-                                                            <p class="text-sm font-semibold text-foreground">Chairperson</p>
-                                                            <p class="mt-2 text-lg font-semibold text-foreground">{{ chairperson?.member?.full_name || 'Unassigned' }}</p>
-                                                        </div>
-                                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="chairperson?.status === 'Active'">
-                                                            {{ chairperson?.status }}
-                                                        </span>
+                                <div class="mt-4 space-y-4">
+                                    <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+                                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Primary Leadership</p>
+                                        <div class="mt-4 space-y-4">
+                                            <div class="rounded-2xl bg-background/80 p-4">
+                                                <div class="flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-foreground">Chairperson</p>
+                                                        <p class="mt-2 text-lg font-semibold text-foreground">{{ chairperson?.member?.full_name || 'Unassigned' }}</p>
                                                     </div>
-                                                    <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(chairperson || null) }}</p>
+                                                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="chairperson?.status === 'Active'">
+                                                        {{ chairperson?.status }}
+                                                    </span>
                                                 </div>
-                                                <div class="rounded-2xl bg-background/80 p-4">
-                                                    <div class="flex items-center justify-between gap-4">
-                                                        <div>
-                                                            <p class="text-sm font-semibold text-foreground">General Manager</p>
-                                                            <p class="mt-2 text-lg font-semibold text-foreground">{{ generalManager?.member?.full_name || 'Unassigned' }}</p>
-                                                        </div>
-                                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="generalManager?.status === 'Active'">
-                                                            {{ generalManager?.status }}
-                                                        </span>
+                                                <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(chairperson || null) }}</p>
+                                            </div>
+                                            <div class="rounded-2xl bg-background/80 p-4">
+                                                <div class="flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-foreground">General Manager</p>
+                                                        <p class="mt-2 text-lg font-semibold text-foreground">{{ generalManager?.member?.full_name || 'Unassigned' }}</p>
                                                     </div>
-                                                    <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(generalManager || null) }}</p>
+                                                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700" v-if="generalManager?.status === 'Active'">
+                                                        {{ generalManager?.status }}
+                                                    </span>
                                                 </div>
+                                                <p class="mt-3 text-sm text-muted-foreground">Term: {{ leaderTerm(generalManager || null) }}</p>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <div>
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">All Officers</p>
-                                                    <p class="text-sm text-muted-foreground">A professional overview of assigned leadership roles.</p>
-                                                </div>
-                                                <span class="rounded-full bg-muted/20 px-3 py-1 text-xs font-semibold text-foreground">
-                                                    {{ officerCards.length }} total
-                                                </span>
+                                    <div class="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">All Officers</p>
+                                                <p class="text-sm text-muted-foreground">A professional overview of assigned leadership roles.</p>
                                             </div>
+                                            <span class="rounded-full bg-muted/20 px-3 py-1 text-xs font-semibold text-foreground">
+                                                {{ officerCards.length }} total
+                                            </span>
+                                        </div>
 
-                                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                                <div v-if="officerCards.length === 0" class="rounded-2xl border border-dashed border-border/70 bg-background p-5 text-center text-sm text-muted-foreground">
-                                                    No officers have been assigned yet.
+                                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                            <div v-if="officerCards.length === 0" class="rounded-2xl border border-dashed border-border/70 bg-background p-5 text-center text-sm text-muted-foreground">
+                                                No officers have been assigned yet.
+                                            </div>
+                                            <div v-for="officer in officerCards" :key="officer.id" class="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-foreground">{{ officer.position }}</p>
+                                                        <p class="mt-2 text-base font-semibold text-foreground">{{ officer.member.full_name }}</p>
+                                                    </div>
+                                                    <span :class="officer.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'" class="rounded-full px-2 py-1 text-[11px] font-semibold">
+                                                        {{ officer.status }}
+                                                    </span>
                                                 </div>
-                                                <div v-for="officer in officerCards" :key="officer.id" class="rounded-2xl border border-border/80 bg-background p-4 shadow-sm">
-                                                    <div class="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <p class="text-sm font-semibold text-foreground">{{ officer.position }}</p>
-                                                            <p class="mt-2 text-base font-semibold text-foreground">{{ officer.member.full_name }}</p>
-                                                        </div>
-                                                        <span :class="officer.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'" class="rounded-full px-2 py-1 text-[11px] font-semibold">
-                                                            {{ officer.status }}
-                                                        </span>
-                                                    </div>
-                                                    <div class="mt-3 space-y-2 text-sm text-muted-foreground">
-                                                        <p>Term: {{ officerTerm(officer) }}</p>
-                                                        <p>Committee: {{ officer.committee || 'N/A' }}</p>
-                                                    </div>
+                                                <div class="mt-3 space-y-2 text-sm text-muted-foreground">
+                                                    <p>Term: {{ officerTerm(officer) }}</p>
+                                                    <p>Committee: {{ officer.committee || 'N/A' }}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -948,7 +948,7 @@ const statusBadgeClass = computed(() => {
                             <FinanceFundingPanel :cooperative="cooperative" :funding-sources="fundingSourcesForPanel" />
                         </div>
 
-                        <div v-show="activeFinanceTab === 'external-support'">
+                        <div v-show="activeFinanceTab === 'external-supports'">
                             <FinanceExternalSupportPanel
                                 :cooperative="cooperative"
                                 :external-supports="externalSupports"

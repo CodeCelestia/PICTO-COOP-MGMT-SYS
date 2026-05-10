@@ -1,89 +1,192 @@
 <script setup lang="ts">
+import { router, Link, usePage } from '@inertiajs/vue3';
+import { HandCoins, Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
-import { getFinanceStatusBadgeClass } from '@/composables/useFinanceStatusBadge';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Eye, Plus, ArrowLeft } from 'lucide-vue-next';
-import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
-import { computed, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
-
-const isFromCoopContext = computed(() =>
-    window.location.pathname.startsWith('/cooperatives/')
-);
-
-const coopIdFromUrl = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return coopId ? parseInt(coopId) : null;
-});
-const currentUrl = window.location.pathname + window.location.search;
-
-const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
-
-const isGlobalMode = computed(() => !coopIdFromUrl.value);
-
-const selectCoop = (coop: Cooperative) => {
-    selectedCoop.value = coop;
-    router.get('/finance/funding-sources', {
-        coop_id: coop.id,
-    }, {
-        preserveState: false,
-        preserveScroll: false,
-    });
-};
-
-const backToCooperatives = () => {
-    router.get(window.location.pathname, {}, {
-        preserveState: false,
-        preserveScroll: false,
-    });
-};
-
-interface FundingSource {
-    id: number;
-    activity_id: number | null;
-    category: 'activity' | 'project' | 'member_concern';
-    funder_name: string;
-    funder_type: string;
-    status: string;
-    amount_allocated: string | null;
-    amount_released: string | null;
-    activity?: { title?: string };
-    cooperative?: { name?: string };
-}
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
+import { useCoopLabel } from '@/composables/useCoopLabel';
+import AppLayout from '@/layouts/AppLayout.vue';
+import FilterPanel from '@/components/FilterPanel.vue';
+import { confirmAction } from '@/lib/alerts';
 
 interface Cooperative {
     id: number;
     name: string;
 }
 
-const props = defineProps<{
+interface ActivityOption {
+    id: number;
+    title: string;
+    coop_id: number;
+}
+
+interface ActivitySummary {
+    id: number;
+    title: string;
+    cooperative?: Cooperative;
+}
+
+interface FundingSource {
+    id: number;
+    activity_id: number | null;
+    category: 'activity' | 'project' | 'member_concern';
+    coop_id: number;
+    funder_name: string;
+    funder_type: string;
+    amount_allocated: string | null;
+    amount_released: string | null;
+    date_released: string | null;
+    status: string;
+    remarks: string | null;
+    activity?: ActivitySummary;
+    cooperative?: Cooperative;
+}
+
+interface Props {
     fundingSources: {
         data: FundingSource[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
     };
-    cooperative?: { id: number; name: string } | null;
-    cooperatives?: Array<{ id: number; name: string; status: string }>;
-    permissions: {
-        can_create: boolean;
-        can_edit: boolean;
-        can_delete: boolean;
-        can_approve: boolean;
+    activities: ActivityOption[];
+    cooperatives: Cooperative[];
+    filters: {
+        search?: string;
+        status?: string;
+        funder_type?: string;
+        activity_id?: string;
+        coop_id?: string;
+        per_page?: string;
     };
-}>();
+}
 
-const selectedCoop = ref<Cooperative | null>((() => {
-    const param = new URLSearchParams(window.location.search).get('coop_id');
-    if (!param) return null;
-    return props.cooperatives?.find(c => c.id === parseInt(param))
-        ?? props.cooperative
-        ?? null;
-})());
+const props = defineProps<Props>();
 
-const activeCoop = computed(() => selectedCoop.value);
+const filters = computed(() => props.filters);
 
-const showCooperativesList = computed(() => isGlobalMode.value && !activeCoop.value);
-const showFundingSourcesList = computed(() => isGlobalMode.value ? !!activeCoop.value : true);
+const page = usePage();
+const currentUrl = page.url || '';
+const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+const isCoopContext = computed(() => pathname.startsWith('/cooperatives/'));
+const coopIdFromPath = computed(() => {
+    const match = pathname.match(/^\/cooperatives\/([^/]+)/);
+    return match ? match[1] : null;
+});
+const fundingSourceBasePath = computed(() => {
+    if (isCoopContext.value && coopIdFromPath.value) {
+        return `/cooperatives/${coopIdFromPath.value}/finance/funding-sources`;
+    }
+
+    return pathname.startsWith('/finance/funding-sources')
+        ? '/finance/funding-sources'
+        : '/activity-funding-sources';
+});
+const auth = computed(() => page.props.auth as { permissions?: string[] } | undefined);
+const permissions = computed<string[]>(() => auth.value?.permissions || []);
+const { allCooperativesLabel } = useCoopLabel();
+const canCreate = computed(() => permissions.value.includes('create activities-&-projects'));
+const canEdit = computed(() => permissions.value.includes('update activities-&-projects'));
+const canDelete = computed(() => permissions.value.includes('delete activities-&-projects'));
+const canBulkDelete = computed(() => canDelete.value);
+const showActions = computed(() => canEdit.value || canDelete.value);
+
+const search = ref(props.filters.search || '');
+const status = ref(props.filters.status || 'all');
+const funderType = ref(props.filters.funder_type || 'all');
+const activityId = ref(props.filters.activity_id || 'all');
+const coopId = ref(props.filters.coop_id || 'all');
+const presetPageSizes = ['5', '15', '30'];
+const initialPerPageRaw = props.filters.per_page || String(props.fundingSources.per_page || 15);
+const perPage = ref(presetPageSizes.includes(initialPerPageRaw) ? initialPerPageRaw : 'custom');
+const customPerPage = ref(presetPageSizes.includes(initialPerPageRaw) ? '' : initialPerPageRaw);
+
+const resolvedPerPage = () => {
+    if (perPage.value !== 'custom') return perPage.value;
+
+    const parsed = Number(customPerPage.value);
+    if (!Number.isInteger(parsed) || parsed < 1) return '15';
+
+    return String(Math.min(parsed, 500));
+};
+
+const statusOptions = ['Released', 'Pending', 'Partially Released'];
+const funderTypes = ['Government', 'NGO', 'Private', 'Coop Fund', 'Donor'];
+
+const applyFilters = () => {
+    router.get(fundingSourceBasePath.value, {
+        search: search.value,
+        status: status.value === 'all' ? '' : status.value,
+        funder_type: funderType.value === 'all' ? '' : funderType.value,
+        activity_id: activityId.value === 'all' ? '' : activityId.value,
+        coop_id: coopId.value === 'all' ? '' : coopId.value,
+        per_page: resolvedPerPage(),
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const resetFilters = () => {
+    search.value = '';
+    status.value = 'all';
+    funderType.value = 'all';
+    activityId.value = 'all';
+    coopId.value = 'all';
+    perPage.value = '15';
+    customPerPage.value = '';
+    router.get(fundingSourceBasePath.value);
+};
+
+const deleteFundingSource = async (source: FundingSource) => {
+    if (!canDelete.value) return;
+    const confirmed = await confirmAction({
+        title: 'Delete funding source?',
+        text: 'This action cannot be undone.',
+        confirmButtonText: 'Delete',
+    });
+
+    if (!confirmed) return;
+
+    router.delete(`${fundingSourceBasePath.value}/${source.id}`, {
+        preserveScroll: true,
+    });
+};
+
+const formatDate = (date: string | null) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const formatAmount = (value: string | null) => {
+    if (!value) return 'N/A';
+    const numberValue = Number(value);
+    if (Number.isNaN(numberValue)) return value;
+    return numberValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 const categoryLabel = (category: FundingSource['category']) => {
     if (category === 'member_concern') return 'Member Concern';
@@ -92,115 +195,317 @@ const categoryLabel = (category: FundingSource['category']) => {
 };
 
 const categoryBadgeClass = (category: FundingSource['category']) => {
-    if (category === 'member_concern') return 'border border-orange-200 bg-orange-100 text-orange-800';
-    if (category === 'project') return 'border border-green-200 bg-green-100 text-green-800';
-    return 'border border-blue-200 bg-blue-100 text-blue-800';
+    if (category === 'member_concern') {
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+    }
+    if (category === 'project') {
+        return 'bg-green-100 text-green-800 border-green-200';
+    }
+    return 'bg-blue-100 text-blue-800 border-blue-200';
+};
+
+const statusBadgeClass = (status: string) => {
+    switch ((status || '').toLowerCase()) {
+        case 'released':
+        case 'approved':
+        case 'completed':
+            return 'border border-green-200 bg-green-100 text-green-800';
+        case 'pending':
+        case 'draft':
+            return 'border border-amber-200 bg-amber-100 text-amber-800';
+        case 'inactive':
+        case 'cancelled':
+        case 'rejected':
+            return 'border border-red-200 bg-red-100 text-red-800';
+        default:
+            return 'border border-gray-200 bg-gray-100 text-gray-800';
+    }
+};
+
+const visibleFundingSources = computed(() => props.fundingSources.data);
+
+const {
+    allVisibleSelected,
+    clearSelection,
+    isSelected,
+    selectedCount,
+    selectedIds,
+    toggleAll,
+    toggleOne,
+} = useBulkSelection(visibleFundingSources);
+
+const bulkDeleteFundingSources = async () => {
+    if (!selectedCount.value || !canBulkDelete.value) return;
+
+    const confirmed = await confirmAction({
+        title: 'Delete selected funding sources?',
+        text: `Delete ${selectedCount.value} selected funding source record(s)? This action cannot be undone.`,
+        confirmButtonText: 'Delete selected',
+    });
+
+    if (!confirmed) return;
+
+    const idsToDelete = [...selectedIds.value];
+    await runBulkDelete(idsToDelete, (id) => `${fundingSourceBasePath.value}/${id}`);
+    clearSelection();
 };
 </script>
 
 <template>
-    <Head title="Finance - Funding Sources" />
-
-    <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isFromCoopContext">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                    <div v-if="isFromCoopContext" class="mb-4 flex items-center gap-2 text-sm">
-                        <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
-                        <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ cooperative?.name || 'Cooperative' }}</a>
-                        <span class="text-muted-foreground">/</span>
-                        <span class="text-foreground">Funding Sources</span>
+    <AppLayout>
+        <div class="space-y-6 p-4 sm:p-6">
+            <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activity Funding Sources</h1>
+                    <p class="text-sm text-muted-foreground">Track funding sources per activity</p>
+                </div>
+                <div class="flex items-center gap-2 self-start">
+                    <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
+                        <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
+                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteFundingSources">
+                            <Trash2 class="h-3.5 w-3.5" />
+                            Delete Selected
+                        </Button>
+                        <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
+                            Clear
+                        </Button>
                     </div>
-                <h1 class="text-2xl font-semibold">Funding Sources</h1>
-                <p class="text-sm text-muted-foreground">View all funding sources for the cooperative, including activity-linked funding sources, project support, and member concern entries.</p>
-            </div>
-            <Link v-if="permissions.can_create" :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/funding-sources/create` : (currentUrl ? `/finance/funding-sources/create?return_to=${encodeURIComponent(currentUrl)}` : '/finance/funding-sources/create')">
-                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
-                    <Plus class="h-4 w-4" />
-                    New Funding Source
-                </Button>
-            </Link>
-        </div>
+                    <Link href="/activities" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
+                        View Activities
+                    </Link>
+                    <Link v-if="canCreate" :href="`${fundingSourceBasePath}/create`">
+                        <Button class="gap-2">
+                            <Plus class="h-4 w-4" />
+                            Add Funding Source
+                        </Button>
+                    </Link>
+                </div>
+                </div>
 
-        <!-- Global Mode: Cooperatives List -->
-        <div v-if="showCooperativesList" class="mt-6">
-            <h2 class="mb-4 text-lg font-semibold">Select a Cooperative</h2>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div v-for="coop in cooperatives" :key="coop.id" class="cursor-pointer rounded-lg border bg-card p-4 transition hover:border-primary hover:bg-primary/5" @click="selectCoop(coop)">
-                    <h3 class="font-medium text-foreground">{{ coop.name }}</h3>
-                    <p class="mt-1 text-xs text-muted-foreground">Click to view funding sources</p>
+                <FilterPanel
+                    title="Filters"
+                    description="Show funding source filters when ready."
+                    showLabel="Show filters"
+                    hideLabel="Hide filters"
+                >
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Search</label>
+                        <div class="relative">
+                            <Search class="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                v-model="search"
+                                @keyup.enter="applyFilters"
+                                placeholder="Funder or activity..."
+                                class="pl-9"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Cooperative</label>
+                        <Select v-model="coopId">
+                            <SelectTrigger id="coop_filter">
+                                <SelectValue :placeholder="allCooperativesLabel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{{ allCooperativesLabel }}</SelectItem>
+                                <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
+                                    {{ coop.name }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Activity</label>
+                        <Select v-model="activityId">
+                            <SelectTrigger id="activity_filter">
+                                <SelectValue placeholder="All Activities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Activities</SelectItem>
+                                <SelectItem v-for="activity in activities" :key="activity.id" :value="activity.id.toString()">
+                                    {{ activity.title }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Funder Type</label>
+                        <Select v-model="funderType">
+                            <SelectTrigger id="funder_type_filter">
+                                <SelectValue placeholder="All Types" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Types</SelectItem>
+                                <SelectItem v-for="option in funderTypes" :key="option" :value="option">
+                                    {{ option }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Status</label>
+                        <Select v-model="status">
+                            <SelectTrigger id="status_filter">
+                                <SelectValue placeholder="All Statuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem v-for="option in statusOptions" :key="option" :value="option">
+                                    {{ option }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-foreground/80">Rows Per Page</label>
+                        <div class="flex gap-2">
+                            <Select v-model="perPage">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="5">5</SelectItem>
+                                    <SelectItem value="15">15</SelectItem>
+                                    <SelectItem value="30">30</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                v-if="perPage === 'custom'"
+                                v-model="customPerPage"
+                                type="number"
+                                min="1"
+                                max="500"
+                                placeholder="Enter"
+                                class="w-28"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex flex-wrap gap-2">
+                    <Button @click="applyFilters" class="gap-2">
+                        <Search class="h-4 w-4" />
+                        Apply Filters
+                    </Button>
+                    <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                </div>
+            </FilterPanel>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead v-if="canBulkDelete" class="w-12">
+                                <Checkbox
+                                    :model-value="allVisibleSelected"
+                                    :disabled="fundingSources.data.length === 0"
+                                    aria-label="Select all funding sources"
+                                    @update:model-value="toggleAll"
+                                />
+                            </TableHead>
+                            <TableHead class="text-muted-foreground">Funder</TableHead>
+                            <TableHead class="text-muted-foreground">Category</TableHead>
+                            <TableHead class="text-muted-foreground">Activity</TableHead>
+                            <TableHead class="text-muted-foreground">Cooperative</TableHead>
+                            <TableHead class="text-muted-foreground">Allocated</TableHead>
+                            <TableHead class="text-muted-foreground">Released</TableHead>
+                            <TableHead class="text-muted-foreground">Date Released</TableHead>
+                            <TableHead class="text-muted-foreground">Status</TableHead>
+                            <TableHead v-if="showActions" class="text-center text-muted-foreground">Actions</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-if="fundingSources.data.length === 0">
+                                <TableCell :colspan="(showActions ? 9 : 8) + (canBulkDelete ? 1 : 0)" class="py-8 text-center text-muted-foreground">
+                                    No funding sources found.
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-for="source in fundingSources.data" :key="source.id">
+                                <TableCell v-if="canBulkDelete" class="w-12">
+                                    <Checkbox
+                                        :model-value="isSelected(source.id)"
+                                        :aria-label="`Select ${source.funder_name}`"
+                                        @update:model-value="(checked) => toggleOne(source.id, checked)"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                            <HandCoins class="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-foreground">{{ source.funder_name }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ source.funder_type }}</div>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge :class="categoryBadgeClass(source.category)" class="border">
+                                        {{ categoryLabel(source.category) }}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ source.activity?.title || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ source.cooperative?.name || 'N/A' }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(source.amount_allocated) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatAmount(source.amount_released) }}</TableCell>
+                                <TableCell class="text-sm text-muted-foreground">{{ formatDate(source.date_released) }}</TableCell>
+                                <TableCell>
+                                    <Badge :class="statusBadgeClass(source.status)">
+                                        {{ source.status }}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell v-if="showActions" class="text-center">
+                                    <div class="flex flex-wrap justify-center gap-2">
+                                        <Link v-if="canEdit" :href="currentUrl ? `${fundingSourceBasePath}/${source.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `${fundingSourceBasePath}/${source.id}/edit`">
+                                            <Button variant="ghost" size="sm" class="table-action-btn table-action-edit gap-2">
+                                                <Pencil class="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            v-if="canDelete"
+                                            @click="deleteFundingSource(source)"
+                                            variant="ghost"
+                                            size="sm"
+                                            class="table-action-btn table-action-delete gap-2 text-destructive hover:text-destructive"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <div v-if="fundingSources.last_page > 1" class="border-t border-border px-4 py-4 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
+                            Showing {{ (fundingSources.current_page - 1) * fundingSources.per_page + 1 }} to
+                            {{ Math.min(fundingSources.current_page * fundingSources.per_page, fundingSources.total) }} of
+                            {{ fundingSources.total }} funding sources
+                        </div>
+                        <div class="flex flex-wrap gap-2" aria-label="Funding sources pagination">
+                            <Button
+                                v-for="page in fundingSources.last_page"
+                                :key="page"
+                                variant="outline"
+                                size="sm"
+                                :disabled="page === fundingSources.current_page"
+                                @click="router.get(fundingSourceBasePath, { ...filters, page }, { preserveScroll: true, preserveState: true })"
+                            >
+                                {{ page }}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div v-if="!cooperatives || cooperatives.length === 0" class="rounded-lg border bg-card p-6 text-center text-muted-foreground">
-                No cooperatives available.
-            </div>
         </div>
-
-        <!-- Funding Sources List (shown in coop context or after coop selection in global mode) -->
-        <div v-if="showFundingSourcesList" class="mt-6">
-            <div v-if="!isFromCoopContext && activeCoop" class="mb-4 flex items-center gap-2">
-                <Button variant="outline" size="sm" @click="backToCooperatives" class="gap-2">
-                    <ArrowLeft class="h-4 w-4" />
-                    Back to Cooperatives
-                </Button>
-                <h2 class="text-lg font-semibold">Funding Sources for {{ activeCoop?.name }}</h2>
-            </div>
-
-            <div class="overflow-hidden rounded-lg border bg-card">
-            <table class="w-full text-sm">
-                <thead class="bg-muted/40">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Funder</th>
-                        <th class="px-4 py-3 text-left">Category</th>
-                        <th class="px-4 py-3 text-left">Activity</th>
-                        <th class="px-4 py-3 text-left">Cooperative</th>
-                        <th class="px-4 py-3 text-left">Status</th>
-                        <th class="px-4 py-3 text-left">Allocated</th>
-                        <th class="px-4 py-3 text-left">Released</th>
-                        <th class="px-4 py-3 text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-if="fundingSources.data.length === 0">
-                        <td class="px-4 py-6 text-center text-muted-foreground" colspan="8">No funding sources found.</td>
-                    </tr>
-                    <tr v-for="item in fundingSources.data" :key="item.id" class="border-t">
-                        <td class="px-4 py-3">{{ item.funder_name }} <span class="text-xs text-muted-foreground">({{ item.funder_type }})</span></td>
-                        <td class="px-4 py-3">
-                            <span class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium" :class="categoryBadgeClass(item.category)">
-                                {{ categoryLabel(item.category) }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            <div class="flex flex-col gap-1">
-                                <span class="inline-flex w-fit rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
-                                    {{ item.activity_id && item.activity?.title ? `From Activity: ${item.activity.title}` : (item.activity_id === null ? 'General Fund' : 'Manual Entry') }}
-                                </span>
-                                <span class="text-xs text-muted-foreground">{{ item.activity_id && item.activity?.title ? item.activity.title : (item.activity_id === null ? 'Not tied to a specific activity' : 'No activity linked') }}</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3">{{ item.cooperative?.name || 'N/A' }}</td>
-                        <td class="px-4 py-3">
-                            <Badge :class="[getFinanceStatusBadgeClass(item.status), 'rounded-md px-2 py-0.5 text-xs font-medium']">
-                                {{ item.status }}
-                            </Badge>
-                        </td>
-                        <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_allocated) }}</td>
-                        <td class="px-4 py-3">{{ formatPhilippinePeso(item.amount_released) }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <div class="flex flex-wrap items-center justify-center gap-2">
-                                <Link :href="isFromCoopContext && coopIdFromUrl ? `/cooperatives/${coopSlug.value}/finance/funding-sources/${item.id}` : (currentUrl ? `/finance/funding-sources/${item.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/funding-sources/${item.id}`)">
-                                    <Button variant="ghost" size="sm" class="table-action-btn table-action-view gap-2">
-                                        <Eye class="h-4 w-4" />
-                                        View
-                                    </Button>
-                                </Link>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            </div>
-        </div>
-    </FinanceShellLayout>
+    </AppLayout>
 </template>

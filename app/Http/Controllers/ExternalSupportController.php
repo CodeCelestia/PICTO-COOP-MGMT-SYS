@@ -110,7 +110,7 @@ class ExternalSupportController extends Controller
 
         $isCoopContext = $cooperative !== null;
 
-        return Inertia::render('ExternalSupports/Index', [
+        return Inertia::render('Finance/ExternalSupports/Index', [
             'supports' => $supports,
             'cooperatives' => $cooperativesQuery->get(),
             'financialRecords' => $financialQuery->get(),
@@ -150,7 +150,7 @@ class ExternalSupportController extends Controller
         $cooperative = $this->resolveCooperative($cooperativeParam);
         $isCoopContext = $cooperative !== null;
 
-        return Inertia::render('ExternalSupports/Create', [
+        return Inertia::render('Finance/ExternalSupports/Create', [
             'cooperatives' => $cooperativesQuery->get(),
             'financialRecords' => $financialQuery->get(),
             'cooperative' => $cooperative,
@@ -222,7 +222,7 @@ class ExternalSupportController extends Controller
 
         if ($cooperative && $request->routeIs('cooperatives.finance.external-supports.*')) {
             return redirect()
-                ->to("/cooperatives/{$cooperative->id}?tab=finance")
+                ->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=external-supports")
                 ->with('success', 'External support record added successfully.');
         }
 
@@ -237,9 +237,13 @@ class ExternalSupportController extends Controller
             ->with('success', 'External support record added successfully.');
     }
 
-    public function edit(ExternalSupport $externalSupport, Request $request): Response
+    public function edit(Request $request, Cooperative $cooperative, ExternalSupport $externalSupport): Response
     {
         $user = auth()->user();
+
+        if ($cooperative->id !== $externalSupport->coop_id) {
+            abort(404);
+        }
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
@@ -260,7 +264,7 @@ class ExternalSupportController extends Controller
         $cooperative = $this->resolveCooperative($cooperativeParam);
         $isCoopContext = $cooperative !== null;
 
-        return Inertia::render('ExternalSupports/Edit', [
+        return Inertia::render('Finance/ExternalSupports/Edit', [
             'support' => $externalSupport->load(['cooperative', 'financialRecord']),
             'cooperatives' => $cooperativesQuery->get(),
             'financialRecords' => $financialQuery->get(),
@@ -269,9 +273,13 @@ class ExternalSupportController extends Controller
         ]);
     }
 
-    public function update(Request $request, ExternalSupport $externalSupport): RedirectResponse
+    public function update(Request $request, Cooperative $cooperative, ExternalSupport $externalSupport): RedirectResponse
     {
         $user = auth()->user();
+
+        if ($cooperative->id !== $externalSupport->coop_id) {
+            abort(404);
+        }
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
@@ -300,16 +308,9 @@ class ExternalSupportController extends Controller
 
         $externalSupport->update($validated);
 
-        $cooperativeParam = $request->route('cooperative');
-        $cooperative = $this->resolveCooperative($cooperativeParam);
-
-        if (!$cooperative && $request->filled('coop_id')) {
-            $cooperative = \App\Models\Cooperative::find($request->coop_id);
-        }
-
-        if ($cooperative && $request->routeIs('cooperatives.finance.external-supports.*')) {
+        if ($request->routeIs('cooperatives.finance.external-supports.*')) {
             return redirect()
-                ->to("/cooperatives/{$cooperative->id}?tab=finance")
+                ->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=external-supports")
                 ->with('success', 'External support record updated successfully.');
         }
 
@@ -324,10 +325,14 @@ class ExternalSupportController extends Controller
             ->with('success', 'External support record updated successfully.');
     }
 
-    public function destroy(ExternalSupport $externalSupport): RedirectResponse
+    public function destroy(Request $request, Cooperative $cooperative, ExternalSupport $externalSupport): RedirectResponse
     {
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
+        }
+
+        if ($cooperative->id !== $externalSupport->coop_id) {
+            abort(404);
         }
 
         $this->enforceCoopScope($externalSupport->coop_id);
@@ -339,22 +344,9 @@ class ExternalSupportController extends Controller
 
         $externalSupport->delete();
 
-        $cooperativeParam = $request->route('cooperative');
-        $cooperative = $this->resolveCooperative($cooperativeParam);
-
-        if (!$cooperative && $request->filled('coop_id')) {
-            $cooperative = \App\Models\Cooperative::find($request->coop_id);
-        }
-
-        if ($cooperative && $request->routeIs('cooperatives.finance.external-supports.*')) {
+        if ($request->routeIs('cooperatives.finance.external-supports.*')) {
             return redirect()
-                ->to("/cooperatives/{$cooperative->id}?tab=finance")
-                ->with('success', 'External support record deleted successfully.');
-        }
-
-        if ($cooperative) {
-            return redirect()
-                ->to("/finance/external-supports?coop_id={$cooperative->id}")
+                ->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=external-supports")
                 ->with('success', 'External support record deleted successfully.');
         }
 

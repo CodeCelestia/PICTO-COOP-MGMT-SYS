@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import MemberSelectDialog from '@/components/Officers/MemberSelectDialog.vue';
-import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useFormUx } from '@/composables/useFormUx';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { ArrowLeft, Eye, File, FileText, Image, Paperclip, Plus, ShieldCheck, Trash2, Users } from 'lucide-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { ArrowLeft, Eye, File, FileText, Image, Plus, Trash2, Users } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 
 type LoanTypeOption = {
@@ -63,14 +70,22 @@ const props = defineProps<{
     preselectedCoop?: PreselectedCooperativeOption | null;
 }>();
 
-const coopSlug = computed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+const page = usePage();
+const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
+const isFromCoopContext = computed(() => Boolean(props.preselectedCoopId));
+const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
+const returnToParam = computed(() => {
+    const candidate = queryParams.value.get('return_to');
+    if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
+        return '';
+    }
 
-const returnToParam = new URLSearchParams(window.location.search).get('return_to');
-const returnToContext = returnToParam === 'members' || returnToParam === 'finance' ? returnToParam : null;
+    return candidate;
+});
 
 const form = useForm({
     coop_id: props.preselectedCoopId ?? '',
-    return_to: returnToContext ?? '',
+    return_to: returnToParam.value,
     member_id: props.preselectedMemberId ?? '',
     loan_type_id: '',
     principal: '',
@@ -78,47 +93,11 @@ const form = useForm({
     attachments: [] as File[],
 });
 
+const { isDirty, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, markClean, showErrorShake } = useFormUx(form);
+
 const attachmentInputRef = ref<HTMLInputElement | null>(null);
 const previewUrls = new Map<File, string>();
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-
-const onAttachmentsChange = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const selectedFiles = target.files ? Array.from(target.files) : [];
-
-    selectedFiles.forEach((file) => {
-        if (file.size > MAX_FILE_SIZE_BYTES) {
-            return;
-        }
-
-        form.attachments.push(file);
-    });
-
-    target.value = '';
-};
-
-const triggerAttachmentPicker = () => {
-    attachmentInputRef.value?.click();
-};
-
-const removeAttachment = (index: number) => {
-    form.attachments.splice(index, 1);
-};
-
-const getAttachmentPreviewUrl = (file: File) => {
-    const existingUrl = previewUrls.get(file);
-    if (existingUrl) {
-        return existingUrl;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    previewUrls.set(file, objectUrl);
-    return objectUrl;
-};
-
-const openAttachmentPreview = (file: File) => {
-    window.open(getAttachmentPreviewUrl(file), '_blank', 'noopener,noreferrer');
-};
 
 const formatFileSize = (bytes: number) => {
     if (bytes < 1024) {
@@ -168,13 +147,6 @@ const attachmentItems = computed(() => form.attachments.map((file, index) => ({
     icon: getFileCardIcon(file.name),
 })));
 
-onUnmounted(() => {
-    previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    previewUrls.clear();
-});
-
-const isFromCoopContext = computed(() => !!props.preselectedCoopId);
-
 const formatMemberName = (member: CooperativeMemberOption) => `${member.first_name} ${member.last_name}`;
 
 const selectedCooperative = computed(() => {
@@ -215,46 +187,18 @@ const memberDialogMembers = computed<MemberDialogOption[]>(() => availableMember
 })));
 
 const memberModalOpen = ref(false);
-const memberModalCooperativeId = computed(() => {
-    if (isFromCoopContext.value) {
-        return props.preselectedCoopId ?? null;
-    }
-
-    return form.coop_id || null;
-});
-
+const memberModalCooperativeId = computed(() => (isFromCoopContext.value ? props.preselectedCoopId ?? null : form.coop_id || null));
 const canOpenMemberModal = computed(() => isFromCoopContext.value || Boolean(form.coop_id));
-
-const selectedMember = computed(() => {
-    return availableMembers.value.find((member) => String(member.id) === String(form.member_id)) || null;
-});
-
-const selectedCooperativeName = computed(() => {
-    if (isFromCoopContext.value) {
-        return props.preselectedCoop?.name || 'Selected cooperative';
-    }
-
-    return selectedCooperative.value?.name || 'Selected cooperative';
-});
+const selectedMember = computed(() => availableMembers.value.find((member) => String(member.id) === String(form.member_id)) || null);
 const selectedMemberName = computed(() => selectedMember.value ? formatMemberName(selectedMember.value) : 'Selected member');
-
-const openMemberModal = () => {
-    memberModalOpen.value = true;
-};
-
-const selectMember = (member: MemberDialogOption) => {
-    form.member_id = member.id;
-    form.loan_type_id = '';
-    memberModalOpen.value = false;
-};
+const selectedCooperativeName = computed(() => selectedCooperative.value?.name || props.preselectedCoop?.name || 'Selected cooperative');
 
 const selectedCooperativeLoanTypes = computed(() => {
     if (isFromCoopContext.value) {
         return props.preselectedCoop?.loanTypes || [];
     }
 
-    const cooperative = selectedCooperative.value as CooperativeOption | null;
-    return cooperative?.loan_types || [];
+    return selectedCooperative.value?.loan_types || [];
 });
 
 const selectedCooperativeClassification = computed(() => {
@@ -262,18 +206,11 @@ const selectedCooperativeClassification = computed(() => {
         return props.preselectedCoop?.classification || null;
     }
 
-    const cooperative = selectedCooperative.value as CooperativeOption | null;
-    return cooperative?.classification || null;
+    return selectedCooperative.value?.classification || null;
 });
 
 const filteredLoanTypes = computed(() => {
-    const sourceLoanTypes = props.showCooperativePicker
-        ? selectedCooperativeLoanTypes.value
-        : props.loanTypes;
-
-    if (!selectedMember.value && !props.showCooperativePicker) {
-        return props.loanTypes;
-    }
+    const sourceLoanTypes = props.showCooperativePicker ? selectedCooperativeLoanTypes.value : props.loanTypes;
 
     if (props.showCooperativePicker && !selectedCooperative.value) {
         return [];
@@ -283,7 +220,7 @@ const filteredLoanTypes = computed(() => {
         ? selectedCooperativeClassification.value
         : selectedMember.value?.cooperative?.classification || null;
 
-    return sourceLoanTypes.filter((loanType: { id: number; cooperative_id: number; classification: 'micro' | 'small' | 'medium' | 'large' | null }) => {
+    return sourceLoanTypes.filter((loanType) => {
         if (selectedMember.value && loanType.cooperative_id !== selectedMember.value.coop_id) {
             return false;
         }
@@ -305,7 +242,7 @@ watch(() => form.coop_id, () => {
     form.loan_type_id = '';
 });
 
-watch(filteredLoanTypes, (loanTypes: Array<{ id: number }>) => {
+watch(filteredLoanTypes, (loanTypes) => {
     if (!form.loan_type_id) {
         return;
     }
@@ -316,229 +253,353 @@ watch(filteredLoanTypes, (loanTypes: Array<{ id: number }>) => {
     }
 });
 
-const submit = () => {
-    if (props.showCooperativePicker && !form.coop_id) {
-        form.setError('coop_id', 'Please select a cooperative first.');
-        return;
-    }
+const handleAttachmentsChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const selectedFiles = target.files ? Array.from(target.files) : [];
 
-    if (isFromCoopContext.value && !form.member_id) {
-        form.setError('member_id', 'Please select a member.');
-        return;
-    }
+    selectedFiles.forEach((file) => {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            return;
+        }
 
-    form.post('/finance/loans', {
-        forceFormData: true,
+        form.attachments.push(file);
     });
+
+    target.value = '';
+};
+
+const triggerAttachmentPicker = () => {
+    attachmentInputRef.value?.click();
+};
+
+const removeAttachment = (index: number) => {
+    form.attachments.splice(index, 1);
+};
+
+const getAttachmentPreviewUrl = (file: File) => {
+    const existingUrl = previewUrls.get(file);
+    if (existingUrl) {
+        return existingUrl;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    previewUrls.set(file, objectUrl);
+    return objectUrl;
+};
+
+const openAttachmentPreview = (file: File) => {
+    window.open(getAttachmentPreviewUrl(file), '_blank', 'noopener,noreferrer');
 };
 
 const backHref = computed(() => {
     if (isFromCoopContext.value && props.preselectedCoopId) {
-        if (returnToContext === 'members') {
-            return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
-        }
-
         return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
     }
 
-    const urlCoopId = new URLSearchParams(window.location.search)
-        .get('coop_id');
-    return urlCoopId
-        ? `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`
-        : '/finance/loans';
+    return returnToParam.value || '/finance/loans';
 });
 
-const handleBack = () => {
-    window.location.href = backHref.value;
+const goBack = async () => {
+    if (isDirty.value) {
+        const result = await Swal.fire({
+            title: 'Discard this loan application?',
+            text: 'Any unsaved changes will be lost.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Discard',
+            cancelButtonText: 'Keep editing',
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+    }
+
+    router.get(backHref.value);
 };
 
-const handleCancel = async () => {
-    const result = await Swal.fire({
-        title: 'Are you sure you want to cancel?',
-        text: 'Any unsaved changes will be lost.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, cancel',
-        cancelButtonText: 'Keep editing',
-        confirmButtonColor: '#dc2626',
-    });
-    if (!result.isConfirmed) { return; }
-    window.location.href = backHref.value;
+const openMemberModal = () => {
+    memberModalOpen.value = true;
 };
+
+const selectMember = (member: MemberDialogOption) => {
+    form.member_id = member.id;
+    form.loan_type_id = '';
+    form.clearErrors('member_id', 'loan_type_id');
+    memberModalOpen.value = false;
+};
+
+const submit = () => {
+    if (props.showCooperativePicker && !form.coop_id) {
+        form.setError('coop_id', 'Please select a cooperative first.');
+        triggerErrorShake();
+        scrollToFirstError();
+        return;
+    }
+
+    if (!form.member_id) {
+        form.setError('member_id', 'Please select a member.');
+        triggerErrorShake();
+        scrollToFirstError();
+        return;
+    }
+
+    if (!form.loan_type_id) {
+        form.setError('loan_type_id', 'Please select a loan type.');
+        triggerErrorShake();
+        scrollToFirstError();
+        return;
+    }
+
+    const postUrl = isFromCoopContext.value && props.preselectedCoopId
+        ? `/cooperatives/${props.preselectedCoopId}/finance/loans`
+        : '/finance/loans';
+
+    form.transform((data) => ({
+        ...data,
+        return_to: backHref.value,
+    })).post(postUrl, {
+        forceFormData: true,
+        onSuccess: () => {
+            markClean();
+        },
+        onError: () => {
+            triggerErrorShake();
+            scrollToFirstError();
+        },
+    });
+};
+
+onUnmounted(() => {
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    previewUrls.clear();
+});
 </script>
 
 <template>
     <Head title="Finance - Create Loan" />
 
     <FinanceShellLayout active-tab="loans" :hide-tabs="isFromCoopContext">
-        <div class="max-w-3xl space-y-6">
-            <div v-if="isFromCoopContext" class="flex items-center justify-between gap-4">
-                <nav class="flex items-center gap-2 text-sm">
-                    <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
-                    <span class="text-muted-foreground">/</span>
-                    <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">{{ preselectedCoop?.name }}</a>
-                    <span class="text-muted-foreground">/</span>
-                    <span class="text-foreground">New Loan</span>
-                </nav>
-                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBack">
-                    <ArrowLeft class="h-4 w-4" />
-                    Back
-                </button>
-            </div>
-            <div v-else class="flex items-start justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl font-semibold">New Member Loan</h1>
-                    <p class="text-sm text-muted-foreground">Fill out this short form to submit a loan application.</p>
-                </div>
-                <button type="button" class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm" @click="handleBack">
-                    <ArrowLeft class="h-4 w-4" />
-                    Back
-                </button>
-            </div>
-
-            <form class="space-y-5 rounded-lg border bg-card p-5" @submit.prevent="submit">
-                <div>
-                    <label class="mb-1 block text-sm font-medium">Cooperative</label>
-                    <div v-if="isFromCoopContext" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                        {{ selectedCooperativeName }}
+        <div class="space-y-6">
+            <Card>
+                <CardContent class="flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-2">
+                        <div v-if="isFromCoopContext" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                            <span>/</span>
+                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ selectedCooperativeName }}</a>
+                            <span>/</span>
+                            <span class="text-foreground">Create Loan</span>
+                        </div>
+                        <div class="space-y-1">
+                            <h1 class="text-2xl font-semibold tracking-tight">Create Loan Application</h1>
+                            <p class="max-w-2xl text-sm text-muted-foreground">
+                                Capture the member, loan type, and requested amount in one place.
+                            </p>
+                        </div>
+                        <div v-if="isFromCoopContext" class="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" class="gap-1 rounded-full px-3 py-1 text-xs font-medium">
+                                <ShieldCheck class="h-3.5 w-3.5" />
+                                Cooperative-scoped create
+                            </Badge>
+                        </div>
                     </div>
-                    <template v-else>
-                        <select v-model="form.coop_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
-                            <option value="">Select cooperative</option>
-                            <option v-for="cooperative in cooperatives" :key="cooperative.id" :value="cooperative.id">
-                                {{ cooperative.name }}
-                            </option>
-                        </select>
-                        <p class="mt-1 text-xs text-muted-foreground">Select a cooperative first to load members and loan types.</p>
-                        <div v-if="form.errors.coop_id" class="mt-1 text-xs text-red-600">{{ form.errors.coop_id }}</div>
-                    </template>
-                </div>
 
-                <div>
-                    <label class="mb-1 block text-sm font-medium">Member</label>
-                    <div v-if="selectedMember" class="mt-2 space-y-2 rounded-lg border border-border bg-background p-3">
-                        <div class="flex items-center gap-3">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Button variant="outline" class="gap-2 self-start lg:self-auto" @click="goBack">
+                        <ArrowLeft class="h-4 w-4" />
+                        Back
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <form class="space-y-6" @submit.prevent="submit">
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2 text-xl">
+                            <Users class="h-5 w-5" />
+                            Loan Details
+                        </CardTitle>
+                        <CardDescription>Choose the member and loan type before setting the requested amount.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="grid gap-5 md:grid-cols-2">
+                        <div class="space-y-2 md:col-span-2">
+                            <Label>Cooperative</Label>
+                            <template v-if="isFromCoopContext">
+                                <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-foreground">
+                                    {{ selectedCooperativeName }}
+                                </div>
+                            </template>
+                            <template v-else-if="props.showCooperativePicker">
+                                <Select v-model="form.coop_id">
+                                    <SelectTrigger :class="inputErrorClass('coop_id')">
+                                        <SelectValue placeholder="Select cooperative" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="cooperative in cooperatives" :key="cooperative.id" :value="String(cooperative.id)">
+                                            {{ cooperative.name }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p class="text-xs text-muted-foreground">Select a cooperative first so the member and loan type options stay aligned.</p>
+                                <p v-if="form.errors.coop_id" class="text-xs text-destructive">{{ form.errors.coop_id }}</p>
+                            </template>
+                            <template v-else>
+                                <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                                    This loan will use the current finance context.
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Member <span class="text-muted-foreground">*</span></Label>
+                            <div v-if="selectedMember" class="rounded-xl border border-border bg-background p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-medium text-foreground">{{ selectedMemberName }}</p>
+                                        <p class="mt-1 text-xs text-muted-foreground">{{ selectedMember.cooperative?.classification ? `${selectedMember.cooperative.classification} cooperative` : 'Selected member' }}</p>
+                                    </div>
+                                    <Button type="button" variant="outline" size="sm" :disabled="!canOpenMemberModal" @click="openMemberModal">
+                                        Change
+                                    </Button>
+                                </div>
+                            </div>
+                            <Button v-else type="button" variant="outline" class="w-full justify-start gap-2" :disabled="!canOpenMemberModal" @click="openMemberModal">
                                 <Users class="h-4 w-4" />
+                                Select member
+                            </Button>
+                            <p class="text-xs text-muted-foreground">Search and choose the member who will receive the loan.</p>
+                            <p v-if="form.errors.member_id" class="text-xs text-destructive">{{ form.errors.member_id }}</p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Loan Type <span class="text-muted-foreground">*</span></Label>
+                            <Select v-model="form.loan_type_id" :disabled="props.showCooperativePicker && !selectedCooperative && !isFromCoopContext">
+                                <SelectTrigger :class="inputErrorClass('loan_type_id')">
+                                    <SelectValue placeholder="Select loan type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="loanType in filteredLoanTypes" :key="loanType.id" :value="String(loanType.id)">
+                                        {{ loanType.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p class="text-xs text-muted-foreground">Loan types are filtered by cooperative and classification tier.</p>
+                            <p v-if="form.errors.loan_type_id" class="text-xs text-destructive">{{ form.errors.loan_type_id }}</p>
+                        </div>
+
+                        <div class="space-y-2 md:col-span-2">
+                            <Label for="principal">Loan Amount <span class="text-muted-foreground">*</span></Label>
+                            <div class="relative">
+                                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">₱</span>
+                                <Input
+                                    id="principal"
+                                    v-model="form.principal"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    class="pl-8"
+                                    :class="inputErrorClass('principal')"
+                                    @input="clearError('principal')"
+                                />
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium text-foreground">{{ selectedMemberName }}</p>
-                                <p class="truncate text-xs text-muted-foreground">
-                                    {{ selectedMember.cooperative?.classification ? `${selectedMember.cooperative.classification} cooperative` : 'Member selected' }}
-                                </p>
+                            <p class="text-xs text-muted-foreground">Enter the principal amount requested by the member.</p>
+                            <p v-if="form.errors.principal" class="text-xs text-destructive">{{ form.errors.principal }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="text-xl">Application Notes</CardTitle>
+                        <CardDescription>Add a short purpose statement and attach supporting documents if needed.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-5">
+                        <div class="space-y-2">
+                            <Label for="purpose">Purpose</Label>
+                            <Textarea
+                                id="purpose"
+                                v-model="form.purpose"
+                                rows="4"
+                                placeholder="Briefly describe why this loan is being requested"
+                                :class="inputErrorClass('purpose')"
+                                @input="clearError('purpose')"
+                            />
+                            <p class="text-xs text-muted-foreground">Optional, but useful for the approval and audit trail.</p>
+                            <p v-if="form.errors.purpose" class="text-xs text-destructive">{{ form.errors.purpose }}</p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <Label>Attachments</Label>
+                                <span class="text-xs text-muted-foreground">Maximum file size: 5MB per file</span>
                             </div>
-                            <Button type="button" variant="outline" size="sm" class="shrink-0" :disabled="!canOpenMemberModal" @click="openMemberModal">
-                                Change Member
+
+                            <input ref="attachmentInputRef" type="file" multiple class="hidden" @change="handleAttachmentsChange" />
+
+                            <div class="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
+                                <div v-if="attachmentItems.length === 0" class="rounded-xl border border-border bg-background px-4 py-8 text-center text-sm text-muted-foreground">
+                                    No attachments selected yet.
+                                </div>
+
+                                <div v-else class="space-y-3">
+                                    <div v-for="item in attachmentItems" :key="`${item.file.name}-${item.file.size}-${item.index}`" class="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="flex min-w-0 items-start gap-3">
+                                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground">
+                                                {{ item.label }}
+                                            </div>
+                                            <component :is="item.icon" class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground sm:hidden" />
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-medium text-foreground">{{ item.file.name }}</p>
+                                                <p class="text-xs text-muted-foreground">{{ item.sizeLabel }}</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                            <Button type="button" variant="outline" size="sm" class="gap-2" @click="openAttachmentPreview(item.file)">
+                                                <Eye class="h-3.5 w-3.5" />
+                                                Preview
+                                            </Button>
+                                            <Button type="button" variant="destructive" size="sm" class="gap-2" @click="removeAttachment(item.index)">
+                                                <Trash2 class="h-3.5 w-3.5" />
+                                                Remove
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 flex flex-wrap items-center gap-3">
+                                    <Button type="button" class="gap-2 bg-foreground text-background hover:bg-foreground/90" @click="triggerAttachmentPicker">
+                                        <Paperclip class="h-4 w-4" />
+                                        Add File
+                                    </Button>
+                                    <p class="text-xs text-muted-foreground">You can upload multiple supporting files.</p>
+                                </div>
+                            </div>
+
+                            <p v-if="form.errors.attachments" class="text-xs text-destructive">{{ form.errors.attachments }}</p>
+                            <p v-if="form.errors['attachments.0']" class="text-xs text-destructive">{{ form.errors['attachments.0'] }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent class="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm text-muted-foreground">
+                            Review the summary above before submitting the loan request.
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <Button type="button" variant="outline" class="gap-2" @click="goBack">
+                                <ArrowLeft class="h-4 w-4" />
+                                Cancel
+                            </Button>
+                            <Button type="submit" class="gap-2" :disabled="form.processing">
+                                <Plus class="h-4 w-4" />
+                                {{ form.processing ? 'Submitting...' : 'Submit Loan Application' }}
                             </Button>
                         </div>
-                    </div>
-                    <div v-else class="mt-2">
-                        <Button type="button" variant="outline" class="w-full justify-start text-muted-foreground" :disabled="!canOpenMemberModal" @click="openMemberModal">
-                            <Users class="mr-2 h-4 w-4" />
-                            Select Member...
-                        </Button>
-                        <p class="mt-1 text-xs text-muted-foreground">Search and choose a member from this cooperative.</p>
-                    </div>
-                    <div v-if="form.errors.member_id" class="mt-1 text-xs text-red-600">{{ form.errors.member_id }}</div>
-                </div>
-
-                <div>
-                    <label class="mb-1 block text-sm font-medium">Loan Type</label>
-                    <select v-model="form.loan_type_id" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" :disabled="showCooperativePicker && !form.coop_id && !isFromCoopContext">
-                        <option value="">Select loan type</option>
-                        <option v-for="loanType in filteredLoanTypes" :key="loanType.id" :value="loanType.id">
-                            {{ loanType.name }}
-                        </option>
-                    </select>
-                    <p class="mt-1 text-xs text-muted-foreground">Loan types are filtered by the selected member's cooperative and classification tier.</p>
-                    <div v-if="form.errors.loan_type_id" class="mt-1 text-xs text-red-600">{{ form.errors.loan_type_id }}</div>
-                </div>
-
-                <div>
-                    <label class="mb-1 block text-sm font-medium">Loan Amount</label>
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm text-muted-foreground">₱</span>
-                        <input
-                            v-model="form.principal"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            class="w-full rounded-md border py-2 pl-8 pr-3 text-sm"
-                        />
-                    </div>
-                    <div v-if="form.errors.principal" class="mt-1 text-xs text-red-600">{{ form.errors.principal }}</div>
-                </div>
-
-                <div>
-                    <label class="mb-1 block text-sm font-medium">Purpose</label>
-                    <textarea
-                        v-model="form.purpose"
-                        rows="4"
-                        class="w-full rounded-md border px-3 py-2 text-sm"
-                        placeholder="Briefly describe the reason for this loan application"
-                    ></textarea>
-                    <div v-if="form.errors.purpose" class="mt-1 text-xs text-red-600">{{ form.errors.purpose }}</div>
-                </div>
-
-                <div>
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <label class="block text-sm font-medium">File Attachments</label>
-                        <span class="text-xs text-muted-foreground">Maximum file size: 5MB per file</span>
-                    </div>
-
-                    <input ref="attachmentInputRef" type="file" multiple class="hidden" @change="onAttachmentsChange" />
-
-                    <div class="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-4">
-                        <div v-if="attachmentItems.length === 0" class="rounded-md border border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
-                            No files selected yet.
-                        </div>
-
-                        <div v-else class="space-y-2">
-                            <div v-for="item in attachmentItems" :key="item.file.name + item.file.size + item.index" class="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground">
-                                        {{ item.label }}
-                                    </div>
-                                    <component :is="item.icon" class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground sm:hidden" />
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground">{{ item.file.name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ item.sizeLabel }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" @click="openAttachmentPreview(item.file)">
-                                        <Eye class="h-3.5 w-3.5" />
-                                        Preview
-                                    </button>
-                                    <button type="button" class="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/5" @click="removeAttachment(item.index)">
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" class="inline-flex items-center gap-2 rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background hover:bg-foreground/90" @click="triggerAttachmentPicker">
-                                <Plus class="h-4 w-4" />
-                                Add File
-                            </button>
-                            <p class="text-xs text-muted-foreground">You may upload one or more supporting files.</p>
-                        </div>
-                    </div>
-
-                    <div v-if="form.errors.attachments" class="mt-1 text-xs text-red-600">{{ form.errors.attachments }}</div>
-                    <div v-if="form.errors['attachments.0']" class="mt-1 text-xs text-red-600">{{ form.errors['attachments.0'] }}</div>
-                </div>
-
-                <div class="flex items-center gap-3 border-t pt-4">
-                    <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" :disabled="form.processing">
-                        {{ form.processing ? 'Submitting...' : 'Submit Loan Application' }}
-                    </button>
-                    <button type="button" class="rounded-md border px-4 py-2 text-sm" @click="handleCancel">Cancel</button>
-                </div>
+                    </CardContent>
+                </Card>
             </form>
 
             <MemberSelectDialog
@@ -552,6 +613,8 @@ const handleCancel = async () => {
                 :loading="false"
                 @select="selectMember"
             />
+
+            <div v-if="showErrorShake" class="sr-only">Validation error</div>
         </div>
     </FinanceShellLayout>
 </template>

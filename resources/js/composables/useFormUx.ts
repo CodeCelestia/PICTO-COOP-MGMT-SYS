@@ -6,9 +6,12 @@ export function useFormUx(form: any) {
     const isDirty = ref(false);
     const showErrorShake = ref(false);
 
-    const inputErrorClass = (field: string) => ({
-        'border-red-500 ring-1 ring-red-300': !!(form?.errors && form.errors[field]),
-    });
+    const inputErrorClass = (field: string) => {
+        if (form?.errors && form.errors[field]) {
+            return 'border-red-500 ring-1 ring-red-300 dark:border-red-700 dark:ring-red-900/50';
+        }
+        return '';
+    };
 
     const clearError = (field: string) => {
         if (form?.errors && form.errors[field]) {
@@ -62,10 +65,12 @@ export function useFormUx(form: any) {
             if (result.isConfirmed) {
                 if (fallbackBack) window.history.back();
             }
-            return;
+            return result;
         }
 
         if (fallbackBack) window.history.back();
+        // Return an object compatible with Swal result so callers can check .isConfirmed
+        return { isConfirmed: true } as any;
     };
 
     return {

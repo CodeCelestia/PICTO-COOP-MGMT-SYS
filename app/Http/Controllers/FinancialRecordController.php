@@ -83,7 +83,7 @@ class FinancialRecordController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('FinancialRecords/Index', [
+        return Inertia::render('Finance/FinancialRecords/Index', [
             'records' => $records,
             'cooperatives' => $cooperativesQuery->get(),
             'filters' => $request->only(['search', 'type', 'coop_id', 'per_page']),
@@ -115,7 +115,7 @@ class FinancialRecordController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('FinancialRecords/Create', [
+        return Inertia::render('Finance/FinancialRecords/Create', [
             'cooperatives' => $cooperativesQuery->get(),
             'isCoopContext' => $isCoopContext,
             'coopContext' => $coopContext,
@@ -171,23 +171,30 @@ class FinancialRecordController extends Controller
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record created successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=financial-records to stay in component
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=financial-records")
+                ->with('success', 'Financial record created successfully.');
         }
 
         return redirect()->route('financial-records.index')->with('success', 'Financial record created successfully.');
     }
 
-    public function edit(FinancialRecord $financialRecord): Response
+    public function edit(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord): Response
     {
         $user = auth()->user();
+
+        if ($cooperative->id !== $financialRecord->coop_id) {
+            abort(404);
+        }
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
         $this->enforceCoopScope($financialRecord->coop_id);
-        $isCoopContext = request()->routeIs('cooperatives.finance.financial-records.*');
-        $coopContext = $isCoopContext ? request()->route('cooperative') : null;
+        $isCoopContext = $request->routeIs('cooperatives.finance.financial-records.*');
+        $coopContext = $isCoopContext ? $cooperative : null;
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
 
@@ -195,7 +202,7 @@ class FinancialRecordController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('FinancialRecords/Edit', [
+        return Inertia::render('Finance/FinancialRecords/Edit', [
             'record' => $financialRecord->load('cooperative'),
             'cooperatives' => $cooperativesQuery->get(),
             'isCoopContext' => $isCoopContext,
@@ -203,13 +210,17 @@ class FinancialRecordController extends Controller
         ]);
     }
 
-    public function update(Request $request, FinancialRecord $financialRecord): RedirectResponse
+    public function update(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord): RedirectResponse
     {
         $user = auth()->user();
         $coopId = $user?->coop_id;
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
+        }
+
+        if ($cooperative->id !== $financialRecord->coop_id) {
+            abort(404);
         }
 
         $validated = $request->validate([
@@ -248,20 +259,22 @@ class FinancialRecordController extends Controller
         }
 
         if (request()->routeIs('cooperatives.finance.financial-records.*')) {
-            $cooperative = request()->route('cooperative');
-            if ($cooperative === 'my') {
-                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
-            }
-            return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record updated successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=financial-records to stay in component
+            return redirect()->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=financial-records")
+                ->with('success', 'Financial record updated successfully.');
         }
 
         return redirect()->route('financial-records.index')->with('success', 'Financial record updated successfully.');
     }
 
-    public function destroy(FinancialRecord $financialRecord): RedirectResponse
+    public function destroy(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord): RedirectResponse
     {
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {
             abort(403);
+        }
+
+        if ($cooperative->id !== $financialRecord->coop_id) {
+            abort(404);
         }
 
         $this->enforceCoopScope($financialRecord->coop_id);
@@ -269,11 +282,9 @@ class FinancialRecordController extends Controller
         $financialRecord->delete();
 
         if (request()->routeIs('cooperatives.finance.financial-records.*')) {
-            $cooperative = request()->route('cooperative');
-            if ($cooperative === 'my') {
-                $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
-            }
-            return redirect()->route('cooperatives.finance.financial-records.index', ['cooperative' => $cooperative->id])->with('success', 'Financial record deleted successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=financial-records to stay in component
+            return redirect()->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=financial-records")
+                ->with('success', 'Financial record deleted successfully.');
         }
 
         return redirect()->route('financial-records.index')->with('success', 'Financial record deleted successfully.');

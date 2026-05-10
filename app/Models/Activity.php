@@ -127,7 +127,7 @@ class Activity extends Model
      */
     public function fundingSources(): HasMany
     {
-        return $this->hasMany(ActivityFundingSource::class);
+        return $this->hasMany(ActivityFundingSource::class)->orderBy('id');
     }
 }
 

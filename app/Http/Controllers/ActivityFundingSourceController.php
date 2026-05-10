@@ -63,7 +63,10 @@ class ActivityFundingSourceController extends Controller
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            return redirect()->route('cooperatives.finance.funding-sources.index', ['cooperative' => $cooperative->id])->with('success', $message);
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=funding-sources to stay in component
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=funding-sources")
+                ->with('success', $message);
         }
 
         if ($request->routeIs('finance.funding-sources.*')) {
@@ -157,7 +160,7 @@ class ActivityFundingSourceController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('ActivityFundingSources/Index', [
+        return Inertia::render('Finance/FundingSources/Index', [
             'fundingSources' => $fundingSources,
             'activities' => $activitiesQuery->get(),
             'cooperatives' => $cooperativesQuery->get(),
@@ -201,7 +204,7 @@ class ActivityFundingSourceController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('ActivityFundingSources/Create', [
+        return Inertia::render('Finance/FundingSources/Create', [
             'activities' => $activitiesQuery->get(),
             'members' => $membersQuery->get()->map(fn ($member) => [
                 'id' => $member->id,
@@ -310,9 +313,13 @@ class ActivityFundingSourceController extends Controller
     /**
      * Show the form for editing a funding source.
      */
-    public function edit(ActivityFundingSource $activityFundingSource): Response
+    public function edit(Request $request, Cooperative $cooperative, ActivityFundingSource $activityFundingSource): Response
     {
         $user = auth()->user();
+
+        if ($cooperative->id !== $activityFundingSource->coop_id) {
+            abort(404);
+        }
 
         if (!$user?->can('update finance-funding-sources')) {
             abort(403, 'You do not have permission to update funding sources.');
@@ -323,8 +330,8 @@ class ActivityFundingSourceController extends Controller
         }
 
         $this->enforceCoopScope($activityFundingSource->coop_id);
-        $isCoopContext = request()->routeIs('cooperatives.finance.funding-sources.*');
-        $coopContext = $isCoopContext ? request()->route('cooperative') : null;
+        $isCoopContext = $request->routeIs('cooperatives.finance.funding-sources.*');
+        $coopContext = $isCoopContext ? $cooperative : null;
 
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
         $membersQuery = Member::select('id', 'first_name', 'last_name', 'coop_id')->orderBy('last_name');
@@ -336,7 +343,7 @@ class ActivityFundingSourceController extends Controller
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
-        return Inertia::render('ActivityFundingSources/Edit', [
+        return Inertia::render('Finance/FundingSources/Edit', [
             'fundingSource' => $activityFundingSource->load(['activity', 'cooperative']),
             'activities' => $activitiesQuery->get(),
             'members' => $membersQuery->get()->map(fn ($member) => [
@@ -353,9 +360,13 @@ class ActivityFundingSourceController extends Controller
     /**
      * Update a funding source.
      */
-    public function update(Request $request, ActivityFundingSource $activityFundingSource): RedirectResponse
+    public function update(Request $request, Cooperative $cooperative, ActivityFundingSource $activityFundingSource): RedirectResponse
     {
         $user = auth()->user();
+
+        if ($cooperative->id !== $activityFundingSource->coop_id) {
+            abort(404);
+        }
 
         if (!$request->user()?->can('update finance-funding-sources')) {
             abort(403, 'You do not have permission to update funding sources.');
@@ -455,10 +466,14 @@ class ActivityFundingSourceController extends Controller
     /**
      * Remove a funding source.
      */
-    public function destroy(Request $request, ActivityFundingSource $activityFundingSource): RedirectResponse
+    public function destroy(Request $request, Cooperative $cooperative, ActivityFundingSource $activityFundingSource): RedirectResponse
     {
         if (!$request->user()?->can('delete finance-funding-sources')) {
             abort(403, 'You do not have permission to delete funding sources.');
+        }
+
+        if ($cooperative->id !== $activityFundingSource->coop_id) {
+            abort(404);
         }
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin()) {

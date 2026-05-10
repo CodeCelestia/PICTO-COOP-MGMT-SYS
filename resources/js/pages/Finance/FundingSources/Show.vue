@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { formatPhilippinePeso } from '@/composables/useCurrencyFormatter';
 import { useCreateBack } from '@/composables/useCreateBack';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -14,8 +15,14 @@ import {
 import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { computed as vueComputed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { Badge } from '@/components/ui/badge';
 
 const isFromCoopContext = vueComputed(() => {
+    // Check URL path for coop context
+    if (window.location.pathname.startsWith('/cooperatives/')) {
+        return true;
+    }
+    // Also check query parameter for backward compatibility
     const coopId = new URLSearchParams(window.location.search).get('coop_id');
     return !!coopId;
 });
@@ -26,6 +33,7 @@ const coopIdFromUrl = vueComputed(() => {
 });
 
 const coopSlug = vueComputed(() => usePage().props.auth?.user?.coop_slug ?? 'my');
+const currentUrl = window.location.pathname + window.location.search;
 import { computed, ref } from 'vue';
 
 interface FundingSource {
@@ -58,7 +66,7 @@ const props = defineProps<{
 const { goBack } = useCreateBack({ fallbackHref: '/finance/funding-sources' });
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        window.location.href = `/cooperatives/${coopSlug.value}?tab=finance&subtab=funding-sources`;
+        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=funding-sources`);
         return;
     }
 
@@ -101,6 +109,36 @@ const activityLabel = (source: FundingSource) => {
 
     return 'Manual Entry';
 };
+
+const statusBadgeClass = (status: string) => {
+    switch ((status || '').toLowerCase()) {
+        case 'released':
+        case 'approved':
+        case 'completed':
+            return 'border border-green-200 bg-green-100 text-green-800';
+        case 'pending':
+        case 'draft':
+            return 'border border-amber-200 bg-amber-100 text-amber-800';
+        case 'inactive':
+        case 'cancelled':
+        case 'rejected':
+            return 'border border-red-200 bg-red-100 text-red-800';
+        default:
+            return 'border border-gray-200 bg-gray-100 text-gray-800';
+    }
+};
+
+const editHref = vueComputed(() => {
+    if (isFromCoopContext.value && coopIdFromUrl.value) {
+        return `/cooperatives/${coopIdFromUrl.value}/finance/funding-sources/${props.fundingSource.id}/edit`;
+    }
+
+    return currentUrl
+        ? `/finance/funding-sources/${props.fundingSource.id}/edit?return_to=${encodeURIComponent(currentUrl)}`
+        : `/finance/funding-sources/${props.fundingSource.id}/edit`;
+});
+
+const displayText = (value?: string | null) => value && String(value).trim() ? value : '—';
 </script>
 
 <template>
@@ -108,108 +146,128 @@ const activityLabel = (source: FundingSource) => {
 
     <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isFromCoopContext">
         <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <div v-if="isFromCoopContext" class="mb-2 flex items-center gap-2 text-sm">
-                        <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
-                        <span class="text-muted-foreground">/</span>
-                        <a :href="`/cooperatives/${coopSlug.value}`" class="text-primary hover:underline">Cooperative</a>
-                        <span class="text-muted-foreground">/</span>
-                        <span class="text-foreground">Funding Source</span>
+            <Card>
+                <CardContent class="flex items-start justify-between gap-4 py-4">
+                    <div>
+                        <div v-if="isFromCoopContext" class="mb-2 text-sm text-muted-foreground">
+                            <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
+                            <span class="mx-2">/</span>
+                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">Cooperative</a>
+                            <span class="mx-2">/</span>
+                            <span>Funding Source</span>
+                        </div>
+                        <h1 class="text-xl font-semibold">Funding Source Details</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">Read-only funding source information.</p>
                     </div>
-                    <h1 class="text-2xl font-semibold">Funding Source Details</h1>
-                    <p class="text-sm text-muted-foreground">Read-only funding source information.</p>
-                </div>
-                <button type="button" class="rounded-md border px-3 py-2 text-sm" @click="handleBackClick">Back</button>
-            </div>
-
-            <div class="space-y-6">
-                <div class="space-y-4">
-                    <h2 class="text-sm font-semibold text-muted-foreground">Basic Information</h2>
-                    <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Funding Source ID</p>
-                            <p class="text-base font-medium text-foreground">{{ fundingSource.id }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Cooperative</p>
-                            <p class="text-base font-medium text-foreground">{{ fundingSource.cooperative?.name || 'N/A' }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Category</p>
-                            <p class="text-base font-medium text-foreground">{{ categoryLabel(fundingSource.category) }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Activity</p>
-                            <p class="text-base font-medium text-foreground">{{ activityLabel(fundingSource) }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Funder Name</p>
-                            <p class="text-base font-medium text-foreground">{{ fundingSource.funder_name }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Funder Type</p>
-                            <p class="text-base font-medium text-foreground">{{ fundingSource.funder_type }}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <Button variant="outline" type="button" @click="handleBackClick">Back</Button>
+                        <Link :href="editHref">
+                            <Button type="button" class="gap-2">
+                                Edit
+                            </Button>
+                        </Link>
                     </div>
-                </div>
+                </CardContent>
+            </Card>
 
-                <Separator />
-
-                <div class="space-y-4">
-                    <h2 class="text-sm font-semibold text-muted-foreground">Financial Details</h2>
-                    <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Amount Allocated</p>
-                            <p class="text-base font-medium text-foreground">{{ formatPhilippinePeso(fundingSource.amount_allocated) }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Amount Released</p>
-                            <p class="text-base font-medium text-foreground">{{ formatPhilippinePeso(fundingSource.amount_released) }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Date Released</p>
-                            <p class="text-base font-medium text-foreground">{{ formatDate(fundingSource.date_released) }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Status</p>
-                            <p class="text-base font-medium text-foreground">{{ fundingSource.status }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <Separator />
-
-                <div class="space-y-4">
-                    <h2 class="text-sm font-semibold text-muted-foreground">Additional Details</h2>
-                    <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
-                        <div class="space-y-1.5 md:col-span-2">
-                            <p class="text-sm text-muted-foreground">Remarks</p>
-                            <p class="text-base font-medium text-foreground whitespace-pre-line">{{ fundingSource.remarks || 'N/A' }}</p>
-                        </div>
-                        <div class="space-y-1.5 md:col-span-2">
-                            <p class="text-sm text-muted-foreground">Files</p>
-                            <div class="text-base font-medium text-foreground">
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    @click="isFilesDialogOpen = true"
-                                >
-                                    Files
-                                </Button>
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <Card class="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Basic Information</CardTitle>
+                        <CardDescription>Core funding source details.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funding Source ID</p>
+                                <p class="mt-1 text-sm font-medium">{{ fundingSource.id }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cooperative</p>
+                                <p class="mt-1 text-sm font-medium">{{ displayText(fundingSource.cooperative?.name) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</p>
+                                <p class="mt-1 text-sm font-medium">{{ categoryLabel(fundingSource.category) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Activity</p>
+                                <p class="mt-1 text-sm font-medium">{{ activityLabel(fundingSource) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funder Name</p>
+                                <p class="mt-1 text-sm font-medium">{{ displayText(fundingSource.funder_name) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Funder Type</p>
+                                <p class="mt-1 text-sm font-medium">{{ displayText(fundingSource.funder_type) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+                                <Badge :class="[statusBadgeClass(fundingSource.status), 'mt-1 rounded-md px-2 py-0.5 text-xs font-medium']">
+                                    {{ fundingSource.status }}
+                                </Badge>
                             </div>
                         </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Created</p>
-                            <p class="text-base font-medium text-foreground">{{ formatDate(fundingSource.created_at) }}</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Financial Summary</CardTitle>
+                        <CardDescription>Amounts and timing.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount Allocated</p>
+                            <p class="mt-1 text-sm font-medium">{{ formatPhilippinePeso(fundingSource.amount_allocated) }}</p>
                         </div>
-                        <div class="space-y-1.5">
-                            <p class="text-sm text-muted-foreground">Last Updated</p>
-                            <p class="text-base font-medium text-foreground">{{ formatDate(fundingSource.updated_at) }}</p>
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount Released</p>
+                            <p class="mt-1 text-sm font-medium">{{ formatPhilippinePeso(fundingSource.amount_released) }}</p>
                         </div>
-                    </div>
-                </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Date Released</p>
+                            <p class="mt-1 text-sm font-medium">{{ displayText(formatDate(fundingSource.date_released)) }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card class="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle>Additional Details</CardTitle>
+                        <CardDescription>Remarks, timestamps, and attachments.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="md:col-span-2">
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Remarks</p>
+                                <p class="mt-1 whitespace-pre-line text-sm font-medium">{{ displayText(fundingSource.remarks) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Created</p>
+                                <p class="mt-1 text-sm font-medium">{{ displayText(formatDate(fundingSource.created_at)) }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Last Updated</p>
+                                <p class="mt-1 text-sm font-medium">{{ displayText(formatDate(fundingSource.updated_at)) }}</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Files</p>
+                                <div class="mt-2">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        @click="isFilesDialogOpen = true"
+                                    >
+                                        Files
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     </FinanceShellLayout>

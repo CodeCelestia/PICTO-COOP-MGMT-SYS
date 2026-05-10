@@ -3,6 +3,7 @@ import { router, Link, usePage } from '@inertiajs/vue3';
 import { LifeBuoy, Plus, Pencil, Trash2, Search, ArrowLeft } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
@@ -205,6 +206,24 @@ const formatAmount = (value: string | null) => {
     return numberValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const statusBadgeClass = (status: string) => {
+    switch ((status || '').toString().toLowerCase()) {
+        case 'ongoing':
+        case 'approved':
+        case 'active':
+        case 'completed':
+            return 'bg-green-100 text-green-700 border-green-200';
+        case 'pending':
+            return 'bg-amber-100 text-amber-700 border-amber-200';
+        case 'inactive':
+        case 'cancelled':
+        case 'rejected':
+            return 'bg-red-100 text-red-700 border-red-200';
+        default:
+            return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+};
+
 const recordLabel = (record?: FinancialRecordOption | null) => {
     if (!record) return 'Unlinked';
     return `${record.period} · ${record.type}`;
@@ -264,7 +283,7 @@ const bulkDeleteSupports = async () => {
                     </Link>
                         <Link
                             v-if="canCreate"
-                            :href="selectedCoop ? `/cooperatives/${coopSlug.value}/finance/external-supports/create` : '/external-supports/create'"
+                            :href="selectedCoop ? `/cooperatives/${coopSlug}/finance/external-supports/create` : '/external-supports/create'"
                         >
                         <Button class="gap-2">
                             <Plus class="h-4 w-4" />
@@ -461,7 +480,9 @@ const bulkDeleteSupports = async () => {
                                     <TableCell class="text-sm text-muted-foreground">{{ support.support_type }}</TableCell>
                                     <TableCell class="text-sm text-muted-foreground">{{ formatAmount(support.amount) }}</TableCell>
                                     <TableCell class="text-sm text-muted-foreground">{{ formatDate(support.date_granted) }}</TableCell>
-                                    <TableCell class="text-sm text-muted-foreground">{{ support.status }}</TableCell>
+                                    <TableCell class="text-sm">
+                                        <Badge class="text-sm font-medium" :class="statusBadgeClass(support.status)">{{ support.status }}</Badge>
+                                    </TableCell>
                                     <TableCell class="text-sm text-muted-foreground">{{ recordLabel(support.financial_record) }}</TableCell>
                                     <TableCell v-if="showActions" class="text-center">
                                         <div class="flex flex-wrap justify-center gap-2">

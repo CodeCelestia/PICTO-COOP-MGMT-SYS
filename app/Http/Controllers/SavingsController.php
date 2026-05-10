@@ -87,7 +87,12 @@ class SavingsController extends Controller
         $user = $request->user();
         $isCoopContext = $request->routeIs('cooperatives.finance.savings.*');
         $coopContext = $isCoopContext ? $request->route('cooperative') : null;
-        $coopId = $isCoopContext ? $coopContext->id : $request->query('coop_id');
+        $coopId = null;
+        if ($isCoopContext) {
+            $coopId = is_string($coopContext) ? (int)$coopContext : $coopContext->id;
+        } else {
+            $coopId = $request->query('coop_id');
+        }
         $cooperative = $coopId ? \App\Models\Cooperative::select(['id', 'name'])->find((int) $coopId) : null;
 
         if (!$user?->can('open finance-savings-accounts')) {
@@ -183,7 +188,10 @@ class SavingsController extends Controller
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account created successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=savings to stay in component
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=savings")
+                ->with('success', 'Savings account created successfully.');
         }
 
         return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account created successfully.');
@@ -269,7 +277,10 @@ class SavingsController extends Controller
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            return redirect()->route('cooperatives.finance.savings.show', ['cooperative' => $cooperative->id, 'savings' => $savings->id])->with('success', 'Savings account updated successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=savings to stay in component
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=savings")
+                ->with('success', 'Savings account updated successfully.');
         }
 
         return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account updated successfully.');
@@ -302,7 +313,10 @@ class SavingsController extends Controller
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            return redirect()->route('cooperatives.finance.savings.index', ['cooperative' => $cooperative->id])->with('success', 'Savings account closed successfully.');
+            // Redirect back to Cooperatives/Show with tab=finance&subtab=savings to stay in component
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=savings")
+                ->with('success', 'Savings account closed successfully.');
         }
 
         return redirect()->route('finance.savings.index')->with('success', 'Savings account closed successfully.');
