@@ -253,7 +253,7 @@ const bulkDeleteFundingSources = async () => {
 
 <template>
     <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isCoopContext">
-        <div class="space-y-6 p-4 sm:p-6">
+        <div class="w-full space-y-6 p-4 sm:p-6">
             <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">

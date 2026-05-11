@@ -183,7 +183,7 @@ const createHref = computed(() => {
     <Head title="Finance - Financial Records" />
 
     <FinanceShellLayout active-tab="financial-records" :hide-tabs="isFromCoopContext">
-        <div class="space-y-6">
+        <div class="w-full space-y-6">
             <!-- Breadcrumb & Header -->
             <div class="space-y-4">
                 <div v-if="isFromCoopContext" class="text-sm flex items-center gap-2">

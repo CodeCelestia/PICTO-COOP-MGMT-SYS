@@ -97,7 +97,7 @@ watch(activeFinanceTab, (tab) => {
 
 <template>
     <AppLayout>
-        <div class="mx-auto w-full max-w-7xl space-y-6 px-4 py-4 sm:px-6 lg:px-8">
+        <div class="mx-auto w-full max-w-full space-y-6 px-4 py-4 sm:px-6 lg:px-8">
             <header class="space-y-1">
                 <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     Finance
@@ -107,7 +107,7 @@ watch(activeFinanceTab, (tab) => {
                 </p>
             </header>
 
-            <div v-if="!hideTabs" class="rounded-2xl border border-border bg-card/95 p-2 shadow-sm">
+            <div v-if="!hideTabs" class="overflow-x-auto whitespace-nowrap rounded-2xl border border-border bg-card/95 p-2 shadow-sm">
                 <LiftedTabs v-model="activeFinanceTab" :tabs="financeTabs" />
             </div>
 

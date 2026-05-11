@@ -238,7 +238,7 @@ const showLoansList = computed(() => (isGlobalMode.value ? Boolean(selectedMembe
     <Head title="Finance - Loans" />
 
     <FinanceShellLayout active-tab="loans" :hide-tabs="isCoopContext">
-        <div class="space-y-6">
+        <div class="w-full space-y-6">
             <Card>
                 <CardContent class="flex flex-col gap-4 py-5 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-2">
@@ -393,7 +393,8 @@ const showLoansList = computed(() => (isGlobalMode.value ? Boolean(selectedMembe
                         </div>
 
                         <div class="overflow-hidden rounded-2xl border bg-card">
-                            <table class="w-full text-sm">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
                                 <thead class="bg-muted/40">
                                     <tr>
                                         <th class="px-4 py-3 text-left">Member</th>
@@ -447,7 +448,8 @@ const showLoansList = computed(() => (isGlobalMode.value ? Boolean(selectedMembe
                                         </td>
                                     </tr>
                                 </tbody>
-                            </table>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </CardContent>

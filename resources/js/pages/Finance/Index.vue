@@ -144,7 +144,7 @@ const sectionCards = [
 
     <FinanceShellLayout active-tab="overview">
         <div class="space-y-6">
-            <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Card v-for="card in sectionCards" :key="card.title" class="overflow-hidden border-border shadow-sm">
                     <CardHeader class="space-y-4">
                         <div :class="['flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br text-white shadow-sm', card.accent]">
@@ -159,7 +159,7 @@ const sectionCards = [
                     </CardHeader>
 
                     <CardContent class="space-y-4">
-                        <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div v-for="stat in card.stats" :key="stat.label" class="rounded-xl border border-border bg-muted/40 px-3 py-2">
                                 <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                                     {{ stat.label }}
@@ -170,7 +170,7 @@ const sectionCards = [
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between rounded-xl bg-background px-4 py-3">
+                        <div class="flex flex-col gap-3 rounded-xl bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-muted-foreground">
                                     {{ card.amountLabel }}
@@ -180,8 +180,8 @@ const sectionCards = [
                                 </p>
                             </div>
 
-                            <Link :href="card.href">
-                                <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
+                            <Link :href="card.href" class="w-full sm:w-auto">
+                                <Button class="w-full gap-2 bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                                     Open
                                     <ArrowRight class="h-4 w-4" />
                                 </Button>

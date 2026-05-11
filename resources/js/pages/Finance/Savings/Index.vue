@@ -193,7 +193,7 @@ const closeAccount = (savingsId: number) => {
     <Head title="Finance - Savings" />
 
     <FinanceShellLayout active-tab="savings" :hide-tabs="isFromCoopContext">
-        <div class="space-y-6 p-4 sm:p-6">
+        <div class="w-full space-y-6 p-4 sm:p-6">
             <Card>
                 <CardContent class="flex items-center justify-between py-4">
                     <div>
@@ -284,7 +284,8 @@ const closeAccount = (savingsId: number) => {
                 </Card>
 
                 <div class="overflow-hidden rounded-lg border bg-card">
-                    <table class="w-full text-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
                         <thead class="bg-muted/40">
                             <tr>
                                 <th class="px-4 py-3 text-left">Account</th>
@@ -343,7 +344,8 @@ const closeAccount = (savingsId: number) => {
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

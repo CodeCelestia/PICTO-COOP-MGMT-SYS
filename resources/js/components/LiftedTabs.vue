@@ -26,7 +26,7 @@ const setActive = (id: string) => {
 </script>
 
 <template>
-    <div class="flex flex-wrap items-center gap-1 rounded-xl border border-border/70 bg-muted/35 p-1">
+    <div class="flex w-max flex-nowrap items-center gap-1 rounded-xl border border-border/70 bg-muted/35 p-1">
         <button
             v-for="tab in tabs"
             :key="tab.id"
