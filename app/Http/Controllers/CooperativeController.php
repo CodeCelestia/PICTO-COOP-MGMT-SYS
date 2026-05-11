@@ -18,6 +18,7 @@ use App\Models\MemberSavings;
 use App\Traits\LogsActivityWithChanges;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -85,7 +86,18 @@ class CooperativeController extends Controller
             'accreditations' => function ($query) {
                 $query->orderByDesc('date_granted');
             },
-        ])->withCount('members')->orderBy('name')->paginate($perPage)->withQueryString();
+        ])->withCount([
+            'members',
+            'members as active_members_count' => function ($memberQuery) {
+                $memberQuery->where('membership_status', 'Active');
+            },
+            'members as male_members_count' => function ($memberQuery) {
+                $memberQuery->where('gender', 'Male');
+            },
+            'members as female_members_count' => function ($memberQuery) {
+                $memberQuery->where('gender', 'Female');
+            },
+        ])->orderBy('name')->paginate($perPage)->withQueryString();
 
         $cooperatives->getCollection()->transform(function ($cooperative) {
             $latestAccreditation = $cooperative->accreditations()
@@ -122,7 +134,7 @@ class CooperativeController extends Controller
             abort(403, 'You do not have permission to create cooperative profiles.');
         }
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'registration_number' => 'required|string|max:255|unique:cooperatives',
             'type_ids' => 'required|array|min:1',
@@ -136,7 +148,17 @@ class CooperativeController extends Controller
             'barangay' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
-            'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
+            'status' => 'required|in:Active,Pending,Inactive,Dissolved,Suspended',
+            'requirements' => 'nullable|array',
+            'requirements.coc_certificate.checked' => 'nullable|boolean',
+            'requirements.coc_certificate.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.coc_certificate.description' => 'nullable|string|max:500',
+            'requirements.prs_certification.checked' => 'nullable|boolean',
+            'requirements.prs_certification.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.prs_certification.description' => 'nullable|string|max:500',
+            'requirements.certificate_of_registration.checked' => 'nullable|boolean',
+            'requirements.certificate_of_registration.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.certificate_of_registration.description' => 'nullable|string|max:500',
             'accreditations' => 'nullable|array',
             'accreditations.*.level' => 'required_with:accreditations|string|max:255',
             'accreditations.*.date_granted' => 'required_with:accreditations|date',
@@ -144,6 +166,28 @@ class CooperativeController extends Controller
             'accreditations.*.issuing_body' => 'nullable|string|max:255',
             'accreditations.*.remarks' => 'nullable|string|max:500',
         ]);
+
+        // Custom validation: if a requirement is checked, a file must be attached
+        $validator->after(function ($validator) use ($request) {
+            foreach (['coc_certificate', 'prs_certification', 'certificate_of_registration'] as $key) {
+                $checked = filter_var($request->input("requirements.{$key}.checked"), FILTER_VALIDATE_BOOLEAN);
+                $hasFile = $request->hasFile("requirements.{$key}.file");
+
+                if ($checked && !$hasFile) {
+                    $validator->errors()->add("requirements.{$key}.file", 'Please upload a file for this requirement.');
+                }
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $requirements = $validated['requirements'] ?? [];
+        $allRequirementsCompleted = collect(['coc_certificate', 'prs_certification', 'certificate_of_registration'])
+            ->every(fn (string $key) => !empty($requirements[$key]['checked'] ?? false));
+
+        if (! $allRequirementsCompleted) {
+            $validated['status'] = 'Pending';
+        }
 
         $typeIds = $validated['type_ids'];
         unset($validated['type_ids']);
@@ -181,6 +225,33 @@ class CooperativeController extends Controller
                 'remarks' => $accreditation['remarks'] ?? null,
             ]);
         }
+
+        $requirementMetadata = [];
+        foreach (['coc_certificate', 'prs_certification', 'certificate_of_registration'] as $key) {
+            $checked = !empty($requirements[$key]['checked'] ?? false);
+            $description = $requirements[$key]['description'] ?? null;
+            $filePath = null;
+            $originalName = null;
+
+            if ($request->hasFile("requirements.{$key}.file")) {
+                $file = $request->file("requirements.{$key}.file");
+                $filePath = $file->storeAs(
+                    "cooperative-requirements/{$cooperative->id}",
+                    sprintf('%s_%s.%s', $cooperative->id, $key, $file->getClientOriginalExtension()),
+                    'public'
+                );
+                $originalName = $file->getClientOriginalName();
+            }
+
+            $requirementMetadata[$key] = [
+                'checked' => $checked,
+                'file_path' => $filePath,
+                'original_name' => $originalName,
+                'description' => $description,
+            ];
+        }
+
+        $cooperative->update(['requirements' => $requirementMetadata]);
 
         CooperativeStatusHistory::create([
             'coop_id' => $cooperative->id,
@@ -249,6 +320,8 @@ class CooperativeController extends Controller
             abort(403);
         }
 
+        $existingRequirements = $cooperative->requirements ?? [];
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'registration_number' => 'required|string|max:255|unique:cooperatives,registration_number,' . $cooperative->id,
@@ -263,7 +336,17 @@ class CooperativeController extends Controller
             'barangay' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
-            'status' => 'required|in:Active,Inactive,Dissolved,Suspended',
+            'status' => 'required|in:Active,Pending,Inactive,Dissolved,Suspended',
+            'requirements' => 'nullable|array',
+            'requirements.coc_certificate.checked' => 'nullable|boolean',
+            'requirements.coc_certificate.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.coc_certificate.description' => 'nullable|string|max:500',
+            'requirements.prs_certification.checked' => 'nullable|boolean',
+            'requirements.prs_certification.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.prs_certification.description' => 'nullable|string|max:500',
+            'requirements.certificate_of_registration.checked' => 'nullable|boolean',
+            'requirements.certificate_of_registration.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'requirements.certificate_of_registration.description' => 'nullable|string|max:500',
             'accreditations' => 'nullable|array',
             'accreditations.*.id' => 'nullable|integer|exists:accreditations,id',
             'accreditations.*.level' => 'required_with:accreditations|string|max:255',
@@ -275,14 +358,85 @@ class CooperativeController extends Controller
             'status_remarks' => 'nullable|string|max:500',
         ]);
 
-        if ($request->input('status') !== $cooperative->status) {
+        $submittedRequirements = $request->input('requirements', []);
+        $autoStatus = collect(['coc_certificate', 'prs_certification', 'certificate_of_registration'])
+            ->every(fn (string $key) => !empty($submittedRequirements[$key]['checked'] ?? false))
+            ? 'Active'
+            : 'Pending';
+
+        $submittedStatus = $request->input('status', $cooperative->status);
+        $statusChangeIsManual = $submittedStatus !== $cooperative->status && $submittedStatus !== $autoStatus;
+
+        if ($statusChangeIsManual) {
             $validator->sometimes('change_reason', ['required', 'string', 'max:500'], fn () => true);
         }
 
+        $validator->after(function ($validator) use ($request, $existingRequirements) {
+            foreach (['coc_certificate', 'prs_certification', 'certificate_of_registration'] as $key) {
+                $checked = filter_var($request->input("requirements.{$key}.checked"), FILTER_VALIDATE_BOOLEAN);
+                $hasFile = $request->hasFile("requirements.{$key}.file");
+                $hasExistingFile = !empty($existingRequirements[$key]['file_path'] ?? null);
+
+                // Frontend may send stored_file metadata for existing attachments.
+                $storedFile = $request->input("requirements.{$key}.stored_file");
+                $hasProvidedStoredFile = false;
+                if (is_array($storedFile) && !empty($storedFile['file_path'] ?? null)) {
+                    $hasProvidedStoredFile = true;
+                } elseif (is_string($storedFile) && trim($storedFile) !== '') {
+                    // defensive: if stored_file was serialized as a string for any reason
+                    $hasProvidedStoredFile = true;
+                }
+
+                if ($checked && !$hasFile && !$hasExistingFile && !$hasProvidedStoredFile) {
+                    $validator->errors()->add("requirements.{$key}.file", 'Please upload a file for the selected requirement.');
+                }
+            }
+        });
+
         $validated = $validator->validate();
+
+        $requirements = $validated['requirements'] ?? [];
+        $allRequirementsCompleted = collect(['coc_certificate', 'prs_certification', 'certificate_of_registration'])
+            ->every(fn (string $key) => !empty($requirements[$key]['checked'] ?? false));
+
+        $validated['status'] = $allRequirementsCompleted ? 'Active' : 'Pending';
 
         $typeIds = $validated['type_ids'];
         unset($validated['type_ids']);
+
+        $existingRequirements = $cooperative->requirements ?? [];
+        $requirementMetadata = [];
+
+        foreach (['coc_certificate', 'prs_certification', 'certificate_of_registration'] as $key) {
+            $checked = !empty($requirements[$key]['checked'] ?? false);
+            $description = $requirements[$key]['description'] ?? $existingRequirements[$key]['description'] ?? null;
+            $filePath = $existingRequirements[$key]['file_path'] ?? null;
+            $originalName = $existingRequirements[$key]['original_name'] ?? null;
+
+            if ($request->hasFile("requirements.{$key}.file")) {
+                $file = $request->file("requirements.{$key}.file");
+                $filePath = $file->storeAs(
+                    "cooperative-requirements/{$cooperative->id}",
+                    sprintf('%s_%s.%s', $cooperative->id, $key, $file->getClientOriginalExtension()),
+                    'public'
+                );
+                $originalName = $file->getClientOriginalName();
+            }
+
+            if (! $checked) {
+                $filePath = null;
+                $originalName = null;
+            }
+
+            $requirementMetadata[$key] = [
+                'checked' => $checked,
+                'file_path' => $filePath,
+                'original_name' => $originalName,
+                'description' => $description,
+            ];
+        }
+
+        $validated['requirements'] = $requirementMetadata;
 
         $oldValues = $cooperative->getAttributes();
         $previousStatus = $cooperative->status;
@@ -355,6 +509,31 @@ class CooperativeController extends Controller
                     'remarks' => $accreditation['remarks'] ?? null,
                 ]);
             }
+        }
+
+        $requirementMetadata = [];
+        foreach (['coc_certificate', 'prs_certification', 'certificate_of_registration'] as $key) {
+            if ($request->hasFile("requirements.{$key}.file")) {
+                $file = $request->file("requirements.{$key}.file");
+                $path = $file->storeAs(
+                    "cooperative-requirements/{$cooperative->id}",
+                    sprintf('%s_%s.%s', $cooperative->id, $key, $file->getClientOriginalExtension()),
+                    'public'
+                );
+
+                $requirementMetadata[$key] = [
+                    'file_path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'description' => $requirements[$key]['description'] ?? null,
+                ];
+            }
+        }
+
+        if (!empty($requirementMetadata)) {
+            Storage::disk('public')->put(
+                "cooperative-requirements/{$cooperative->id}/requirements.json",
+                json_encode($requirementMetadata)
+            );
         }
 
         if ($previousStatus !== $newStatus) {

@@ -35,6 +35,7 @@ use App\Http\Controllers\SkillInventoryController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PdsController;
 use App\Http\Controllers\HomepageController;
+use App\Http\Controllers\FinanceOverviewController;
 use App\Http\Controllers\DisplayController;
 use App\Http\Controllers\AccreditationController;
 use App\Http\Controllers\RecycleBinController;
@@ -498,9 +499,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('financial-records.destroy');
 
     // Finance Hub
-    Route::get('finance', function () {
-        return redirect()->route('finance.funding-sources.index');
-    })
+    Route::get('finance', [FinanceOverviewController::class, 'index'])
         ->middleware('permission:read financial-&-support|read finance-funding-sources|read finance-member-loans|read finance-savings-accounts|read finance-reports|read finance-ledger-entries')
         ->name('finance.index');
 

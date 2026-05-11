@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $email
  * @property string|null $phone
  * @property string|null $status
+ * @property array|null $requirements
  */
 class Cooperative extends Model
 {
@@ -47,12 +48,14 @@ class Cooperative extends Model
         'email',
         'phone',
         'status',
+        'requirements',
     ];
 
     protected function casts(): array
     {
         return [
             'date_established' => 'date',
+            'requirements' => 'array',
         ];
     }
 

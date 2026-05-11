@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table';
 import { runBulkDelete, useBulkSelection } from '@/composables/useBulkSelection';
 import { useCoopLabel } from '@/composables/useCoopLabel';
-import AppLayout from '@/layouts/AppLayout.vue';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import FilterPanel from '@/components/FilterPanel.vue';
 import { confirmAction } from '@/lib/alerts';
 
@@ -252,7 +252,7 @@ const bulkDeleteFundingSources = async () => {
 </script>
 
 <template>
-    <AppLayout>
+    <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isCoopContext">
         <div class="space-y-6 p-4 sm:p-6">
             <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -507,5 +507,5 @@ const bulkDeleteFundingSources = async () => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </FinanceShellLayout>
 </template>

@@ -50,16 +50,18 @@ export function useFormUx(form: any) {
 
     const markClean = () => { isDirty.value = false; };
 
-    const handleCancel = async (options?: { confirmTitle?: string; confirmText?: string; fallbackBack?: boolean }) => {
+    const handleCancel = async (options?: { confirmTitle?: string; confirmText?: string; confirmButtonText?: string; cancelButtonText?: string; fallbackBack?: boolean; confirmAlways?: boolean }) => {
         const fallbackBack = options?.fallbackBack ?? true;
-        if (isDirty.value) {
+        if (isDirty.value || options?.confirmAlways) {
             const result = await Swal.fire({
                 title: options?.confirmTitle ?? 'Discard changes?',
                 text: options?.confirmText ?? 'You have unsaved changes. Are you sure you want to discard them?',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Discard',
-                cancelButtonText: 'Keep editing',
+                confirmButtonText: options?.confirmButtonText ?? 'Discard',
+                cancelButtonText: options?.cancelButtonText ?? 'Keep editing',
+                confirmButtonColor: '#0f172a',
+                reverseButtons: true,
             });
 
             if (result.isConfirmed) {

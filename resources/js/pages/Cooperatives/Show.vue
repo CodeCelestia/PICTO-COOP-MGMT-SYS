@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { Building2, ClipboardList, Crown, FileText, GraduationCap, HandCoins, HandHeart, Landmark, Pencil, PiggyBank, ShieldCheck, UserCog, Users, UsersRound, Wallet } from 'lucide-vue-next';
+import type { LucideIcon } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import LiftedTabs from '@/components/LiftedTabs.vue';
 import type { LiftedTab } from '@/components/LiftedTabs.vue';
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCoopLabel } from '@/composables/useCoopLabel';
+import { getFileTypeConfig, getPreviewSuggestion } from '@/lib/activityFileTypes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -43,6 +45,12 @@ interface Cooperative {
     phone: string | null;
     status: string;
     accreditations?: Accreditation[];
+    requirements?: Record<string, {
+        checked?: boolean;
+        file_path?: string | null;
+        original_name?: string | null;
+        description?: string | null;
+    }> | null;
 }
 
 interface Accreditation {
@@ -65,6 +73,24 @@ interface KeyOfficer {
         id: number;
         full_name: string;
     } | null;
+}
+
+interface RequirementEntry {
+    key: string;
+    label: string;
+    checked: boolean;
+    filePath: string | null;
+    fileName: string | null;
+    description: string | null;
+}
+
+interface RequirementFileTypeConfig {
+    extension: string;
+    icon: LucideIcon;
+    iconColorClass: string;
+    badgeClass: string;
+    group: string;
+    previewable: boolean;
 }
 
 
@@ -293,6 +319,49 @@ const cooperativeBasePath = computed(() => {
 });
 
 const cooperativeTypeNames = computed(() => props.cooperative.types?.map((type) => type.name) || []);
+
+const requirementLabels: Record<string, string> = {
+    coc_certificate: 'COC Certificate',
+    prs_certification: 'PRS Certification',
+    certificate_of_registration: 'Certificate of Registration',
+};
+
+const requirementOrder = ['coc_certificate', 'prs_certification', 'certificate_of_registration'];
+
+const requirementEntries = computed<RequirementEntry[]>(() => {
+    const requirements = props.cooperative.requirements || {};
+
+    return requirementOrder.map((key) => {
+        const requirement = requirements[key] || {};
+
+        return {
+            key,
+            label: requirementLabels[key] || key,
+            checked: Boolean(requirement.checked),
+            filePath: requirement.file_path || null,
+            fileName: requirement.original_name || null,
+            description: requirement.description || null,
+        };
+    });
+});
+
+const requirementSummary = computed(() => {
+    const completed = requirementEntries.value.filter((item) => item.checked).length;
+    return `${completed}/${requirementEntries.value.length} completed`;
+});
+
+const getRequirementFileTypeConfig = (requirement: RequirementEntry): RequirementFileTypeConfig => {
+    const filename = requirement.fileName || `${requirement.key}.file`;
+    return getFileTypeConfig(filename) as RequirementFileTypeConfig;
+};
+
+const getRequirementPreviewUrl = (requirement: RequirementEntry) => {
+    if (!requirement.filePath) {
+        return '';
+    }
+
+    return `/storage/${requirement.filePath}`;
+};
 
 const chairperson = computed(() => props.chairperson);
 const generalManager = computed(() => props.generalManager);
@@ -602,6 +671,100 @@ const statusBadgeClass = computed(() => {
                                         <dd class="font-semibold">{{ formatFullAddress(cooperative) }}</dd>
                                     </div>
                                 </dl>
+                            </section>
+
+                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Registration Requirements</h3>
+                                        <p class="mt-1 text-sm text-muted-foreground">Current completion status and attached documents.</p>
+                                    </div>
+                                    <Badge variant="outline" class="font-medium">
+                                        {{ requirementSummary }}
+                                    </Badge>
+                                </div>
+
+                                <div class="mt-4 space-y-3">
+                                    <div v-if="requirementEntries.length === 0" class="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+                                        No registration requirements have been saved for this cooperative yet.
+                                    </div>
+
+                                    <div
+                                        v-for="requirement in requirementEntries"
+                                        :key="requirement.key"
+                                        class="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm"
+                                    >
+                                        <div class="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+                                            <div class="flex min-w-0 flex-1 items-center gap-4">
+                                                <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-muted/20">
+                                                    <img
+                                                        v-if="requirement.filePath && getRequirementFileTypeConfig(requirement).previewable && getRequirementFileTypeConfig(requirement).group === 'Images'"
+                                                        :src="getRequirementPreviewUrl(requirement)"
+                                                        :alt="requirement.fileName || requirement.label"
+                                                        class="h-full w-full object-cover"
+                                                    />
+                                                    <iframe
+                                                        v-else-if="requirement.filePath && getRequirementFileTypeConfig(requirement).previewable && getRequirementFileTypeConfig(requirement).extension === 'PDF'"
+                                                        :src="getRequirementPreviewUrl(requirement)"
+                                                        :title="`${requirement.label} preview`"
+                                                        class="h-full w-full scale-[0.34] origin-top-left border-0"
+                                                    />
+                                                    <component
+                                                        v-else
+                                                        :is="getRequirementFileTypeConfig(requirement).icon"
+                                                        class="h-7 w-7"
+                                                        :class="getRequirementFileTypeConfig(requirement).iconColorClass"
+                                                    />
+                                                </div>
+
+                                                <div class="min-w-0 flex-1 space-y-2">
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <p class="truncate text-sm font-semibold text-foreground">{{ requirement.label }}</p>
+                                                        <Badge
+                                                            class="text-xs font-semibold"
+                                                            :class="requirement.checked
+                                                                ? 'border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200'
+                                                                : 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/20 dark:text-amber-200'"
+                                                        >
+                                                            {{ requirement.checked ? 'Completed' : 'Pending' }}
+                                                        </Badge>
+                                                        <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getRequirementFileTypeConfig(requirement).badgeClass">
+                                                            {{ getRequirementFileTypeConfig(requirement).extension }}
+                                                        </span>
+                                                        <Badge variant="outline" class="text-xs font-medium">
+                                                            {{ getRequirementFileTypeConfig(requirement).group }}
+                                                        </Badge>
+                                                    </div>
+
+                                                    <p class="truncate text-sm text-muted-foreground">
+                                                        {{ requirement.description || 'No description provided.' }}
+                                                    </p>
+
+                                                    <p class="truncate text-sm text-foreground">
+                                                        <span class="font-semibold text-muted-foreground">Attachment:</span>
+                                                        <span v-if="requirement.fileName" class="ml-1">{{ requirement.fileName }}</span>
+                                                        <span v-else class="ml-1 text-muted-foreground">No file attached</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex shrink-0 items-center gap-2">
+                                                <a
+                                                    v-if="requirement.filePath"
+                                                    :href="getRequirementPreviewUrl(requirement)"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <Button variant="outline" size="sm" class="gap-2">
+                                                        <FileText class="h-4 w-4" />
+                                                        View File
+                                                    </Button>
+                                                </a>
+                                                <span v-else class="text-xs text-muted-foreground">No attachment available</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </section>
 
                             <section class="rounded-xl border border-border bg-background p-5 shadow-sm xl:col-span-2">

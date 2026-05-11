@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { Building2, Save, Search, X, MapPin } from 'lucide-vue-next';
-import { computed, ref, watch, onMounted, nextTick } from 'vue';
+import { Building2, Eye, MapPin, Save, Search, Upload, X } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { AlertCircle } from 'lucide-vue-next';
 import { useFormUx } from '@/composables/useFormUx';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { usePsgc } from '@/composables/usePsgc';
 import { notifySuccess } from '@/lib/alerts';
+import { getFileTypeConfig, getPreviewSuggestion } from '@/lib/activityFileTypes';
 
 interface CooperativeAccreditation {
   id?: number;
@@ -21,6 +23,24 @@ interface CooperativeAccreditation {
   accreditation_date?: string;
   issuing_body?: string;
   remarks?: string;
+}
+
+interface CooperativeRequirementStoredFile {
+  file_path: string;
+  original_name: string;
+}
+
+interface CooperativeRequirement {
+  checked: boolean;
+  file: File | null;
+  stored_file: CooperativeRequirementStoredFile | null;
+  description: string;
+}
+
+interface CooperativeRequirements {
+  coc_certificate: CooperativeRequirement;
+  prs_certification: CooperativeRequirement;
+  certificate_of_registration: CooperativeRequirement;
 }
 
 interface CooperativeData {
@@ -37,8 +57,9 @@ interface CooperativeData {
   barangay?: string | null;
   email?: string | null;
   phone?: string | null;
-  status?: 'Active' | 'Inactive' | 'Dissolved' | 'Suspended';
+  status?: 'Active' | 'Inactive' | 'Dissolved' | 'Suspended' | 'Pending';
   accreditations?: CooperativeAccreditation[];
+  requirements?: CooperativeRequirements;
 }
 
 const props = defineProps<{
@@ -109,6 +130,49 @@ const findByNameOrCode = <T extends { code: string; name: string }>(
     ?? items.find((item) => normalizeLocationKey(item.name) === normalizedValue);
 };
 
+const requirementKeys = ['coc_certificate', 'prs_certification', 'certificate_of_registration'] as const;
+type RequirementKey = (typeof requirementKeys)[number];
+
+const requirementLabels: Record<RequirementKey, string> = {
+  coc_certificate: 'COC Certificate',
+  prs_certification: 'PRS Certification',
+  certificate_of_registration: 'Certificate of registration',
+};
+
+const requirementDescriptions: Record<RequirementKey, string> = {
+  coc_certificate: 'Certificate of Cooperative Registration',
+  prs_certification: 'PRS certification document',
+  certificate_of_registration: 'Official certificate of registration',
+};
+
+const getDefaultRequirements = (): CooperativeRequirements => ({
+  coc_certificate: { checked: false, file: null, stored_file: null, description: '' },
+  prs_certification: { checked: false, file: null, stored_file: null, description: '' },
+  certificate_of_registration: { checked: false, file: null, stored_file: null, description: '' },
+});
+
+const normalizeRequirements = (requirements?: Partial<CooperativeRequirements> | Record<string, unknown>): CooperativeRequirements => {
+  const defaults = getDefaultRequirements();
+
+  return requirementKeys.reduce((normalized, key) => {
+    const requirement = (requirements as Record<string, Record<string, unknown>> | undefined)?.[key] ?? {};
+
+    normalized[key] = {
+      checked: Boolean(requirement.checked),
+      file: requirement.file instanceof File ? requirement.file : null,
+      stored_file: requirement.file_path && requirement.original_name
+        ? {
+            file_path: String(requirement.file_path),
+            original_name: String(requirement.original_name),
+          }
+        : null,
+      description: typeof requirement.description === 'string' ? requirement.description : '',
+    };
+
+    return normalized;
+  }, defaults);
+};
+
 const form = useForm({
   name: props.cooperative?.name || '',
   registration_number: props.cooperative?.registration_number || '',
@@ -116,7 +180,7 @@ const form = useForm({
   classification: props.cooperative?.classification || '',
   date_established: props.cooperative?.date_established
     ? String(props.cooperative.date_established).substring(0, 10)
-    : null,
+    : '',
   address: props.cooperative?.address || '',
   region: props.cooperative?.region || '',
   province: props.cooperative?.province || '',
@@ -126,7 +190,291 @@ const form = useForm({
   phone: props.cooperative?.phone || '',
   status: props.cooperative?.status || 'Active',
   accreditations: normalizeAccreditations(props.accreditations ?? props.cooperative?.accreditations ?? []),
+  requirements: normalizeRequirements(props.cooperative?.requirements),
 });
+
+const requirementModalOpen = ref(false);
+const activeRequirementKey = ref<RequirementKey | null>(null);
+const requirementModalError = ref('');
+const requirementFile = ref<File | null>(null);
+const requirementExistingFile = ref<File | CooperativeRequirementStoredFile | null>(null);
+const requirementFileInput = ref<HTMLInputElement | null>(null);
+const requirementDescription = ref('');
+const requirementPreviewUrls = new Map<File, string>();
+
+const isRequirementsComplete = computed(() => requirementKeys.every((key) => form.requirements[key]?.checked));
+
+const isStoredRequirementFile = (value: unknown): value is CooperativeRequirementStoredFile => {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && 'file_path' in value
+    && 'original_name' in value,
+  );
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getRequirementFile = (key: RequirementKey) => form.requirements[key].file;
+
+const getRequirementStoredFile = (key: RequirementKey) => form.requirements[key].stored_file;
+
+const getRequirementFileName = (key: RequirementKey) => {
+  const file = getRequirementFile(key);
+  const storedFile = getRequirementStoredFile(key);
+
+  if (file instanceof File) {
+    return file.name;
+  }
+
+  if (storedFile) {
+    return storedFile.original_name || 'Attached file';
+  }
+
+  return 'No file selected';
+};
+
+const getRequirementFileSizeLabel = (key: RequirementKey) => {
+  const file = getRequirementFile(key);
+  const storedFile = getRequirementStoredFile(key);
+
+  if (file instanceof File) {
+    return formatFileSize(file.size);
+  }
+
+  if (storedFile) {
+    return 'Saved attachment';
+  }
+
+  return 'No file';
+};
+
+const getRequirementFileTypeConfig = (key: RequirementKey) => getFileTypeConfig(getRequirementFileName(key));
+
+const hasRequirementFile = (key: RequirementKey) => Boolean(getRequirementFile(key));
+const hasStoredRequirementFile = (key: RequirementKey) => Boolean(getRequirementStoredFile(key));
+
+const getRequirementActiveFile = () => requirementFile.value ?? requirementExistingFile.value;
+
+const getRequirementActiveFileName = () => {
+  const file = getRequirementActiveFile();
+
+  if (file instanceof File) {
+    return file.name;
+  }
+
+  if (isStoredRequirementFile(file)) {
+    return file.original_name || 'Attached file';
+  }
+
+  return 'No file selected';
+};
+
+const getRequirementActiveFileSizeLabel = () => {
+  const file = getRequirementActiveFile();
+
+  if (file instanceof File) {
+    return formatFileSize(file.size);
+  }
+
+  if (isStoredRequirementFile(file)) {
+    return 'Saved attachment';
+  }
+
+  return 'No file';
+};
+
+const getRequirementActiveFileTypeConfig = () => getFileTypeConfig(getRequirementActiveFileName());
+
+const getRequirementActivePreviewUrl = () => {
+  const file = getRequirementActiveFile();
+
+  if (file instanceof File) {
+    const existing = requirementPreviewUrls.get(file);
+
+    if (existing) {
+      return existing;
+    }
+
+    const url = URL.createObjectURL(file);
+    requirementPreviewUrls.set(file, url);
+    return url;
+  }
+
+  if (isStoredRequirementFile(file) && file.file_path) {
+    return `/storage/${file.file_path}`;
+  }
+
+  return '';
+};
+
+const getRequirementPreviewUrl = (key: RequirementKey) => {
+  const file = getRequirementFile(key);
+
+  if (file instanceof File) {
+    const existing = requirementPreviewUrls.get(file);
+
+    if (existing) {
+      return existing;
+    }
+
+    const url = URL.createObjectURL(file);
+    requirementPreviewUrls.set(file, url);
+    return url;
+  }
+
+  const storedFile = getRequirementStoredFile(key);
+
+  if (storedFile?.file_path) {
+    return `/storage/${storedFile.file_path}`;
+  }
+
+  return '';
+};
+
+const openRequirementPreview = (key: RequirementKey) => {
+  const url = getRequirementPreviewUrl(key);
+
+  if (!url) {
+    return;
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const openRequirementActivePreview = () => {
+  const url = getRequirementActivePreviewUrl();
+
+  if (!url) {
+    return;
+  }
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
+
+const openRequirementModal = (key: RequirementKey) => {
+  activeRequirementKey.value = key;
+  requirementModalError.value = '';
+  requirementExistingFile.value = form.requirements[key].file ?? form.requirements[key].stored_file ?? null;
+  requirementFile.value = null;
+  requirementDescription.value = form.requirements[key].description ?? '';
+  requirementModalOpen.value = true;
+};
+
+const clearRequirement = (key: RequirementKey) => {
+  form.requirements[key] = {
+    checked: false,
+    file: null,
+    stored_file: null,
+    description: '',
+  };
+};
+
+const onRequirementChecked = (key: RequirementKey, checked: boolean) => {
+  if (checked) {
+    openRequirementModal(key);
+    return;
+  }
+
+  clearRequirement(key);
+};
+
+const handleRequirementFileChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  requirementFile.value = target.files?.[0] ?? null;
+  if (requirementFile.value) {
+    requirementModalError.value = '';
+  }
+};
+
+const clearRequirementModalFile = () => {
+  requirementFile.value = null;
+  requirementExistingFile.value = null;
+  requirementModalError.value = '';
+
+  if (requirementFileInput.value) {
+    requirementFileInput.value.value = '';
+  }
+};
+
+const removeRequirementAttachment = (key: RequirementKey) => {
+  form.requirements[key] = {
+    checked: false,
+    file: null,
+    stored_file: null,
+    description: '',
+  };
+
+  if (activeRequirementKey.value === key) {
+    clearRequirementModalFile();
+  }
+};
+
+const saveRequirement = () => {
+  if (!activeRequirementKey.value) {
+    return;
+  }
+
+  const nextFile = requirementFile.value ?? requirementExistingFile.value;
+
+  if (!nextFile) {
+    requirementModalError.value = 'Please attach a file before saving.';
+    return;
+  }
+
+  form.requirements[activeRequirementKey.value] = {
+    checked: true,
+    file: requirementFile.value,
+    stored_file: isStoredRequirementFile(requirementExistingFile.value)
+      ? requirementExistingFile.value
+      : null,
+    description: requirementDescription.value,
+  };
+
+  requirementModalOpen.value = false;
+  requirementExistingFile.value = null;
+};
+
+const cancelRequirement = () => {
+  requirementModalOpen.value = false;
+  activeRequirementKey.value = null;
+  requirementExistingFile.value = null;
+  requirementFile.value = null;
+  requirementModalError.value = '';
+};
+
+onUnmounted(() => {
+  for (const url of requirementPreviewUrls.values()) {
+    URL.revokeObjectURL(url);
+  }
+
+  requirementPreviewUrls.clear();
+});
+
+watch(
+  () => form.requirements,
+  () => {
+    if (!isRequirementsComplete.value) {
+      form.status = 'Pending';
+      return;
+    }
+
+    if (form.status === 'Pending') {
+      form.status = 'Active';
+    }
+  },
+  { deep: true, immediate: true },
+);
 
 // Frontend validation errors (optional override)
 const formErrors = ref<Record<string, string>>({});
@@ -137,14 +485,14 @@ const { isPreFilling, isDirty, showErrorShake, inputErrorClass, clearError: clea
 // local wrapper to also clear frontend override errors
 const clearError = (field: string) => {
   if (formErrors.value[field]) delete formErrors.value[field];
-  if (form.errors && form.errors[field]) {
+
+  const errors = form.errors as Record<string, unknown> | undefined;
+  if (errors && errors[field]) {
     if (typeof form.clearErrors === 'function') {
-      form.clearErrors(field);
-    } else {
-      // fallback
-      delete form.errors[field];
+        (form.clearErrors as (field: string) => void)(field);
     }
   }
+
   // also call composable clear for safety
   try { clearErrorUx(field); } catch (e) {}
 };
@@ -404,7 +752,7 @@ const submit = () => {
               Date Established
               <span class="text-red-500 ml-0.5">*</span>
             </Label>
-            <Input id="date_established" v-model="form.date_established" type="date" required @change="(e) => { form.date_established = (e.target as HTMLInputElement).value; clearError('date_established'); }" :class="inputErrorClass('date_established')" />
+            <Input id="date_established" v-model="form.date_established" type="date" required @change="(e: Event) => { const target = e.target as HTMLInputElement | null; form.date_established = target?.value ?? ''; clearError('date_established'); }" :class="inputErrorClass('date_established')" />
             <p v-if="form.errors.date_established || formErrors.date_established" class="text-sm text-red-500 mt-1 flex items-center gap-1">
               <AlertCircle class="h-3.5 w-3.5 shrink-0" />
               {{ form.errors.date_established || formErrors.date_established }}
@@ -445,12 +793,13 @@ const submit = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
                 <SelectItem value="Dissolved">Dissolved</SelectItem>
                 <SelectItem value="Suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
-            <p class="mt-1 text-xs text-muted-foreground">Select the cooperative's registration status.</p>
+            <p class="mt-1 text-xs text-muted-foreground">Select the cooperative's registration status. Incomplete requirement uploads force Pending.</p>
             <p v-if="form.errors.status || formErrors.status" class="text-sm text-red-500 mt-1 flex items-center gap-1">
               <AlertCircle class="h-3.5 w-3.5 shrink-0" />
               {{ form.errors.status || formErrors.status }}
@@ -697,8 +1046,146 @@ const submit = () => {
         </div>
       </div>
 
+      <div class="rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="text-base font-semibold text-foreground sm:text-lg">Registration Requirements</h2>
+          <p class="text-sm text-muted-foreground">Upload each required document. Missing documents auto-set status to Pending.</p>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div
+            v-for="key in requirementKeys"
+            :key="key"
+            class="rounded-lg border border-border/70 bg-background p-4"
+          >
+            <div class="flex items-start gap-3">
+              <input
+                :id="`requirement_${key}`"
+                type="checkbox"
+                class="mt-1 h-4 w-4 accent-primary"
+                :checked="form.requirements[key].checked"
+                @change="(event: Event) => { const target = event.target as HTMLInputElement | null; onRequirementChecked(key, target?.checked ?? false); }"
+              />
+              <div class="flex-1">
+                <Label :for="`requirement_${key}`" class="text-sm font-medium leading-none">
+                  {{ requirementLabels[key] }}
+                </Label>
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{ requirementDescriptions[key] }}
+                </p>
+
+                <div v-if="form.requirements[key].checked && (hasRequirementFile(key) || hasStoredRequirementFile(key))" class="mt-3 overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
+                  <div class="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+                    <div class="flex min-w-0 flex-1 items-center gap-4">
+                      <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-muted/20">
+                        <img
+                          v-if="getRequirementPreviewUrl(key) && getRequirementFileTypeConfig(key).group === 'Images'"
+                          :src="getRequirementPreviewUrl(key)"
+                          :alt="getRequirementFileName(key)"
+                          class="h-full w-full object-cover"
+                        />
+                        <iframe
+                          v-else-if="getRequirementPreviewUrl(key) && getRequirementFileTypeConfig(key).extension === 'PDF'"
+                          :src="getRequirementPreviewUrl(key)"
+                          :title="`${getRequirementFileName(key)} preview`"
+                          class="h-full w-full scale-[0.34] origin-top-left border-0"
+                        />
+                        <component
+                          v-else
+                          :is="getRequirementFileTypeConfig(key).icon"
+                          class="h-7 w-7 shrink-0"
+                          :class="getRequirementFileTypeConfig(key).iconColorClass"
+                        />
+                      </div>
+
+                      <div class="min-w-0 flex-1 space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <p class="truncate text-sm font-semibold text-foreground" :title="getRequirementFileName(key)">
+                            {{ requirementLabels[key] }}
+                          </p>
+                          <Badge
+                            class="text-xs font-semibold"
+                            :class="form.requirements[key].checked
+                              ? 'border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/20 dark:text-emerald-200'
+                              : 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/20 dark:text-amber-200'"
+                          >
+                            {{ form.requirements[key].checked ? 'Completed' : 'Pending' }}
+                          </Badge>
+                          <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getRequirementFileTypeConfig(key).badgeClass">
+                            {{ getRequirementFileTypeConfig(key).extension }}
+                          </span>
+                          <Badge variant="outline" class="text-xs font-medium">
+                            {{ getRequirementFileTypeConfig(key).group }}
+                          </Badge>
+                        </div>
+
+                        <p class="truncate text-sm text-muted-foreground">
+                          {{ form.requirements[key].description || requirementDescriptions[key] }}
+                        </p>
+
+                        <p class="truncate text-sm text-foreground">
+                          <span class="font-semibold text-muted-foreground">Attachment:</span>
+                          <span class="ml-1">{{ getRequirementFileName(key) }}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex shrink-0 flex-wrap gap-2">
+                      <Button v-if="hasRequirementFile(key) || hasStoredRequirementFile(key)" type="button" variant="ghost" size="sm" class="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700" @click="removeRequirementAttachment(key)">
+                        <X class="h-3.5 w-3.5" />
+                        Remove
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" class="gap-2" :disabled="!getRequirementPreviewUrl(key)" @click="openRequirementPreview(key)">
+                        <Eye class="h-3.5 w-3.5" />
+                        Preview
+                      </Button>
+                      <Button type="button" variant="secondary" size="sm" @click="openRequirementModal(key)">Replace</Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else-if="form.requirements[key].checked" class="mt-3 overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/20">
+                  <div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-background ring-1 ring-border/60">
+                        <Upload class="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p class="font-medium text-foreground">No file attached yet</p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ requirementDescriptions[key] }}
+                        </p>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                          Add a document to unlock preview and save this requirement.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button type="button" variant="outline" size="sm" class="gap-2 self-start sm:self-center" @click="openRequirementModal(key)">
+                      <Upload class="h-3.5 w-3.5" />
+                      Attach File
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="flex flex-wrap justify-end gap-3 border-t border-border pt-6">
-        <Button type="button" variant="outline" @click="handleCancel" class="gap-2"><X class="h-4 w-4" />Cancel</Button>
+        <Button
+          type="button"
+          variant="outline"
+          @click="handleCancel(props.method === 'put' ? {
+            confirmAlways: true,
+            confirmTitle: 'Are you sure you want to cancel?',
+            confirmText: 'Any unsaved changes will be lost.',
+            confirmButtonText: 'Yes, cancel',
+            cancelButtonText: 'Continue editing',
+          } : undefined)"
+          class="gap-2"
+        ><X class="h-4 w-4" />Cancel</Button>
         <Button v-if="props.canSubmit !== false" type="submit" :disabled="form.processing" class="gap-2"><Save class="h-4 w-4" />{{ form.processing ? 'Saving...' : 'Save Cooperative' }}</Button>
       </div>
     </form>
@@ -747,6 +1234,120 @@ const submit = () => {
           <div class="flex items-center justify-between gap-3">
             <Button type="button" variant="ghost" @click="clearCoopType">Clear selection</Button>
             <Button type="button" variant="outline" @click="saveCoopTypeSelection">Save</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="requirementModalOpen">
+      <DialogContent class="max-w-xl p-0">
+        <DialogHeader class="border-b border-border px-6 py-4">
+          <DialogTitle>Upload Requirement</DialogTitle>
+          <DialogDescription>
+            Attach the document and provide a short description for this requirement.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4 px-6 pb-6 pt-4">
+          <div>
+            <Label for="requirement_file" class="text-sm font-medium leading-none">Requirement file</Label>
+            <input
+              id="requirement_file"
+              ref="requirementFileInput"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              class="hidden"
+              @change="handleRequirementFileChange"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              class="mt-2 w-full justify-start truncate"
+              @click="() => requirementFileInput?.click()"
+            >
+              <Upload class="mr-2 h-4 w-4 shrink-0" />
+              <span class="truncate">
+                {{ getRequirementActiveFileName() || 'Choose File' }}
+              </span>
+            </Button>
+            <p v-if="requirementModalError" class="text-sm text-red-500 mt-2">{{ requirementModalError }}</p>
+          </div>
+
+          <div v-if="activeRequirementKey" class="overflow-hidden rounded-xl border border-border/70 bg-muted/20">
+            <div class="flex items-start gap-3 p-4">
+              <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background ring-1 ring-border/60">
+                <img
+                  v-if="getRequirementActivePreviewUrl() && getRequirementActiveFileTypeConfig().group === 'Images'"
+                  :src="getRequirementActivePreviewUrl()"
+                  :alt="getRequirementActiveFileName()"
+                  class="h-full w-full object-cover"
+                />
+                <iframe
+                  v-else-if="getRequirementActivePreviewUrl() && getRequirementActiveFileTypeConfig().extension === 'PDF'"
+                  :src="getRequirementActivePreviewUrl()"
+                  :title="`${getRequirementActiveFileName()} preview`"
+                  class="h-full w-full scale-[0.35] origin-top-left border-0"
+                />
+                <component
+                  v-else
+                  :is="getRequirementActiveFileTypeConfig().icon"
+                  class="h-7 w-7 shrink-0"
+                  :class="getRequirementActiveFileTypeConfig().iconColorClass"
+                />
+              </div>
+
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="min-w-16 rounded-md border px-2 py-0.5 text-center text-xs font-bold" :class="getRequirementActiveFileTypeConfig().badgeClass">
+                    {{ getRequirementActiveFileTypeConfig().extension }}
+                  </span>
+                  <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {{ getRequirementActiveFileTypeConfig().group }}
+                  </span>
+                </div>
+
+                <p class="truncate font-medium text-foreground" :title="getRequirementActiveFileName()">
+                  {{ getRequirementActiveFileName() }}
+                </p>
+
+                <p class="text-xs text-muted-foreground">
+                  {{ getRequirementActiveFileSizeLabel() }}
+                  <span v-if="requirementDescription">· {{ requirementDescription }}</span>
+                </p>
+
+                <p class="text-xs text-muted-foreground">
+                  {{ getPreviewSuggestion(getRequirementActiveFileName()) }}
+                </p>
+              </div>
+
+              <div class="flex shrink-0 flex-col gap-2">
+                <Button type="button" variant="outline" size="sm" class="gap-2" :disabled="!getRequirementActivePreviewUrl()" @click="openRequirementActivePreview">
+                  <Eye class="h-3.5 w-3.5" />
+                  Preview
+                </Button>
+                <Button type="button" variant="ghost" size="sm" class="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700" @click="clearRequirementModalFile">
+                  <X class="h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+
+          </div>
+
+          <div>
+            <Label for="requirement_description" class="text-sm font-medium leading-none">Description</Label>
+            <Textarea
+              id="requirement_description"
+              v-model="requirementDescription"
+              rows="4"
+              placeholder="Short description of the document"
+              class="mt-2"
+            />
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" @click="cancelRequirement">Cancel</Button>
+            <Button type="button" @click="saveRequirement">Save</Button>
           </div>
         </div>
       </DialogContent>

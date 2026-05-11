@@ -75,12 +75,18 @@ const buildFinanceBreadcrumbs = (path: string): BreadcrumbItem[] => {
     const segments = path.split('/').filter(Boolean);
     const crumbs: BreadcrumbItem[] = [{ title: 'Finance', href: '/finance' }];
 
+    if (path === '/finance') {
+        crumbs.push({ title: 'Overview', href: '/finance' });
+        return crumbs;
+    }
+
     if (segments.length < 2) {
         return crumbs;
     }
 
     const tab = segments[1];
     const financeTabs: Record<string, string> = {
+        overview: 'Overview',
         'funding-sources': 'Funding Sources',
         'financial-records': 'Financial Records',
         loans: 'Loans',
@@ -96,7 +102,11 @@ const buildFinanceBreadcrumbs = (path: string): BreadcrumbItem[] => {
 
     crumbs.push({
         title: tabTitle,
-        href: tab === 'reports' ? '/finance/reports/statements' : `/finance/${tab}`,
+        href: tab === 'overview'
+            ? '/finance'
+            : tab === 'reports'
+                ? '/finance/reports/statements'
+                : `/finance/${tab}`,
     });
 
     if (tab === 'reports' && segments.length > 2) {

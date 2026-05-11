@@ -72,12 +72,29 @@ interface Props {
         membership_type?: string;
         per_page?: string;
     };
+    memberStats?: {
+        total_members: number;
+        active_members: number;
+        male_members: number;
+        female_members: number;
+    };
     membershipTypes?: string[];
     baseUrl?: string;
     queryPrefix?: string;
 }
 
 const props = defineProps<Props>();
+
+const summaryStats = computed(() => {
+    const stats = {
+        total: props.memberStats?.total_members ?? props.members.total ?? 0,
+        active: props.memberStats?.active_members ?? 0,
+        male: props.memberStats?.male_members ?? 0,
+        female: props.memberStats?.female_members ?? 0,
+    };
+    console.log('Member Stats Received:', props.memberStats, 'Computed Stats:', stats);
+    return stats;
+});
 
 const baseUrl = computed(() => props.baseUrl || '/members');
 const queryPrefix = computed(() => props.queryPrefix || '');
@@ -455,7 +472,16 @@ const editMemberHref = (memberId: number) => {
                 <div class="space-y-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <h2 class="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Members</h2>
-                        <Badge variant="secondary">{{ members.total }} records</Badge>
+                        <Badge variant="secondary">{{ summaryStats.total }} records</Badge>
+                        <Badge class="border border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-200">
+                            Active: {{ summaryStats.active }}
+                        </Badge>
+                        <Badge class="border border-sky-200 bg-sky-100 text-sky-800 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-200">
+                            Male: {{ summaryStats.male }}
+                        </Badge>
+                        <Badge class="border border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-200">
+                            Female: {{ summaryStats.female }}
+                        </Badge>
                     </div>
                     <p class="text-sm text-muted-foreground">Manage cooperative member profiles</p>
                 </div>

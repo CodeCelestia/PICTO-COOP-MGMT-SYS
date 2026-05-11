@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Activity;
 use App\Models\Cooperative;
 use App\Models\ActivityFundingSource;
 use Illuminate\Http\Request;
@@ -58,12 +59,20 @@ class FundingSourcesController extends Controller
         }
 
         $cooperatives = $cooperativesQuery->get();
+        $activitiesQuery = Activity::query()
+            ->select('id', 'title', 'coop_id')
+            ->orderBy('title');
+
+        if ($user && ! $user->can('view-all-cooperatives') && $user->coop_id) {
+            $activitiesQuery->where('coop_id', $user->coop_id);
+        }
 
         return Inertia::render('Finance/FundingSources/Index', [
             'fundingSources' => $fundingSources,
+            'activities' => $activitiesQuery->get(),
             'cooperative' => $cooperative,
             'cooperatives' => $cooperatives,
-            'filters' => $request->only(['search', 'status', 'funder_type']),
+            'filters' => $request->only(['search', 'status', 'funder_type', 'activity_id', 'coop_id', 'per_page']),
             'permissions' => [
                 'can_create' => $user?->can('create finance-funding-sources') ?? false,
                 'can_edit' => $user?->can('update finance-funding-sources') ?? false,

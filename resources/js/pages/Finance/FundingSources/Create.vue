@@ -14,7 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import AppLayout from '@/layouts/AppLayout.vue';
+import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import { confirmAction, notifySuccess } from '@/lib/alerts';
 import Swal from 'sweetalert2';
 import { useFormUx } from '@/composables/useFormUx';
@@ -331,7 +331,7 @@ const handleCancel = navigateBack;
 </script>
 
 <template>
-    <AppLayout>
+    <FinanceShellLayout active-tab="funding-sources" :hide-tabs="isCoopContext">
         <div class="space-y-6 p-4 sm:p-6">
             <Card>
                 <CardContent class="flex items-center justify-between py-4">
@@ -625,5 +625,5 @@ const handleCancel = navigateBack;
                 </form>
             </div>
         </div>
-    </AppLayout>
+    </FinanceShellLayout>
 </template>

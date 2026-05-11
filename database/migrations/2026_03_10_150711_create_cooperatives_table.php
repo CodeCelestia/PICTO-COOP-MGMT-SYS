@@ -24,7 +24,8 @@ return new class extends Migration
             $table->string('barangay')->nullable();
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
-            $table->enum('status', ['Active', 'Inactive', 'Dissolved', 'Suspended'])->default('Active');
+            $table->enum('status', ['Active', 'Pending', 'Inactive', 'Dissolved', 'Suspended'])->default('Active');
+            $table->json('requirements')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
