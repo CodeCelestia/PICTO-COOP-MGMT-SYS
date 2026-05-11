@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, LifeBuoy, Save, X, AlertCircle, Building2 } from 'lucide-vue-next';
-import { computed, onMounted } from 'vue';
+import { ArrowLeft, LifeBuoy, Save, X, AlertCircle, Building2, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import FinanceShellLayout from '@/layouts/FinanceShellLayout.vue';
 import Swal from 'sweetalert2';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useFormUx } from '@/composables/useFormUx';
+import FinancialRecordPickerModal from '@/components/Finance/FinancialRecordPickerModal.vue';
 
 interface Cooperative {
     id: number;
@@ -28,9 +29,14 @@ interface Cooperative {
 
 interface FinancialRecordOption {
     id: number;
+    title?: string | null;
     period: string;
     type: string;
     coop_id: number;
+    amount?: string | number | null;
+    date_recorded?: string | null;
+    source?: string | null;
+    purpose?: string | null;
 }
 
 interface Props {
@@ -57,7 +63,6 @@ const isFromCoopContext = computed(() => coopIdFromUrl.value !== null);
 const isPerCoopRoute = computed(() => !!props.cooperative?.id);
 
 const form = useForm({
-    coop_id: coopIdFromUrl.value?.toString() ?? '',
     financial_record_id: 'none',
     support_type: 'Grant',
     provider_name: '',
@@ -72,18 +77,49 @@ const form = useForm({
 const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake } = useFormUx(form);
 
 const cooperativeObj = computed(() => {
-    if (props.cooperative) return props.cooperative;
-    if (form.coop_id) return props.cooperatives?.find(c => String(c.id) === String(form.coop_id)) || null;
-    return null;
+    return props.cooperative ?? null;
 });
 
 const supportTypes = ['Grant', 'Loan', 'Equipment', 'Training', 'Technical Assistance', 'Other'];
 const statusOptions = ['Ongoing', 'Completed', 'Pending'];
+const financialRecordModalOpen = ref(false);
+const selectedFinancialRecord = ref<FinancialRecordOption | null>(null);
 
-const filteredFinancials = computed(() => {
-    if (!form.coop_id) return props.financialRecords;
-    return props.financialRecords.filter(record => record.coop_id.toString() === form.coop_id);
-});
+const formatAmount = (value: number | string | null | undefined) => {
+    const amount = Number(value ?? 0);
+    if (!Number.isFinite(amount)) return '₱0.00';
+
+    return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+};
+
+const formatDate = (value?: string | null) => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '—';
+
+    return parsed.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const onSelectFinancialRecord = (record: FinancialRecordOption) => {
+    selectedFinancialRecord.value = record;
+    form.financial_record_id = String(record.id);
+    clearError('financial_record_id');
+};
+
+const clearFinancialRecord = () => {
+    selectedFinancialRecord.value = null;
+    form.financial_record_id = 'none';
+    clearError('financial_record_id');
+};
 
 const submit = () => {
     if (!canCreateSupport.value) return;
@@ -190,40 +226,30 @@ const handleCancel = async () => {
                         </div>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label class="text-sm font-medium leading-none">Cooperative <span class="text-red-500 ml-0.5">*</span></label>
-                                <div v-if="!cooperativeObj">
-                                    <Select v-model="form.coop_id">
-                                        <SelectTrigger id="coop_id" :class="inputErrorClass('coop_id')">
-                                            <SelectValue placeholder="Select cooperative" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem v-for="coop in cooperatives" :key="coop.id" :value="coop.id.toString()">
-                                                {{ coop.name }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p v-if="form.errors.coop_id" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5" />{{ form.errors.coop_id }}</p>
-                                </div>
-                                <div v-else class="text-sm text-muted-foreground">{{ cooperativeObj.name }}</div>
-                            </div>
-
-                            <div>
                                 <label class="text-sm font-medium leading-none">Linked Financial Record <span class="text-xs text-muted-foreground font-normal ml-1">(Optional)</span></label>
-                                <Select v-model="form.financial_record_id" @update:model-value="(v)=>clearError('financial_record_id')">
-                                    <SelectTrigger id="financial_record_id" :class="inputErrorClass('financial_record_id')">
-                                        <SelectValue placeholder="Select record (optional)" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">No linked record</SelectItem>
-                                        <SelectItem
-                                            v-for="record in filteredFinancials"
-                                            :key="record.id"
-                                            :value="record.id.toString()"
-                                        >
-                                            {{ record.period }} · {{ record.type }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div class="mt-2 space-y-2">
+                                    <Button type="button" variant="outline" class="gap-2" @click="financialRecordModalOpen = true">
+                                        <Search class="h-4 w-4" />
+                                        Select Financial Record
+                                    </Button>
+
+                                    <div v-if="selectedFinancialRecord" class="rounded-lg border bg-muted/20 p-3">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="space-y-1">
+                                                <p class="text-sm font-semibold text-foreground">
+                                                    {{ selectedFinancialRecord.title || selectedFinancialRecord.purpose || selectedFinancialRecord.source || ('Record #' + selectedFinancialRecord.id) }}
+                                                </p>
+                                                <p class="text-xs text-muted-foreground">Date: {{ formatDate(selectedFinancialRecord.date_recorded) }}</p>
+                                                <p class="text-xs text-muted-foreground">Amount: {{ formatAmount(selectedFinancialRecord.amount) }}</p>
+                                                <p class="text-xs text-muted-foreground">Type: {{ selectedFinancialRecord.type }}</p>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <Button type="button" size="sm" variant="outline" @click="financialRecordModalOpen = true">Change</Button>
+                                                <Button type="button" size="sm" variant="ghost" @click="clearFinancialRecord">Clear</Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <p v-if="form.errors.financial_record_id" class="mt-1 text-sm text-red-500 flex items-center gap-1"><AlertCircle class="h-3.5 w-3.5" />{{ form.errors.financial_record_id }}</p>
                             </div>
 
@@ -301,6 +327,12 @@ const handleCancel = async () => {
                     </div>
                 </form>
             </div>
+
+            <FinancialRecordPickerModal
+                v-model="financialRecordModalOpen"
+                :cooperative-id="cooperativeObj?.id ?? null"
+                @select="onSelectFinancialRecord"
+            />
         </div>
     </FinanceShellLayout>
 </template>

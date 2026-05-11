@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cooperative;
 use App\Models\ExternalSupport;
 use App\Models\FinancialRecord;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -61,6 +62,25 @@ class ExternalSupportController extends Controller
         return null;
     }
 
+    private function resolveContextCoopId(Request $request, ?ExternalSupport $externalSupport = null): ?int
+    {
+        if ($externalSupport) {
+            return (int) $externalSupport->coop_id;
+        }
+
+        $cooperative = $this->resolveCooperative($request->route('cooperative'));
+        if ($cooperative) {
+            return (int) $cooperative->id;
+        }
+
+        $user = auth()->user();
+        if ($user?->coop_id) {
+            return (int) $user->coop_id;
+        }
+
+        return null;
+    }
+
     public function index(Request $request): Response
     {
         $user = auth()->user();
@@ -93,7 +113,7 @@ class ExternalSupportController extends Controller
         $supports = $query->latest()->paginate($perPage)->withQueryString();
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id')
+        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id', 'amount', 'date_recorded', 'source', 'purpose')
             ->orderBy('period', 'desc');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -138,7 +158,7 @@ class ExternalSupportController extends Controller
 
         $user = auth()->user();
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id')
+        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id', 'amount', 'date_recorded', 'source', 'purpose')
             ->orderBy('period', 'desc');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -164,8 +184,12 @@ class ExternalSupportController extends Controller
             abort(403);
         }
 
+        $resolvedCoopId = $this->resolveContextCoopId($request);
+        if (!$resolvedCoopId) {
+            return back()->withErrors(['coop_id' => 'Unable to determine cooperative context for this record.']);
+        }
+
         $validated = $request->validate([
-            'coop_id' => ['required', 'exists:cooperatives,id'],
             'financial_record_id' => ['nullable', 'exists:financial_records,id'],
             'support_type' => ['required', Rule::in(['Grant', 'Loan', 'Equipment', 'Training', 'Technical Assistance', 'Other'])],
             'provider_name' => ['required', 'string', 'max:255'],
@@ -175,6 +199,8 @@ class ExternalSupportController extends Controller
             'status' => ['required', Rule::in(['Ongoing', 'Completed', 'Pending'])],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        $validated['coop_id'] = $resolvedCoopId;
 
         $this->enforceCoopScope((int) $validated['coop_id']);
 
@@ -252,7 +278,7 @@ class ExternalSupportController extends Controller
         $this->enforceCoopScope($externalSupport->coop_id);
 
         $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
-        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id')
+        $financialQuery = FinancialRecord::select('id', 'period', 'type', 'coop_id', 'amount', 'date_recorded', 'source', 'purpose')
             ->orderBy('period', 'desc');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
@@ -286,7 +312,6 @@ class ExternalSupportController extends Controller
         }
 
         $validated = $request->validate([
-            'coop_id' => ['required', 'exists:cooperatives,id'],
             'financial_record_id' => ['nullable', 'exists:financial_records,id'],
             'support_type' => ['required', Rule::in(['Grant', 'Loan', 'Equipment', 'Training', 'Technical Assistance', 'Other'])],
             'provider_name' => ['required', 'string', 'max:255'],
@@ -296,6 +321,8 @@ class ExternalSupportController extends Controller
             'status' => ['required', Rule::in(['Ongoing', 'Completed', 'Pending'])],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        $validated['coop_id'] = (int) $externalSupport->coop_id;
 
         $this->enforceCoopScope((int) $validated['coop_id']);
 
@@ -353,5 +380,54 @@ class ExternalSupportController extends Controller
         return redirect()
             ->to('/finance/external-supports')
             ->with('success', 'External support record deleted successfully.');
+    }
+
+    public function financialRecords(Request $request, Cooperative $cooperative): JsonResponse
+    {
+        if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
+            abort(403);
+        }
+
+        $this->enforceCoopScope((int) $cooperative->id);
+
+        $excludeIds = array_values(array_filter(array_map('intval', (array) $request->input('exclude_ids', []))));
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = max(5, min($perPage, 20));
+
+        $query = FinancialRecord::query()
+            ->select('id', 'coop_id', 'period', 'type', 'amount', 'date_recorded', 'source', 'purpose')
+            ->where('coop_id', $cooperative->id)
+            ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('period', 'like', "%{$search}%")
+                        ->orWhere('type', 'like', "%{$search}%")
+                        ->orWhere('source', 'like', "%{$search}%")
+                        ->orWhere('purpose', 'like', "%{$search}%")
+                        ->orWhereDate('date_recorded', $search);
+                });
+            })
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->input('type')))
+            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('date_recorded', '>=', $request->input('date_from')))
+            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('date_recorded', '<=', $request->input('date_to')))
+            ->orderByDesc('date_recorded')
+            ->orderByDesc('id');
+
+        $records = $query->paginate($perPage)->through(function (FinancialRecord $record) {
+            return [
+                'id' => $record->id,
+                'coop_id' => $record->coop_id,
+                'title' => $record->purpose ?: $record->source ?: "Record #{$record->id}",
+                'period' => $record->period,
+                'type' => $record->type,
+                'amount' => $record->amount,
+                'date_recorded' => optional($record->date_recorded)->toDateString(),
+                'source' => $record->source,
+                'purpose' => $record->purpose,
+            ];
+        });
+
+        return response()->json($records);
     }
 }

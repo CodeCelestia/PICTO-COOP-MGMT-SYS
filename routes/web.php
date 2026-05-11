@@ -862,6 +862,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('cooperatives/{cooperative}/finance/external-supports')
         ->name('cooperatives.finance.external-supports.')
         ->group(function () {
+            Route::get('/financial-records', [ExternalSupportController::class, 'financialRecords'])
+                ->middleware('permission:read financial-&-support')
+                ->name('financial-records');
             Route::get('/', [ExternalSupportController::class, 'index'])
                 ->middleware('permission:read financial-&-support')
                 ->name('index');
