@@ -467,23 +467,31 @@ const editMemberHref = (memberId: number) => {
 
 <template>
     <div class="space-y-6">
-        <section class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div class="space-y-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h2 class="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Members</h2>
-                        <Badge variant="secondary">{{ summaryStats.total }} records</Badge>
-                        <Badge class="border border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-200">
-                            Active: {{ summaryStats.active }}
-                        </Badge>
-                        <Badge class="border border-sky-200 bg-sky-100 text-sky-800 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-200">
-                            Male: {{ summaryStats.male }}
-                        </Badge>
-                        <Badge class="border border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-200">
-                            Female: {{ summaryStats.female }}
-                        </Badge>
+        <section class="rounded-2xl border border-border bg-card/95 p-5 shadow-sm ring-1 ring-black/5 sm:p-6">
+            <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <h2 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Members</h2>
+                        <p class="text-sm text-muted-foreground sm:text-base">Manage cooperative member profiles</p>
                     </div>
-                    <p class="text-sm text-muted-foreground">Manage cooperative member profiles</p>
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Records</div>
+                            <div class="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{{ summaryStats.total }}</div>
+                        </div>
+                        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-200">Active</div>
+                            <div class="mt-1 text-2xl font-semibold tracking-tight text-emerald-950 dark:text-emerald-100 sm:text-3xl">{{ summaryStats.active }}</div>
+                        </div>
+                        <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 shadow-sm dark:border-sky-500/30 dark:bg-sky-500/10">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-200">Male</div>
+                            <div class="mt-1 text-2xl font-semibold tracking-tight text-sky-950 dark:text-sky-100 sm:text-3xl">{{ summaryStats.male }}</div>
+                        </div>
+                        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.18em] text-rose-700 dark:text-rose-200">Female</div>
+                            <div class="mt-1 text-2xl font-semibold tracking-tight text-rose-950 dark:text-rose-100 sm:text-3xl">{{ summaryStats.female }}</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex flex-wrap items-center justify-end gap-2">
                     <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">

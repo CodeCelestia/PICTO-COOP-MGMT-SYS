@@ -77,7 +77,11 @@ class FinancialRecordController extends Controller
 
         $records = $query->latest()->paginate($perPage)->withQueryString();
 
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'status', 'classification')
+            ->with(['types' => function ($q) {
+                $q->select('cooperative_types.id', 'cooperative_types.name');
+            }])
+            ->orderBy('name');
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $cooperativesQuery->where('id', $user->coop_id);

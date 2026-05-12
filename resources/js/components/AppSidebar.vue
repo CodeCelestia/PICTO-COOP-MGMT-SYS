@@ -40,9 +40,12 @@ const auth = computed(() => page.props.auth as {
     isCoopAdmin?: boolean;
 } | undefined);
 const authUser = computed(() => auth.value?.user);
+const roles = computed((): string[] => auth.value?.roles || []);
 const permissions = computed((): string[] => auth.value?.permissions || []);
 const isCoopAdmin = computed(() => Boolean(auth.value?.isCoopAdmin));
 const isMember = computed(() => Boolean(authUser.value?.member_id));
+const isSuperAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'super admin'));
+const isProvincialAdmin = computed(() => roles.value.some((role) => role.toLowerCase() === 'provincial admin'));
 
 const can = (permission: string) => permissions.value.includes(permission);
 
@@ -177,7 +180,7 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
-    if (can('view display')) {
+    if (isSuperAdmin.value) {
         items.push({
             title: 'Display',
             href: '/display',

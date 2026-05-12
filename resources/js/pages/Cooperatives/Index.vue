@@ -366,20 +366,6 @@ const getMemberCountBadgeColor = (memberCount: number) => {
     return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-200';
 };
 
-const getSubCountBadgeColor = (count: number, tone: 'green' | 'sky' | 'rose') => {
-    if (count === 0) {
-        return 'border-slate-300 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300';
-    }
-
-    const colors: Record<'green' | 'sky' | 'rose', string> = {
-        green: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-200',
-        sky: 'border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-200',
-        rose: 'border-rose-200 bg-rose-100 text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-200',
-    };
-
-    return colors[tone];
-};
-
 const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
@@ -804,32 +790,6 @@ const getTypePreview = (coop: Cooperative) => {
                                             >
                                                 Total: {{ coop.members_count ?? 0 }}
                                             </Badge>
-                                            <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                                <Badge
-                                                    :class="[
-                                                        getSubCountBadgeColor(coop.active_members_count ?? 0, 'green'),
-                                                        'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                                    ]"
-                                                >
-                                                    Active: {{ coop.active_members_count ?? 0 }}
-                                                </Badge>
-                                                <Badge
-                                                    :class="[
-                                                        getSubCountBadgeColor(coop.male_members_count ?? 0, 'sky'),
-                                                        'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                                    ]"
-                                                >
-                                                    Male: {{ coop.male_members_count ?? 0 }}
-                                                </Badge>
-                                                <Badge
-                                                    :class="[
-                                                        getSubCountBadgeColor(coop.female_members_count ?? 0, 'rose'),
-                                                        'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                                    ]"
-                                                >
-                                                    Female: {{ coop.female_members_count ?? 0 }}
-                                                </Badge>
-                                            </div>
                                         </div>
                                     </TableCell>
                                     <TableCell>

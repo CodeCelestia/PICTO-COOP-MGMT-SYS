@@ -35,7 +35,6 @@ use App\Http\Controllers\SkillInventoryController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PdsController;
 use App\Http\Controllers\HomepageController;
-use App\Http\Controllers\FinanceOverviewController;
 use App\Http\Controllers\DisplayController;
 use App\Http\Controllers\AccreditationController;
 use App\Http\Controllers\RecycleBinController;
@@ -54,16 +53,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('homepage', [HomepageController::class, 'index'])->name('homepage');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::middleware('permission:view display')->prefix('display')->name('display.')->group(function () {
+    Route::middleware('permission:manage-system-settings')->prefix('display')->name('display.')->group(function () {
         Route::get('/', [DisplayController::class, 'index'])->name('index');
-        Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.store');
-        Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.default');
-        Route::patch('carousel-photos/{carouselPhoto}/toggle', [DisplayController::class, 'toggleCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.toggle');
-        Route::delete('carousel-photos/{carouselPhoto}', [DisplayController::class, 'destroyCarouselPhoto'])->middleware('permission:manage carousel')->name('carousel-photos.destroy');
+        Route::post('carousel-photos', [DisplayController::class, 'storeCarouselPhoto'])->name('carousel-photos.store');
+        Route::patch('carousel-photos/{carouselPhoto}/default', [DisplayController::class, 'setDefaultCarouselPhoto'])->name('carousel-photos.default');
+        Route::patch('carousel-photos/{carouselPhoto}/toggle', [DisplayController::class, 'toggleCarouselPhoto'])->name('carousel-photos.toggle');
+        Route::delete('carousel-photos/{carouselPhoto}', [DisplayController::class, 'destroyCarouselPhoto'])->name('carousel-photos.destroy');
 
-        Route::post('whats-new', [DisplayController::class, 'storeWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.store');
-        Route::put('whats-new/{whatsNewEntry}', [DisplayController::class, 'updateWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.update');
-        Route::delete('whats-new/{whatsNewEntry}', [DisplayController::class, 'destroyWhatsNew'])->middleware('permission:manage whats new')->name('whats-new.destroy');
+        Route::post('whats-new', [DisplayController::class, 'storeWhatsNew'])->name('whats-new.store');
+        Route::put('whats-new/{whatsNewEntry}', [DisplayController::class, 'updateWhatsNew'])->name('whats-new.update');
+        Route::delete('whats-new/{whatsNewEntry}', [DisplayController::class, 'destroyWhatsNew'])->name('whats-new.destroy');
     });
     
     // User Management (Provincial Admin & Super Admin)
@@ -499,7 +498,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('financial-records.destroy');
 
     // Finance Hub
-    Route::get('finance', [FinanceOverviewController::class, 'index'])
+    Route::get('finance', function () {
+        return redirect()->route('finance.funding-sources.index');
+    })
         ->middleware('permission:read financial-&-support|read finance-funding-sources|read finance-member-loans|read finance-savings-accounts|read finance-reports|read finance-ledger-entries')
         ->name('finance.index');
 
@@ -665,10 +666,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:calculate-interest finance-savings-accounts|override finance-auto-jobs')
             ->name('calculate-interest');
     });
-
-    Route::get('finance/external-supports', [ExternalSupportController::class, 'index'])
-        ->middleware('permission:read financial-&-support')
-        ->name('finance.external-supports.index');
 
     // Finance: Reports
     Route::prefix('finance/reports')->name('finance.reports.')->group(function () {
@@ -857,32 +854,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:calculate-interest finance-savings-accounts|override finance-auto-jobs')
             ->name('calculate-interest');
     });
-
-    Route::prefix('cooperatives/{cooperative}/finance/external-supports')
-        ->name('cooperatives.finance.external-supports.')
-        ->group(function () {
-            Route::get('/financial-records', [ExternalSupportController::class, 'financialRecords'])
-                ->middleware('permission:read financial-&-support')
-                ->name('financial-records');
-            Route::get('/', [ExternalSupportController::class, 'index'])
-                ->middleware('permission:read financial-&-support')
-                ->name('index');
-            Route::get('/create', [ExternalSupportController::class, 'create'])
-                ->middleware('permission:create financial-&-support')
-                ->name('create');
-            Route::post('/', [ExternalSupportController::class, 'store'])
-                ->middleware('permission:create financial-&-support')
-                ->name('store');
-            Route::get('/{externalSupport}/edit', [ExternalSupportController::class, 'edit'])
-                ->middleware('permission:update financial-&-support')
-                ->name('edit');
-            Route::put('/{externalSupport}', [ExternalSupportController::class, 'update'])
-                ->middleware('permission:update financial-&-support')
-                ->name('update');
-            Route::delete('/{externalSupport}', [ExternalSupportController::class, 'destroy'])
-                ->middleware('permission:delete financial-&-support')
-                ->name('destroy');
-        });
 
     // External Supports
     Route::get('external-supports/select', [ExternalSupportController::class, 'select'])

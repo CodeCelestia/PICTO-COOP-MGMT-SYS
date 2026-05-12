@@ -153,18 +153,73 @@ class ActivityFundingSourceController extends Controller
         $fundingSources = $query->latest()->paginate($perPage)->withQueryString();
 
         $activitiesQuery = Activity::select('id', 'title', 'coop_id')->orderBy('title');
-        $cooperativesQuery = Cooperative::select('id', 'name')->orderBy('name');
+        $cooperativesQuery = Cooperative::select('id', 'name', 'registration_number', 'status', 'classification', 'city_municipality', 'province', 'date_established')
+            ->with([
+                'types' => function ($q) {
+                    $q->select('cooperative_types.id', 'cooperative_types.name');
+                },
+                'accreditations' => function ($q) {
+                    $q->orderByDesc('date_granted');
+                },
+            ])
+            ->withCount('members')
+            ->orderBy('name');
+
+        if ($request->filled('coop_id') && !($this->isCoopAdmin() || $this->isOfficer())) {
+            $activitiesQuery->where('coop_id', $request->integer('coop_id'));
+        }
+
+        if ($request->filled('coop_search')) {
+            $coopSearch = (string) $request->input('coop_search');
+            $cooperativesQuery->where(function ($searchQuery) use ($coopSearch) {
+                $searchQuery->where('name', 'like', "%{$coopSearch}%")
+                    ->orWhere('registration_number', 'like', "%{$coopSearch}%");
+            });
+        }
+
+        if ($request->filled('coop_status')) {
+            $cooperativesQuery->where('status', $request->string('coop_status'));
+        }
+
+        if ($request->filled('coop_type')) {
+            $cooperativesQuery->whereHas('types', function ($builder) use ($request) {
+                $builder->where('name', $request->string('coop_type'));
+            });
+        }
+
+        if ($request->filled('coop_classification')) {
+            $cooperativesQuery->where('classification', $request->string('coop_classification'));
+        }
 
         if ($this->isCoopAdmin() && $user?->coop_id) {
             $activitiesQuery->where('coop_id', $user->coop_id);
             $cooperativesQuery->where('id', $user->coop_id);
         }
 
+        $cooperatives = $cooperativesQuery->get();
+
+        $cooperatives->transform(function ($cooperative) {
+            $latestAccreditation = $cooperative->accreditations()
+                ->orderByDesc('date_granted')
+                ->first(['id', 'cooperative_id', 'level', 'date_granted']);
+
+            $cooperative->setAttribute('latest_accreditation', $latestAccreditation ? [
+                'id' => $latestAccreditation->id,
+                'cooperative_id' => $latestAccreditation->cooperative_id,
+                'level' => $latestAccreditation->level,
+                'date_granted' => optional($latestAccreditation->date_granted)->toDateString(),
+            ] : null);
+
+            $cooperative->setAttribute('date_established', optional($cooperative->date_established)->toDateString());
+
+            return $cooperative;
+        });
+
         return Inertia::render('Finance/FundingSources/Index', [
             'fundingSources' => $fundingSources,
             'activities' => $activitiesQuery->get(),
-            'cooperatives' => $cooperativesQuery->get(),
-            'filters' => $request->only(['search', 'status', 'funder_type', 'activity_id', 'coop_id', 'per_page']),
+            'cooperatives' => $cooperatives,
+            'filters' => $request->only(['search', 'status', 'funder_type', 'activity_id', 'coop_id', 'per_page', 'coop_search', 'coop_status', 'coop_type', 'coop_classification']),
         ]);
     }
 

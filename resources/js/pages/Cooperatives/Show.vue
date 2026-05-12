@@ -103,6 +103,12 @@ const props = defineProps<{
         per_page: number;
         total: number;
     };
+    memberStats?: {
+        total_members: number;
+        active_members: number;
+        male_members: number;
+        female_members: number;
+    };
     memberFilters: {
         search?: string;
         membership_status?: string;
@@ -703,16 +709,10 @@ const statusBadgeClass = computed(() => {
                                                         :alt="requirement.fileName || requirement.label"
                                                         class="h-full w-full object-cover"
                                                     />
-                                                    <iframe
-                                                        v-else-if="requirement.filePath && getRequirementFileTypeConfig(requirement).previewable && getRequirementFileTypeConfig(requirement).extension === 'PDF'"
-                                                        :src="getRequirementPreviewUrl(requirement)"
-                                                        :title="`${requirement.label} preview`"
-                                                        class="h-full w-full scale-[0.34] origin-top-left border-0"
-                                                    />
                                                     <component
                                                         v-else
                                                         :is="getRequirementFileTypeConfig(requirement).icon"
-                                                        class="h-7 w-7"
+                                                        class="h-10 w-10"
                                                         :class="getRequirementFileTypeConfig(requirement).iconColorClass"
                                                     />
                                                 </div>
@@ -906,6 +906,7 @@ const statusBadgeClass = computed(() => {
                     <div v-show="activeTab === 'members'" class="space-y-4">
                         <CooperativeMemberListPanel
                             :members="members"
+                            :member-stats="memberStats"
                             :filters="memberFilters"
                             :membership-types="membershipTypes"
                             :base-url="`${cooperativeBasePath}?tab=members`"

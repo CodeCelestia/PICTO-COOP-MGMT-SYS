@@ -681,6 +681,13 @@ class CooperativeController extends Controller
 
         $members = $membersQuery->orderBy('last_name')->orderBy('first_name')->paginate($memberPerPage)->withQueryString();
 
+        $memberStats = [
+            'total_members' => Member::query()->where('coop_id', $cooperative->id)->count(),
+            'active_members' => Member::query()->where('coop_id', $cooperative->id)->where('membership_status', 'Active')->count(),
+            'male_members' => Member::query()->where('coop_id', $cooperative->id)->where('gender', 'Male')->count(),
+            'female_members' => Member::query()->where('coop_id', $cooperative->id)->where('gender', 'Female')->count(),
+        ];
+
         $membershipTypes = Member::query()
             ->where('coop_id', $cooperative->id)
             ->whereNotNull('membership_type')
@@ -822,6 +829,7 @@ class CooperativeController extends Controller
         return Inertia::render('Cooperatives/Show', [
             'cooperative' => $cooperative,
             'members' => $members,
+            'memberStats' => $memberStats,
             'memberFilters' => [
                 'search' => $memberSearch,
                 'membership_status' => $memberStatus,

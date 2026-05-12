@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { router, Link, usePage } from '@inertiajs/vue3';
-import { LifeBuoy, Plus, Pencil, Trash2, Search, ArrowLeft } from 'lucide-vue-next';
+import { LifeBuoy, Plus, Pencil, Trash2, Search, ArrowLeft, Building2, Eye } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Select,
     SelectContent,
@@ -30,6 +31,20 @@ import { confirmAction } from '@/lib/alerts';
 interface Cooperative {
     id: number;
     name: string;
+    registration_number?: string;
+    status: string;
+    classification?: string;
+    members_count?: number;
+    city_municipality?: string | null;
+    province?: string | null;
+    date_established?: string | null;
+    types?: Array<{ id: number; name: string }>;
+    latest_accreditation?: {
+        id: number;
+        cooperative_id: number;
+        level: string;
+        date_granted: string | null;
+    } | null;
 }
 
 interface FinancialRecordOption {
@@ -69,6 +84,10 @@ interface Props {
         status?: string;
         coop_id?: string;
         per_page?: string;
+        coop_search?: string;
+        coop_status?: string;
+        coop_type?: string;
+        coop_classification?: string;
     };
     cooperative?: { id: number; name: string } | null;
 }
@@ -108,6 +127,13 @@ const selectedCoop = ref<{ id: number; name: string } | null>((() => {
 
 const activeCoop = computed(() => selectedCoop.value);
 
+// Cooperative list filters
+const coopSearchFilter = ref<string>(props.filters?.coop_search || '');
+const coopStatusFilter = ref<string>('');
+const coopTypeFilter = ref<string>('');
+const coopClassificationFilter = ref<string>('');
+const isSwitchingCoop = ref(false);
+
 const isGlobalMode = computed(() => !props.cooperative);
 const showCooperativesList = computed(() =>
     isGlobalMode.value && !activeCoop.value
@@ -116,15 +142,96 @@ const showSupportsList = computed(() =>
     isGlobalMode.value ? !!activeCoop.value : true
 );
 
+// Get unique cooperative statuses, types, and classifications for filtering
+const availableCoopStatuses = computed(() => {
+    const statuses = new Set<string>();
+    props.cooperatives?.forEach(coop => {
+        if (coop.status) statuses.add(coop.status);
+    });
+    return Array.from(statuses).sort();
+});
+
+const availableCoopTypes = computed(() => {
+    const types = new Set<string>();
+    props.cooperatives?.forEach(coop => {
+        coop.types?.forEach(type => {
+            types.add(type.name);
+        });
+    });
+    return Array.from(types).sort();
+});
+
+// Get unique cooperative classifications
+const availableCoopClassifications = computed(() => {
+    const classifications = new Set<string>();
+    props.cooperatives?.forEach(coop => {
+        if (coop.classification) classifications.add(coop.classification);
+    });
+    return Array.from(classifications).sort();
+});
+
+// Filter cooperatives by status, type, and classification
+const filteredCooperatives = computed(() => {
+    let filtered = props.cooperatives || [];
+    
+    if (coopSearchFilter.value.trim()) {
+        const searchTerm = coopSearchFilter.value.trim().toLowerCase();
+        filtered = filtered.filter(coop =>
+            coop.name.toLowerCase().includes(searchTerm)
+            || ((coop as Cooperative & { registration_number?: string }).registration_number || '').toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    if (coopStatusFilter.value) {
+        filtered = filtered.filter(coop => coop.status === coopStatusFilter.value);
+    }
+    
+    if (coopTypeFilter.value) {
+        filtered = filtered.filter(coop => 
+            coop.types?.some(type => type.name === coopTypeFilter.value)
+        );
+    }
+    
+    if (coopClassificationFilter.value) {
+        filtered = filtered.filter(coop => coop.classification === coopClassificationFilter.value);
+    }
+    
+    return filtered;
+});
+
+const applyFilters = () => {
+    const params: Record<string, any> = {};
+    if (coopSearchFilter.value) params.coop_search = coopSearchFilter.value;
+    if (coopStatusFilter.value) params.status = coopStatusFilter.value;
+    if (coopTypeFilter.value) params.type = coopTypeFilter.value;
+    if (coopClassificationFilter.value) params.classification = coopClassificationFilter.value;
+    
+    router.get('/finance/external-supports', params, { preserveScroll: true });
+};
+
+const resetFilters = () => {
+    coopSearchFilter.value = '';
+    coopStatusFilter.value = '';
+    coopTypeFilter.value = '';
+    coopClassificationFilter.value = '';
+    router.get('/finance/external-supports', {}, { preserveScroll: true });
+};
+
 const selectCoop = (coop: { id: number; name: string }) => {
     selectedCoop.value = coop;
+    isSwitchingCoop.value = true;
     router.get('/finance/external-supports', { coop_id: coop.id }, {
         preserveState: false,
         preserveScroll: false,
+        onFinish: () => {
+            isSwitchingCoop.value = false;
+        },
     });
 };
 
 const backToCooperatives = () => {
+    coopStatusFilter.value = '';
+    coopTypeFilter.value = '';
     router.get(window.location.pathname, {}, {
         preserveState: false,
         preserveScroll: false,
@@ -152,7 +259,7 @@ const resolvedPerPage = () => {
 const supportTypes = ['Grant', 'Loan', 'Equipment', 'Training', 'Technical Assistance', 'Other'];
 const statusOptions = ['Ongoing', 'Completed', 'Pending'];
 
-const applyFilters = () => {
+const applySupportFilters = () => {
     router.get('/external-supports', {
         search: search.value,
         support_type: supportType.value === 'all' ? '' : supportType.value,
@@ -165,7 +272,7 @@ const applyFilters = () => {
     });
 };
 
-const resetFilters = () => {
+const resetSupportFilters = () => {
     search.value = '';
     supportType.value = 'all';
     status.value = 'all';
@@ -256,66 +363,208 @@ const bulkDeleteSupports = async () => {
     await runBulkDelete(idsToDelete, (id) => `/external-supports/${id}`);
     clearSelection();
 };
+
+const getStatusColor = (status: string): string => {
+    switch (status) {
+        case 'Active':
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        case 'Inactive':
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+        case 'Dormant':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+        default:
+            return 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200';
+    }
+};
 </script>
 
 <template>
     <FinanceShellLayout active-tab="external-supports" :hide-tabs="isFromCoopContext">
-        <div class="space-y-6 p-4 sm:p-6">
-            <div class="rounded-xl border border-border bg-card/95 p-4 shadow-sm sm:p-5">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div class="space-y-1">
-                    <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">External Supports</h1>
-                    <p class="text-sm text-muted-foreground">Track government and external support</p>
+        <div class="w-full space-y-6">
+            <!-- Breadcrumb & Header -->
+            <div class="space-y-4">
+                <div v-if="isFromCoopContext" class="text-sm flex items-center gap-2">
+                    <Link href="/cooperatives" class="text-primary hover:underline">Cooperatives</Link>
+                    <span class="text-muted-foreground">/</span>
+                    <Link :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ activeCoop?.name || 'Cooperative' }}</Link>
+                    <span class="text-muted-foreground">/</span>
+                    <span class="text-foreground">External Supports</span>
                 </div>
-                <div class="flex items-center gap-2 self-start">
-                    <div v-if="canBulkDelete && selectedCount > 0" class="flex items-center gap-2 rounded-md border border-border/70 bg-muted/40 px-2 py-1">
-                        <span class="text-xs font-medium text-foreground">{{ selectedCount }} selected</span>
-                        <Button size="sm" variant="destructive" class="h-8 gap-1.5" @click="bulkDeleteSupports">
-                            <Trash2 class="h-3.5 w-3.5" />
-                            Delete Selected
-                        </Button>
-                        <Button size="sm" variant="outline" class="h-8" @click="clearSelection">
-                            Clear
-                        </Button>
+
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">External Supports</h1>
+                        <p class="text-sm text-muted-foreground">Track government and external support</p>
                     </div>
-                    <Link href="/financial-records" class="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                        View Financial Records
-                    </Link>
-                        <Link
-                            v-if="canCreate"
-                            :href="selectedCoop ? `/cooperatives/${coopSlug}/finance/external-supports/create` : '/external-supports/create'"
-                        >
-                        <Button class="gap-2">
+                    <Link v-if="canCreate" :href="selectedCoop ? `/cooperatives/${coopSlug}/finance/external-supports/create` : '/external-supports/create'">
+                        <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                             <Plus class="h-4 w-4" />
                             Add Support
                         </Button>
                     </Link>
                 </div>
-                </div>
-
             </div>
 
-            <div v-if="showCooperativesList" class="mt-6">
-                <h2 class="mb-4 text-lg font-semibold">Select a Cooperative</h2>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div
-                        v-for="coop in cooperatives"
-                        :key="coop.id"
-                        class="cursor-pointer rounded-lg border bg-card p-4
-                               transition hover:border-primary hover:bg-primary/5"
-                        @click="selectCoop(coop)"
-                    >
-                        <h3 class="font-medium text-foreground">{{ coop.name }}</h3>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            Click to view external support records
-                        </p>
-                    </div>
-                </div>
-                <div v-if="!cooperatives || cooperatives.length === 0"
-                     class="rounded-lg border bg-card p-6 text-center
-                            text-muted-foreground">
-                    No cooperatives available.
-                </div>
+            <!-- Cooperatives Selection Grid (Global Mode) -->
+            <div v-if="showCooperativesList" class="space-y-4">
+                <!-- Filter Section -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="text-lg">Filter Cooperatives</CardTitle>
+                        <CardDescription>Narrow cooperatives by status, type, and classification to quickly find what you need.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+                                <div class="lg:col-span-2">
+                                    <label class="mb-1 block text-xs font-medium text-muted-foreground">Search</label>
+                                    <div class="relative">
+                                        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            v-model="coopSearchFilter"
+                                            type="text"
+                                            placeholder="Search cooperative name or registration no..."
+                                            class="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm text-foreground"
+                                            @keyup.enter="applyFilters"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-foreground">Status</label>
+                                    <select v-model="coopStatusFilter" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                                        <option value="">All Statuses</option>
+                                        <option v-for="status in availableCoopStatuses" :key="status" :value="status">{{ status }}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-foreground">Type</label>
+                                    <select v-model="coopTypeFilter" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                                        <option value="">All Types</option>
+                                        <option v-for="type in availableCoopTypes" :key="type" :value="type">{{ type }}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-foreground">Classification</label>
+                                    <select v-model="coopClassificationFilter" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+                                        <option value="">All Classifications</option>
+                                        <option v-for="classification in availableCoopClassifications" :key="classification" :value="classification">{{ classification }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <Button variant="default" class="gap-2" @click="applyFilters">
+                                    <Filter class="h-4 w-4" />
+                                    Apply Filters
+                                </Button>
+                                <Button variant="outline" @click="resetFilters">
+                                    Reset Filters
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Cooperatives List -->
+                <Card>
+                    <CardHeader>
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <CardTitle class="text-lg">Cooperatives</CardTitle>
+                                <CardDescription>{{ filteredCooperatives.length }} cooperative(s) available</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent class="p-0">
+                        <div class="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Cooperative</TableHead>
+                                        <TableHead class="text-center">Members</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Accreditation</TableHead>
+                                        <TableHead>Established</TableHead>
+                                        <TableHead class="text-center">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow v-if="isSwitchingCoop">
+                                        <TableCell colspan="8" class="py-8 text-center text-muted-foreground">
+                                            Loading cooperatives...
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow v-else-if="filteredCooperatives.length === 0">
+                                        <TableCell colspan="8" class="py-10 text-center text-muted-foreground">
+                                            <div class="mx-auto max-w-md space-y-3">
+                                                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                                    <Building2 class="h-6 w-6" />
+                                                </div>
+                                                <p class="font-medium text-foreground">No cooperatives found</p>
+                                                <p class="text-sm text-muted-foreground">Try adjusting your filters</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow v-for="coop in filteredCooperatives" :key="coop.id" class="cursor-pointer hover:bg-muted/50" @click="selectCoop(coop)">
+                                        <TableCell class="font-medium">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                                    <Building2 class="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <div class="max-w-48 truncate text-foreground">{{ coop.name }}</div>
+                                                    <div v-if="coop.registration_number" class="text-xs text-muted-foreground">Reg. {{ coop.registration_number }}</div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell class="text-center">
+                                            <Badge class="rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                {{ coop.members_count ?? 0 }}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div class="flex items-center gap-2">
+                                                <Badge v-if="coop.types && coop.types.length > 0" variant="outline" class="text-xs">
+                                                    {{ coop.types[0]?.name }}
+                                                </Badge>
+                                                <Badge v-if="coop.types && coop.types.length > 1" variant="secondary" class="text-xs">
+                                                    +{{ coop.types.length - 1 }}
+                                                </Badge>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell class="text-sm text-muted-foreground">
+                                            <div class="max-w-40 truncate">{{ coop.city_municipality || coop.province || 'N/A' }}</div>
+                                            <div v-if="coop.city_municipality && coop.province" class="truncate text-xs text-muted-foreground">{{ coop.province }}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge :class="getStatusColor(coop.status)" class="text-xs font-medium">
+                                                {{ coop.status }}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div v-if="coop.latest_accreditation" class="text-sm">
+                                                <div class="text-foreground">{{ coop.latest_accreditation.level }}</div>
+                                                <div class="text-xs text-muted-foreground">{{ coop.latest_accreditation.date_granted ? new Date(coop.latest_accreditation.date_granted).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' }}</div>
+                                            </div>
+                                            <span v-else class="text-sm text-muted-foreground">N/A</span>
+                                        </TableCell>
+                                        <TableCell class="text-sm text-muted-foreground">
+                                            {{ coop.date_established ? new Date(coop.date_established).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A' }}
+                                        </TableCell>
+                                        <TableCell class="text-center">
+                                            <Button variant="ghost" size="sm" class="gap-1" @click.stop="selectCoop(coop)">
+                                                <Eye class="h-4 w-4" />
+                                                View
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <div v-if="showSupportsList">
@@ -420,11 +669,11 @@ const bulkDeleteSupports = async () => {
                     </div>
 
                     <div class="mt-5 flex flex-wrap gap-2">
-                        <Button @click="applyFilters" class="gap-2">
+                        <Button @click="applySupportFilters" class="gap-2">
                             <Search class="h-4 w-4" />
                             Apply Filters
                         </Button>
-                        <Button @click="resetFilters" variant="outline">Clear Filters</Button>
+                        <Button @click="resetSupportFilters" variant="outline">Clear Filters</Button>
                     </div>
                 </FilterPanel>
 

@@ -1084,16 +1084,10 @@ const submit = () => {
                           :alt="getRequirementFileName(key)"
                           class="h-full w-full object-cover"
                         />
-                        <iframe
-                          v-else-if="getRequirementPreviewUrl(key) && getRequirementFileTypeConfig(key).extension === 'PDF'"
-                          :src="getRequirementPreviewUrl(key)"
-                          :title="`${getRequirementFileName(key)} preview`"
-                          class="h-full w-full scale-[0.34] origin-top-left border-0"
-                        />
                         <component
                           v-else
                           :is="getRequirementFileTypeConfig(key).icon"
-                          class="h-7 w-7 shrink-0"
+                          class="h-10 w-10 shrink-0"
                           :class="getRequirementFileTypeConfig(key).iconColorClass"
                         />
                       </div>
@@ -1125,7 +1119,7 @@ const submit = () => {
 
                         <p class="flex items-center gap-1 text-sm text-foreground">
                           <span class="font-semibold text-muted-foreground shrink-0">Attachment:</span>
-                          <span class="ml-1 truncate max-w-[200px]" :title="getRequirementFileName(key)">
+                          <span class="ml-1 truncate max-w-50" :title="getRequirementFileName(key)">
                             {{ getRequirementFileName(key) }}
                           </span>
                         </p>
@@ -1268,7 +1262,7 @@ const submit = () => {
               @click="() => requirementFileInput?.click()"
             >
               <Upload class="mr-2 h-4 w-4 shrink-0" />
-              <span class="truncate max-w-[280px] block">
+              <span class="truncate max-w-70 block">
                 {{ getRequirementActiveFileName() || 'Choose File' }}
               </span>
             </Button>
@@ -1284,16 +1278,10 @@ const submit = () => {
                   :alt="getRequirementActiveFileName()"
                   class="h-full w-full object-cover"
                 />
-                <iframe
-                  v-else-if="getRequirementActivePreviewUrl() && getRequirementActiveFileTypeConfig().extension === 'PDF'"
-                  :src="getRequirementActivePreviewUrl()"
-                  :title="`${getRequirementActiveFileName()} preview`"
-                  class="h-full w-full scale-[0.35] origin-top-left border-0"
-                />
                 <component
                   v-else
                   :is="getRequirementActiveFileTypeConfig().icon"
-                  class="h-7 w-7 shrink-0"
+                  class="h-10 w-10 shrink-0"
                   :class="getRequirementActiveFileTypeConfig().iconColorClass"
                 />
               </div>
@@ -1308,7 +1296,7 @@ const submit = () => {
                   </span>
                 </div>
 
-                <p class="truncate max-w-[200px] font-medium text-foreground" :title="getRequirementActiveFileName()">
+                <p class="truncate max-w-50 font-medium text-foreground" :title="getRequirementActiveFileName()">
                   {{ getRequirementActiveFileName() }}
                 </p>
 

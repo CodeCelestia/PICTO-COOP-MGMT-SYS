@@ -40,7 +40,6 @@ class DashboardController extends Controller
         $memberRecentLoans = [];
         $memberServicesCount = 0;
         $memberActivitiesCount = 0;
-        $memberTrainingsCount = 0;
 
         if ($isCoopAdmin && $coopId) {
             $period = $this->normalizeTrendPeriod(request('period', 'month'));
