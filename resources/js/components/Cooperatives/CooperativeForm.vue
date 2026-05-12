@@ -1123,9 +1123,11 @@ const submit = () => {
                           {{ form.requirements[key].description || requirementDescriptions[key] }}
                         </p>
 
-                        <p class="truncate text-sm text-foreground">
-                          <span class="font-semibold text-muted-foreground">Attachment:</span>
-                          <span class="ml-1">{{ getRequirementFileName(key) }}</span>
+                        <p class="flex items-center gap-1 text-sm text-foreground">
+                          <span class="font-semibold text-muted-foreground shrink-0">Attachment:</span>
+                          <span class="ml-1 truncate max-w-[200px]" :title="getRequirementFileName(key)">
+                            {{ getRequirementFileName(key) }}
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -1266,7 +1268,7 @@ const submit = () => {
               @click="() => requirementFileInput?.click()"
             >
               <Upload class="mr-2 h-4 w-4 shrink-0" />
-              <span class="truncate">
+              <span class="truncate max-w-[280px] block">
                 {{ getRequirementActiveFileName() || 'Choose File' }}
               </span>
             </Button>
@@ -1306,7 +1308,7 @@ const submit = () => {
                   </span>
                 </div>
 
-                <p class="truncate font-medium text-foreground" :title="getRequirementActiveFileName()">
+                <p class="truncate max-w-[200px] font-medium text-foreground" :title="getRequirementActiveFileName()">
                   {{ getRequirementActiveFileName() }}
                 </p>
 
