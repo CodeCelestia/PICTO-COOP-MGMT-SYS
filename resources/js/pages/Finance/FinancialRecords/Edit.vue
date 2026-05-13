@@ -59,6 +59,16 @@ const canUpdate = computed(() => permissions.value.includes('update finance-ledg
 const isCoopContext = computed(() => Boolean(props.isCoopContext && props.coopContext));
 const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
 
+const coopIdFromPath = computed(() => {
+    // First try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
+});
+
 const parseDateLocal = (dateString: string | null): string => {
     if (!dateString) return '';
     const date = new Date(dateString + 'T00:00:00');
@@ -83,6 +93,7 @@ const form = useForm({
     external_assistance_received: props.record.external_assistance_received || '',
     type_of_assistance: props.record.type_of_assistance || '',
     reference_doc: props.record.reference_doc || '',
+    return_to: '',
 });
 
 const { isDirty, isPreFilling, inputErrorClass, clearError, markClean, handleCancel, showErrorShake, scrollToFirstError } = useFormUx(form);
@@ -98,13 +109,14 @@ onMounted(async () => {
 });
 
 const handleFormCancel = async () => {
-    if (isCoopContext.value && props.coopContext) {
-        const result = await handleCancel();
+    if (isCoopContext.value && (props.coopContext || coopIdFromPath.value)) {
+        const result = await handleCancel({ fallbackBack: false });
         if (!result?.isConfirmed) return;
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=financial-records`);
+        const coopId = props.coopContext?.id || coopIdFromPath.value;
+        router.get(`/cooperatives/${coopId}?tab=finance&subtab=financial-records`);
         return;
     }
-    const result = await handleCancel();
+    const result = await handleCancel({ fallbackBack: false });
     if (!result?.isConfirmed) return;
     router.get('/finance/financial-records');
 };
@@ -112,8 +124,9 @@ const handleFormCancel = async () => {
 const submit = () => {
     if (!canUpdate.value) return;
 
-    form.put(isCoopContext.value && props.coopContext
-        ? `/cooperatives/${props.coopContext.id}/finance/financial-records/${props.record.id}`
+    const coopId = props.coopContext?.id || coopIdFromPath.value;
+    form.put(isCoopContext.value && coopId
+        ? `/cooperatives/${coopId}/finance/financial-records/${props.record.id}`
         : `/finance/financial-records/${props.record.id}`, {
         preserveScroll: true,
         onSuccess: () => markClean(),

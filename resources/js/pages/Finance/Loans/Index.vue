@@ -421,13 +421,13 @@ const showLoansList = computed(() => (isGlobalMode.value ? Boolean(selectedMembe
                                         <td class="px-4 py-3">{{ formatDate(loan.created_at) }}</td>
                                         <td class="px-4 py-3">
                                             <div class="flex flex-wrap items-center justify-center gap-2">
-                                                <Link :href="isCoopContext && props.cooperative?.id ? `/cooperatives/${props.cooperative.id}/finance/loans/${loan.id}` : (currentUrl ? `/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}`)">
+                                                <Link :href="isCoopContext && props.cooperative?.id ? `/cooperatives/${props.cooperative.id}/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : (currentUrl ? `/finance/loans/${loan.id}?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}`)">
                                                     <Button variant="ghost" size="sm" class="gap-2">
                                                         <Eye class="h-4 w-4" />
                                                         View
                                                     </Button>
                                                 </Link>
-                                                <Link v-if="props.permissions.can_edit && loan.status === 'Pending'" :href="isCoopContext && props.cooperative?.id ? `/cooperatives/${props.cooperative.id}/finance/loans/${loan.id}/edit` : (currentUrl ? `/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}/edit`)">
+                                                <Link v-if="props.permissions.can_edit && loan.status === 'Pending'" :href="isCoopContext && props.cooperative?.id ? `/cooperatives/${props.cooperative.id}/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : (currentUrl ? `/finance/loans/${loan.id}/edit?return_to=${encodeURIComponent(currentUrl)}` : `/finance/loans/${loan.id}/edit`)">
                                                     <Button variant="ghost" size="sm" class="gap-2">
                                                         <Pencil class="h-4 w-4" />
                                                         Edit

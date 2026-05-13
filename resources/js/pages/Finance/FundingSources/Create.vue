@@ -66,15 +66,40 @@ const userCoopId = computed(() => auth.value?.user?.coop_id ? Number(auth.value.
 const isCoopScopedUser = computed(() => Boolean(userCoopId.value && !canViewAllCooperatives.value));
 const isFinanceContext = computed(() => page.url.startsWith('/finance/funding-sources'));
 const isCoopContext = computed(() => Boolean(props.isCoopContext && props.coopContext));
+const coopIdFromUrl = computed(() => {
+    const queryCoopId = new URLSearchParams(window.location.search).get('coop_id');
+    if (queryCoopId) {
+        return parseInt(queryCoopId);
+    }
+
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+
+    return null;
+});
 
 const urlParams = new URLSearchParams(
     typeof window !== 'undefined' ? window.location.search : '',
 );
 const prefilledActivityId = urlParams.get('activity_id');
 
-const defaultCoopId = isCoopScopedUser.value
-    ? (userCoopId.value?.toString() || '')
-    : (props.cooperatives[0]?.id?.toString() || '');
+const defaultCoopId = (() => {
+    if (props.coopContext?.id) {
+        return props.coopContext.id.toString();
+    }
+
+    if (coopIdFromUrl.value) {
+        return coopIdFromUrl.value.toString();
+    }
+
+    if (isCoopScopedUser.value) {
+        return userCoopId.value?.toString() || '';
+    }
+
+    return props.cooperatives[0]?.id?.toString() || '';
+})();
 
 const initialActivityId = (() => {
     if (prefilledActivityId) {
@@ -113,6 +138,7 @@ const form = useForm<{
     status: string;
     remarks: string;
     attachments: Array<File | null>;
+    return_to: string;
 }>({
     activity_id: initialActivityId,
     category: 'activity',
@@ -127,6 +153,7 @@ const form = useForm<{
     status: 'Pending',
     remarks: '',
     attachments: [],
+    return_to: new URLSearchParams(window.location.search).get('return_to') || '',
 });
 
 const { isDirty, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);
@@ -303,6 +330,12 @@ watch(filteredMembers, (members) => {
 
 const submit = () => {
     if (!canCreate.value) return;
+    const lockedCoopId = props.coopContext?.id?.toString() || coopIdFromUrl.value?.toString() || '';
+
+    if (lockedCoopId) {
+        form.coop_id = lockedCoopId;
+    }
+
     form.transform((data) => ({
         ...data,
         activity_id: data.category === 'activity' && data.activity_id !== NO_ACTIVITY_VALUE ? data.activity_id : '',
@@ -324,7 +357,10 @@ const submit = () => {
 };
 
 const fundingCoopId = computed(() =>
-    selectedActivity.value?.coop_id || form.coop_id || (props.coopContext?.id ? String(props.coopContext.id) : null)
+    props.coopContext?.id?.toString()
+    || coopIdFromUrl.value?.toString()
+    || selectedActivity.value?.coop_id?.toString()
+    || form.coop_id
 );
 const handleBack = navigateBack;
 const handleCancel = navigateBack;

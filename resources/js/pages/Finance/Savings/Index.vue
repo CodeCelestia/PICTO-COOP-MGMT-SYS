@@ -245,7 +245,7 @@ const resetFilter = () => {
 
 const createHref = computed(() => {
     if (isFromCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}/finance/savings/create`;
+        return `/cooperatives/${coopContextId.value}/finance/savings/create?return_to=${encodeURIComponent(currentUrl)}`;
     }
 
     return currentUrl
@@ -265,7 +265,7 @@ const viewHref = (savingsId: number) => {
 
 const editHref = (savingsId: number) => {
     if (isFromCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}/finance/savings/${savingsId}/edit`;
+        return `/cooperatives/${coopContextId.value}/finance/savings/${savingsId}/edit?return_to=${encodeURIComponent(currentUrl)}`;
     }
 
     return currentUrl

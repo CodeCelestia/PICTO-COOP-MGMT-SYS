@@ -149,11 +149,12 @@ class FinancialRecordsController extends Controller
         ]);
     }
 
-    public function show(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord)
+    public function show($a = null, $b = null)
     {
+        [$cooperative, $financialRecord] = $this->resolveCoopAndRecord($a, $b);
         $user = request()->user();
 
-        if ($cooperative->id !== $financialRecord->coop_id) {
+        if ($cooperative && $cooperative->id !== $financialRecord->coop_id) {
             abort(404);
         }
 
@@ -171,5 +172,55 @@ class FinancialRecordsController extends Controller
                 'can_edit' => $user?->can('update finance-ledger-entries') ?? false,
             ],
         ]);
+    }
+
+    /**
+     * Normalize incoming parameters for routes that may be either:
+     * - /finance/financial-records/{record}
+     * - /cooperatives/{cooperative}/finance/financial-records/{record}
+     * Accepts either (FinancialRecord) or (cooperative, FinancialRecord) or numeric ids.
+     * Returns [$cooperative, FinancialRecord $record]
+     */
+    private function resolveCoopAndRecord($a = null, $b = null): array
+    {
+        // If first arg is a FinancialRecord instance and second is null => global route
+        if ($a instanceof FinancialRecord && $b === null) {
+            return [null, $a];
+        }
+
+        // If second arg is a FinancialRecord instance => per-coop route
+        if ($b instanceof FinancialRecord) {
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $b];
+            }
+            return [$a, $b];
+        }
+
+        // If first is numeric (id) and second is null => global route by id
+        if (is_numeric($a) && $b === null) {
+            $record = FinancialRecord::findOrFail((int) $a);
+            return [null, $record];
+        }
+
+        // If second is numeric id => per-coop route by id
+        if ($b !== null && is_numeric($b)) {
+            $record = FinancialRecord::findOrFail((int) $b);
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $record];
+            }
+            return [$a, $record];
+        }
+
+        // Fallback: attempt to resolve from route
+        $routeRecord = request()->route('financialRecord');
+        if ($routeRecord instanceof FinancialRecord) {
+            return [request()->route('cooperative') ?? null, $routeRecord];
+        }
+
+        abort(400, 'Unable to resolve financial record.');
     }
 }

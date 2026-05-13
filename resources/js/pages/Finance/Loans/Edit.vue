@@ -65,7 +65,7 @@ const backHref = computed(() => {
     }
 
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
     }
 
     return '/finance/loans';
@@ -200,6 +200,12 @@ const removeExistingAttachment = (path: string) => {
     }
 };
 
+const triggerFileInput = () => {
+    if (typeof document !== 'undefined') {
+        document.getElementById('loan-edit-upload')?.click();
+    }
+};
+
 const getSubmitUrl = () => {
     if (isCoopContext.value && coopContextId.value) {
         return `/cooperatives/${coopContextId.value}/finance/loans/${props.loan.id}`;
@@ -262,7 +268,7 @@ onUnmounted(() => {
                         <div v-if="isCoopContext" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                             <span>/</span>
-                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                            <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                             <span>/</span>
                             <span class="text-foreground">Edit Loan</span>
                         </div>
@@ -427,7 +433,7 @@ onUnmounted(() => {
                             <div class="rounded-2xl border border-dashed border-border bg-muted/20 p-4">
                                 <div class="flex flex-wrap items-center gap-3">
                                     <input type="file" multiple class="hidden" id="loan-edit-upload" @change="handleNewFiles" />
-                                    <Button type="button" class="gap-2 bg-foreground text-background hover:bg-foreground/90" @click="document.getElementById('loan-edit-upload')?.click()">
+                                    <Button type="button" class="gap-2 bg-foreground text-background hover:bg-foreground/90" @click="triggerFileInput()">
                                         <Upload class="h-4 w-4" />
                                         Add Files
                                     </Button>

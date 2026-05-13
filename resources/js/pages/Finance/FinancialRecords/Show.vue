@@ -43,8 +43,19 @@ const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
 
 const isFromCoopContext = computed(() => window.location.pathname.startsWith('/cooperatives/'));
 const coopIdFromUrl = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return coopId ? parseInt(coopId) : null;
+    // First try query parameter (backward compatibility)
+    const queryCoopId = new URLSearchParams(window.location.search).get('coop_id');
+    if (queryCoopId) {
+        return parseInt(queryCoopId);
+    }
+    
+    // Then try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
 });
 
 const displayText = (value: string | null | undefined) => value || '—';
@@ -88,7 +99,7 @@ const displayTitle = (record: FinancialRecord) => {
 
 const editHref = computed(() => {
     if (isFromCoopContext.value) {
-        return `/cooperatives/${coopSlug.value}/finance/financial-records/${props.record.id}/edit`;
+        return `/cooperatives/${coopIdFromUrl.value || props.record.cooperative?.id}/finance/financial-records/${props.record.id}/edit?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     }
     return coopIdFromUrl.value
         ? `/finance/financial-records/${props.record.id}/edit?coop_id=${coopIdFromUrl.value}`
@@ -97,7 +108,7 @@ const editHref = computed(() => {
 
 const handleBack = () => {
     if (isFromCoopContext.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=financial-records`);
+        router.get(`/cooperatives/${coopIdFromUrl.value || props.record.cooperative?.id}?tab=finance&subtab=financial-records`);
         return;
     }
     if (coopIdFromUrl.value) {
@@ -118,9 +129,9 @@ const handleBack = () => {
             <div v-if="isFromCoopContext" class="text-sm flex items-center gap-2">
                 <Link href="/cooperatives" class="text-primary hover:underline">Cooperatives</Link>
                 <span class="text-muted-foreground">/</span>
-                <Link :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ props.record.cooperative?.name || 'Cooperative' }}</Link>
+                <Link :href="`/cooperatives/${coopIdFromUrl.value || props.record.cooperative?.id}`" class="text-primary hover:underline">{{ props.record.cooperative?.name || 'Cooperative' }}</Link>
                 <span class="text-muted-foreground">/</span>
-                <Link :href="isFromCoopContext ? `/cooperatives/${coopSlug}?tab=finance&subtab=financial-records` : '/finance/financial-records'" class="text-primary hover:underline">Financial Records</Link>
+                <Link :href="isFromCoopContext ? `/cooperatives/${coopIdFromUrl.value || props.record.cooperative?.id}?tab=finance&subtab=financial-records` : '/finance/financial-records'" class="text-primary hover:underline">Financial Records</Link>
                 <span class="text-muted-foreground">/</span>
                 <span class="text-foreground">Record</span>
             </div>

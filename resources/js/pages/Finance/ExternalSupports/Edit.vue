@@ -71,6 +71,10 @@ const coopIdFromUrl = computed(() => {
     const param = new URLSearchParams(window.location.search).get('coop_id');
     return param ? parseInt(param) : null;
 });
+const returnToPath = computed(() => {
+    const value = new URLSearchParams(window.location.search).get('return_to') || '';
+    return value.startsWith('/') ? value : '';
+});
 const isFromCoopContext = computed(() => coopIdFromUrl.value !== null);
 const isPerCoopRoute = computed(() => !!props.cooperative?.id);
 
@@ -83,6 +87,7 @@ const form = useForm({
     date_completed: dateInputValue(props.support.date_completed),
     status: props.support.status,
     remarks: props.support.remarks || '',
+    return_to: returnToPath.value,
 });
 
 const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake } = useFormUx(form);
@@ -164,11 +169,11 @@ const submit = () => {
 
 const handleBack = () => {
     if (isPerCoopRoute.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=external-supports`);
+        router.get(`/cooperatives/${coopIdFromUrl.value || props.cooperative?.id}?tab=finance&subtab=external-supports`);
         return;
     }
     if (coopIdFromUrl.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=external-supports`);
+        router.get(`/cooperatives/${coopIdFromUrl.value || props.cooperative?.id}?tab=finance&subtab=external-supports`);
         return;
     }
     router.get('/finance/external-supports');
@@ -186,11 +191,11 @@ const handleCancel = async () => {
     });
     if (!result.isConfirmed) { return; }
     if (isPerCoopRoute.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=external-supports`);
+        router.get(`/cooperatives/${coopIdFromUrl.value || props.cooperative?.id}?tab=finance&subtab=external-supports`);
         return;
     }
     if (coopIdFromUrl.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=external-supports`);
+        router.get(`/cooperatives/${coopIdFromUrl.value || props.cooperative?.id}?tab=finance&subtab=external-supports`);
         return;
     }
     router.get('/finance/external-supports');

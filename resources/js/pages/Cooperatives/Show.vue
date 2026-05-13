@@ -679,7 +679,7 @@ const statusBadgeClass = computed(() => {
                                 </dl>
                             </section>
 
-                            <section class="rounded-xl border border-border bg-background p-5 shadow-sm">
+                            <section class="rounded-xl border border-border bg-background p-6 shadow-sm xl:col-span-2 xl:p-7">
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <h3 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Registration Requirements</h3>

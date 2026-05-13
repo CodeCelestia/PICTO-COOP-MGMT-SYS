@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cooperative;
 use App\Models\FinancialRecord;
 use App\Models\Member;
 use App\Models\MemberSavings;
@@ -251,8 +252,11 @@ class SavingsController extends Controller
         return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account created successfully.');
     }
 
-    public function show(MemberSavings $savings, Request $request): Response
+    public function show($a = null, $b = null): Response
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $savings->coop_id) {
@@ -272,14 +276,17 @@ class SavingsController extends Controller
         ]);
     }
 
-    public function edit(MemberSavings $savings, Request $request): Response
+    public function edit($a = null, $b = null): Response
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         if ($request->routeIs('cooperatives.finance.savings.*')) {
-            $cooperative = $request->route('cooperative');
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
         }
+
         $this->enforceSavingsAccess($savings, $request->user());
 
         if ($request->filled('coop_id') && (int) $request->input('coop_id') !== $savings->coop_id) {
@@ -287,7 +294,7 @@ class SavingsController extends Controller
         }
 
         $isCoopContext = $request->routeIs('cooperatives.finance.savings.*');
-        $coopContext = $isCoopContext ? $request->route('cooperative') : null;
+        $coopContext = $isCoopContext ? $cooperative : null;
 
         return Inertia::render('Finance/Savings/Edit', [
             'savings' => $savings->load(['cooperative:id,name']),
@@ -296,8 +303,11 @@ class SavingsController extends Controller
         ]);
     }
 
-    public function update(Request $request, MemberSavings $savings): RedirectResponse
+    public function update($a = null, $b = null): RedirectResponse
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         if (!$request->user()?->can('update finance-savings-accounts')) {
             abort(403, 'You do not have permission to update savings accounts.');
         }
@@ -327,11 +337,9 @@ class SavingsController extends Controller
         }
 
         if ($request->routeIs('cooperatives.finance.savings.*')) {
-            $cooperative = $request->route('cooperative');
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            // Redirect back to Cooperatives/Show with tab=finance&subtab=savings to stay in component
             $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
             return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=savings")
                 ->with('success', 'Savings account updated successfully.');
@@ -340,8 +348,11 @@ class SavingsController extends Controller
         return redirect()->route('finance.savings.show', $savings)->with('success', 'Savings account updated successfully.');
     }
 
-    public function destroy(MemberSavings $savings, Request $request): RedirectResponse
+    public function destroy($a = null, $b = null): RedirectResponse
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         if (!$request->user()?->can('close finance-savings-accounts')) {
             abort(403, 'You do not have permission to close savings accounts.');
         }
@@ -363,11 +374,9 @@ class SavingsController extends Controller
         );
 
         if ($request->routeIs('cooperatives.finance.savings.*')) {
-            $cooperative = $request->route('cooperative');
             if ($cooperative === 'my') {
                 $cooperative = \App\Models\Cooperative::where('id', auth()->user()->cooperative_id)->firstOrFail();
             }
-            // Redirect back to Cooperatives/Show with tab=finance&subtab=savings to stay in component
             $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
             return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=savings")
                 ->with('success', 'Savings account closed successfully.');
@@ -376,8 +385,11 @@ class SavingsController extends Controller
         return redirect()->route('finance.savings.index')->with('success', 'Savings account closed successfully.');
     }
 
-    public function calculateInterest(Request $request, MemberSavings $savings): RedirectResponse
+    public function calculateInterest($a = null, $b = null): RedirectResponse
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         if (!$request->user()?->can('calculate-interest finance-savings-accounts') && !$request->user()?->can('override finance-auto-jobs')) {
             abort(403, 'You do not have permission to calculate savings interest.');
         }
@@ -419,8 +431,11 @@ class SavingsController extends Controller
         return back()->with('success', 'Interest calculated and applied.');
     }
 
-    public function recordTransaction(Request $request, MemberSavings $savings): RedirectResponse
+    public function recordTransaction($a = null, $b = null): RedirectResponse
     {
+        [$cooperative, $savings] = $this->resolveCoopAndSavings($a, $b);
+        $request = request();
+
         if (!$request->user()?->can('record-deposit finance-savings-accounts') && !$request->user()?->can('record-withdrawal finance-savings-accounts')) {
             abort(403, 'You do not have permission to record savings transactions.');
         }
@@ -468,6 +483,56 @@ class SavingsController extends Controller
         if ($this->isMemberOnly($user) && $user?->member_id && $savings->member_id !== $user->member_id) {
             abort(403);
         }
+    }
+
+    /**
+     * Normalize incoming parameters for routes that may be either:
+     * - /finance/savings/{savings}
+     * - /cooperatives/{cooperative}/finance/savings/{savings}
+     * Accepts either (MemberSavings) or (cooperative, MemberSavings) or numeric ids.
+     * Returns [$cooperative, MemberSavings $savings]
+     */
+    private function resolveCoopAndSavings($a = null, $b = null): array
+    {
+        // If first arg is a MemberSavings instance and second is null => global route
+        if ($a instanceof MemberSavings && $b === null) {
+            return [null, $a];
+        }
+
+        // If second arg is a MemberSavings instance => per-coop route
+        if ($b instanceof MemberSavings) {
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $b];
+            }
+            return [$a, $b];
+        }
+
+        // If first is numeric (id) and second is null => global route by id
+        if (is_numeric($a) && $b === null) {
+            $savings = MemberSavings::findOrFail((int) $a);
+            return [null, $savings];
+        }
+
+        // If second is numeric id => per-coop route by id
+        if ($b !== null && is_numeric($b)) {
+            $savings = MemberSavings::findOrFail((int) $b);
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $savings];
+            }
+            return [$a, $savings];
+        }
+
+        // Fallback: attempt to resolve from route
+        $routeSavings = request()->route('savings');
+        if ($routeSavings instanceof MemberSavings) {
+            return [request()->route('cooperative') ?? null, $routeSavings];
+        }
+
+        abort(400, 'Unable to resolve savings account.');
     }
 
     private function isMemberOnly($user): bool

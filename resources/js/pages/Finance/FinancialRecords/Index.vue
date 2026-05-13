@@ -88,6 +88,10 @@ const props = defineProps<Props>();
 const page = usePage();
 const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
 const currentUrl = computed(() => `${window.location.pathname}${window.location.search}`);
+const coopIdFromUrl = computed(() => {
+    const coopId = new URLSearchParams(window.location.search).get('coop_id');
+    return coopId ? parseInt(coopId, 10) : null;
+});
 
 const isFromCoopContext = computed(() => window.location.pathname.startsWith('/cooperatives/'));
 
@@ -260,16 +264,16 @@ const deleteRecord = async (recordId: number) => {
 };
 
 const viewHref = (recordId: number) => isFromCoopContext.value
-    ? `/cooperatives/${coopSlug.value}/finance/financial-records/${recordId}`
+    ? `/cooperatives/${activeCoop.value?.id || props.cooperative?.id || coopIdFromUrl.value}/finance/financial-records/${recordId}?return_to=${encodeURIComponent(currentUrl.value)}`
     : `/finance/financial-records/${recordId}`;
 
 const editHref = (recordId: number) => isFromCoopContext.value
-    ? `/cooperatives/${coopSlug.value}/finance/financial-records/${recordId}/edit`
+    ? `/cooperatives/${activeCoop.value?.id || props.cooperative?.id || coopIdFromUrl.value}/finance/financial-records/${recordId}/edit?return_to=${encodeURIComponent(currentUrl.value)}`
     : `/finance/financial-records/${recordId}/edit?return_to=${encodeURIComponent(currentUrl.value)}`;
 
 const createHref = computed(() => {
     if (isFromCoopContext.value) {
-        return `/cooperatives/${coopSlug.value}/finance/financial-records/create`;
+        return `/cooperatives/${activeCoop.value?.id || props.cooperative?.id || coopIdFromUrl.value}/finance/financial-records/create?return_to=${encodeURIComponent(currentUrl.value)}`;
     }
     return activeCoop.value
         ? `/finance/financial-records/create?coop_id=${activeCoop.value.id}&return_to=${encodeURIComponent(currentUrl.value)}`
@@ -300,7 +304,7 @@ const getStatusColor = (status: string): string => {
                 <div v-if="isFromCoopContext" class="text-sm flex items-center gap-2">
                     <Link href="/cooperatives" class="text-primary hover:underline">Cooperatives</Link>
                     <span class="text-muted-foreground">/</span>
-                    <Link :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ activeCoop?.name || 'Cooperative' }}</Link>
+                    <Link :href="`/cooperatives/${activeCoop?.id || coopIdFromUrl}`" class="text-primary hover:underline">{{ activeCoop?.name || 'Cooperative' }}</Link>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">Financial Records</span>
                 </div>

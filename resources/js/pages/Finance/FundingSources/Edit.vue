@@ -109,6 +109,7 @@ const form = useForm<{
     remarks: string;
     attachments: Array<File | null>;
     attachments_removed: string[];
+    return_to: string;
 }>({
     activity_id: props.fundingSource.activity_id ? props.fundingSource.activity_id.toString() : NO_ACTIVITY_VALUE,
     category: props.fundingSource.category || 'activity',
@@ -124,6 +125,7 @@ const form = useForm<{
     remarks: props.fundingSource.remarks || '',
     attachments: [],
     attachments_removed: [],
+    return_to: new URLSearchParams(window.location.search).get('return_to') || '',
 });
 
 const { isDirty, isPreFilling, markClean, inputErrorClass, clearError, scrollToFirstError, triggerErrorShake, showErrorShake } = useFormUx(form);

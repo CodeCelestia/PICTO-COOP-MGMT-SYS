@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AlertCircle, ArrowLeft, Building2, PiggyBank, Save, X } from 'lucide-vue-next';
 import { useFormUx } from '@/composables/useFormUx';
+import { useCreateBack } from '@/composables/useCreateBack';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -25,12 +26,35 @@ const isFromCoopContext = computed(() => {
 });
 
 const coopIdFromUrl = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return coopId ? parseInt(coopId) : null;
+    // First try query parameter (backward compatibility)
+    const queryCoopId = new URLSearchParams(window.location.search).get('coop_id');
+    if (queryCoopId) {
+        return parseInt(queryCoopId);
+    }
+    
+    // Then try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
 });
 
+const coopContextId = computed(() => coopIdFromUrl.value || null);
+
+const backHref = computed(() => {
+    if (isFromCoopContext.value && coopContextId.value) {
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=savings`;
+    }
+
+    return '/finance/savings';
+});
+
+const { returnToHref } = useCreateBack({ fallbackHref: backHref.value });
+
 const form = useForm({
-    return_to: '',
+    return_to: returnToHref.value,
     member_id: '',
     opening_balance: 0,
     interest_rate: 3,
@@ -63,11 +87,11 @@ const props = defineProps<{
 const cooperative = computed(() => props.coopContext || null);
 
 const handleBackClick = () => {
-    handleCancel({ fallbackBack: true });
+    handleCancel({ fallbackBack: true, fallbackHref: backHref.value });
 };
 
 const handleCancelClick = () => {
-    handleCancel({ fallbackBack: true });
+    handleCancel({ fallbackBack: true, fallbackHref: backHref.value });
 };
 
 const submit = () => {

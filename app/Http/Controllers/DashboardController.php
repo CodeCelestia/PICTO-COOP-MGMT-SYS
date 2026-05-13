@@ -82,7 +82,7 @@ class DashboardController extends Controller
             'memberRecentLoans' => $memberRecentLoans,
             'memberServicesCount' => $memberServicesCount,
             'memberActivitiesCount' => $memberActivitiesCount,
-            'memberTrainingsCount' => $memberTrainingsCount,
+            'memberTrainingsCount' => $memberTrainingsCount ?? 0,
         ]);
     }
 

@@ -297,6 +297,11 @@ class ExternalSupportController extends Controller
 
         $externalSupport->update(['financial_record_id' => $financialRecord->id]);
 
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'External support record added successfully.');
+        }
+
         $cooperativeParam = $request->route('cooperative');
         $cooperative = $this->resolveCooperative($cooperativeParam);
 
@@ -392,6 +397,11 @@ class ExternalSupportController extends Controller
         }
 
         $externalSupport->update($validated);
+
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', 'External support record updated successfully.');
+        }
 
         if ($request->routeIs('cooperatives.finance.external-supports.*')) {
             return redirect()

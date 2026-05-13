@@ -386,7 +386,7 @@ const getStatusColor = (status: string): string => {
                 <div v-if="isFromCoopContext" class="text-sm flex items-center gap-2">
                     <Link href="/cooperatives" class="text-primary hover:underline">Cooperatives</Link>
                     <span class="text-muted-foreground">/</span>
-                    <Link :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ activeCoop?.name || 'Cooperative' }}</Link>
+                    <Link :href="`/cooperatives/${activeCoop?.id || coopIdFromUrl}`" class="text-primary hover:underline">{{ activeCoop?.name || 'Cooperative' }}</Link>
                     <span class="text-muted-foreground">/</span>
                     <span class="text-foreground">External Supports</span>
                 </div>
@@ -396,7 +396,7 @@ const getStatusColor = (status: string): string => {
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">External Supports</h1>
                         <p class="text-sm text-muted-foreground">Track government and external support</p>
                     </div>
-                    <Link v-if="canCreate" :href="selectedCoop ? `/cooperatives/${coopSlug}/finance/external-supports/create` : '/external-supports/create'">
+                    <Link v-if="canCreate" :href="selectedCoop ? `/cooperatives/${selectedCoop.id}/finance/external-supports/create?return_to=${encodeURIComponent(currentUrl)}` : `/external-supports/create?return_to=${encodeURIComponent(currentUrl)}`">
                         <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                             <Plus class="h-4 w-4" />
                             Add Support

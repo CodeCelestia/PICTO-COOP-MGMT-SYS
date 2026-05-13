@@ -305,16 +305,14 @@ class LoansController extends \App\Http\Controllers\Controller
             'Loans'
         );
 
-        $returnTo = $request->input('return_to', 'finance');
+        $returnTo = $this->resolveInternalReturnTo($request);
         $cooperative = $request->route('cooperative');
         $cooperativeId = $cooperative instanceof Cooperative
             ? $cooperative->id
             : (is_numeric($cooperative) ? (int) $cooperative : null);
 
-        if ($cooperativeId && $returnTo === 'members') {
-            return redirect()
-                ->route('cooperatives.show', ['cooperative' => $cooperativeId, 'tab' => 'members'])
-                ->with('success', 'Loan created successfully.');
+        if ($returnTo) {
+            return redirect()->to($returnTo)->with('success', 'Loan created successfully.');
         }
 
         if ($cooperativeId && $request->routeIs('cooperatives.finance.loans.*')) {
@@ -755,7 +753,7 @@ class LoansController extends \App\Http\Controllers\Controller
             return [
                 'path' => $path,
                 'name' => $fileName,
-                'url' => Storage::disk('public')->url($path),
+                'url' => asset('storage/' . $path),
                 'extension' => strtolower(pathinfo($fileName, PATHINFO_EXTENSION)),
             ];
         }, array_values(array_filter($attachmentPaths, static fn ($path) => is_string($path) && trim($path) !== ''))));

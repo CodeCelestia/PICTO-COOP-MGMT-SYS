@@ -51,8 +51,19 @@ const isFromCoopContext = computed(() => {
 });
 
 const coopIdFromUrl = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return coopId ? parseInt(coopId) : null;
+    // First try query parameter (backward compatibility)
+    const queryCoopId = new URLSearchParams(window.location.search).get('coop_id');
+    if (queryCoopId) {
+        return parseInt(queryCoopId);
+    }
+    
+    // Then try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
 });
 
 const coopContextId = computed(() => {
@@ -67,14 +78,14 @@ const coopContextId = computed(() => {
     return coopIdFromUrl.value;
 });
 
-const fallbackHref = computed(() => {
+const backHref = computed(() => {
     if (isFromCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopSlug.value}/finance/savings/${props.savings.id}`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=savings`;
     }
     return `/finance/savings/${props.savings.id}`;
 });
 
-const { returnToHref } = useCreateBack({ fallbackHref });
+const { returnToHref } = useCreateBack({ fallbackHref: backHref.value });
 
 const form = useForm({
     return_to: returnToHref.value,
@@ -102,11 +113,11 @@ onMounted(() => {
 const cooperative = computed(() => props.coopContext || props.savings.cooperative || null);
 
 const handleBackClick = () => {
-    handleCancel({ fallbackBack: true });
+    handleCancel({ fallbackBack: true, fallbackHref: backHref.value });
 };
 
 const handleCancelClick = () => {
-    handleCancel({ fallbackBack: true });
+    handleCancel({ fallbackBack: true, fallbackHref: backHref.value });
 };
 
 const submit = () => {

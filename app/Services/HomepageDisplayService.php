@@ -115,6 +115,6 @@ class HomepageDisplayService
             return asset($photo->path);
         }
 
-        return Storage::disk('public')->url($photo->path);
+        return asset('storage/' . $photo->path);
     }
 }

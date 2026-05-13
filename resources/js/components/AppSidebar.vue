@@ -180,7 +180,7 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
-    if (isSuperAdmin.value) {
+    if (can('view display')) {
         items.push({
             title: 'Display',
             href: '/display',

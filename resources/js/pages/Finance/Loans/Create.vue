@@ -72,6 +72,7 @@ const props = defineProps<{
 
 const page = usePage();
 const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
+const coopContextId = computed(() => props.preselectedCoopId || props.preselectedCoop?.id || null);
 const isFromCoopContext = computed(() => Boolean(props.preselectedCoopId));
 const queryParams = computed(() => new URLSearchParams((page.url || '').split('?')[1] || ''));
 const returnToParam = computed(() => {
@@ -198,7 +199,8 @@ const selectedCooperativeLoanTypes = computed(() => {
         return props.preselectedCoop?.loanTypes || [];
     }
 
-    return selectedCooperative.value?.loan_types || [];
+    const coop = selectedCooperative.value as any;
+    return coop?.loan_types || [];
 });
 
 const selectedCooperativeClassification = computed(() => {
@@ -220,7 +222,7 @@ const filteredLoanTypes = computed(() => {
         ? selectedCooperativeClassification.value
         : selectedMember.value?.cooperative?.classification || null;
 
-    return sourceLoanTypes.filter((loanType) => {
+    return (sourceLoanTypes as LoanTypeOption[]).filter((loanType) => {
         if (selectedMember.value && loanType.cooperative_id !== selectedMember.value.coop_id) {
             return false;
         }
@@ -247,7 +249,7 @@ watch(filteredLoanTypes, (loanTypes) => {
         return;
     }
 
-    const exists = loanTypes.some((loanType) => String(loanType.id) === String(form.loan_type_id));
+    const exists = (loanTypes as LoanTypeOption[]).some((loanType) => String(loanType.id) === String(form.loan_type_id));
     if (!exists) {
         form.loan_type_id = '';
     }
@@ -293,7 +295,7 @@ const openAttachmentPreview = (file: File) => {
 
 const backHref = computed(() => {
     if (isFromCoopContext.value && props.preselectedCoopId) {
-        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
     }
 
     return returnToParam.value || '/finance/loans';
@@ -387,7 +389,7 @@ onUnmounted(() => {
                         <div v-if="isFromCoopContext" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                             <span>/</span>
-                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ selectedCooperativeName }}</a>
+                            <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ selectedCooperativeName }}</a>
                             <span>/</span>
                             <span class="text-foreground">Create Loan</span>
                         </div>

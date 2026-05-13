@@ -46,6 +46,56 @@ class FinancialRecordController extends Controller
         }
     }
 
+    /**
+     * Normalize incoming parameters for routes that may be either:
+     * - /finance/financial-records/{record}
+     * - /cooperatives/{cooperative}/finance/financial-records/{record}
+     * Accepts either (FinancialRecord) or (cooperative, FinancialRecord) or numeric ids.
+     * Returns [$cooperative, FinancialRecord $record]
+     */
+    private function resolveCoopAndRecord($a = null, $b = null): array
+    {
+        // If first arg is a FinancialRecord instance and second is null => global route
+        if ($a instanceof FinancialRecord && $b === null) {
+            return [null, $a];
+        }
+
+        // If second arg is a FinancialRecord instance => per-coop route
+        if ($b instanceof FinancialRecord) {
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $b];
+            }
+            return [$a, $b];
+        }
+
+        // If first is numeric (id) and second is null => global route by id
+        if (is_numeric($a) && $b === null) {
+            $record = FinancialRecord::findOrFail((int) $a);
+            return [null, $record];
+        }
+
+        // If second is numeric id => per-coop route by id
+        if ($b !== null && is_numeric($b)) {
+            $record = FinancialRecord::findOrFail((int) $b);
+            // If $a is numeric string, convert to Cooperative instance
+            if (is_numeric($a)) {
+                $cooperative = Cooperative::findOrFail((int) $a);
+                return [$cooperative, $record];
+            }
+            return [$a, $record];
+        }
+
+        // Fallback: attempt to resolve from route
+        $routeRecord = request()->route('financialRecord');
+        if ($routeRecord instanceof FinancialRecord) {
+            return [request()->route('cooperative') ?? null, $routeRecord];
+        }
+
+        abort(400, 'Unable to resolve financial record.');
+    }
+
     public function index(Request $request): Response
     {
         $user = auth()->user();
@@ -184,13 +234,15 @@ class FinancialRecordController extends Controller
         return redirect()->route('financial-records.index')->with('success', 'Financial record created successfully.');
     }
 
-    public function edit(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord): Response
+    public function edit(Request $request, $a = null, $b = null): Response
     {
-        $user = auth()->user();
+        [$cooperative, $financialRecord] = $this->resolveCoopAndRecord($a, $b);
 
-        if ($cooperative->id !== $financialRecord->coop_id) {
+        if ($cooperative && $cooperative->id !== $financialRecord->coop_id) {
             abort(404);
         }
+
+        $user = $request->user();
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
@@ -214,16 +266,17 @@ class FinancialRecordController extends Controller
         ]);
     }
 
-    public function update(Request $request, Cooperative $cooperative, FinancialRecord $financialRecord): RedirectResponse
+    public function update(Request $request, $a = null, $b = null): RedirectResponse
     {
-        $user = auth()->user();
+        [$cooperative, $financialRecord] = $this->resolveCoopAndRecord($a, $b);
+        $user = $request->user();
         $coopId = $user?->coop_id;
 
         if (!$this->isProvincialAdmin() && !$this->isCoopAdmin() && !$this->isOfficer()) {
             abort(403);
         }
 
-        if ($cooperative->id !== $financialRecord->coop_id) {
+        if ($cooperative && $cooperative->id !== $financialRecord->coop_id) {
             abort(404);
         }
 
@@ -262,9 +315,9 @@ class FinancialRecordController extends Controller
             return redirect()->to($safeReturnTo)->with('success', 'Financial record updated successfully.');
         }
 
-        if (request()->routeIs('cooperatives.finance.financial-records.*')) {
-            // Redirect back to Cooperatives/Show with tab=finance&subtab=financial-records to stay in component
-            return redirect()->to("/cooperatives/{$cooperative->id}?tab=finance&subtab=financial-records")
+        if ($request->routeIs('cooperatives.finance.financial-records.*')) {
+            $coopId = is_object($cooperative) ? $cooperative->id : $cooperative;
+            return redirect()->to("/cooperatives/{$coopId}?tab=finance&subtab=financial-records")
                 ->with('success', 'Financial record updated successfully.');
         }
 

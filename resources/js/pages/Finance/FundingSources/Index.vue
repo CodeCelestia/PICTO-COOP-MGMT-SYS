@@ -407,7 +407,7 @@ const bulkDeleteFundingSources = async () => {
                         <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Activity Funding Sources</h1>
                         <p class="text-sm text-muted-foreground">Track funding sources per activity</p>
                     </div>
-                    <Link v-if="canCreate && !showCooperativesList" :href="`${fundingSourceBasePath}/create`">
+                    <Link v-if="canCreate && !showCooperativesList" :href="`${fundingSourceBasePath}/create?return_to=${encodeURIComponent(currentUrl)}`">
                         <Button class="gap-2 bg-foreground text-background hover:bg-foreground/90">
                             <Plus class="h-4 w-4" />
                             Add Funding Source

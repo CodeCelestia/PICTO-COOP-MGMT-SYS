@@ -81,7 +81,7 @@ const backHref = computed(() => {
     }
 
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopSlug.value}?tab=finance&subtab=loans`;
+        return `/cooperatives/${coopContextId.value}?tab=finance&subtab=loans`;
     }
 
     return '/finance/loans';
@@ -89,7 +89,7 @@ const backHref = computed(() => {
 
 const editHref = computed(() => {
     if (isCoopContext.value && coopContextId.value) {
-        return `/cooperatives/${coopContextId.value}/finance/loans/${props.loan.id}/edit`;
+        return `/cooperatives/${coopContextId.value}/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(backHref.value)}`;
     }
 
     return backHref.value ? `/finance/loans/${props.loan.id}/edit?return_to=${encodeURIComponent(backHref.value)}` : `/finance/loans/${props.loan.id}/edit`;
@@ -194,6 +194,12 @@ const recordPayment = async () => {
     }
 };
 
+const openFilePreview = (url: string) => {
+    if (typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+};
+
 const goBack = () => {
     router.get(backHref.value);
 };
@@ -210,7 +216,7 @@ const goBack = () => {
                         <div v-if="isCoopContext" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                             <span>/</span>
-                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
+                            <a :href="`/cooperatives/${coopContextId}`" class="text-primary hover:underline">{{ cooperativeName }}</a>
                             <span>/</span>
                             <span class="text-foreground">Loan #{{ loan.id }}</span>
                         </div>
@@ -296,7 +302,7 @@ const goBack = () => {
                                     <p class="text-xs text-muted-foreground">Supporting document</p>
                                 </div>
                             </div>
-                            <Button type="button" variant="outline" size="sm" class="gap-2" @click="window.open(file.url, '_blank', 'noopener,noreferrer')">
+                            <Button type="button" variant="outline" size="sm" class="gap-2" @click="openFilePreview(file.url)">
                                 <Eye class="h-3.5 w-3.5" />
                                 Preview
                             </Button>

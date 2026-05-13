@@ -1,4 +1,5 @@
 import { ref, watch, onMounted } from 'vue';
+import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 
 export function useFormUx(form: any) {
@@ -50,7 +51,7 @@ export function useFormUx(form: any) {
 
     const markClean = () => { isDirty.value = false; };
 
-    const handleCancel = async (options?: { confirmTitle?: string; confirmText?: string; confirmButtonText?: string; cancelButtonText?: string; fallbackBack?: boolean; confirmAlways?: boolean }) => {
+    const handleCancel = async (options?: { confirmTitle?: string; confirmText?: string; confirmButtonText?: string; cancelButtonText?: string; fallbackBack?: boolean; fallbackHref?: string; confirmAlways?: boolean }) => {
         const fallbackBack = options?.fallbackBack ?? true;
         if (isDirty.value || options?.confirmAlways) {
             const result = await Swal.fire({
@@ -65,12 +66,24 @@ export function useFormUx(form: any) {
             });
 
             if (result.isConfirmed) {
-                if (fallbackBack) window.history.back();
+                if (fallbackBack) {
+                    if (options?.fallbackHref) {
+                        router.get(options.fallbackHref);
+                    } else {
+                        window.history.back();
+                    }
+                }
             }
             return result;
         }
 
-        if (fallbackBack) window.history.back();
+        if (fallbackBack) {
+            if (options?.fallbackHref) {
+                router.get(options.fallbackHref);
+            } else {
+                window.history.back();
+            }
+        }
         // Return an object compatible with Swal result so callers can check .isConfirmed
         return { isConfirmed: true } as any;
     };

@@ -66,7 +66,7 @@ const props = defineProps<{
 const { goBack } = useCreateBack({ fallbackHref: '/finance/funding-sources' });
 const handleBackClick = () => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=funding-sources`);
+        router.get(`/cooperatives/${coopIdFromUrl.value}?tab=finance&subtab=funding-sources`);
         return;
     }
 
@@ -130,7 +130,7 @@ const statusBadgeClass = (status: string) => {
 
 const editHref = vueComputed(() => {
     if (isFromCoopContext.value && coopIdFromUrl.value) {
-        return `/cooperatives/${coopIdFromUrl.value}/finance/funding-sources/${props.fundingSource.id}/edit`;
+        return `/cooperatives/${coopIdFromUrl.value}/finance/funding-sources/${props.fundingSource.id}/edit?return_to=${encodeURIComponent(currentUrl)}`;
     }
 
     return currentUrl
@@ -152,7 +152,7 @@ const displayText = (value?: string | null) => value && String(value).trim() ? v
                         <div v-if="isFromCoopContext" class="mb-2 text-sm text-muted-foreground">
                             <a href="/cooperatives" class="text-primary hover:underline">Cooperatives</a>
                             <span class="mx-2">/</span>
-                            <a :href="`/cooperatives/${coopSlug}`" class="text-primary hover:underline">Cooperative</a>
+                            <a :href="`/cooperatives/${coopIdFromUrl}`" class="text-primary hover:underline">Cooperative</a>
                             <span class="mx-2">/</span>
                             <span>Funding Source</span>
                         </div>

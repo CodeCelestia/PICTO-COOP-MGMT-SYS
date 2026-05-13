@@ -44,6 +44,16 @@ const isCoopContext = computed(() => Boolean(props.isCoopContext && props.coopCo
 const coopSlug = computed(() => page.props.auth?.user?.coop_slug ?? 'my');
 const cooperative = computed<Cooperative | null>(() => props.coopContext || props.cooperatives[0] || null);
 
+const coopIdFromPath = computed(() => {
+    // First try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
+});
+
 const form = useForm({
     coop_id: props.coopContext?.id?.toString() || props.cooperatives[0]?.id?.toString() || '',
     period: '',
@@ -59,6 +69,7 @@ const form = useForm({
     external_assistance_received: '',
     type_of_assistance: '',
     reference_doc: '',
+    return_to: '',
 });
 
 const { isDirty, inputErrorClass, clearError, markClean, handleCancel, showErrorShake, scrollToFirstError } = useFormUx(form);
@@ -67,13 +78,14 @@ const typeOptions = ['Income', 'Expense', 'Grant', 'Loan', 'Support', 'Capital']
 const assistanceTypes = ['Grant', 'Loan', 'Training', 'Equipment', 'Technical Assistance', 'Other'];
 
 const handleFormCancel = async () => {
-    if (isCoopContext.value && props.coopContext) {
-        const result = await handleCancel();
+    if (isCoopContext.value && (props.coopContext || coopIdFromPath.value)) {
+        const result = await handleCancel({ fallbackBack: false });
         if (!result?.isConfirmed) return;
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=financial-records`);
+        const coopId = props.coopContext?.id || coopIdFromPath.value;
+        router.get(`/cooperatives/${coopId}?tab=finance&subtab=financial-records`);
         return;
     }
-    const result = await handleCancel();
+    const result = await handleCancel({ fallbackBack: false });
     if (!result?.isConfirmed) return;
     router.get('/finance/financial-records');
 };
@@ -81,12 +93,13 @@ const handleFormCancel = async () => {
 const submit = () => {
     if (!canCreate.value) return;
     
-    if (isCoopContext.value && props.coopContext) {
-        form.coop_id = String(props.coopContext.id);
+    const coopId = props.coopContext?.id || coopIdFromPath.value;
+    if (isCoopContext.value && coopId) {
+        form.coop_id = String(coopId);
     }
 
-    form.post(isCoopContext.value && props.coopContext
-        ? `/cooperatives/${props.coopContext.id}/finance/financial-records`
+    form.post(isCoopContext.value && coopId
+        ? `/cooperatives/${coopId}/finance/financial-records`
         : '/finance/financial-records', {
         preserveScroll: true,
         onSuccess: () => markClean(),

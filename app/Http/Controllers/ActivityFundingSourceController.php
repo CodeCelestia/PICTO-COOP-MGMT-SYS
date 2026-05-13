@@ -58,6 +58,11 @@ class ActivityFundingSourceController extends Controller
 
     private function resolveIndexRedirect(Request $request, string $message): RedirectResponse
     {
+        $safeReturnTo = $this->resolveInternalReturnTo($request);
+        if ($safeReturnTo) {
+            return redirect()->to($safeReturnTo)->with('success', $message);
+        }
+
         if ($request->routeIs('cooperatives.finance.funding-sources.*')) {
             $cooperative = $request->route('cooperative');
             if ($cooperative === 'my') {
@@ -285,6 +290,14 @@ class ActivityFundingSourceController extends Controller
             abort(403);
         }
 
+        $isCoopContext = $request->routeIs('cooperatives.finance.funding-sources.*');
+        $routeCooperative = $isCoopContext ? $request->route('cooperative') : null;
+        if ($routeCooperative) {
+            $routeCooperative = $routeCooperative instanceof Cooperative
+                ? $routeCooperative
+                : Cooperative::findOrFail((int) $routeCooperative);
+        }
+
         $validated = $request->validate([
             'activity_id' => ['nullable', 'exists:activities,id', Rule::requiredIf($request->input('category') === 'activity')],
             'category' => ['required', Rule::in(['activity', 'project', 'member_concern'])],
@@ -303,6 +316,10 @@ class ActivityFundingSourceController extends Controller
             'attachments_removed' => ['nullable', 'array'],
             'attachments_removed.*' => ['string'],
         ]);
+
+        if ($routeCooperative) {
+            $validated['coop_id'] = $routeCooperative->id;
+        }
 
         if (($validated['category'] ?? null) !== 'activity') {
             $validated['activity_id'] = null;

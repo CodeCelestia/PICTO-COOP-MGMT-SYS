@@ -55,8 +55,19 @@ const isFromCoopContext = computed(() => {
 });
 
 const coopIdFromUrl = computed(() => {
-    const coopId = new URLSearchParams(window.location.search).get('coop_id');
-    return coopId ? parseInt(coopId) : null;
+    // First try query parameter (backward compatibility)
+    const queryCoopId = new URLSearchParams(window.location.search).get('coop_id');
+    if (queryCoopId) {
+        return parseInt(queryCoopId);
+    }
+    
+    // Then try to extract from path: /cooperatives/{id}/finance/...
+    const pathMatch = window.location.pathname.match(/\/cooperatives\/(\d+)\//);
+    if (pathMatch && pathMatch[1]) {
+        return parseInt(pathMatch[1]);
+    }
+    
+    return null;
 });
 
 const cooperativeName = computed(() => props.savings.cooperative?.name || 'Cooperative');
@@ -129,7 +140,7 @@ const handleBackClick = () => {
     }
 
     if (isFromCoopContext.value && coopContextId.value) {
-        router.get(`/cooperatives/${coopSlug.value}?tab=finance&subtab=savings`);
+        router.get(`/cooperatives/${coopContextId.value}?tab=finance&subtab=savings`);
     } else {
         goBack();
     }
